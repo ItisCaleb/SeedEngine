@@ -1,6 +1,7 @@
 #include <GLFW/glfw3.h>
 #include <seed/engine.h>
 #include <seed/types.h>
+#include <seed/input.h>
 #include <spdlog/spdlog.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +17,15 @@ static void error_callback(int error, const char *description) {
     spdlog::error("GLFW Error: {}", description);
 }
 
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    KeyCode k = static_cast<KeyCode>(key);
+    if (action == GLFW_PRESS){
+        Input::get_instance()->press_key(k);
+    }else if(action == GLFW_RELEASE){
+        Input::get_instance()->release_key(k);
+    }
+}
 SeedEngine *SeedEngine::get_instance() { return instance; }
 
 void SeedEngine::delay(f32 seconds) {
@@ -31,9 +41,12 @@ void SeedEngine::start() {
         return;
     }
     spdlog::info("Starting SeedEngine");
-
+    Input *input = Input::get_instance();
     while (!glfwWindowShouldClose(window)) {
         f64 start = glfwGetTime();
+        if(input->is_key_pressed(KeyCode::Q)){
+            break;
+        }
         glfwPollEvents();
 
         glfwSwapBuffers(window);
@@ -56,6 +69,9 @@ SeedEngine::SeedEngine(f32 target_fps) {
     glfwSetErrorCallback(error_callback);
 
     spdlog::info("Initializing SeedEngine");
+
+    Input *input = new Input;
+
     if (!glfwInit()) {
         spdlog::error("Can't initialize GLFW. Exiting");
         exit(1);
@@ -71,7 +87,7 @@ SeedEngine::SeedEngine(f32 target_fps) {
         exit(1);
     }
 
-    // glfwSetKeyCallback(window, key_callback);
+    glfwSetKeyCallback(window, key_callback);
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);

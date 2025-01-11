@@ -1,6 +1,7 @@
 add_library(seed STATIC 
     engine.cc
-    main.cc)
+    input.cc
+    )
 
 find_package(glfw3 CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
