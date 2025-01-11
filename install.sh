@@ -1,0 +1,1 @@
+git submodule update --init && cmake --preset vcpkg

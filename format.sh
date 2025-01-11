@@ -1,0 +1,1 @@
+clang-format -i src/*.c lib/*.c include/cg/*.h
