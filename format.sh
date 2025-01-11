@@ -1,1 +1,1 @@
-clang-format -i src/*.c lib/*.c include/cg/*.h
+clang-format -i src/*.cc game/*.cc include/seed/*.h

@@ -1,3 +1,3 @@
-cmake --preset vcpkg &&\
-cmake --build build &&\
+cmake --preset default
+cmake --build build&&\
 ./build/app

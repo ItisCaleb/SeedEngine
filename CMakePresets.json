@@ -2,11 +2,26 @@
     "version": 2,
     "configurePresets": [
       {
-        "name": "vcpkg",
+        "name": "default",
         "generator": "Unix Makefiles",
         "binaryDir": "${sourceDir}/build",
         "cacheVariables": {
+          "VCPKG_MANIFEST_INSTALL":false,
           "CMAKE_TOOLCHAIN_FILE": "./vcpkg/scripts/buildsystems/vcpkg.cmake"
+        }
+      },
+      {
+        "name": "test",
+        "inherits": ["default"],
+        "cacheVariables": {
+          "TEST": true
+        }
+      },
+      {
+        "name": "install",
+        "inherits": ["default"],
+        "cacheVariables": {
+          "VCPKG_MANIFEST_INSTALL":true
         }
       }
     ]
