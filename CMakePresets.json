@@ -24,5 +24,12 @@
           "VCPKG_MANIFEST_INSTALL":true
         }
       }
+    ],
+    "buildPresets": [
+      {
+        "name": "default",
+        "configurePreset": "default",
+        "jobs": 4
+      }
     ]
   }
