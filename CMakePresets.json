@@ -3,7 +3,7 @@
     "configurePresets": [
       {
         "name": "default",
-        "generator": "Unix Makefiles",
+        "generator": "Ninja",
         "binaryDir": "${sourceDir}/build",
         "cacheVariables": {
           "VCPKG_MANIFEST_INSTALL":false,

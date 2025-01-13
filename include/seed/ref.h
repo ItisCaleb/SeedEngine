@@ -5,8 +5,7 @@
 #include <atomic>
 
 namespace Seed {
-template <typename T>
-class Ref;
+
 class RefCounted {
    private:
     std::atomic_uint rc;
@@ -31,15 +30,14 @@ class RefCounted {
 
 template <typename T>
 class Ref {
+    static_assert(std::is_base_of<RefCounted, T>::value,
+                  "T must be a derived class of RefCounted in Ref<T>.");
+
    private:
     T *data;
 
    public:
-
-
-    T *operator*() {
-        return data;
-    }
+    T *operator*() { return data; }
 
     T *operator->() { return data; }
 
@@ -63,7 +61,7 @@ class Ref {
     inline bool is_null() const { return data == nullptr; }
 
     template <typename... Args>
-    Ref<T> create(const Args&... args){
+    Ref<T> create(const Args &...args) {
         return Ref<T>(new T(args));
     }
 
