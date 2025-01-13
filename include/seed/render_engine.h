@@ -1,7 +1,7 @@
 #ifndef _SEED_RENDER_ENGINE_H_
 #define _SEED_RENDER_ENGINE_H_
-#include <GLFW/glfw3.h>
 #include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
 namespace Seed {
 class RenderEngine {

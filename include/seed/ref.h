@@ -35,7 +35,7 @@ class Ref {
     T *data;
 
    public:
-    template <typename... Args>
+
 
     T *operator*() {
         return data;
@@ -47,6 +47,7 @@ class Ref {
 
     void operator=(T *from) {
         if (from) {
+            if (this->data == from) return;
             this->data = from;
             if (this->data->get_rc() == 0) {
                 this->data->init_ref();
@@ -60,6 +61,11 @@ class Ref {
 
     inline bool is_valid() const { return data != nullptr; }
     inline bool is_null() const { return data == nullptr; }
+
+    template <typename... Args>
+    Ref<T> create(const Args&... args){
+        return Ref<T>(new T(args));
+    }
 
     Ref(T *data) { this->operator=(data); }
 

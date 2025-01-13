@@ -16,11 +16,13 @@ class ResourceLoader {
    public:
     static ResourceLoader *get_instance();
     template <typename T>
-    Ref<T> load(std::string path);
+    Ref<T> load(const std::string &path);
     template <>
-    Ref<Texture> load(std::string path);
+    Ref<Texture> load(const std::string &path);
     template <>
-    Ref<Mesh> load(std::string path);
+    Ref<Mesh> load(const std::string &path);
+
+    Shader loadShader(const std::string &vertex_path, const std::string &fragment_path);
 
     ResourceLoader(/* args */);
     ~ResourceLoader();

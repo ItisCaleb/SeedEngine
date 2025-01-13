@@ -14,7 +14,7 @@ struct Vertex {
     Vec2 tex_coord;
 };
 
-struct Mesh : RefCounted{
+struct Mesh : public RefCounted{
     std::vector<Vertex> vertices;
     std::vector<u32> indices;
     std::vector<Texture> textures;

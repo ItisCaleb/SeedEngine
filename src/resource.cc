@@ -1,6 +1,8 @@
 #include <glad/glad.h>
 #include <seed/resource.h>
+#include <seed/io/file.h>
 #include <spdlog/spdlog.h>
+#include <stdexcept>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <assimp/postprocess.h>  // Post processing flags
@@ -20,7 +22,7 @@ ResourceLoader::ResourceLoader() {
 ResourceLoader::~ResourceLoader() { instance = nullptr; }
 
 template <>
-Ref<Texture> ResourceLoader::load(std::string path) {
+Ref<Texture> ResourceLoader::load(const std::string &path) {
     int w, h, comp;
     Texture *tex = new Texture;
     stbi_set_flip_vertically_on_load(true);
@@ -47,7 +49,7 @@ Ref<Texture> ResourceLoader::load(std::string path) {
 }
 
 template <>
-Ref<Mesh> ResourceLoader::load(std::string path) {
+Ref<Mesh> ResourceLoader::load(const std::string &path) {
     Assimp::Importer importer;
 
     const aiScene *scene = importer.ReadFile(
@@ -82,6 +84,56 @@ Ref<Mesh> ResourceLoader::load(std::string path) {
                           (void *)(6 * sizeof(f32)));
     glEnableVertexAttribArray(0);
     return Ref<Mesh>(mesh);
+}
+
+Shader ResourceLoader::loadShader(const std::string &vertex_path,
+                                  const std::string &fragment_path) {
+    Ref<File> vertex_f = File::open(vertex_path, "r");
+    if (vertex_f.is_null()) {
+        throw std::exception("Can't open vertex shader.");
+    }
+    Ref<File> fragment_f = File::open(fragment_path, "r");
+    if (fragment_f.is_null()) {
+        throw std::exception("Can't open fragment shader.");
+    }
+    std::string vertex_s = vertex_f->read();
+    std::string fragment_s = fragment_f->read();
+    const char *vertex_code = vertex_s.c_str();
+    const char *fragment_code = fragment_s.c_str();
+
+    u32 vertex, fragment;
+    int success;
+    char info[512];
+    vertex = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex, 1, &vertex_code, NULL);
+    glCompileShader(vertex);
+    glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(vertex, 512, NULL, info);
+        throw std::exception(info);
+    }
+
+    fragment = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment, 1, &fragment_code, NULL);
+    glCompileShader(fragment);
+    glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(fragment, 512, NULL, info);
+        throw std::exception(info);
+    }
+    u32 id = glCreateProgram();
+    glAttachShader(id, vertex);
+    glAttachShader(id, fragment);
+    glLinkProgram(id);
+    glGetProgramiv(id, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(id, 512, NULL, info);
+        throw std::exception(info);
+    }
+    Shader shader(id);
+    glDeleteShader(vertex);
+    glDeleteShader(fragment);
+    return shader;
 }
 
 }  // namespace Seed

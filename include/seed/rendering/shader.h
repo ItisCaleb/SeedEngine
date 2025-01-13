@@ -7,8 +7,8 @@ namespace Seed{
     private:
         u32 id;
     public:
-        Shader(/* args */);
-        ~Shader();
+        Shader(u32 id);
+        void use();
     };
     
     

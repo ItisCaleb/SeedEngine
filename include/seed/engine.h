@@ -1,7 +1,7 @@
 #ifndef _SEED_ENGINE_H_
 #define _SEED_ENGINE_H_
-#include <GLFW/glfw3.h>
 #include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include <seed/types.h>
 
 namespace Seed {

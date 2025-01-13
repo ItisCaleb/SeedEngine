@@ -3,6 +3,7 @@ add_library(seed STATIC
     input.cc
     render_engine.cc
     resource.cc
+    shader.cc
     )
 
 find_package(glfw3 CONFIG REQUIRED)
