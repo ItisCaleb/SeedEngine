@@ -15,6 +15,13 @@ class Entity {
    public:
     Ref<Mesh> get_mesh();
     void bind_mesh(Ref<Mesh> model);
+    Vec3 get_position();
+    void set_position(Vec3 position);
+    Vec3 get_rotation();
+    void set_rotation(Vec3 position);
+    Vec3 get_scale();
+    void set_scale(Vec3 position);
+
     Entity(Vec3 position, Vec3 rotation, Vec3 scale, Ref<Mesh> model);
     Entity(Vec3 position, Ref<Mesh> model);
     ~Entity();

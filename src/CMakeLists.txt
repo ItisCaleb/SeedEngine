@@ -7,6 +7,7 @@ add_library(seed STATIC
     world.cc
     entity.cc
     mesh.cc
+    camera.cc
     )
 
 find_package(glfw3 CONFIG REQUIRED)

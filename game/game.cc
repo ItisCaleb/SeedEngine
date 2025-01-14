@@ -40,8 +40,8 @@ static const u32 CUBE_INDICE[6][6] = {
     {3, 2, 6, 6, 7, 3}};
 
 static const Vec3 CUBE_NORMAL[] = {0.0f,  0.0f,  -1.0f, 0.0f, 0.0f, 1.0f,
-                                       -1.0f, 0.0f,  0.0f,  1.0f, 0.0f, 0.0f,
-                                       0.0f,  -1.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+                                   -1.0f, 0.0f,  0.0f,  1.0f, 0.0f, 0.0f,
+                                   0.0f,  -1.0f, 0.0f,  0.0f, 1.0f, 0.0f};
 
 static const f32 CUBE_TEX[] = {0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
                                1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
@@ -51,19 +51,18 @@ int main(void) {
     ResourceLoader *loader = ResourceLoader::get_instance();
     RenderEngine *render_engine = RenderEngine::get_instance();
     Ref<Texture> tex = loader->load<Texture>("assets/1.png");
-    try{
-        Ref<Shader> s = loader->loadShader("assets/vertex.glsl", "assets/fragment.glsl");
+    try {
+        Ref<Shader> s =
+            loader->loadShader("assets/vertex.glsl", "assets/fragment.glsl");
         render_engine->bind_shader(s);
-    }catch(std::exception &e){
+    } catch (std::exception &e) {
         spdlog::error("Error loading Shader: {}", e.what());
     }
     std::vector<Vertex> vertices;
     std::vector<u32> indices;
     std::vector<Texture> t;
-    for(int i=0;i<sizeof(CUBE)/sizeof(Vec3);i++){
-        vertices.push_back(Vertex{
-            CUBE[i],CUBE_NORMAL[i],CUBE_TEX[i]
-        });
+    for (int i = 0; i < sizeof(CUBE) / sizeof(Vec3); i++) {
+        vertices.push_back(Vertex{CUBE[i]});
     }
 
     for (int i = 0; i < 6; i++) {
@@ -71,10 +70,9 @@ int main(void) {
             indices.push_back(CUBE_INDICE[i][j]);
         }
     }
-    Ref<Mesh> mesh = Mesh::create(
-        vertices, indices, t
-    );
-    Entity *ent = new Entity(Vec3{0,0,0}, mesh);
+    Ref<Mesh> mesh = Mesh::create(vertices, indices, t);
+    Entity *ent = new Entity(Vec3{0, 0, -2}, mesh);
+    ent->set_rotation(Vec3{0.5, 0.5, 0.5});
     engine->get_world()->add_entity(ent);
     engine->start();
 

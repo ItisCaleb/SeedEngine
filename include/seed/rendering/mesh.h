@@ -9,8 +9,8 @@
 namespace Seed {
 struct Vertex {
     Vec3 position;
-    Vec3 normal;
-    Vec2 tex_coord;
+    // Vec3 normal;
+    // Vec2 tex_coord;
 };
 
 struct Mesh : public RefCounted {

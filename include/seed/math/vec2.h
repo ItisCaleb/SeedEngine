@@ -13,8 +13,8 @@ struct Vec2 {
         f32 coord[2] = {0};
     };
 
-    f32& operator[](i32 axis) { return this->coord[axis]; }
-    const f32& operator[](i32 axis) const { return this->coord[axis]; }
+    f32 &operator[](i32 axis) { return this->coord[axis]; }
+    const f32 &operator[](i32 axis) const { return this->coord[axis]; }
 
     Vec2 operator+(const Vec2 &b) { return Vec2{x + b.x, y + b.y}; }
 
@@ -46,11 +46,13 @@ struct Vec2 {
         y /= s;
     }
 
-    f32 operator*(const Vec2 &b) { return x * b.x + y * b.y; }
+    Vec2 operator*(const Vec2 &b) { return Vec2{x * b.x, y * b.y}; }
 
     bool operator==(const Vec2 &b) { return x == b.x && y == b.y; }
 
     f32 length() { return sqrtf(x * x + y * y); }
+
+    f32 dot(const Vec2 &b) { return x * b.x + y * b.y; }
 
     Vec2 norm(const Vec2 &b) {
         f32 len = length();

@@ -23,12 +23,12 @@ Ref<Mesh> Mesh::create(std::vector<Vertex> &vertices, std::vector<u32> &indices,
                  mesh->indices.data(), GL_STATIC_DRAW);
     /* position */
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)0);
-    /* normal */
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                          (void *)(3 * sizeof(f32)));
-    /* tex coords*/
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                          (void *)(6 * sizeof(f32)));
+    // /* normal */
+    // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+    //                       (void *)(3 * sizeof(f32)));
+    // /* tex coords*/
+    // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+    //                       (void *)(6 * sizeof(f32)));
     glEnableVertexAttribArray(0);
     return mesh;
 }
