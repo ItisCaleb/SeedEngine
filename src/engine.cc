@@ -41,6 +41,7 @@ void SeedEngine::init_systems() {
     Input *input = new Input;
     RenderEngine *render_engine = new RenderEngine(window, width, height);
     ResourceLoader *resource_loader = new ResourceLoader;
+    this->world = new World;
 }
 
 void SeedEngine::start() {
@@ -49,6 +50,7 @@ void SeedEngine::start() {
     }
     spdlog::info("Starting SeedEngine");
     Input *input = Input::get_instance();
+    RenderEngine *render_engine = RenderEngine::get_instance();
     while (!glfwWindowShouldClose(window)) {
         f64 start = glfwGetTime();
         if (input->is_key_pressed(KeyCode::Q)) {
@@ -56,6 +58,7 @@ void SeedEngine::start() {
         }
         glfwPollEvents();
 
+        render_engine->render();
         glfwSwapBuffers(window);
 
         f64 delta = glfwGetTime() - start;
@@ -69,6 +72,11 @@ void SeedEngine::start() {
 
     glfwTerminate();
 }
+
+World* SeedEngine::get_world(){
+    return world;
+}
+
 
 SeedEngine::SeedEngine(f32 target_fps) {
     instance = this;

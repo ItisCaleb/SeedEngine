@@ -10,13 +10,11 @@ class World {
     std::vector<Entity *> entities;
 
    public:
-    World(/* args */);
-    ~World();
+    std::vector<Entity *>& get_entities();
+    void add_entity(Entity *entity);
+    World(/* args */) = default;
+    ~World() = default;
 };
-
-World::World(/* args */) {}
-
-World::~World() {}
 
 }  // namespace Seed
 

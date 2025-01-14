@@ -10,10 +10,13 @@ class Entity {
     Vec3 position;
     Vec3 rotation;
     Vec3 scale;
-    Mesh *model;
+    Ref<Mesh> model;
 
    public:
-    Entity(Vec3 position, Vec3 rotation, Vec3 scale, Mesh *model);
+    Ref<Mesh> get_mesh();
+    void bind_mesh(Ref<Mesh> model);
+    Entity(Vec3 position, Vec3 rotation, Vec3 scale, Ref<Mesh> model);
+    Entity(Vec3 position, Ref<Mesh> model);
     ~Entity();
 };
 

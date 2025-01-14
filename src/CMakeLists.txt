@@ -4,6 +4,9 @@ add_library(seed STATIC
     render_engine.cc
     resource.cc
     shader.cc
+    world.cc
+    entity.cc
+    mesh.cc
     )
 
 find_package(glfw3 CONFIG REQUIRED)

@@ -23,12 +23,24 @@
         "cacheVariables": {
           "VCPKG_MANIFEST_INSTALL":true
         }
+      },
+      {
+        "name": "debug",
+        "inherits": ["default"],
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug"
+        }
       }
     ],
     "buildPresets": [
       {
         "name": "default",
         "configurePreset": "default",
+        "jobs": 4
+      },
+      {
+        "name": "debug",
+        "configurePreset": "debug",
         "jobs": 4
       }
     ]

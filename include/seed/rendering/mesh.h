@@ -6,7 +6,6 @@
 #include <seed/ref.h>
 #include <vector>
 
-
 namespace Seed {
 struct Vertex {
     Vec3 position;
@@ -14,11 +13,15 @@ struct Vertex {
     Vec2 tex_coord;
 };
 
-struct Mesh : public RefCounted{
+struct Mesh : public RefCounted {
     std::vector<Vertex> vertices;
     std::vector<u32> indices;
     std::vector<Texture> textures;
     u32 VAO, VBO, EBO;
+
+    static Ref<Mesh> create(std::vector<Vertex> &vertices,
+                            std::vector<u32> &indices,
+                            std::vector<Texture> &textures);
 };
 
 }  // namespace Seed

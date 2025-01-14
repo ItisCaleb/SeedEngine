@@ -24,11 +24,11 @@ ResourceLoader::~ResourceLoader() { instance = nullptr; }
 template <>
 Ref<Texture> ResourceLoader::load(const std::string &path) {
     int w, h, comp;
-    Texture *tex = new Texture;
+    Ref<Texture> tex;
     stbi_set_flip_vertically_on_load(true);
     void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
-    if (!data) return Ref<Texture>();
-
+    if (!data) return tex;
+    tex.create();
     glGenTextures(1, &tex->id);
     glBindTexture(GL_TEXTURE_2D, tex->id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -45,7 +45,7 @@ Ref<Texture> ResourceLoader::load(const std::string &path) {
 
     stbi_image_free(data);
     glBindTexture(GL_TEXTURE_2D, 0);
-    return Ref(tex);
+    return tex;
 }
 
 template <>
@@ -56,13 +56,14 @@ Ref<Mesh> ResourceLoader::load(const std::string &path) {
         path, aiProcess_CalcTangentSpace | aiProcess_Triangulate |
                   aiProcess_JoinIdenticalVertices | aiProcess_SortByPType);
 
+    Ref<Mesh> mesh;
     // If the import failed, report it
     if (!scene) {
         spdlog::error("Can't load Mesh from {}", path);
-        return Ref<Mesh>();
+        return mesh;
     }
-
-    Mesh *mesh = new Mesh;
+    
+    mesh.create();
     glGenVertexArrays(1, &mesh->VAO);
     glGenBuffers(1, &mesh->VBO);
     glGenBuffers(1, &mesh->EBO);
@@ -72,7 +73,7 @@ Ref<Mesh> ResourceLoader::load(const std::string &path) {
     glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * mesh->vertices.size(),
                  mesh->vertices.data(), GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(u32) * mesh->indices.size(),
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * mesh->indices.size(),
                  mesh->indices.data(), GL_STATIC_DRAW);
     /* position */
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)0);
@@ -83,10 +84,10 @@ Ref<Mesh> ResourceLoader::load(const std::string &path) {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                           (void *)(6 * sizeof(f32)));
     glEnableVertexAttribArray(0);
-    return Ref<Mesh>(mesh);
+    return mesh;
 }
 
-Shader ResourceLoader::loadShader(const std::string &vertex_path,
+Ref<Shader> ResourceLoader::loadShader(const std::string &vertex_path,
                                   const std::string &fragment_path) {
     Ref<File> vertex_f = File::open(vertex_path, "r");
     if (vertex_f.is_null()) {
@@ -130,7 +131,7 @@ Shader ResourceLoader::loadShader(const std::string &vertex_path,
         glGetProgramInfoLog(id, 512, NULL, info);
         throw std::exception(info);
     }
-    Shader shader(id);
+    Ref<Shader> shader(id);
     glDeleteShader(vertex);
     glDeleteShader(fragment);
     return shader;

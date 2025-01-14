@@ -22,7 +22,7 @@ class ResourceLoader {
     template <>
     Ref<Mesh> load(const std::string &path);
 
-    Shader loadShader(const std::string &vertex_path, const std::string &fragment_path);
+    Ref<Shader> loadShader(const std::string &vertex_path, const std::string &fragment_path);
 
     ResourceLoader(/* args */);
     ~ResourceLoader();

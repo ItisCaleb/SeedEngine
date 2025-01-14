@@ -6,4 +6,7 @@ namespace Seed{
     void Shader::use(){
         glUseProgram(id);
     }
+    u32 Shader::get_id(){
+        return id;
+    }
 }
