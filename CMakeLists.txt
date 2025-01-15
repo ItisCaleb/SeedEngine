@@ -13,7 +13,35 @@ OPTION(TEST
 "Build unit test"
 OFF)
 
-add_subdirectory(src)
+
+add_library(seed STATIC)
+
+target_include_directories(seed PUBLIC .)
+
+find_package(glfw3 CONFIG REQUIRED)
+find_package(OpenGL REQUIRED)
+find_package(fmt CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(glad CONFIG REQUIRED)
+find_package(assimp CONFIG REQUIRED)
+
+target_link_libraries(seed PUBLIC 
+    glad::glad
+    glfw 
+    OpenGL::GL
+    fmt::fmt
+    spdlog::spdlog
+    assimp::assimp
+)
+
+add_subdirectory(core)
+
+add_executable(app)
+target_include_directories(app PRIVATE .)
+target_link_libraries(app seed)
+
+set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/build")
+
 
 if(TEST)
     add_subdirectory(test)

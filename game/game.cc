@@ -1,6 +1,7 @@
-#include <seed/engine.h>
-#include <seed/resource.h>
-#include <seed/render_engine.h>
+#include "core/engine.h"
+#include "core/resource.h"
+#include "core/render_engine.h"
+#include "camera_entity.h"
 #include <spdlog/spdlog.h>
 
 using namespace Seed;
@@ -43,7 +44,7 @@ static const Vec3 CUBE_NORMAL[] = {0.0f,  0.0f,  -1.0f, 0.0f, 0.0f, 1.0f,
                                    -1.0f, 0.0f,  0.0f,  1.0f, 0.0f, 0.0f,
                                    0.0f,  -1.0f, 0.0f,  0.0f, 1.0f, 0.0f};
 
-static const f32 CUBE_TEX[] = {0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+static const Vec2 CUBE_TEX[] = {0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
                                1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
 
 int main(void) {
@@ -61,19 +62,20 @@ int main(void) {
     std::vector<Vertex> vertices;
     std::vector<u32> indices;
     std::vector<Texture> t;
-    for (int i = 0; i < sizeof(CUBE) / sizeof(Vec3); i++) {
-        vertices.push_back(Vertex{CUBE[i]});
-    }
 
     for (int i = 0; i < 6; i++) {
         for (int j = 0; j < 6; j++) {
-            indices.push_back(CUBE_INDICE[i][j]);
+           vertices.push_back(Vertex{CUBE[CUBE_INDICE[i][j]], CUBE_NORMAL[i], CUBE_TEX[j]});
         }
+    }
+    for(int i=0;i<vertices.size();i++){
+        indices.push_back(i);
     }
     Ref<Mesh> mesh = Mesh::create(vertices, indices, t);
     Entity *ent = new Entity(Vec3{0, 0, -2}, mesh);
     ent->set_rotation(Vec3{0.5, 0.5, 0.5});
     engine->get_world()->add_entity(ent);
+    engine->get_world()->add_entity<CameraEntity>();
     engine->start();
 
     return 0;
