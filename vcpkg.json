@@ -1,9 +1,10 @@
 {
   "dependencies": [
+    "assimp",
     "fmt",
     "glad",
     "glfw3",
     "spdlog",
-    "assimp"
+    "stb"
   ]
 }

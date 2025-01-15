@@ -7,7 +7,8 @@
         "binaryDir": "${sourceDir}/build",
         "cacheVariables": {
           "VCPKG_MANIFEST_INSTALL":false,
-          "CMAKE_TOOLCHAIN_FILE": "./vcpkg/scripts/buildsystems/vcpkg.cmake"
+          "CMAKE_TOOLCHAIN_FILE": "./vcpkg/scripts/buildsystems/vcpkg.cmake",
+          "CMAKE_BUILD_TYPE": "Debug"
         }
       },
       {
@@ -25,10 +26,10 @@
         }
       },
       {
-        "name": "debug",
+        "name": "release",
         "inherits": ["default"],
         "cacheVariables": {
-          "CMAKE_BUILD_TYPE": "Debug"
+          "CMAKE_BUILD_TYPE": "Release"
         }
       }
     ],
@@ -39,8 +40,8 @@
         "jobs": 4
       },
       {
-        "name": "debug",
-        "configurePreset": "debug",
+        "name": "release",
+        "configurePreset": "release",
         "jobs": 4
       }
     ]

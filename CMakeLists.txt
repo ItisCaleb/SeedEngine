@@ -24,6 +24,7 @@ find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 
 target_link_libraries(seed PUBLIC 
     glad::glad
@@ -40,7 +41,7 @@ add_executable(app)
 target_include_directories(app PRIVATE .)
 target_link_libraries(app seed)
 
-set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/build")
+set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
 
 
 if(TEST)

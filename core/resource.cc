@@ -7,7 +7,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <assimp/postprocess.h>  // Post processing flags
 #include <assimp/scene.h>        // Output data structure
-#include "thirdparty/stb_image.h"
+#include <stb_image.h>
 
 #include <assimp/Importer.hpp>  // C++ importer interface
 
