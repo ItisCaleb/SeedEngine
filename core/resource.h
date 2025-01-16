@@ -4,6 +4,7 @@
 #include "rendering/mesh.h"
 #include "rendering/shader.h"
 #include "rendering/texture.h"
+#include "rendering/api/render_resource.h"
 #include "types.h"
 
 #include <string>
@@ -22,7 +23,7 @@ class ResourceLoader {
     template <>
     Ref<Mesh> load(const std::string &path);
 
-    Ref<Shader> loadShader(const std::string &vertex_path, const std::string &fragment_path);
+    RenderResource loadShader(const std::string &vertex_path, const std::string &fragment_path);
 
     ResourceLoader(/* args */);
     ~ResourceLoader();

@@ -29,7 +29,8 @@ class Camera {
     Mat4 look_at();
     Mat4 perspective();
     Camera(Vec3 pos, Vec3 up, Vec3 front);
-    ~Camera();
+    Camera();
+    ~Camera() = default;
 };
 
 }  // namespace Seed

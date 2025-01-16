@@ -1,10 +1,10 @@
 target_sources(seed PRIVATE 
     engine.cc
     input.cc
-    render_engine.cc
     resource.cc
     world.cc
     entity.cc
+    model_entity.cc
     )
 
 

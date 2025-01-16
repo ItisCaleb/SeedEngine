@@ -37,12 +37,18 @@
       {
         "name": "default",
         "configurePreset": "default",
-        "jobs": 4
+        "jobs": 4,
+        "targets":["seed", "app"]
       },
       {
         "name": "release",
-        "configurePreset": "release",
-        "jobs": 4
+        "inherits":["default"]
+      },
+      {
+        "name": "editor",
+        "jobs": 4,
+        "configurePreset": "default",
+        "targets": ["editor"]
       }
     ]
   }

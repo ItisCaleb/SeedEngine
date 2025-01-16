@@ -1,21 +1,22 @@
-#ifndef CAMERA_ENTITY
-#define CAMERA_ENTITY
+#ifndef _SEED_MODEL_ENTITY_H_
+#define _SEED_MODEL_ENTITY_H_
 #include "core/entity.h"
 #include "core/rendering/api/render_engine.h"
 
 
 namespace Seed
 {
-    class CameraEntity: public Entity
+    class ModelEntity: public Entity
     {
     private:
-        Camera cam;
+        RenderResource mesh_rc;
         RenderResource *matrices_rc;
     public:
-        void update(f32 dt) override;
         void render(RenderCommandDispatcher &dp) override;
-        CameraEntity();
-        ~CameraEntity();
+        ModelEntity(Vec3 position, Ref<Mesh> model);
+        ModelEntity(Ref<Mesh> model);
+
+        ~ModelEntity() = default;
     };
 
 

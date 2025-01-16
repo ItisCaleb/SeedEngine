@@ -1,7 +1,8 @@
 #include "core/engine.h"
 #include "core/resource.h"
-#include "core/render_engine.h"
+#include "core/rendering/api/render_engine.h"
 #include "camera_entity.h"
+#include "core/model_entity.h"
 #include <spdlog/spdlog.h>
 
 using namespace Seed;
@@ -52,15 +53,13 @@ int main(void) {
     ResourceLoader *loader = ResourceLoader::get_instance();
     RenderEngine *render_engine = RenderEngine::get_instance();
     Ref<Texture> tex = loader->load<Texture>("assets/1.png");
+    RenderResource shader_rc;
     try {
-        Ref<Shader> s =
-            loader->loadShader("assets/vertex.glsl", "assets/fragment.glsl");
-        render_engine->bind_shader(s);
+        shader_rc = loader->loadShader("assets/vertex.glsl", "assets/fragment.glsl");
     } catch (std::exception &e) {
         spdlog::error("Error loading Shader: {}", e.what());
     }
     std::vector<Vertex> vertices;
-    std::vector<u32> indices;
     std::vector<Texture> t;
 
     for (int i = 0; i < 6; i++) {
@@ -68,14 +67,23 @@ int main(void) {
            vertices.push_back(Vertex{CUBE[CUBE_INDICE[i][j]], CUBE_NORMAL[i], CUBE_TEX[j]});
         }
     }
-    for(int i=0;i<vertices.size();i++){
-        indices.push_back(i);
-    }
-    Ref<Mesh> mesh = Mesh::create(vertices, indices, t);
-    Entity *ent = new Entity(Vec3{0, 0, -2}, mesh);
+
+    Ref<Mesh> mesh = Mesh::create(vertices, t);
+    RenderCommandDispatcher dp;
+    dp.begin();
+    dp.use(&shader_rc);
+    dp.end();
+    RenderResource::register_resource("Default", shader_rc);
+
+
+    RenderResource matrices_rc;
+    matrices_rc.alloc_constant(sizeof(Mat4) * 3, NULL);
+    RenderResource::register_resource("Matrices", matrices_rc);
+    
+    Entity *ent = new ModelEntity(Vec3{0, 0, -2}, mesh);
     ent->set_rotation(Vec3{0.5, 0.5, 0.5});
-    engine->get_world()->add_entity(ent);
     engine->get_world()->add_entity<CameraEntity>();
+    engine->get_world()->add_entity(ent);
     engine->start();
 
     return 0;

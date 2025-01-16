@@ -13,7 +13,7 @@ OPTION(TEST
 "Build unit test"
 OFF)
 
-
+# The engine static library
 add_library(seed STATIC)
 
 target_include_directories(seed PUBLIC .)
@@ -25,6 +25,9 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(Stb REQUIRED)
+find_package(imgui CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+
 
 target_link_libraries(seed PUBLIC 
     glad::glad
@@ -32,20 +35,35 @@ target_link_libraries(seed PUBLIC
     OpenGL::GL
     fmt::fmt
     spdlog::spdlog
-    assimp::assimp
+    nlohmann_json::nlohmann_json
 )
 
 add_subdirectory(core)
 
+
+# The game code
 add_executable(app)
 target_include_directories(app PRIVATE .)
 target_link_libraries(app seed)
-
+add_subdirectory(game)
 set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
 
 
 if(TEST)
     add_subdirectory(test)
-else()
-    add_subdirectory(game)
 endif()
+
+# The editor
+add_executable(editor)
+target_include_directories(editor PRIVATE .)
+add_subdirectory(editor)
+
+target_link_libraries(editor PUBLIC 
+    glad::glad
+    glfw 
+    OpenGL::GL
+    fmt::fmt
+    spdlog::spdlog
+    imgui::imgui
+    nlohmann_json::nlohmann_json
+)

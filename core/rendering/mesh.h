@@ -15,12 +15,9 @@ struct Vertex {
 
 struct Mesh : public RefCounted {
     std::vector<Vertex> vertices;
-    std::vector<u32> indices;
     std::vector<Texture> textures;
-    u32 VAO, VBO, EBO;
 
     static Ref<Mesh> create(std::vector<Vertex> &vertices,
-                            std::vector<u32> &indices,
                             std::vector<Texture> &textures);
 };
 

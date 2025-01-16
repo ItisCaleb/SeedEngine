@@ -3,3 +3,4 @@ target_sources(seed PRIVATE
     shader.cc
     mesh.cc
     )
+add_subdirectory(api)

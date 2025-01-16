@@ -46,4 +46,7 @@ Mat4 Camera::perspective() {
 
 Camera::Camera(Vec3 pos, Vec3 up, Vec3 front)
     : position(pos), up(up.norm()), front(front.norm()) {}
+
+Camera::Camera()
+    : position(Vec3{0, 0, 0}), up(Vec3{0, 1, 0}), front(Vec3{0, 0, -1}) {}
 }  // namespace Seed

@@ -1,6 +1,6 @@
 #include "engine.h"
 #include "input.h"
-#include "render_engine.h"
+#include "rendering/api/render_engine.h"
 #include "resource.h"
 #include "types.h"
 #include <spdlog/spdlog.h>
@@ -59,7 +59,8 @@ void SeedEngine::start() {
         }
         glfwPollEvents();
         world->tick(delta);
-        render_engine->render();
+        
+        render_engine->process();
         glfwSwapBuffers(window);
 
         delta = glfwGetTime() - start;
