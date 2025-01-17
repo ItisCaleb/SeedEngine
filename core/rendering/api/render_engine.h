@@ -2,7 +2,6 @@
 #define _SEED_RENDER_ENGINE_H_
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "core/rendering/shader.h"
 #include "core/rendering/camera.h"
 #include "render_command.h"
 #include <queue>

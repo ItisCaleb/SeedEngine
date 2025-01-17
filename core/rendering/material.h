@@ -3,15 +3,17 @@
 
 #include "core/math/vec3.h"
 
+
+
 namespace Seed{
     struct Material
     {
-        Vec3 ambient;
-        Vec3 diffuse;
-        Vec3 specular;
+        alignas(16) Vec3 ambient;
+        alignas(16) Vec3 diffuse;
+        alignas(16) Vec3 specular;
         f32 shiness;
     };
-    
+
 }
 
 

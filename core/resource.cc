@@ -46,17 +46,7 @@ Ref<Texture> ResourceLoader::load(const std::string &path) {
     return tex;
 }
 
-template <>
-Ref<Mesh> ResourceLoader::load(const std::string &path) {
 
-
-    Ref<Mesh> mesh;
-
-    
-    mesh.create();
-
-    return mesh;
-}
 
 RenderResource ResourceLoader::loadShader(const std::string &vertex_path,
                                   const std::string &fragment_path) {

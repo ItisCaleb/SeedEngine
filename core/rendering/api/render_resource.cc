@@ -19,6 +19,7 @@ void RenderResource::alloc_vertex(u32 stride, std::vector<u32> &lens,
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, element_cnt * stride, data, GL_DYNAMIC_DRAW);
     for (int i = 0; i < lens.size(); i++) {
+        glEnableVertexAttribArray(i);
         glVertexAttribPointer(i, lens[i], GL_FLOAT, GL_FALSE, stride,
                               (void *)(size_t)cnt);
         cnt += lens[i] * sizeof(f32);

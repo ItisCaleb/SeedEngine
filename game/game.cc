@@ -51,14 +51,9 @@ static const Vec2 CUBE_TEX[] = {0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
 int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
     ResourceLoader *loader = ResourceLoader::get_instance();
-    RenderEngine *render_engine = RenderEngine::get_instance();
+
     Ref<Texture> tex = loader->load<Texture>("assets/1.png");
-    RenderResource shader_rc;
-    try {
-        shader_rc = loader->loadShader("assets/vertex.glsl", "assets/fragment.glsl");
-    } catch (std::exception &e) {
-        spdlog::error("Error loading Shader: {}", e.what());
-    }
+
     std::vector<Vertex> vertices;
     std::vector<Texture> t;
 
@@ -69,21 +64,13 @@ int main(void) {
     }
 
     Ref<Mesh> mesh = Mesh::create(vertices, t);
-    RenderCommandDispatcher dp;
-    dp.begin();
-    dp.use(&shader_rc);
-    dp.end();
-    RenderResource::register_resource("Default", shader_rc);
 
-
-    RenderResource matrices_rc;
-    matrices_rc.alloc_constant(sizeof(Mat4) * 3, NULL);
-    RenderResource::register_resource("Matrices", matrices_rc);
     
     Entity *ent = new ModelEntity(Vec3{0, 0, -2}, mesh);
     ent->set_rotation(Vec3{0.5, 0.5, 0.5});
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->add_entity(ent);
+
     engine->start();
 
     return 0;

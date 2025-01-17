@@ -2,7 +2,6 @@
 #define _SEED_RESOURCE_H_
 #include "ref.h"
 #include "rendering/mesh.h"
-#include "rendering/shader.h"
 #include "rendering/texture.h"
 #include "rendering/api/render_resource.h"
 #include "types.h"
@@ -20,8 +19,6 @@ class ResourceLoader {
     Ref<T> load(const std::string &path);
     template <>
     Ref<Texture> load(const std::string &path);
-    template <>
-    Ref<Mesh> load(const std::string &path);
 
     RenderResource loadShader(const std::string &vertex_path, const std::string &fragment_path);
 

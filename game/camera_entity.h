@@ -11,6 +11,7 @@ namespace Seed
     private:
         Camera cam;
         RenderResource *matrices_rc;
+        RenderResource *cam_rc;
     public:
         void update(f32 dt) override;
         void render(RenderCommandDispatcher &dp) override;

@@ -1,0 +1,1 @@
+cmake --build build --preset default && .\bin\app.exe

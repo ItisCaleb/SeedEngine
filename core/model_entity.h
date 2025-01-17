@@ -11,6 +11,8 @@ namespace Seed
     private:
         RenderResource mesh_rc;
         RenderResource *matrices_rc;
+        RenderResource *material_rc;
+
     public:
         void render(RenderCommandDispatcher &dp) override;
         ModelEntity(Vec3 position, Ref<Mesh> model);

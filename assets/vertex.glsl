@@ -6,16 +6,18 @@ layout (location = 2) in vec2 aTexCoord;
 
 layout (std140) uniform Matrices
 {
-    mat4 projection;
-    mat4 view;
-    mat4 model;
+    mat4 u_projection;
+    mat4 u_view;
+    mat4 u_model;
 };
 
-// out vec3 normal;
-// out vec2 texCoord;
+out vec3 normal;
+out vec2 texCoord;
+out vec3 fragPos;
 
 void main(){
-    gl_Position = projection * view * model * vec4(aPos, 1.0);
-    // normal = aNormal;
-    // texCoord = aTexCoord;
+    gl_Position = u_projection * u_view * u_model * vec4(aPos, 1.0);
+    normal = mat3(transpose(inverse(u_model))) * aNormal;
+    texCoord = aTexCoord;
+    fragPos = vec3(u_model * vec4(aPos, 1.0));
 }

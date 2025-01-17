@@ -31,11 +31,15 @@ void CameraEntity::render(RenderCommandDispatcher &dp){
     Mat4* matrices = (Mat4*)dp.update(matrices_rc, 0, sizeof(Mat4) * 2);
     matrices[0] = cam.perspective().transpose();
     matrices[1] = cam.look_at().transpose();
+    Vec3* cam_pos = (Vec3*)dp.update(cam_rc, 0, sizeof(Vec3));
+    *cam_pos = this->get_position();
     dp.end();
 }
 
 CameraEntity::CameraEntity() {
     this->cam.set_perspective(45, 1.33, 0.1, 1000.0);
     this->matrices_rc = &RenderResource::global_resource["Matrices"];
+    this->cam_rc = &RenderResource::global_resource["Camera"];
+
 }
 }  // namespace Seed
