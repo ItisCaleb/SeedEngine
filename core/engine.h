@@ -14,6 +14,7 @@ class SeedEngine {
     void delay(f32 seconds);
     void init_systems();
     World *world;
+
    public:
     static SeedEngine *get_instance();
     int width, height;

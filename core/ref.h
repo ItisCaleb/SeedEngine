@@ -34,7 +34,6 @@ class Ref {
                   "T must be a derived class of RefCounted in Ref<T>.");
 
    private:
-
    public:
     T *data = nullptr;
     T *operator*() { return data; }
@@ -55,22 +54,24 @@ class Ref {
         }
     }
 
+    T *ptr() { return data; }
+
     void operator=(const Ref &from) { this->operator=(from.data); }
 
     inline bool is_valid() const { return data != nullptr; }
     inline bool is_null() const { return data == nullptr; }
 
-    Ref(T *data) { 
-        this->operator=(data); 
-    }
+    Ref(T *data) { this->operator=(data); }
 
     template <typename... Args>
     void create(const Args &...args) {
-        this->operator=(new T(args...)); 
+        this->operator=(new T(args...));
     }
 
     template <typename... Args>
-    Ref(const Args &...args) { this->operator=(new T(args...));}
+    Ref(const Args &...args) {
+        this->operator=(new T(args...));
+    }
     Ref(const Ref &from) { this->operator=(from); }
     Ref() = default;
     ~Ref() {

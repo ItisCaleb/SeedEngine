@@ -34,15 +34,14 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
     RenderResource::register_resource("Default", shader_rc);
     glUseProgram(shader_rc.handle);
 
-    struct Lights {
-        PosLight p_light;
-        DirLight d_light;
-    } lights;
-    lights.p_light = {Vec3{0, 3, 3}, Vec3{0.3, 0.3, 0.3}, Vec3{0.8, 0.4, 0.6},
-                      Vec3{1, 1, 1}};
+    Lights lights;
+    lights.ambient = Vec3{0.2, 0.2, 0.2};
+    lights.lights[0].set_postion(Vec3{2, 0, 2});
+    lights.lights[0].diffuse = Vec3{0.9, 0.5, 0.5};
+    lights.lights[0].specular = Vec3{1, 1, 1};
 
-    lights.d_light = {Vec3{0.5, 0.5, 0.5}, Vec3{0.2, 0.2, 0.2}, Vec3{0.7, 0.7, 0.7},
-                      Vec3{1, 1, 1}};
+    lights.lights[1].set_direction(Vec3{2, 3, -1});
+    lights.lights[1].diffuse = Vec3{1, 1, 1};
 
     RenderResource matrices_rc, lights_rc, mat_rc, cam_rc;
 
@@ -68,6 +67,12 @@ void RenderEngine::handle_update(RenderCommand &cmd) {
             free(cmd.data);
             break;
         case RenderResourceType::TEXTURE:
+            glBindTexture(GL_TEXTURE_2D, rc->handle);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, cmd.tex_off.x_off,
+                            cmd.tex_off.y_off, cmd.tex_size.w, cmd.tex_size.h,
+                            GL_RGBA, GL_UNSIGNED_BYTE, cmd.data);
+            glBindTexture(GL_TEXTURE_2D, 0);
+
             break;
         case RenderResourceType::CONSTANT:
             glBindBuffer(GL_UNIFORM_BUFFER, rc->handle);
@@ -86,6 +91,7 @@ void RenderEngine::handle_use(RenderCommand &cmd) {
             element_cnt = rc->element_cnt;
             break;
         case RenderResourceType::TEXTURE:
+            glBindTexture(GL_TEXTURE_2D, rc->handle);
             break;
         case RenderResourceType::SHADER:
             glUseProgram(rc->handle);

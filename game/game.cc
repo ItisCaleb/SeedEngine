@@ -46,28 +46,28 @@ static const Vec3 CUBE_NORMAL[] = {0.0f,  0.0f,  -1.0f, 0.0f, 0.0f, 1.0f,
                                    0.0f,  -1.0f, 0.0f,  0.0f, 1.0f, 0.0f};
 
 static const Vec2 CUBE_TEX[] = {0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-                               1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+                                1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
 
 int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
     ResourceLoader *loader = ResourceLoader::get_instance();
 
-    Ref<Texture> tex = loader->load<Texture>("assets/1.png");
-
+    RenderResource tex = loader->load_texture("assets/1.png");
     std::vector<Vertex> vertices;
     std::vector<Texture> t;
 
     for (int i = 0; i < 6; i++) {
         for (int j = 0; j < 6; j++) {
-           vertices.push_back(Vertex{CUBE[CUBE_INDICE[i][j]], CUBE_NORMAL[i], CUBE_TEX[j]});
+            vertices.push_back(
+                Vertex{CUBE[CUBE_INDICE[i][j]], CUBE_NORMAL[i], CUBE_TEX[j]});
         }
     }
 
     Ref<Mesh> mesh = Mesh::create(vertices, t);
 
-    
-    Entity *ent = new ModelEntity(Vec3{0, 0, -2}, mesh);
+    ModelEntity *ent = new ModelEntity(Vec3{0, 0, -2}, mesh);
     ent->set_rotation(Vec3{0.5, 0.5, 0.5});
+    ent->set_texture(tex);
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->add_entity(ent);
 

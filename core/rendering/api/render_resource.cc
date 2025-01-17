@@ -4,8 +4,17 @@
 
 namespace Seed {
 
-void RenderResource::alloc_texture() {
+void RenderResource::alloc_texture(u32 w, u32 h, void* data) {
     this->type = RenderResourceType::TEXTURE;
+    glGenTextures(1, &this->handle);
+    glBindTexture(GL_TEXTURE_2D, this->handle);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 void RenderResource::alloc_vertex(u32 stride, std::vector<u32> &lens,
                                   u32 element_cnt, void *data) {
@@ -74,9 +83,9 @@ void RenderResource::alloc_constant(u32 size, void *data) {
 void RenderResource::dealloc() {}
 
 void RenderResource::register_resource(const std::string &name, RenderResource rc){
-    global_resource[name] = rc;
+    constants[name] = rc;
     if(rc.type == RenderResourceType::CONSTANT){
-        for(auto &e:global_shaders){
+        for(auto &e:shaders){
             u32 idx = glGetUniformBlockIndex(e.second.handle, name.c_str());
             glUniformBlockBinding(e.second.handle, idx, constant_cnt);
         }
@@ -84,7 +93,7 @@ void RenderResource::register_resource(const std::string &name, RenderResource r
         constant_cnt++;
     }
     if(rc.type == RenderResourceType::SHADER){
-        global_shaders[name] = rc;
+        shaders[name] = rc;
     }
 }
 

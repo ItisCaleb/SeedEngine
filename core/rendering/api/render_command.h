@@ -10,8 +10,21 @@ struct RenderCommand {
     RenderCommandType type;
     RenderResource *resource;
     void *data;
-    u32 offset;
-    u32 size;
+    union {
+        u32 offset;
+        struct {
+            u16 x_off;
+            u16 y_off;
+        } tex_off;
+    };
+    
+    union {
+        u32 size;
+        struct {
+            u16 w;
+            u16 h;
+        } tex_size;
+    };
 };
 class RenderCommandDispatcher {
    private:
@@ -19,7 +32,12 @@ class RenderCommandDispatcher {
 
    public:
     void begin();
-    void* update(RenderResource *resource, u32 offset, u32 size);
+    void *update(RenderResource *resource, u32 offset, u32 size);
+    template <typename T>
+    T *update_all(RenderResource *resource) {
+        return (T *)update(resource, 0, sizeof(T));
+    }
+
     void use(RenderResource *resource);
 
     void render();

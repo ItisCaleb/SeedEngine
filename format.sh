@@ -1,1 +1,3 @@
-clang-format -i src/*.cc game/*.cc include/seed/*.h
+clang-format -i core/*.cc core/*.h \
+                game/**/*.cc game/**/*.h \
+                editor/**/*.cc editor/**/*.h

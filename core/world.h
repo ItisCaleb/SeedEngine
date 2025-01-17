@@ -10,12 +10,12 @@ class World {
     std::vector<Entity *> entities;
 
    public:
-    std::vector<Entity *>& get_entities();
+    std::vector<Entity *> &get_entities();
     void tick(f32 dt);
     void add_entity(Entity *entity);
 
     template <typename T, typename... Args>
-    void add_entity(const Args &...args){
+    void add_entity(const Args &...args) {
         add_entity(new T(args...));
     }
     World(/* args */) = default;

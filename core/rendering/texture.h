@@ -4,7 +4,7 @@
 #include "core/ref.h"
 
 namespace Seed {
-struct Texture : public RefCounted{
+struct Texture : public RefCounted {
     u32 id;
 };
 }  // namespace Seed

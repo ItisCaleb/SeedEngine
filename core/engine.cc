@@ -59,7 +59,7 @@ void SeedEngine::start() {
         }
         glfwPollEvents();
         world->tick(delta);
-        
+
         render_engine->process();
         glfwSwapBuffers(window);
 
@@ -75,10 +75,7 @@ void SeedEngine::start() {
     glfwTerminate();
 }
 
-World* SeedEngine::get_world(){
-    return world;
-}
-
+World *SeedEngine::get_world() { return world; }
 
 SeedEngine::SeedEngine(f32 target_fps) {
     instance = this;

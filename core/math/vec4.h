@@ -79,7 +79,6 @@ struct Vec4 {
     }
 
     f32 dot(const Vec4 &b) { return x * b.x + y * b.y + z * b.z + w * b.w; }
-
 };
 
 }  // namespace Seed

@@ -20,8 +20,8 @@ class Entity {
     Vec3 get_scale();
     void set_scale(Vec3 position);
 
-    virtual void update(f32 dt){}
-    virtual void render(RenderCommandDispatcher &dp){}
+    virtual void update(f32 dt) {}
+    virtual void render(RenderCommandDispatcher &dp) {}
 
     Entity(Vec3 position);
     Entity();

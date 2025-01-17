@@ -7,8 +7,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-
-
 namespace Seed {
 ResourceLoader *ResourceLoader::get_instance() { return instance; }
 
@@ -19,37 +17,20 @@ ResourceLoader::ResourceLoader() {
 
 ResourceLoader::~ResourceLoader() { instance = nullptr; }
 
-template <>
-Ref<Texture> ResourceLoader::load(const std::string &path) {
+RenderResource ResourceLoader::load_texture(const std::string &path) {
     int w, h, comp;
-    Ref<Texture> tex;
+    RenderResource tex_rc;
     stbi_set_flip_vertically_on_load(true);
     void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
-    if (!data) return tex;
-    tex.create();
-    glGenTextures(1, &tex->id);
-    glBindTexture(GL_TEXTURE_2D, tex->id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                    GL_LINEAR_MIPMAP_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-                 data);
-
-    glGenerateMipmap(GL_TEXTURE_2D);
+    if (!data) return {};
+    tex_rc.alloc_texture(w, h, data);
 
     stbi_image_free(data);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    return tex;
+    return tex_rc;
 }
 
-
-
 RenderResource ResourceLoader::loadShader(const std::string &vertex_path,
-                                  const std::string &fragment_path) {
+                                          const std::string &fragment_path) {
     RenderResource shader_rc;
     Ref<File> vertex_f = File::open(vertex_path, "r");
     if (vertex_f.is_null()) {
@@ -63,13 +44,12 @@ RenderResource ResourceLoader::loadShader(const std::string &vertex_path,
     std::string fragment_s = fragment_f->read();
     const char *vertex_code = vertex_s.c_str();
     const char *fragment_code = fragment_s.c_str();
-    try{
+    try {
         shader_rc.alloc_shader(vertex_code, fragment_code);
         return shader_rc;
-    }catch(std::exception &e){
+    } catch (std::exception &e) {
         throw e;
     }
-
 }
 
 }  // namespace Seed

@@ -6,7 +6,6 @@
 
 #include <string>
 
-
 namespace Seed {
 class File : public RefCounted {
    private:
