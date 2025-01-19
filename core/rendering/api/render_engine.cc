@@ -4,6 +4,42 @@
 #include <spdlog/spdlog.h>
 #include "core/rendering/light.h"
 #include "core/rendering/material.h"
+#include "render_device_opengl.h"
+#include <spdlog/spdlog.h>
+
+void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id,
+                            GLenum severity, GLsizei length,
+                            const char *message, const void *userParam) {
+    std::string source_str;
+    switch (type) {
+        case GL_DEBUG_TYPE_ERROR:
+            break;
+        default:
+            return;
+    }
+    switch (source) {
+        case GL_DEBUG_SOURCE_API:
+            source_str = "Source: API";
+            break;
+        case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
+            source_str = "Source: Window System";
+            break;
+        case GL_DEBUG_SOURCE_SHADER_COMPILER:
+            source_str = "Source: Shader Compiler";
+            break;
+        case GL_DEBUG_SOURCE_THIRD_PARTY:
+            source_str = "Source: Third Party";
+            break;
+        case GL_DEBUG_SOURCE_APPLICATION:
+            source_str = "Source: Application";
+            break;
+        case GL_DEBUG_SOURCE_OTHER:
+            source_str = "Source: Other";
+            break;
+    }
+    spdlog::error("{}: {} ({})", source_str, message, userParam);
+    return;
+}
 
 namespace Seed {
 RenderEngine *RenderEngine::get_instance() { return instance; }
@@ -18,6 +54,17 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
         spdlog::error("Can't initialize GLAD. Exiting");
         exit(1);
     }
+
+    this->device = new RenderDeviceOpenGL();
+    int flags;
+    glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
+    if (flags & GL_CONTEXT_FLAG_DEBUG_BIT) {
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageCallback(glDebugOutput, nullptr);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0,
+                              nullptr, GL_TRUE);
+    }
     glViewport(0, 0, w, h);
     glEnable(GL_DEPTH_TEST);
 
@@ -30,10 +77,8 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
     } catch (std::exception &e) {
         spdlog::error("Error loading Shader: {}", e.what());
     }
-
     RenderResource::register_resource("Default", shader_rc);
-    glUseProgram(shader_rc.handle);
-
+    this->default_shader = &RenderResource::shaders["Default"];
     Lights lights;
     lights.ambient = Vec3{0.2, 0.2, 0.2};
     lights.lights[0].set_postion(Vec3{2, 0, 2});
@@ -47,7 +92,8 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
 
     matrices_rc.alloc_constant(sizeof(Mat4) * 3, NULL);
     lights_rc.alloc_constant(sizeof(Lights), &lights);
-    mat_rc.alloc_constant(sizeof(Material), NULL);
+    Material mat = {0, 1, 2, 32.0f};
+    mat_rc.alloc_constant(sizeof(Material), &mat);
     cam_rc.alloc_constant(sizeof(Vec3), NULL);
 
     RenderResource::register_resource("Matrices", matrices_rc);
@@ -56,77 +102,51 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
     RenderResource::register_resource("Camera", cam_rc);
 }
 
-void RenderEngine::handle_update(RenderCommand &cmd) {
-    RenderResource *rc = cmd.resource;
-    switch (rc->type) {
-        case RenderResourceType::VERTEX:
-            u32 vbo;
-            glBindVertexArray(rc->handle);
-            glBufferSubData(GL_ARRAY_BUFFER, cmd.offset, cmd.size, cmd.data);
-            glBindVertexArray(0);
-            free(cmd.data);
-            break;
-        case RenderResourceType::TEXTURE:
-            glBindTexture(GL_TEXTURE_2D, rc->handle);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, cmd.tex_off.x_off,
-                            cmd.tex_off.y_off, cmd.tex_size.w, cmd.tex_size.h,
-                            GL_RGBA, GL_UNSIGNED_BYTE, cmd.data);
-            glBindTexture(GL_TEXTURE_2D, 0);
-
-            break;
-        case RenderResourceType::CONSTANT:
-            glBindBuffer(GL_UNIFORM_BUFFER, rc->handle);
-            glBufferSubData(GL_UNIFORM_BUFFER, cmd.offset, cmd.size, cmd.data);
-            glBindBuffer(GL_UNIFORM_BUFFER, 0);
-        default:
-            break;
-    }
+RenderDevice *RenderEngine::get_device() { return device; }
+void RenderEngine::register_mesh(Mesh *mesh) {
+    this->mesh_instances[mesh] = {};
 }
-void RenderEngine::handle_use(RenderCommand &cmd) {
-    RenderResource *rc = cmd.resource;
 
-    switch (rc->type) {
-        case RenderResourceType::VERTEX:
-            glBindVertexArray(rc->handle);
-            element_cnt = rc->element_cnt;
-            break;
-        case RenderResourceType::TEXTURE:
-            glBindTexture(GL_TEXTURE_2D, rc->handle);
-            break;
-        case RenderResourceType::SHADER:
-            glUseProgram(rc->handle);
-            break;
-        default:
-            break;
-    }
-}
+LinearAllocator *RenderEngine::get_mem_pool() { return &this->mem_pool; }
 
 void RenderEngine::process() {
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    while (!cmd_queue.empty()) {
-        RenderCommand &cmd = cmd_queue.front();
-        cmd_queue.pop();
-
-        switch (cmd.type) {
-            case RenderCommandType::UPDATE:
-                handle_update(cmd);
-                break;
-            case RenderCommandType::USE:
-                handle_use(cmd);
-                break;
-            case RenderCommandType::RENDER:
-                glDrawArrays(GL_TRIANGLES, 0, element_cnt);
-                break;
-            default:
-                break;
-        }
+    std::vector<ModelEntity *> &entities =
+        SeedEngine::get_instance()->get_world()->get_model_entities();
+    for (ModelEntity *e : entities) {
+        Ref<Mesh> mesh = e->get_mesh();
+        if (mesh.is_null()) continue;
+        std::vector<Mat4> &instances = mesh_instances[*mesh];
+        Mat4 model = Mat4::translate_mat(e->get_position());
+        Vec3 rotation = e->get_rotation();
+        model *= Mat4::rotate_mat(rotation.z, Vec3{0, 0, 1});
+        model *= Mat4::rotate_mat(rotation.y, Vec3{0, 1, 0});
+        model *= Mat4::rotate_mat(rotation.x, Vec3{1, 0, 0});
+        model *= Mat4::scale_mat(e->get_scale());
+        instances.push_back(model.transpose());
     }
 
-    glBindVertexArray(0);
-}
+    RenderCommandDispatcher dp;
+    /* color pass */
+    for (const auto &[mesh, instances] : mesh_instances) {
+        dp.begin();
+        dp.use(&mesh->vertices_rc);
+        dp.use(&mesh->vertices_desc_rc);
+        dp.use(&mesh->indices_rc);
+        dp.update(&mesh->instance_rc, 0, sizeof(Mat4) * instances.size(),
+                  (void *)instances.data());
+        dp.use(&mesh->instance_rc);
+        dp.use(&mesh->instance_desc_rc);
+        dp.render(this->default_shader, instances.size());
+        dp.end();
+    }
 
-void RenderEngine::push_cmd(RenderCommand &cmd) { cmd_queue.push(cmd); }
+    for (auto &[mesh, instances] : mesh_instances) {
+        instances.clear();
+    }
+
+    this->device->process();
+    this->mem_pool.free_all();
+}
 
 RenderEngine::~RenderEngine() { instance = nullptr; }
 }  // namespace Seed

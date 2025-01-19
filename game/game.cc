@@ -54,6 +54,7 @@ int main(void) {
 
     RenderResource tex = loader->load_texture("assets/1.png");
     std::vector<Vertex> vertices;
+    std::vector<u32> indices;
     std::vector<Texture> t;
 
     for (int i = 0; i < 6; i++) {
@@ -63,13 +64,19 @@ int main(void) {
         }
     }
 
-    Ref<Mesh> mesh = Mesh::create(vertices, t);
+    for (int i = 0; i < 36; i++) {
+        indices.push_back(i);
+    }
+
+    Ref<Mesh> mesh = Mesh::create(vertices, indices, t);
 
     ModelEntity *ent = new ModelEntity(Vec3{0, 0, -2}, mesh);
     ent->set_rotation(Vec3{0.5, 0.5, 0.5});
     ent->set_texture(tex);
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->add_entity(ent);
+    engine->get_world()->add_model_entity(ent);
+
 
     engine->start();
 

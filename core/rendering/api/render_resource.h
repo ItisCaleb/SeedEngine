@@ -6,20 +6,39 @@
 #include <map>
 
 namespace Seed {
-enum class RenderResourceType { TEXTURE, VERTEX, CONSTANT, SHADER, UNINITIALIZE };
+enum class RenderResourceType: u16 {
+    TEXTURE,
+    VERTEX,
+    VERTEX_DESC,
+    INDEX,
+    CONSTANT,
+    SHADER,
+    UNINITIALIZE
+};
+enum class VertexAttributeType: u8 { FLOAT, INT, UNSIGNED };
 
 typedef u32 RenderResourceHandle;
-
+struct VertexAttribute {
+    u8 layout_num;
+    VertexAttributeType type = VertexAttributeType::FLOAT;
+    bool should_normalized = false;
+    bool is_instance = false;
+    u32 size;
+    u32 stride;
+};
 
 struct RenderResource {
-    RenderResourceType type = RenderResourceType::UNINITIALIZE;
     RenderResourceHandle handle;
+    RenderResourceType type = RenderResourceType::UNINITIALIZE;
+    u16 stride = 0;
     u32 element_cnt = 0;
 
-    void alloc_texture(u32 w, u32 h, void* data);
-    void alloc_vertex(u32 stride, std::vector<u32> &lens, u32 element_cnt, void *data);
-    void alloc_shader(const char *vertex_code,
-                                  const char *fragment_code);
+    void alloc_texture(u32 w, u32 h, void *data);
+    void alloc_vertex(u32 stride, u32 element_cnt,
+                      void *data);
+    void alloc_vertex_desc(std::vector<VertexAttribute> &attrs);
+    void alloc_index(std::vector<u32> &indices);
+    void alloc_shader(const char *vertex_code, const char *fragment_code);
     void alloc_constant(u32 size, void *data);
     void dealloc();
 

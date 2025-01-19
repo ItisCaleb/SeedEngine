@@ -4,21 +4,28 @@
 #include <GLFW/glfw3.h>
 #include "core/rendering/camera.h"
 #include "render_command.h"
+#include "render_device.h"
+#include "core/rendering/mesh.h"
+#include "core/allocator/linear_allocator.h"
+#include <unordered_map>
 #include <queue>
+#include <vector>
 
 namespace Seed {
 class RenderEngine {
    private:
     inline static RenderEngine *instance = nullptr;
-    std::queue<RenderCommand> cmd_queue;
-    u32 element_cnt = 0;
-    void handle_update(RenderCommand &cmd);
-    void handle_use(RenderCommand &cmd);
-
+    RenderDevice *device;
+    std::unordered_map<Mesh *, std::vector<Mat4>> mesh_instances;
+    RenderResource *default_shader;
+    LinearAllocator mem_pool;
+    
    public:
     static RenderEngine *get_instance();
-    void push_cmd(RenderCommand &cmd);
     void process();
+    void register_mesh(Mesh *mesh);
+    LinearAllocator *get_mem_pool();
+    RenderDevice *get_device();
     RenderEngine(GLFWwindow *window, int w, int h);
     ~RenderEngine();
 };

@@ -11,28 +11,38 @@ struct RenderCommand {
     RenderResource *resource;
     void *data;
     union {
-        u32 offset;
+        struct {
+            u32 offset;
+            u32 size;
+        } buffer;
+
         struct {
             u16 x_off;
             u16 y_off;
-        } tex_off;
-    };
-    
-    union {
-        u32 size;
-        struct {
             u16 w;
             u16 h;
-        } tex_size;
+        } texture;
+        struct {
+            u32 instance_cnt;
+        } render;
     };
 };
 class RenderCommandDispatcher {
    private:
     RenderEngine *engine = nullptr;
-
    public:
     void begin();
-    void *update(RenderResource *resource, u32 offset, u32 size);
+    /* The `data` parameter will be used if supplied,
+       or it will allocate a new space. Use with care.*/
+    /* Make sure the `data` life cycle is longer than the entire frame.*/
+    void *update(RenderResource *resource, u32 offset, u32 size,
+                 void *data = nullptr);
+    /* The `data` parameter will be used if supplied,
+   or it will allocate a new space. Use with care.*/
+    /* Make sure the `data` life cycle is longer than the entire frame.*/
+    void *update(RenderResource *resource, u16 x_off, u16 y_off, u16 w, u16 h,
+                 void *data = nullptr);
+
     template <typename T>
     T *update_all(RenderResource *resource) {
         return (T *)update(resource, 0, sizeof(T));
@@ -40,8 +50,9 @@ class RenderCommandDispatcher {
 
     void use(RenderResource *resource);
 
-    void render();
+    void render(RenderResource *shader, u32 instance_cnt);
     void end();
+    
 };
 
 }  // namespace Seed

@@ -9,3 +9,4 @@ target_sources(seed PRIVATE
 
 
 add_subdirectory(rendering)
+add_subdirectory(allocator)
