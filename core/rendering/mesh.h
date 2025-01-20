@@ -2,7 +2,6 @@
 #define _SEED_MESH_H_
 #include "core/math/vec2.h"
 #include "core/math/vec3.h"
-#include "texture.h"
 #include "core/ref.h"
 #include "api/render_resource.h"
 #include "material.h"

@@ -27,6 +27,7 @@ find_package(assimp CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(nfd CONFIG REQUIRED)
 
 
 target_link_libraries(seed PUBLIC 
@@ -59,11 +60,8 @@ target_include_directories(editor PRIVATE .)
 add_subdirectory(editor)
 
 target_link_libraries(editor PUBLIC 
-    glad::glad
-    glfw 
-    OpenGL::GL
-    fmt::fmt
-    spdlog::spdlog
+    seed
+    assimp::assimp
+    nfd::nfd
     imgui::imgui
-    nlohmann_json::nlohmann_json
 )

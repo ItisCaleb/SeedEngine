@@ -48,7 +48,7 @@
         "name": "editor",
         "jobs": 4,
         "configurePreset": "default",
-        "targets": ["editor"]
+        "targets": ["seed","editor"]
       }
     ]
   }

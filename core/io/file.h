@@ -10,8 +10,9 @@ namespace Seed {
 class File : public RefCounted {
    private:
     FILE *file;
-    u64 size;
+    u64 file_size;
     u64 read_cnt;
+    u64 write_cnt;
 
    public:
     static Ref<File> open(const std::string &path, const char *mode) {
@@ -25,17 +26,25 @@ class File : public RefCounted {
         fseek(f, 0L, SEEK_SET);
         File *file = new File;
         file->file = f;
-        file->size = sz;
+        file->file_size = sz;
         file->read_cnt = 0;
         return Ref<File>(file);
     }
-    std::string read() {
+    std::string read(size_t size=0) {
         std::string data;
-        if (file && read_cnt == 0) {
+        if (file && read_cnt < file_size) {
+            if(size == 0 || size > file_size){
+                size = file_size;
+            }
+            read_cnt += size;
             data.resize(size);
             fread((void *)data.c_str(), 1, size, file);
         }
         return data;
+    }
+
+    void write(void *data, size_t size){
+        fwrite(data, 1, size, file);
     }
 
     ~File() {

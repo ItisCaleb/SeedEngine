@@ -2,7 +2,6 @@
 #define _SEED_RESOURCE_H_
 #include "ref.h"
 #include "rendering/mesh.h"
-#include "rendering/texture.h"
 #include "rendering/api/render_resource.h"
 #include "types.h"
 

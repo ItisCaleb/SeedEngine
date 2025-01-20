@@ -1,1 +1,1 @@
-target_sources(editor PRIVATE editor.cc)
+target_sources(editor PRIVATE editor.cc resource.cc)
