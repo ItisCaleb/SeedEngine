@@ -41,7 +41,7 @@ struct RenderResource {
     void alloc_shader(const char *vertex_code, const char *fragment_code);
     void alloc_constant(u32 size, void *data);
     void dealloc();
-
+    bool inited();
     inline static std::map<std::string, RenderResource> texture;
     inline static std::map<std::string, RenderResource> constants;
     inline static std::map<std::string, RenderResource> shaders;

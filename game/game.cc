@@ -55,7 +55,6 @@ int main(void) {
     RenderResource tex = loader->load_texture("assets/1.png");
     std::vector<Vertex> vertices;
     std::vector<u32> indices;
-    std::vector<Texture> t;
 
     for (int i = 0; i < 6; i++) {
         for (int j = 0; j < 6; j++) {
@@ -68,15 +67,22 @@ int main(void) {
         indices.push_back(i);
     }
 
-    Ref<Mesh> mesh = Mesh::create(vertices, indices, t);
+    Ref<Mesh> mesh = Mesh::create(vertices, indices);
+    Ref<Material> mat = Material::create(tex);
 
-    ModelEntity *ent = new ModelEntity(Vec3{0, 0, -2}, mesh);
-    ent->set_rotation(Vec3{0.5, 0.5, 0.5});
-    ent->set_texture(tex);
-    engine->get_world()->add_entity<CameraEntity>();
+    // for (int i = -100; i < 100; i++) {
+    //     for (int j = -100; j < 100; j++) {
+    //         ModelEntity *ent = new ModelEntity(Vec3{(f32)i, (f32)j, 0},
+    //         mesh); ent->set_material(mat); ent->set_scale({0.1, 0.1, 0.1});
+    //         engine->get_world()->add_entity(ent);
+    //         engine->get_world()->add_model_entity(ent);
+    //     }
+    // }
+    ModelEntity *ent = new ModelEntity(Vec3{0,0 , -5}, mesh);
+    ent->set_material(mat);
     engine->get_world()->add_entity(ent);
     engine->get_world()->add_model_entity(ent);
-
+    engine->get_world()->add_entity<CameraEntity>();
 
     engine->start();
 

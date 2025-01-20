@@ -7,16 +7,15 @@
 namespace Seed {
 class ModelEntity : public Entity {
    private:
-    RenderResource tex;
-    RenderResource *material_rc;
-    Material material;
     Ref<Mesh> mesh;
-
+    Ref<Material> mat;
    public:
+    void update(f32 dt) override;
     void render(RenderCommandDispatcher &dp) override;
-    void set_material(Material mat);
-    void set_texture(RenderResource tex);
+    void set_material(Ref<Material> mat);
     Ref<Mesh> get_mesh();
+    Ref<Material> get_material();
+
     ModelEntity(Vec3 position, Ref<Mesh> model);
     ModelEntity(Ref<Mesh> model);
 

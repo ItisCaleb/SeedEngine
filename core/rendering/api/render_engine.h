@@ -16,14 +16,18 @@ class RenderEngine {
    private:
     inline static RenderEngine *instance = nullptr;
     RenderDevice *device;
-    std::unordered_map<Mesh *, std::vector<Mat4>> mesh_instances;
+    std::unordered_map<Mesh *,
+                       std::unordered_map<Material *, std::vector<Mat4>>>
+        mesh_instances;
     RenderResource *default_shader;
+    RenderResource default_texture;
     LinearAllocator mem_pool;
-    
+
    public:
     static RenderEngine *get_instance();
     void process();
     void register_mesh(Mesh *mesh);
+    void remove_mesh(Mesh *mesh);
     LinearAllocator *get_mem_pool();
     RenderDevice *get_device();
     RenderEngine(GLFWwindow *window, int w, int h);

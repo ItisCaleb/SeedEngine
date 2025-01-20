@@ -4,11 +4,17 @@
 #include "core/rendering/api/render_engine.h"
 
 namespace Seed {
-Ref<Mesh> Mesh::create(std::vector<Vertex> &vertices, std::vector<u32> &indices,
-                       std::vector<Texture> &textures) {
+
+Mesh::~Mesh() {
+    this->indices_rc.dealloc();
+    this->vertices_rc.dealloc();
+    this->instance_rc.dealloc();
+    RenderEngine::get_instance()->remove_mesh(this);
+}
+
+Ref<Mesh> Mesh::create(std::vector<Vertex> &vertices, std::vector<u32> &indices) {
     Ref<Mesh> mesh;
     mesh.create();
-    mesh->textures = std::move(textures);
     std::vector<VertexAttribute> vertices_attrs = {
         {.layout_num = 0, .size = 3, .stride = sizeof(Vertex)},
         {.layout_num = 1, .size = 3, .stride = sizeof(Vertex)},

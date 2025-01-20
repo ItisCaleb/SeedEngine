@@ -64,10 +64,12 @@ void SeedEngine::start() {
         glfwSwapBuffers(window);
 
         delta = glfwGetTime() - start;
+
         if (delta < frame_limit) {
             delay(frame_limit - delta);
             delta = frame_limit;
         }
+        
     }
 
     glfwDestroyWindow(window);

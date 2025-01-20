@@ -11,6 +11,7 @@ struct RenderCommand {
     RenderResource *resource;
     void *data;
     union {
+        u32 texture_unit;
         struct {
             u32 offset;
             u32 size;
@@ -48,7 +49,7 @@ class RenderCommandDispatcher {
         return (T *)update(resource, 0, sizeof(T));
     }
 
-    void use(RenderResource *resource);
+    void use(RenderResource *resource, u32 texture_unit = 0);
 
     void render(RenderResource *shader, u32 instance_cnt);
     void end();

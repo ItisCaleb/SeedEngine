@@ -1,12 +1,55 @@
 #include "render_device_opengl.h"
 #include <glad/glad.h>
+#include <spdlog/spdlog.h>
 
 namespace Seed {
 
+void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id,
+                            GLenum severity, GLsizei length,
+                            const char *message, const void *userParam) {
+    std::string source_str;
+    switch (type) {
+        case GL_DEBUG_TYPE_ERROR:
+            break;
+        default:
+            return;
+    }
+    switch (source) {
+        case GL_DEBUG_SOURCE_API:
+            source_str = "Source: API";
+            break;
+        case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
+            source_str = "Source: Window System";
+            break;
+        case GL_DEBUG_SOURCE_SHADER_COMPILER:
+            source_str = "Source: Shader Compiler";
+            break;
+        case GL_DEBUG_SOURCE_THIRD_PARTY:
+            source_str = "Source: Third Party";
+            break;
+        case GL_DEBUG_SOURCE_APPLICATION:
+            source_str = "Source: Application";
+            break;
+        case GL_DEBUG_SOURCE_OTHER:
+            source_str = "Source: Other";
+            break;
+    }
+    spdlog::error("{}: {} ({})", source_str, message, userParam);
+    return;
+}
 
 RenderDeviceOpenGL::RenderDeviceOpenGL() {
     glGenVertexArrays(1, &global_vao);
     glBindVertexArray(global_vao);
+    int flags;
+    glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
+    if (flags & GL_CONTEXT_FLAG_DEBUG_BIT) {
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageCallback(glDebugOutput, nullptr);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0,
+                              nullptr, GL_TRUE);
+    }
 }
 void RenderDeviceOpenGL::alloc_texture(RenderResource *rc, u32 w, u32 h,
                                        void *data) {
@@ -39,8 +82,8 @@ void RenderDeviceOpenGL::alloc_indices(RenderResource *rc,
                                        std::vector<u32> &indices) {
     glGenBuffers(1, &rc->handle);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rc->handle);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(u32), indices.data(),
-                 GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(u32),
+                 indices.data(), GL_STATIC_DRAW);
 }
 
 void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
@@ -86,7 +129,22 @@ void RenderDeviceOpenGL::alloc_constant(RenderResource *rc, u32 size,
     glBufferData(GL_UNIFORM_BUFFER, size, data, GL_STATIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
-void RenderDeviceOpenGL::dealloc(RenderResource *r) {}
+void RenderDeviceOpenGL::dealloc(RenderResource *r) {
+    switch (r->type) {
+        case RenderResourceType::VERTEX:
+        case RenderResourceType::INDEX:
+            glDeleteBuffers(1, &r->handle);
+            break;
+        case RenderResourceType::TEXTURE:
+            glDeleteTextures(1, &r->handle);
+            break;
+        case RenderResourceType::SHADER:
+            glDeleteProgram(r->handle);
+            break;
+        default:
+            break;
+    }
+}
 
 void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
     RenderResource *rc = cmd.resource;
@@ -170,6 +228,7 @@ void RenderDeviceOpenGL::handle_use(RenderCommand &cmd) {
 
             break;
         case RenderResourceType::TEXTURE:
+            glActiveTexture(GL_TEXTURE0 + cmd.texture_unit);
             glBindTexture(GL_TEXTURE_2D, rc->handle);
             break;
 
@@ -183,12 +242,22 @@ void RenderDeviceOpenGL::handle_use(RenderCommand &cmd) {
 
 void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
     RenderResource *rc = cmd.resource;
-    glUseProgram(rc->handle);
-    glDrawElementsInstanced(GL_TRIANGLES, element_cnt, GL_UNSIGNED_INT, 0, cmd.render.instance_cnt);
+    if (current_program != rc->handle) {
+        glUseProgram(rc->handle);
+        current_program = rc->handle;
+        /* bind texture unit in fragment shader */
+        for (int i = 0; i < 8; i++) {
+            std::string name = fmt::format("u_texture[{}]", i);
+            u32 loc = glGetUniformLocation(rc->handle, name.c_str());
+            if (loc == -1) break;
+            glUniform1i(loc, i);
+        }
+    }
+    glDrawElementsInstanced(GL_TRIANGLES, element_cnt, GL_UNSIGNED_INT, 0,
+                            cmd.render.instance_cnt);
 }
 
 void RenderDeviceOpenGL::process() {
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     while (!cmd_queue.empty()) {
         RenderCommand &cmd = cmd_queue.front();
@@ -208,6 +277,5 @@ void RenderDeviceOpenGL::process() {
                 break;
         }
     }
-
 }
 }  // namespace Seed

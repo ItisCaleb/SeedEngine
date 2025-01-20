@@ -1,6 +1,7 @@
 #ifndef _SEED_OBJECT_H_
 #define _SEED_OBJECT_H_
 #include "math/vec3.h"
+#include "math/mat4.h"
 #include "rendering/mesh.h"
 #include "rendering/api/render_command.h"
 
@@ -11,7 +12,8 @@ class Entity {
     Vec3 position;
     Vec3 rotation;
     Vec3 scale;
-
+    Mat4 transform;
+    void update_transform();
    public:
     Vec3 get_position();
     void set_position(Vec3 position);
@@ -19,7 +21,7 @@ class Entity {
     void set_rotation(Vec3 position);
     Vec3 get_scale();
     void set_scale(Vec3 position);
-
+    Mat4 get_transform();
     virtual void update(f32 dt) {}
     virtual void render(RenderCommandDispatcher &dp) {}
 

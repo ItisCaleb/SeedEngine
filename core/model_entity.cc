@@ -4,20 +4,26 @@
 
 namespace Seed {
 
-void ModelEntity::render(RenderCommandDispatcher &dp) {
-
+void ModelEntity::update(f32 dt) {
+    Vec3 rot = this->get_rotation();
+    rot.x += dt;
+    rot.y += dt;
+    rot.z += dt;
+    this->set_rotation(rot);
 }
 
-void ModelEntity::set_material(Material mat) { this->material = mat; }
+void ModelEntity::render(RenderCommandDispatcher &dp) {}
 
-void ModelEntity::set_texture(RenderResource tex) { this->tex = tex; }
+void ModelEntity::set_material(Ref<Material> mat) { this->mat = mat; }
+
 
 Ref<Mesh> ModelEntity::get_mesh() { return mesh; }
 
+Ref<Material> ModelEntity::get_material() { return mat; }
+
+
 ModelEntity::ModelEntity(Vec3 position, Ref<Mesh> model)
-    : Entity(position), mesh(model) {
-    this->material_rc = &RenderResource::constants["Material"];
-}
+    : Entity(position), mesh(model) {}
 ModelEntity::ModelEntity(Ref<Mesh> model) : ModelEntity(Vec3{0, 0, 0}, model) {}
 
 }  // namespace Seed

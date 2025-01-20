@@ -5,6 +5,7 @@
 #include "texture.h"
 #include "core/ref.h"
 #include "api/render_resource.h"
+#include "material.h"
 #include <vector>
 
 namespace Seed {
@@ -15,16 +16,15 @@ struct Vertex {
 };
 
 struct Mesh : public RefCounted {
-    std::vector<Texture> textures;
     RenderResource vertices_rc;
     RenderResource indices_rc;
     RenderResource vertices_desc_rc;
     RenderResource instance_rc;
     RenderResource instance_desc_rc;
 
-
-    static Ref<Mesh> create(std::vector<Vertex> &vertices, std::vector<u32> &indices,
-                            std::vector<Texture> &textures);
+    ~Mesh();
+    static Ref<Mesh> create(std::vector<Vertex> &vertices,
+                            std::vector<u32> &indices);
 };
 
 }  // namespace Seed

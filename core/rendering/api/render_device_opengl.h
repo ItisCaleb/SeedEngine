@@ -10,6 +10,7 @@ class RenderDeviceOpenGL : public RenderDevice {
    private:
     u32 element_cnt = 0;
     u32 global_vao;
+    u32 current_program;
     std::vector<std::vector<VertexAttribute>> vertex_attrs;
     void handle_update(RenderCommand &cmd);
     void handle_use(RenderCommand &cmd);

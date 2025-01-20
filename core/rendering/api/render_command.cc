@@ -44,11 +44,12 @@ void *RenderCommandDispatcher::update(RenderResource *resource, u16 x_off,
     return cmd.data;
 }
 
-void RenderCommandDispatcher::use(RenderResource *resource) {
+void RenderCommandDispatcher::use(RenderResource *resource, u32 texutre_unit) {
     if (resource->type == RenderResourceType::UNINITIALIZE) return;
     RenderCommand cmd;
     cmd.type = RenderCommandType::USE;
     cmd.resource = resource;
+    cmd.texture_unit = texutre_unit;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 void RenderCommandDispatcher::render(RenderResource *shader, u32 instance_cnt) {
