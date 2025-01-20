@@ -63,23 +63,7 @@ struct Mat4 {
     }
 
     void operator*=(const Mat4 &b) {
-        Mat4 tb = b.transpose();
-        data[0][0] = data[0].dot(tb[0]);
-        data[0][1] = data[0].dot(tb[1]);
-        data[0][2] = data[0].dot(tb[2]);
-        data[0][3] = data[0].dot(tb[3]);
-        data[1][0] = data[1].dot(tb[0]);
-        data[1][1] = data[1].dot(tb[1]);
-        data[1][2] = data[1].dot(tb[2]);
-        data[1][3] = data[1].dot(tb[3]);
-        data[2][0] = data[2].dot(tb[0]);
-        data[2][1] = data[2].dot(tb[1]);
-        data[2][2] = data[2].dot(tb[2]);
-        data[2][3] = data[2].dot(tb[3]);
-        data[3][0] = data[3].dot(tb[0]);
-        data[3][1] = data[3].dot(tb[1]);
-        data[3][2] = data[3].dot(tb[2]);
-        data[3][3] = data[3].dot(tb[3]);
+        *this = *this * b;
     }
 
     Mat4 transpose() const {

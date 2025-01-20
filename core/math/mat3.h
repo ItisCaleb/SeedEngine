@@ -53,16 +53,7 @@ struct Mat3 {
     }
 
     void operator*=(const Mat3 &b) {
-        Mat3 tb = b.transpose();
-        data[0][0] = data[0].dot(tb[0]);
-        data[0][1] = data[0].dot(tb[1]);
-        data[0][2] = data[0].dot(tb[2]);
-        data[1][0] = data[1].dot(tb[0]);
-        data[1][1] = data[1].dot(tb[1]);
-        data[1][2] = data[1].dot(tb[2]);
-        data[2][0] = data[2].dot(tb[0]);
-        data[2][1] = data[2].dot(tb[1]);
-        data[2][2] = data[2].dot(tb[2]);
+        *this = *this * b;
     }
 
     Mat3 transpose() const {
