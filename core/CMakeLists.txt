@@ -10,3 +10,5 @@ target_sources(seed PRIVATE
 
 add_subdirectory(rendering)
 add_subdirectory(allocator)
+add_subdirectory(container)
+add_subdirectory(collision)
