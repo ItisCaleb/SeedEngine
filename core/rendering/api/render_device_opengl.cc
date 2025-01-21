@@ -98,7 +98,7 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
     glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(vertex, 512, NULL, info);
-        throw std::exception(info);
+        throw std::runtime_error(info);
     }
 
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
@@ -107,7 +107,7 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
     glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(fragment, 512, NULL, info);
-        throw std::exception(info);
+        throw std::runtime_error(info);
     }
     u32 id = glCreateProgram();
     glAttachShader(id, vertex);
@@ -116,7 +116,7 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
     glGetProgramiv(id, GL_LINK_STATUS, &success);
     if (!success) {
         glGetProgramInfoLog(id, 512, NULL, info);
-        throw std::exception(info);
+        throw std::runtime_error(info);
     }
     glDeleteShader(vertex);
     glDeleteShader(fragment);

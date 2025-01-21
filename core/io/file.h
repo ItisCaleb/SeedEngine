@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 #include <string>
-
+#define _CRT_SECURE_NO_DEPRECATE
 namespace Seed {
 class File : public RefCounted {
    private:
@@ -16,8 +16,7 @@ class File : public RefCounted {
 
    public:
     static Ref<File> open(const std::string &path, const char *mode) {
-        FILE *f;
-        fopen_s(&f, path.c_str(), mode);
+        FILE *f = fopen(path.c_str(), mode);
         if (!f) {
             return Ref<File>();
         }

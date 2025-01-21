@@ -6,11 +6,11 @@ namespace Seed {
 class LinearAllocator {
    private:
     void *memory_base;
-    size_t cur;
-    size_t cap;
+    u64 cur;
+    u64 cap;
 
    public:
-    void *alloc(size_t size);
+    void *alloc(u64 size);
     void free_all();
     LinearAllocator();
     ~LinearAllocator();

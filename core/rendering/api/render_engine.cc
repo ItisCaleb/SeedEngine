@@ -22,6 +22,7 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
     }
 
     this->device = new RenderDeviceOpenGL();
+    glfwGetFramebufferSize(window, &w, &h);
     glViewport(0, 0, w, h);
     glEnable(GL_DEPTH_TEST);
 

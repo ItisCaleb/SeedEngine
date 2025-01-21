@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 namespace Seed{
-    void *LinearAllocator::alloc(size_t size){
+    void *LinearAllocator::alloc(u64 size){
         this->cur += size;
         if(this->cur > this->cap){
             this->cap *= 2;

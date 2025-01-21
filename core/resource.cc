@@ -34,11 +34,11 @@ RenderResource ResourceLoader::loadShader(const std::string &vertex_path,
     RenderResource shader_rc;
     Ref<File> vertex_f = File::open(vertex_path, "r");
     if (vertex_f.is_null()) {
-        throw std::exception("Can't open vertex shader.");
+        throw std::runtime_error("Can't open vertex shader.");
     }
     Ref<File> fragment_f = File::open(fragment_path, "r");
     if (fragment_f.is_null()) {
-        throw std::exception("Can't open fragment shader.");
+        throw std::runtime_error("Can't open fragment shader.");
     }
     std::string vertex_s = vertex_f->read();
     std::string fragment_s = fragment_f->read();
