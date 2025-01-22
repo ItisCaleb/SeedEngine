@@ -14,15 +14,12 @@ struct Vertex {
     Vec2 tex_coord;
 };
 
-struct Mesh : public RefCounted {
+struct Mesh{
     RenderResource vertices_rc;
     RenderResource indices_rc;
-    RenderResource vertices_desc_rc;
-    RenderResource instance_rc;
-    RenderResource instance_desc_rc;
 
     ~Mesh();
-    static Ref<Mesh> create(std::vector<Vertex> &vertices,
+    void create(std::vector<Vertex> &vertices,
                             std::vector<u32> &indices);
 };
 

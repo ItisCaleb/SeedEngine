@@ -79,7 +79,6 @@ int main(void) {
     //     }
     // }
     ModelEntity *ent = new ModelEntity(Vec3{0,0 , -5}, mesh);
-    ent->set_material(mat);
     engine->get_world()->add_entity(ent);
     engine->get_world()->add_model_entity(ent);
     engine->get_world()->add_entity<CameraEntity>();

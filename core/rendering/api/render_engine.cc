@@ -53,7 +53,7 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
     lights_rc.alloc_constant(sizeof(Lights), &lights);
     mat_rc.alloc_constant(sizeof(Material), NULL);
     cam_rc.alloc_constant(sizeof(Vec3), NULL);
-    u8 gray_tex[4] = {200, 200, 200, 255};
+    u8 gray_tex[4] = {255, 255, 255, 255};
     default_texture.alloc_texture(1, 1, gray_tex);
 
     RenderResource::register_resource("Matrices", matrices_rc);

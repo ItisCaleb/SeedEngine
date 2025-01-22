@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -O3")
+add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
 OPTION(TEST
 "Build unit test"
@@ -38,7 +39,6 @@ target_link_libraries(seed PUBLIC
     spdlog::spdlog
     nlohmann_json::nlohmann_json
 )
-
 add_subdirectory(core)
 
 

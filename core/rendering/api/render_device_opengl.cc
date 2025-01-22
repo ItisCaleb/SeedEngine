@@ -42,8 +42,9 @@ RenderDeviceOpenGL::RenderDeviceOpenGL() {
     glGenVertexArrays(1, &global_vao);
     glBindVertexArray(global_vao);
     int flags;
+    std::string version = (char*)glGetString(GL_VERSION);
     glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
-    if (flags & GL_CONTEXT_FLAG_DEBUG_BIT) {
+    if ((flags & GL_CONTEXT_FLAG_DEBUG_BIT) && version.rfind("4.") != std::string::npos) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallback(glDebugOutput, nullptr);
