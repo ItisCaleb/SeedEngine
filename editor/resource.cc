@@ -13,7 +13,7 @@
 using namespace Seed;
 
 static u8 loadMaterialTextures(aiMaterial *mat, aiTextureType type,
-                                Model &model, ::Mesh &mesh) {
+                               Model &model, ::Mesh &mesh) {
     std::vector<std::string> textures;
     for (int i = 0; i < mat->GetTextureCount(type); i++) {
         aiString str;
@@ -76,7 +76,8 @@ Model *parseModel(const std::string &path) {
     Assimp::Importer importer;
     const aiScene *scene = importer.ReadFile(
         path, aiProcess_CalcTangentSpace | aiProcess_Triangulate |
-                  aiProcess_JoinIdenticalVertices | aiProcess_SortByPType);
+                  aiProcess_OptimizeMeshes | aiProcess_JoinIdenticalVertices |
+                  aiProcess_SortByPType);
 
     // If the import failed, report it
     if (!scene) {
@@ -97,19 +98,19 @@ void Model::dump() {
     dump(path);
 }
 
-struct TextureField{
+struct TextureField {
     u8 path_length;
     u8 id;
     char path[];
 };
 
-struct ModelHeader{
+struct ModelHeader {
     u16 mesh_count;
     u16 texture_count;
     TextureField textures[];
 };
 
-struct MeshHeader{
+struct MeshHeader {
     u32 vertex_size;
     u32 index_size;
     u8 diffuse_map;
@@ -126,10 +127,10 @@ void Model::dump(const std::string &file_path) {
     u32 total_size = strlen(magic) + sizeof(ModelHeader);
     f->write((void *)magic, strlen(magic));
     f->write(&header, sizeof(ModelHeader));
-    for(auto &[texture_path, id]: this->textures){
+    for (auto &[texture_path, id] : this->textures) {
         TextureField field = {(u8)texture_path.length(), id};
         f->write(&field, sizeof(TextureField));
-        f->write((void*)texture_path.data(), field.path_length);
+        f->write((void *)texture_path.data(), field.path_length);
         total_size += sizeof(TextureField) + field.path_length;
     }
 
@@ -155,7 +156,7 @@ void Model::dump(const std::string &file_path) {
         f->write(mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
         f->write(mesh.indices.data(), mesh.indices.size() * sizeof(u32));
     }
-    fmt::println("model size:{}",total_size);
+    fmt::println("model size:{}", total_size);
     // stbi_set_flip_vertically_on_load(true);
 
     // for (auto &[texture_path, id] : this->textures) {

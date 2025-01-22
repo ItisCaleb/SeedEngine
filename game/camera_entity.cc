@@ -27,7 +27,7 @@ void CameraEntity::update(f32 dt) {
 }
 
 void CameraEntity::render(RenderCommandDispatcher &dp) {
-    dp.begin();
+    dp.begin(0);
     Mat4 *matrices = (Mat4 *)dp.update(matrices_rc, 0, sizeof(Mat4) * 2);
     matrices[0] = cam.perspective().transpose();
     matrices[1] = cam.look_at().transpose();

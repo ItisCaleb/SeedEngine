@@ -53,8 +53,10 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
     lights_rc.alloc_constant(sizeof(Lights), &lights);
     mat_rc.alloc_constant(sizeof(Material), NULL);
     cam_rc.alloc_constant(sizeof(Vec3), NULL);
-    u8 gray_tex[4] = {255, 255, 255, 255};
-    default_texture.alloc_texture(1, 1, gray_tex);
+    u8 white_tex[4] = {255, 255, 255, 255};
+    RenderResource default_tex;
+    default_tex.alloc_texture(1, 1, white_tex);
+    default_material = Material::create(default_tex, default_tex, default_tex);
 
     RenderResource::register_resource("Matrices", matrices_rc);
     RenderResource::register_resource("Lights", lights_rc);
@@ -63,11 +65,6 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
 }
 
 RenderDevice *RenderEngine::get_device() { return device; }
-void RenderEngine::register_mesh(Mesh *mesh) {
-    this->mesh_instances[mesh] = {};
-}
-
-void RenderEngine::remove_mesh(Mesh *mesh) { this->mesh_instances.erase(mesh); }
 
 LinearAllocator *RenderEngine::get_mem_pool() { return &this->mem_pool; }
 
@@ -75,53 +72,59 @@ void RenderEngine::process() {
     std::vector<ModelEntity *> &entities =
         SeedEngine::get_instance()->get_world()->get_model_entities();
     for (ModelEntity *e : entities) {
-        Ref<Mesh> mesh = e->get_mesh();
-        if (mesh.is_null()) continue;
-        Ref<Material> mat = e->get_material();
-        auto &instance = mesh_instances[*mesh];
-
-        instance[mat.ptr()].push_back(e->get_transform().transpose());
+        Ref<Model> model = e->get_model();
+        if (model.is_null()) continue;
+        u32 variant = e->get_material_variant();
+        auto &instance = model_instances[*model][variant];
+        instance.push_back(e->get_transform().transpose());
     }
 
     RenderCommandDispatcher dp;
+    u64 cnt = 0;
     /* color pass */
-    for (auto &[mesh, instances] : mesh_instances) {
-        for (auto &e : instances) {
-            Material *material = e.first;
-            std::vector<Mat4> &models = e.second;
-            dp.begin();
-            dp.use(&mesh->vertices_rc);
-            dp.use(&mesh->vertices_desc_rc);
-            dp.use(&mesh->indices_rc);
-            dp.update(&mesh->instance_rc, 0, sizeof(Mat4) * models.size(),
-                      (void *)models.data());
-            dp.use(&mesh->instance_rc);
-            dp.use(&mesh->instance_desc_rc);
+    for (auto &[model, instances] : model_instances) {
+        dp.begin(cnt++);
+        dp.use(&model->instance_rc);
+        dp.use(&model->instance_desc_rc);
 
-            if (material == nullptr || !material->texture_rc.inited()) {
-                dp.use(&default_texture, 0);
-            } else {
-                dp.use(&material->texture_rc, 0);
+        for (auto &[mat_variant, matrices] : instances) {
+            dp.begin(cnt++);
+            dp.update(&model->instance_rc, 0, sizeof(Mat4) * matrices.size(),
+                      (void *)matrices.data());
+            for (Mesh &mesh : model->meshes) {
+                dp.use(&mesh.vertices_rc);
+                dp.use(&model->vertices_desc_rc);
+                dp.use(&mesh.indices_rc);
+                Ref<Material> material = model->model_mat.get_material(
+                    mesh.material_handle, mat_variant);
+                if(material.is_null()){
+                    material = default_material;
+                }
+                if (material->texture_rc.inited()) {
+                    dp.use(&material->texture_rc, 0);
+                }else{
+                    dp.use(&default_material->texture_rc, 0);
+                }
+                if (material->diffuse_map.inited()) {
+                    dp.use(&material->diffuse_map, 1);
+                }else{
+                    dp.use(&default_material->diffuse_map, 1);
+                }
+                if (material->specular_map.inited()) {
+                    dp.use(&material->specular_map, 2);
+                }else{
+                    dp.use(&default_material->specular_map, 2);
+                }
+                dp.render(this->default_shader, matrices.size());
             }
-            if (material == nullptr || !material->diffuse_map.inited()) {
-                dp.use(&default_texture, 1);
-            } else {
-                dp.use(&material->diffuse_map, 1);
-            }
-            if (material == nullptr || !material->specular_map.inited()) {
-                dp.use(&default_texture, 2);
-            } else {
-                dp.use(&material->specular_map, 2);
-            }
-
-            dp.render(this->default_shader, models.size());
             dp.end();
         }
+        dp.end();
     }
 
-    for (auto &[mesh, instances] : mesh_instances) {
-        for (auto &models : instances) {
-            models.second.clear();
+    for (auto &[model, instances] : model_instances) {
+        for (auto &[_, matrices] : instances) {
+            matrices.clear();
         }
     }
 

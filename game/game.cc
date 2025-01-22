@@ -67,9 +67,12 @@ int main(void) {
         indices.push_back(i);
     }
 
-    Ref<Mesh> mesh = Mesh::create(vertices, indices);
-    Ref<Material> mat = Material::create(tex);
+    Mesh mesh(vertices, indices);
+    std::vector<Mesh> meshs = {mesh};
 
+    Ref<Material> mat = Material::create(tex);
+    std::vector<Ref<Material>> mats = {mat};
+    Ref<Model> model = Model::create(meshs, mats);
     // for (int i = -100; i < 100; i++) {
     //     for (int j = -100; j < 100; j++) {
     //         ModelEntity *ent = new ModelEntity(Vec3{(f32)i, (f32)j, 0},
@@ -78,7 +81,7 @@ int main(void) {
     //         engine->get_world()->add_model_entity(ent);
     //     }
     // }
-    ModelEntity *ent = new ModelEntity(Vec3{0,0 , -5}, mesh);
+    ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, model);
     engine->get_world()->add_entity(ent);
     engine->get_world()->add_model_entity(ent);
     engine->get_world()->add_entity<CameraEntity>();

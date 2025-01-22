@@ -7,17 +7,16 @@
 namespace Seed {
 class ModelEntity : public Entity {
    private:
-    Ref<Mesh> mesh;
-    Ref<Material> mat;
+    Ref<Model> model;
+    u32 mat_variant = 0;
    public:
     void update(f32 dt) override;
     void render(RenderCommandDispatcher &dp) override;
-    void set_material(Ref<Material> mat);
-    Ref<Mesh> get_mesh();
-    Ref<Material> get_material();
-
-    ModelEntity(Vec3 position, Ref<Mesh> model);
-    ModelEntity(Ref<Mesh> model);
+    void set_material_variant(u32 variant);
+    Ref<Model> get_model();
+    u32 get_material_variant();
+    ModelEntity(Vec3 position, Ref<Model> model);
+    ModelEntity(Ref<Model> model);
 
     ~ModelEntity() = default;
 };

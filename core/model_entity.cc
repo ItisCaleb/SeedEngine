@@ -1,6 +1,7 @@
 #include "model_entity.h"
 #include "core/rendering/api/render_engine.h"
 #include "core/rendering/material.h"
+#include "core/rendering/model.h"
 
 namespace Seed {
 
@@ -14,16 +15,17 @@ void ModelEntity::update(f32 dt) {
 
 void ModelEntity::render(RenderCommandDispatcher &dp) {}
 
-void ModelEntity::set_material(Ref<Material> mat) { this->mat = mat; }
+void ModelEntity::set_material_variant(u32 variant) { this->mat_variant = variant; }
 
 
-Ref<Mesh> ModelEntity::get_mesh() { return mesh; }
+Ref<Model> ModelEntity::get_model() { return model; }
 
-Ref<Material> ModelEntity::get_material() { return mat; }
+u32 ModelEntity::get_material_variant() { return mat_variant; }
 
 
-ModelEntity::ModelEntity(Vec3 position, Ref<Mesh> model)
-    : Entity(position), mesh(model) {}
-ModelEntity::ModelEntity(Ref<Mesh> model) : ModelEntity(Vec3{0, 0, 0}, model) {}
+
+ModelEntity::ModelEntity(Vec3 position, Ref<Model> model)
+    : Entity(position), model(model) {}
+ModelEntity::ModelEntity(Ref<Model> model) : ModelEntity(Vec3{0, 0, 0}, model) {}
 
 }  // namespace Seed

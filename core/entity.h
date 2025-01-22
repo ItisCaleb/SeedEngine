@@ -13,6 +13,7 @@ class Entity {
     Vec3 rotation;
     Vec3 scale;
     Mat4 transform;
+    bool dirty;
     void update_transform();
    public:
     Vec3 get_position();

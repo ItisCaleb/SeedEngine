@@ -14,13 +14,20 @@ struct Vertex {
     Vec2 tex_coord;
 };
 
-struct Mesh{
+struct Mesh {
     RenderResource vertices_rc;
     RenderResource indices_rc;
 
-    ~Mesh();
-    void create(std::vector<Vertex> &vertices,
-                            std::vector<u32> &indices);
+    /* material id under model material*/
+    u32 material_handle;
+
+    Mesh(std::vector<Vertex> &vertices, std::vector<u32> &indices,
+                u32 material_handle = 0) {
+        this->vertices_rc.alloc_vertex(sizeof(Vertex), vertices.size(),
+                                       vertices.data());
+        this->indices_rc.alloc_index(indices);
+        this->material_handle = 0;
+    }
 };
 
 }  // namespace Seed

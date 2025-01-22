@@ -6,6 +6,7 @@
 #include "render_command.h"
 #include "render_device.h"
 #include "core/rendering/mesh.h"
+#include "core/rendering/model.h"
 #include "core/allocator/linear_allocator.h"
 #include <unordered_map>
 #include <queue>
@@ -14,20 +15,17 @@
 namespace Seed {
 class RenderEngine {
    private:
+
     inline static RenderEngine *instance = nullptr;
     RenderDevice *device;
-    std::unordered_map<Mesh *,
-                       std::unordered_map<Material *, std::vector<Mat4>>>
-        mesh_instances;
+    std::unordered_map<Model *, std::map<u32, std::vector<Mat4>>> model_instances;
     RenderResource *default_shader;
-    RenderResource default_texture;
+    Ref<Material> default_material;
     LinearAllocator mem_pool;
 
    public:
     static RenderEngine *get_instance();
     void process();
-    void register_mesh(Mesh *mesh);
-    void remove_mesh(Mesh *mesh);
     LinearAllocator *get_mem_pool();
     RenderDevice *get_device();
     RenderEngine(GLFWwindow *window, int w, int h);

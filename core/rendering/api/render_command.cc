@@ -3,13 +3,24 @@
 #include <spdlog/spdlog.h>
 
 namespace Seed {
-void RenderCommandDispatcher::begin() { engine = RenderEngine::get_instance(); }
+
+u64 RenderCommandDispatcher::get_sort_key() {
+    if (sort_keys.empty())
+        return 0;
+    else
+        return sort_keys.top();
+}
+void RenderCommandDispatcher::begin(u64 sortkey) {
+    this->sort_keys.push(sortkey);
+    engine = RenderEngine::get_instance();
+}
 void *RenderCommandDispatcher::update(RenderResource *resource, u32 offset,
                                       u32 size, void *data) {
     if (resource->type == RenderResourceType::UNINITIALIZE ||
         resource->type == RenderResourceType::TEXTURE)
         return NULL;
     RenderCommand cmd;
+    cmd.sort_key = get_sort_key();
     cmd.type = RenderCommandType::UPDATE;
     if (data != nullptr) {
         cmd.data = data;
@@ -28,11 +39,13 @@ void *RenderCommandDispatcher::update(RenderResource *resource, u16 x_off,
                                       u16 y_off, u16 w, u16 h, void *data) {
     if (resource->type != RenderResourceType::TEXTURE) return NULL;
     RenderCommand cmd;
+    cmd.sort_key = get_sort_key();
+
     cmd.type = RenderCommandType::UPDATE;
     if (data != nullptr) {
         cmd.data = data;
     } else {
-        cmd.data = RenderEngine::get_instance()->get_mem_pool()->alloc(w*h);
+        cmd.data = RenderEngine::get_instance()->get_mem_pool()->alloc(w * h);
     }
     cmd.resource = resource;
     cmd.texture.x_off = x_off;
@@ -47,6 +60,8 @@ void *RenderCommandDispatcher::update(RenderResource *resource, u16 x_off,
 void RenderCommandDispatcher::use(RenderResource *resource, u32 texutre_unit) {
     if (resource->type == RenderResourceType::UNINITIALIZE) return;
     RenderCommand cmd;
+    cmd.sort_key = get_sort_key();
+
     cmd.type = RenderCommandType::USE;
     cmd.resource = resource;
     cmd.texture_unit = texutre_unit;
@@ -54,6 +69,8 @@ void RenderCommandDispatcher::use(RenderResource *resource, u32 texutre_unit) {
 }
 void RenderCommandDispatcher::render(RenderResource *shader, u32 instance_cnt) {
     RenderCommand cmd;
+    cmd.sort_key = get_sort_key();
+
     if (shader->type != RenderResourceType::SHADER) {
         spdlog::error("The render resource is not a shader.");
         return;
@@ -63,5 +80,8 @@ void RenderCommandDispatcher::render(RenderResource *shader, u32 instance_cnt) {
     cmd.render.instance_cnt = instance_cnt;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
-void RenderCommandDispatcher::end() { this->engine = nullptr; }
+void RenderCommandDispatcher::end() {
+    if (!sort_keys.empty()) sort_keys.pop();
+    this->engine = nullptr;
+}
 }  // namespace Seed

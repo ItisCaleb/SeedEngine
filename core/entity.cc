@@ -8,15 +8,15 @@ Vec3 Entity::get_scale() { return scale; }
 
 void Entity::set_position(Vec3 position) {
     this->position = position;
-    update_transform();
+    this->dirty = true;
 }
 void Entity::set_rotation(Vec3 rotation) {
     this->rotation = rotation;
-    update_transform();
+    this->dirty = true;
 }
 void Entity::set_scale(Vec3 scale) {
     this->scale = scale;
-    update_transform();
+    this->dirty = true;
 }
 void Entity::update_transform() {
     Mat4 transform;
@@ -28,7 +28,13 @@ void Entity::update_transform() {
     this->transform = transform;
 }
 
-Mat4 Entity::get_transform() { return this->transform; }
+Mat4 Entity::get_transform() {
+    if (dirty) {
+        update_transform();
+        this->dirty = false;
+    }
+    return this->transform;
+}
 
 Entity::Entity(Vec3 position)
     : position(position), rotation(Vec3{0, 0, 0}), scale(Vec3{1, 1, 1}) {}

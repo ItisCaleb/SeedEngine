@@ -1,6 +1,6 @@
 target_sources(seed PRIVATE 
     camera.cc
-    mesh.cc
     material.cc
+    model.cc
     )
 add_subdirectory(api)

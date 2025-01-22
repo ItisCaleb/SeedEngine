@@ -2,11 +2,13 @@
 #define _SEED_RENDERING_COMMAND_H_
 #include "render_resource.h"
 #include <queue>
+#include <stack>
 
 namespace Seed {
 class RenderEngine;
 enum class RenderCommandType { UPDATE, USE, RENDER };
 struct RenderCommand {
+    u64 sort_key;
     RenderCommandType type;
     RenderResource *resource;
     void *data;
@@ -27,12 +29,18 @@ struct RenderCommand {
             u32 instance_cnt;
         } render;
     };
+    bool operator<(RenderCommand const &other) {
+        return sort_key < other.sort_key;
+    }
 };
 class RenderCommandDispatcher {
    private:
     RenderEngine *engine = nullptr;
+    std::stack<u64> sort_keys;
+    u64 get_sort_key();
+
    public:
-    void begin();
+    void begin(u64 sort_key);
     /* The `data` parameter will be used if supplied,
        or it will allocate a new space. Use with care.*/
     /* Make sure the `data` life cycle is longer than the entire frame.*/
@@ -53,7 +61,6 @@ class RenderCommandDispatcher {
 
     void render(RenderResource *shader, u32 instance_cnt);
     void end();
-    
 };
 
 }  // namespace Seed

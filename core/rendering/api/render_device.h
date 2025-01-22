@@ -6,7 +6,7 @@
 namespace Seed {
 class RenderDevice {
    protected:
-    std::queue<RenderCommand> cmd_queue;
+    std::deque<RenderCommand> cmd_queue;
 
    public:
     RenderDevice(/* args */) = default;
@@ -24,7 +24,7 @@ class RenderDevice {
                               const char *fragment_code) = 0;
     virtual void alloc_constant(RenderResource *rc, u32 size, void *data) = 0;
     virtual void dealloc(RenderResource *r) = 0;
-    void push_cmd(RenderCommand &cmd) { this->cmd_queue.push(cmd); }
+    void push_cmd(RenderCommand &cmd) { this->cmd_queue.push_back(cmd); }
     virtual void process() = 0;
 };
 
