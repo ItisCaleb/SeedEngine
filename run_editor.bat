@@ -1,0 +1,1 @@
+cmake --build build --preset editor && .\bin\editor.exe

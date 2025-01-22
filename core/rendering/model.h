@@ -36,6 +36,7 @@ class Model : public RefCounted {
     ~Model();
     static Ref<Model> create(const std::vector<Mesh> &meshes,
                              const std::vector<Ref<Material>> &mats);
+
 };
 }  // namespace Seed
 

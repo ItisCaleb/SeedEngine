@@ -100,20 +100,15 @@ void RenderEngine::process() {
                 if(material.is_null()){
                     material = default_material;
                 }
-                if (material->texture_rc.inited()) {
-                    dp.use(&material->texture_rc, 0);
-                }else{
-                    dp.use(&default_material->texture_rc, 0);
-                }
                 if (material->diffuse_map.inited()) {
-                    dp.use(&material->diffuse_map, 1);
+                    dp.use(&material->diffuse_map, 0);
                 }else{
-                    dp.use(&default_material->diffuse_map, 1);
+                    dp.use(&default_material->diffuse_map, 0);
                 }
                 if (material->specular_map.inited()) {
-                    dp.use(&material->specular_map, 2);
+                    dp.use(&material->specular_map, 1);
                 }else{
-                    dp.use(&default_material->specular_map, 2);
+                    dp.use(&default_material->specular_map, 1);
                 }
                 dp.render(this->default_shader, matrices.size());
             }

@@ -1,37 +1,32 @@
 #include "resource.h"
 
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
-#include <assimp/Importer.hpp>
 #include <spdlog/spdlog.h>
 #include "core/io/file.h"
 #include <filesystem>
-
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+#include "core/rendering/model_file.h"
 
 using namespace Seed;
 
-static u8 loadMaterialTextures(aiMaterial *mat, aiTextureType type,
-                               Model &model, ::Mesh &mesh) {
-    std::vector<std::string> textures;
+i16 Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
     for (int i = 0; i < mat->GetTextureCount(type); i++) {
         aiString str;
         mat->GetTexture(type, i, &str);
-        auto it = model.textures.find(str.C_Str());
-        if (it == model.textures.end()) {
-            u8 id = model.textures.size() + 1;
-            model.textures[str.C_Str()] = id;
-            return id;
+
+        /* find if texture exist */
+        for (int j = 0; j < textures.size(); j++) {
+            if (textures[j].compare(str.C_Str()) == 0) return j;
         }
-        return it->second;
+
+        /* add new texture */
+        textures.push_back(str.C_Str());
+        return textures.size() - 1;
     }
-    return 0;
+    return -1;
 }
 
-static void processMesh(aiMesh *mesh, const aiScene *scene, Model &model) {
-    model.meshes.push_back({});
-    ::Mesh &m = model.meshes.back();
+void Model::processMesh(aiMesh *mesh, const aiScene *scene) {
+    meshes.push_back({});
+    ::Mesh &m = meshes.back();
     std::vector<Vertex> &vertices = m.vertices;
     std::vector<u32> &indices = m.indices;
     for (int i = 0; i < mesh->mNumVertices; i++) {
@@ -55,24 +50,35 @@ static void processMesh(aiMesh *mesh, const aiScene *scene, Model &model) {
     }
     if (mesh->mMaterialIndex >= 0) {
         aiMaterial *mat = scene->mMaterials[mesh->mMaterialIndex];
-        m.diffuse_map =
-            loadMaterialTextures(mat, aiTextureType_DIFFUSE, model, m);
-        m.specular_map =
-            loadMaterialTextures(mat, aiTextureType_SPECULAR, model, m);
+        Material model_mat;
+        model_mat.diffuse = loadMaterialTextures(mat, aiTextureType_DIFFUSE);
+        model_mat.specular = loadMaterialTextures(mat, aiTextureType_SPECULAR);
+        model_mat.normal = loadMaterialTextures(mat, aiTextureType_NORMALS);
+
+        for (int i = 0; i < materials.size(); i++) {
+            if (materials[i] == model_mat) {
+                m.material_id = i;
+                return;
+            }
+        }
+        if (!model_mat.is_null()) {
+            materials.push_back(model_mat);
+            m.material_id = materials.size() - 1;
+        }
     }
 }
 
-static void processNode(aiNode *node, const aiScene *scene, Model &model) {
+void Model::processNode(aiNode *node, const aiScene *scene) {
     for (int i = 0; i < node->mNumMeshes; i++) {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-        processMesh(mesh, scene, model);
+        processMesh(mesh, scene);
     }
     for (int i = 0; i < node->mNumChildren; i++) {
-        processNode(node->mChildren[i], scene, model);
+        processNode(node->mChildren[i], scene);
     }
 }
 
-Model *parseModel(const std::string &path) {
+Model::Model(const std::string &path) {
     Assimp::Importer importer;
     const aiScene *scene = importer.ReadFile(
         path, aiProcess_CalcTangentSpace | aiProcess_Triangulate |
@@ -82,15 +88,13 @@ Model *parseModel(const std::string &path) {
     // If the import failed, report it
     if (!scene) {
         spdlog::error("Can't load Model from {}", path);
-        return {};
+        return;
     }
-    Model *model = new Model;
-    processNode(scene->mRootNode, scene, *model);
+    processNode(scene->mRootNode, scene);
     fmt::println("{}", scene->mNumMeshes);
 
     std::filesystem::path dir = path;
-    model->directory = dir.parent_path().string();
-    return model;
+    directory = dir.parent_path().string();
 }
 
 void Model::dump() {
@@ -98,73 +102,59 @@ void Model::dump() {
     dump(path);
 }
 
-struct TextureField {
-    u8 path_length;
-    u8 id;
-    char path[];
-};
-
-struct ModelHeader {
-    u16 mesh_count;
-    u16 texture_count;
-    TextureField textures[];
-};
-
-struct MeshHeader {
-    u32 vertex_size;
-    u32 index_size;
-    u8 diffuse_map;
-    u8 specular_map;
-    u8 normal_map;
-    u8 unused;
-    u32 next_mesh;
-};
-
 void Model::dump(const std::string &file_path) {
-    Ref<File> f = File::open(file_path, "w");
-    ModelHeader header = {(u16)this->meshes.size(), (u16)this->textures.size()};
-    const char *magic = "SDMDL";
-    u32 total_size = strlen(magic) + sizeof(ModelHeader);
-    f->write((void *)magic, strlen(magic));
-    f->write(&header, sizeof(ModelHeader));
-    for (auto &[texture_path, id] : this->textures) {
-        TextureField field = {(u8)texture_path.length(), id};
-        f->write(&field, sizeof(TextureField));
-        f->write((void *)texture_path.data(), field.path_length);
-        total_size += sizeof(TextureField) + field.path_length;
-    }
-
-    /*
-    ----------------------------------------------
-    |         | model  |        |          |
-    | "SDMDL" |        | header | vertices | indices
-    |         | header |        |          |
-    ----------------------------------------------
-    */
+    Ref<File> f = File::open(file_path, "wb");
+    ModelHeader header;
+    header.mesh_count = meshes.size();
+    header.texture_count = textures.size();
+    header.material_count = materials.size();
+    /* calculate offsets */
+    header.mesh_offset = strlen(model_file_magic) + sizeof(ModelHeader);
+    header.texture_offset =
+        header.mesh_offset + header.mesh_count * sizeof(MeshHeader);
     for (auto &mesh : this->meshes) {
-        total_size += sizeof(MeshHeader);
-        total_size += mesh.vertices.size() * sizeof(Vertex);
-        total_size += mesh.vertices.size() * sizeof(u32);
-        MeshHeader header;
-        header.vertex_size = mesh.vertices.size();
-        header.index_size = mesh.indices.size();
-        header.diffuse_map = mesh.diffuse_map;
-        header.specular_map = mesh.specular_map;
-        header.normal_map = mesh.normal_map;
-        header.next_mesh = total_size;
-        f->write(&header, sizeof(MeshHeader));
-        f->write(mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
-        f->write(mesh.indices.data(), mesh.indices.size() * sizeof(u32));
+        header.texture_offset += mesh.vertices.size() * sizeof(Vertex);
+        header.texture_offset += mesh.indices.size() * sizeof(u32);
     }
-    fmt::println("model size:{}", total_size);
-    // stbi_set_flip_vertically_on_load(true);
+    header.material_offset = header.texture_offset;
+    for (auto &texture_path : this->textures) {
+        header.material_offset += sizeof(TextureField);
+        header.material_offset += texture_path.length();
+    }
+    fmt::println("mesh offset at: {:#x}", header.mesh_offset);
+    fmt::println("texture offset at: {:#x}", header.texture_offset);
+    fmt::println("material offset at: {:#x}", header.material_offset);
+    f->write((void *)model_file_magic, strlen(model_file_magic));
+    f->write(&header, sizeof(ModelHeader));
 
-    // for (auto &[texture_path, id] : this->textures) {
-    //     std::string final_path =
-    //         fmt::format("{}/{}", this->directory, texture_path);
-    //     int w, h, comp;
-    //     void *data = stbi_load(final_path.c_str(), &w, &h, &comp, 4);
-    //     f->write(data, w * h * comp);
-    //     stbi_image_free(data);
-    // }
+    u32 total_mesh_size = 0;
+    for (auto &mesh : this->meshes) {
+        MeshHeader mesh_header;
+        mesh_header.vertex_size = mesh.vertices.size();
+        mesh_header.index_size = mesh.indices.size();
+        mesh_header.material_id = mesh.material_id;
+        total_mesh_size += f->write(&mesh_header, sizeof(MeshHeader));
+        total_mesh_size += f->write(mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
+        total_mesh_size += f->write(mesh.indices.data(), mesh.indices.size() * sizeof(u32));
+    }
+    fmt::println("write mesh data, size: {}", total_mesh_size);
+
+    for (auto &texture : this->textures) {
+        TextureField field;
+        field.path_length = texture.length();
+        f->write(&field, sizeof(TextureField));
+        f->write((void *)texture.data(), field.path_length);
+        fmt::println("write texture path: {}, length: {}", texture,
+                     field.path_length);
+    }
+
+    for (auto &mat : this->materials) {
+        MaterialField field;
+        field.diffuse_map = mat.diffuse;
+        field.specular_map = mat.specular;
+        field.normal_map = mat.normal;
+        f->write(&field, sizeof(MaterialField));
+    }
+
+    fmt::println("Succesfully dumped {}", file_path);
 }

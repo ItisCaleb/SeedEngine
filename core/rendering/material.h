@@ -7,15 +7,15 @@
 
 namespace Seed {
 struct Material : public RefCounted {
-    RenderResource texture_rc;
     RenderResource diffuse_map;
     RenderResource specular_map;
+    RenderResource normal_map;
+
     f32 shiness;
 
     ~Material();
-    static Ref<Material> create(RenderResource texture,
-                         RenderResource diffuse_map = {},
-                         RenderResource specular_map = {}, f32 shiness = 32.f);
+    static Ref<Material> create(RenderResource diffuse_map,
+                         RenderResource specular_map = {}, RenderResource normal_map = {}, f32 shiness = 32.f);
 };
 
 }  // namespace Seed

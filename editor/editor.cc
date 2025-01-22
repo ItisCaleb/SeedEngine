@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include "resource.h"
 #include <nfd.h>
+#include <fmt/format.h>
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
@@ -82,7 +83,7 @@ int main(int, char **) {
                 nfdopendialogu8args_t args = {0};
                 nfdresult_t r = NFD_OpenDialogU8_With(&path, &args);
                 if (r == NFD_OKAY) {
-                    current_model = parseModel(path);
+                    current_model = new Model(path);
                 }
             }
 
@@ -91,10 +92,11 @@ int main(int, char **) {
                     current_model->dump();
                 }
             }
-            ImGui::Text("counter = %d", counter);
-
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
-                        1000.0f / io.Framerate, io.Framerate);
+            if (current_model != nullptr) {
+                ImGui::Text("mesh count: %zu", current_model->meshes.size());
+                ImGui::Text("texture count: %zu",
+                            current_model->textures.size());
+            }
             ImGui::End();
         }
 

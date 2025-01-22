@@ -16,9 +16,8 @@ layout(std140) uniform Lights {
     vec3 u_light_ambient;
     Light u_lights[4];
 };
-// texture[0] - texture
-// texture[1] - diffuse
-// texture[2] - specular
+// texture[0] - diffuse
+// texture[1] - specular
 uniform sampler2D u_texture[8];
 
 layout(std140) uniform Material { float u_shiness; };
@@ -32,14 +31,14 @@ vec3 calculate_light(vec3 diffuse, vec3 specular, vec3 light_dir, vec3 view_dir,
     float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 32);
     float att = 1 / d;
     float diff = max(dot(n, light_dir), 0.0);
-    vec3 diffuse_l = diffuse * vec3(texture(u_texture[1], texCoord)) * diff;
-    vec3 specular_l = specular * vec3(texture(u_texture[2], texCoord)) * spec;
+    vec3 diffuse_l = diffuse * vec3(texture(u_texture[0], texCoord)) * diff;
+    vec3 specular_l = specular * vec3(texture(u_texture[1], texCoord)) * spec;
     // return specular_l;
     return att * (diffuse_l + specular_l);
 }
 
 void main() {
-    vec3 light_out = vec3(texture(u_texture[1], texCoord)) * u_light_ambient;
+    vec3 light_out = vec3(texture(u_texture[0], texCoord)) * u_light_ambient * 0.2;
     vec3 view_dir = normalize(u_cam_pos - fragPos);
     for (int i = 0; i < 4; i++) {
         Light light = u_lights[i];

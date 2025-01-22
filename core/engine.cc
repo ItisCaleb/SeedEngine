@@ -69,7 +69,6 @@ void SeedEngine::start() {
             delay(frame_limit - delta);
             delta = frame_limit;
         }
-        fmt::println("FPS: {}", 1/delta);
     }
 
     glfwDestroyWindow(window);

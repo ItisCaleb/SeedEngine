@@ -3,8 +3,9 @@
 #include "core/ref.h"
 #include "core/types.h"
 #include <stdio.h>
-
+#include <vector>
 #include <string>
+#include <fmt/format.h>
 namespace Seed {
 class File : public RefCounted {
    private:
@@ -28,7 +29,7 @@ class File : public RefCounted {
         file->read_cnt = 0;
         return Ref<File>(file);
     }
-    std::string read(size_t size=0) {
+    std::string read_str(size_t size=0) {
         std::string data;
         if (file && read_cnt < file_size) {
             if(size == 0 || size > file_size){
@@ -41,8 +42,30 @@ class File : public RefCounted {
         return data;
     }
 
-    void write(void *data, size_t size){
-        fwrite(data, 1, size, file);
+    template<typename T>
+    void read(T *data) {
+        if(data == nullptr) return;
+        size_t size = sizeof(T);
+
+        if (file && read_cnt < file_size) {
+            read_cnt += size;
+            fread((void *)data, 1, size, file);
+        }
+    }
+
+    template<typename T>
+    void read_vector(std::vector<T> &vec, u32 cnt) {
+        size_t ele_size = sizeof(T);
+        vec.resize(cnt);
+        if (file && read_cnt < file_size) {
+            read_cnt += cnt * ele_size;
+
+            fread((void *)vec.data(), 1, cnt * ele_size, file);
+        }
+    }
+
+    size_t write(void *data, size_t size){
+        return fwrite(data, 1, size, file);
     }
 
     ~File() {

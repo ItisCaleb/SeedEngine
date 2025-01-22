@@ -5,7 +5,7 @@
 namespace Seed {
 
 Model::Model(const std::vector<Mesh> &meshes, const std::vector<Ref<Material>> &mats)
-    : meshes(meshes), model_mat(mats) {}
+    : meshes(std::move(meshes)), model_mat(mats) {}
 Ref<Model> Model::create(const std::vector<Mesh> &meshes,
                          const std::vector<Ref<Material>> &mats) {
     Ref<Model> model(meshes, mats);

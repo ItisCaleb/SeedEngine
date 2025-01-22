@@ -81,7 +81,8 @@ int main(void) {
     //         engine->get_world()->add_model_entity(ent);
     //     }
     // }
-    ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, model);
+    auto backpack = loader->load<Model>("assets/backpack/test.mdl");
+    ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, backpack);
     engine->get_world()->add_entity(ent);
     engine->get_world()->add_model_entity(ent);
     engine->get_world()->add_entity<CameraEntity>();
