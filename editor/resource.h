@@ -4,6 +4,7 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
+#include "core/collision/aabb.h"
 #include <string>
 #include <vector>
 #include <map>
@@ -15,6 +16,12 @@ struct Mesh {
 };
 
 class Model {
+   private:
+    void processNode(aiNode *node, const aiScene *scene);
+    void processMesh(aiMesh *mesh, const aiScene *scene);
+    i16 loadMaterialTextures(aiMaterial *mat, aiTextureType type);
+    void calculateAABB();
+
    public:
     struct Material {
         i16 diffuse = -1;
@@ -32,9 +39,7 @@ class Model {
     std::vector<::Mesh> meshes;
     std::vector<std::string> textures;
     std::vector<Material> materials;
-    void processNode(aiNode *node, const aiScene *scene);
-    void processMesh(aiMesh *mesh, const aiScene *scene);
-    i16 loadMaterialTextures(aiMaterial *mat, aiTextureType type);
+    Seed::AABB bounding_box;
 
     void dump();
     void dump(const std::string &file_path);

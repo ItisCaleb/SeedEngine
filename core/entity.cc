@@ -21,9 +21,9 @@ void Entity::set_scale(Vec3 scale) {
 void Entity::update_transform() {
     Mat4 transform;
     transform *= Mat4::translate_mat(position);
+    transform *= Mat4::rotate_mat(rotation.z, Vec3{0, 0, 1});
     transform *= Mat4::rotate_mat(rotation.y, Vec3{0, 1, 0});
     transform *= Mat4::rotate_mat(rotation.x, Vec3{1, 0, 0});
-    transform *= Mat4::rotate_mat(rotation.z, Vec3{0, 0, 1});
     transform *= Mat4::scale_mat(scale);
     this->transform = transform;
 }

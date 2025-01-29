@@ -2,16 +2,19 @@
 #define _SEED_MODEL_H_
 #include "core/ref.h"
 #include "api/render_resource.h"
+#include "core/collision/aabb.h"
 #include "mesh.h"
 #include <vector>
 
 namespace Seed {
 
 class RenderEngine;
+class ColorPass;
 class ModelMaterial {
    private:
     std::vector<std::vector<Ref<Material>>> materials;
     Ref<Material> default_mat;
+
    public:
     ModelMaterial(const std::vector<Ref<Material>> &mat);
     ~ModelMaterial() = default;
@@ -22,21 +25,20 @@ class ModelMaterial {
 
 class Model : public RefCounted {
     friend RenderEngine;
-
+    friend ColorPass;
    private:
-    RenderResource vertices_desc_rc;
     RenderResource instance_rc;
-    RenderResource instance_desc_rc;
 
     std::vector<Mesh> meshes;
     ModelMaterial model_mat;
-
+    AABB bounding_box;
    public:
-    Model(const std::vector<Mesh> &meshes,const  std::vector<Ref<Material>> &mats);
+    Model(const std::vector<Mesh> &meshes,
+          const std::vector<Ref<Material>> &mats, AABB bounding_box);
+    AABB get_bounding_box();
     ~Model();
     static Ref<Model> create(const std::vector<Mesh> &meshes,
-                             const std::vector<Ref<Material>> &mats);
-
+                             const std::vector<Ref<Material>> &mats, AABB bounding_box);
 };
 }  // namespace Seed
 

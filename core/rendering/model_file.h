@@ -1,6 +1,7 @@
 #ifndef _SEED_MODEL_FILE_H_
 #define _SEED_MODEL_FILE_H_
 #include "core/types.h"
+#include "core/collision/aabb.h"
 inline const static char *model_file_magic = "SEEDMDL0";
 
 #pragma pack(push, 1)
@@ -12,6 +13,7 @@ struct ModelHeader {
     u32 mesh_offset;
     u32 texture_offset;
     u32 material_offset;
+    Seed::AABB bounding_box;
 };
 
 struct MeshHeader {

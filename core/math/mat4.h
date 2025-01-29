@@ -1,6 +1,7 @@
 #ifndef _SEED_Mat4_H_
 #define _SEED_Mat4_H_
 #include "vec4.h"
+#include "vec3.h"
 #include <fmt/format.h>
 
 namespace Seed {

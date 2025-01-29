@@ -8,7 +8,8 @@
 #include "core/rendering/mesh.h"
 #include "core/rendering/model.h"
 #include "core/allocator/linear_allocator.h"
-#include <unordered_map>
+#include "core/rendering/render_pass/color_pass.h"
+#include "core/rendering/render_pass/debug_pass.h"
 #include <queue>
 #include <vector>
 
@@ -18,11 +19,11 @@ class RenderEngine {
 
     inline static RenderEngine *instance = nullptr;
     RenderDevice *device;
-    std::unordered_map<Model *, std::map<u32, std::vector<Mat4>>> model_instances;
-    RenderResource *default_shader;
-    Ref<Material> default_material;
-    LinearAllocator mem_pool;
+    RenderResource *debug_shader;
 
+    LinearAllocator mem_pool;
+    ColorPass color_pass;
+    DebugPass debug_pass;
    public:
     static RenderEngine *get_instance();
     void process();

@@ -42,9 +42,10 @@ RenderDeviceOpenGL::RenderDeviceOpenGL() {
     glGenVertexArrays(1, &global_vao);
     glBindVertexArray(global_vao);
     int flags;
-    std::string version = (char*)glGetString(GL_VERSION);
+    std::string version = (char *)glGetString(GL_VERSION);
     glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
-    if ((flags & GL_CONTEXT_FLAG_DEBUG_BIT) && version.rfind("4.") != std::string::npos) {
+    if ((flags & GL_CONTEXT_FLAG_DEBUG_BIT) &&
+        version.rfind("4.3") != std::string::npos) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallback(glDebugOutput, nullptr);
@@ -66,11 +67,10 @@ void RenderDeviceOpenGL::alloc_texture(RenderResource *rc, u32 w, u32 h,
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 void RenderDeviceOpenGL::alloc_vertex(RenderResource *rc, u32 stride,
-                                      u32 element_cnt, void *data) {
-    rc->element_cnt = element_cnt;
+                                      u32 vertex_cnt, void *data) {
     glGenBuffers(1, &rc->handle);
     glBindBuffer(GL_ARRAY_BUFFER, rc->handle);
-    glBufferData(GL_ARRAY_BUFFER, element_cnt * stride, data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertex_cnt * stride, data, GL_STATIC_DRAW);
 }
 
 void RenderDeviceOpenGL::alloc_vertex_desc(
@@ -89,10 +89,14 @@ void RenderDeviceOpenGL::alloc_indices(RenderResource *rc,
 
 void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
                                       const char *vertex_code,
-                                      const char *fragment_code) {
-    u32 vertex, fragment;
+                                      const char *fragment_code,
+                                      const char *geometry_code) {
+    u32 vertex, fragment, geometry;
     int success;
     char info[512];
+    u32 program = glCreateProgram();
+
+    /* vertex shader */
     vertex = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex, 1, &vertex_code, NULL);
     glCompileShader(vertex);
@@ -101,7 +105,9 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
         glGetShaderInfoLog(vertex, 512, NULL, info);
         throw std::runtime_error(info);
     }
+    glAttachShader(program, vertex);
 
+    /* fragment shader */
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment, 1, &fragment_code, NULL);
     glCompileShader(fragment);
@@ -110,18 +116,30 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
         glGetShaderInfoLog(fragment, 512, NULL, info);
         throw std::runtime_error(info);
     }
-    u32 id = glCreateProgram();
-    glAttachShader(id, vertex);
-    glAttachShader(id, fragment);
-    glLinkProgram(id);
-    glGetProgramiv(id, GL_LINK_STATUS, &success);
+    glAttachShader(program, fragment);
+
+    /* optional geometry shader */
+    if (strlen(geometry_code) > 0) {
+        geometry = glCreateShader(GL_GEOMETRY_SHADER);
+        glShaderSource(geometry, 1, &geometry_code, NULL);
+        glCompileShader(geometry);
+        glGetShaderiv(geometry, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            glGetShaderInfoLog(geometry, 512, NULL, info);
+            throw std::runtime_error(info);
+        }
+        glAttachShader(program, geometry);
+    }
+
+    glLinkProgram(program);
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
     if (!success) {
-        glGetProgramInfoLog(id, 512, NULL, info);
+        glGetProgramInfoLog(program, 512, NULL, info);
         throw std::runtime_error(info);
     }
     glDeleteShader(vertex);
     glDeleteShader(fragment);
-    rc->handle = id;
+    rc->handle = program;
 }
 void RenderDeviceOpenGL::alloc_constant(RenderResource *rc, u32 size,
                                         void *data) {
@@ -153,14 +171,14 @@ void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
         case RenderResourceType::VERTEX:
             u32 vbo;
             glBindBuffer(GL_ARRAY_BUFFER, rc->handle);
-            if (rc->element_cnt * rc->stride < cmd.buffer.size) {
+            if (rc->vertex_cnt * rc->stride < cmd.buffer.size) {
                 glBufferData(GL_ARRAY_BUFFER, cmd.buffer.size, cmd.data,
                              GL_DYNAMIC_DRAW);
             } else {
                 glBufferSubData(GL_ARRAY_BUFFER, cmd.buffer.offset,
                                 cmd.buffer.size, cmd.data);
             }
-
+            rc->vertex_cnt = cmd.buffer.size / rc->stride;
             break;
         case RenderResourceType::TEXTURE:
             glBindTexture(GL_TEXTURE_2D, rc->handle);
@@ -181,6 +199,7 @@ void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
             glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, cmd.buffer.offset,
                             cmd.buffer.size, cmd.data);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+            rc->element_cnt = cmd.buffer.size / sizeof(u32);
             break;
         default:
             break;
@@ -222,11 +241,11 @@ void RenderDeviceOpenGL::handle_use(RenderCommand &cmd) {
     switch (rc->type) {
         case RenderResourceType::VERTEX:
             glBindBuffer(GL_ARRAY_BUFFER, rc->handle);
+            vertex_cnt = rc->vertex_cnt;
             break;
         case RenderResourceType::INDEX:
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rc->handle);
             element_cnt = rc->element_cnt;
-
             break;
         case RenderResourceType::TEXTURE:
             glActiveTexture(GL_TEXTURE0 + cmd.texture_unit);
@@ -254,8 +273,35 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
             glUniform1i(loc, i);
         }
     }
-    glDrawElementsInstanced(GL_TRIANGLES, element_cnt, GL_UNSIGNED_INT, 0,
-                            cmd.render.instance_cnt);
+    /* select primitive to draw */
+    u32 prim_type;
+    switch (cmd.render.prim_type) {
+        case RenderPrimitiveType::POINTS:
+            prim_type = GL_POINTS;
+            break;
+        case RenderPrimitiveType::LINES:
+            prim_type = GL_LINES;
+            break;
+        case RenderPrimitiveType::TRIANGLES:
+        default:
+            prim_type = GL_TRIANGLES;
+            break;
+    }
+    if (cmd.render.indexed) {
+        if (cmd.render.instance_cnt > 0) {
+            glDrawElementsInstanced(prim_type, element_cnt, GL_UNSIGNED_INT, 0,
+                                    cmd.render.instance_cnt);
+        } else {
+            glDrawElements(prim_type, element_cnt, GL_UNSIGNED_INT, 0);
+        }
+    } else {
+        if (cmd.render.instance_cnt > 0) {
+            glDrawArraysInstanced(prim_type, 0, vertex_cnt,
+                                  cmd.render.instance_cnt);
+        } else {
+            glDrawArrays(prim_type, 0, vertex_cnt);
+        }
+    }
 }
 
 void RenderDeviceOpenGL::process() {

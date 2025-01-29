@@ -4,63 +4,37 @@
 
 namespace Seed {
 
-Model::Model(const std::vector<Mesh> &meshes, const std::vector<Ref<Material>> &mats)
-    : meshes(std::move(meshes)), model_mat(mats) {}
+Model::Model(const std::vector<Mesh> &meshes,
+             const std::vector<Ref<Material>> &mats, AABB bounding_box)
+    : meshes(std::move(meshes)), model_mat(mats), bounding_box(bounding_box) {}
+
 Ref<Model> Model::create(const std::vector<Mesh> &meshes,
-                         const std::vector<Ref<Material>> &mats) {
-    Ref<Model> model(meshes, mats);
-    std::vector<VertexAttribute> vertices_attrs = {
-        {.layout_num = 0, .size = 3, .stride = sizeof(Vertex)},
-        {.layout_num = 1, .size = 3, .stride = sizeof(Vertex)},
-        {.layout_num = 2, .size = 2, .stride = sizeof(Vertex)}};
-    std::vector<VertexAttribute> instance_attrs = {
-        {
-            .layout_num = 3,
-            .is_instance = true,
-            .size = 4,
-            .stride = sizeof(Mat4),
-        },
-        {
-            .layout_num = 4,
-            .is_instance = true,
-            .size = 4,
-            .stride = sizeof(Mat4),
-        },
-        {
-            .layout_num = 5,
-            .is_instance = true,
-            .size = 4,
-            .stride = sizeof(Mat4),
-        },
-        {
-            .layout_num = 6,
-            .is_instance = true,
-            .size = 4,
-            .stride = sizeof(Mat4),
-        },
-    };
-    model->vertices_desc_rc.alloc_vertex_desc(vertices_attrs);
+                         const std::vector<Ref<Material>> &mats,
+                         AABB bounding_box) {
+    Ref<Model> model(meshes, mats, bounding_box);
+
     model->instance_rc.alloc_vertex(sizeof(Mat4), 1, NULL);
-    model->instance_desc_rc.alloc_vertex_desc(instance_attrs);
+
     return model;
 }
 
+AABB Model::get_bounding_box() { return bounding_box; }
+
 Model::~Model() {
-    vertices_desc_rc.dealloc();
     instance_rc.dealloc();
-    instance_desc_rc.dealloc();
     for (Mesh &mesh : meshes) {
         mesh.vertices_rc.dealloc();
         mesh.indices_rc.dealloc();
     }
 }
 
+
 ModelMaterial::ModelMaterial(const std::vector<Ref<Material>> &mat) {
     this->materials.push_back(mat);
 }
 std::vector<Ref<Material>> *ModelMaterial::get_materials(u32 variant) {
     if (variant >= materials.size()) {
-         return nullptr;
+        return nullptr;
     }
     return &materials[variant];
 }

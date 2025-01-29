@@ -72,7 +72,7 @@ int main(void) {
 
     Ref<Material> mat = Material::create(tex);
     std::vector<Ref<Material>> mats = {mat};
-    Ref<Model> model = Model::create(meshs, mats);
+    Ref<Model> model = Model::create(meshs, mats, {});
     // for (int i = -100; i < 100; i++) {
     //     for (int j = -100; j < 100; j++) {
     //         ModelEntity *ent = new ModelEntity(Vec3{(f32)i, (f32)j, 0},

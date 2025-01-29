@@ -7,6 +7,9 @@
 namespace Seed {
 class RenderEngine;
 enum class RenderCommandType { UPDATE, USE, RENDER };
+enum class RenderPrimitiveType: u32{
+    LINES, TRIANGLES, POINTS
+};
 struct RenderCommand {
     u64 sort_key;
     RenderCommandType type;
@@ -26,13 +29,16 @@ struct RenderCommand {
             u16 h;
         } texture;
         struct {
+            bool indexed;
             u32 instance_cnt;
+            RenderPrimitiveType prim_type;
         } render;
     };
     bool operator<(RenderCommand const &other) {
         return sort_key < other.sort_key;
     }
 };
+
 class RenderCommandDispatcher {
    private:
     RenderEngine *engine = nullptr;
@@ -59,7 +65,7 @@ class RenderCommandDispatcher {
 
     void use(RenderResource *resource, u32 texture_unit = 0);
 
-    void render(RenderResource *shader, u32 instance_cnt);
+    void render(RenderResource *shader, RenderPrimitiveType prim_type, u32 instance_cnt, bool indexed = true);
     void end();
 };
 

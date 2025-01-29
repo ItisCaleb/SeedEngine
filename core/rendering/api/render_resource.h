@@ -31,14 +31,17 @@ struct RenderResource {
     RenderResourceHandle handle;
     RenderResourceType type = RenderResourceType::UNINITIALIZE;
     u16 stride = 0;
-    u32 element_cnt = 0;
+    union{
+        u32 element_cnt = 0;
+        u32 vertex_cnt;
+    };
 
     void alloc_texture(u32 w, u32 h, void *data);
     void alloc_vertex(u32 stride, u32 element_cnt,
                       void *data);
     void alloc_vertex_desc(std::vector<VertexAttribute> &attrs);
     void alloc_index(std::vector<u32> &indices);
-    void alloc_shader(const char *vertex_code, const char *fragment_code);
+    void alloc_shader(const char *vertex_code, const char *fragment_code, const char *geometry_code);
     void alloc_constant(u32 size, void *data);
     void dealloc();
     bool inited();

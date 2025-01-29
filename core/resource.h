@@ -19,7 +19,7 @@ class ResourceLoader {
 
     RenderResource load_texture(const std::string &path);
     RenderResource loadShader(const std::string &vertex_path,
-                              const std::string &fragment_path);
+                              const std::string &fragment_path, const std::string &geometry_path = "");
     template <>
     Ref<Model> load(const std::string &path);
 

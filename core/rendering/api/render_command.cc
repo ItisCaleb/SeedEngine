@@ -5,9 +5,11 @@
 namespace Seed {
 
 u64 RenderCommandDispatcher::get_sort_key() {
-    if (sort_keys.empty())
+    if (sort_keys.empty()) {
+        spdlog::warn("Doesn't set sort_key {}:{}", __FILE__, __LINE__);
         return 0;
-    else
+
+    } else
         return sort_keys.top();
 }
 void RenderCommandDispatcher::begin(u64 sortkey) {
@@ -67,7 +69,9 @@ void RenderCommandDispatcher::use(RenderResource *resource, u32 texutre_unit) {
     cmd.texture_unit = texutre_unit;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
-void RenderCommandDispatcher::render(RenderResource *shader, u32 instance_cnt) {
+void RenderCommandDispatcher::render(RenderResource *shader,
+                                     RenderPrimitiveType prim_type,
+                                     u32 instance_cnt, bool indexed) {
     RenderCommand cmd;
     cmd.sort_key = get_sort_key();
 
@@ -78,6 +82,8 @@ void RenderCommandDispatcher::render(RenderResource *shader, u32 instance_cnt) {
     cmd.type = RenderCommandType::RENDER;
     cmd.resource = shader;
     cmd.render.instance_cnt = instance_cnt;
+    cmd.render.prim_type = prim_type;
+    cmd.render.indexed = indexed;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 void RenderCommandDispatcher::end() {

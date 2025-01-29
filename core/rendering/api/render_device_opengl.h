@@ -9,6 +9,7 @@ namespace Seed {
 class RenderDeviceOpenGL : public RenderDevice {
    private:
     u32 element_cnt = 0;
+    u32 vertex_cnt = 0;
     u32 global_vao;
     u32 current_program;
     std::vector<std::vector<VertexAttribute>> vertex_attrs;
@@ -26,7 +27,7 @@ class RenderDeviceOpenGL : public RenderDevice {
     void alloc_vertex_desc(RenderResource *rc, std::vector<VertexAttribute> &attrs) override;
     void alloc_indices(RenderResource *rc, std::vector<u32> &indices) override;
     void alloc_shader(RenderResource *rc, const char *vertex_code,
-                      const char *fragment_code) override;
+                      const char *fragment_code, const char *geometry_code) override;
     void alloc_constant(RenderResource *rc, u32 size, void *data) override;
     void dealloc(RenderResource *r) override;
 

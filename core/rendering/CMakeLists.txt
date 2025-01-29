@@ -4,3 +4,4 @@ target_sources(seed PRIVATE
     model.cc
     )
 add_subdirectory(api)
+add_subdirectory(render_pass)

@@ -34,9 +34,14 @@ RenderResource ResourceLoader::load_texture(const std::string &path) {
     return tex_rc;
 }
 
-RenderResource ResourceLoader::loadShader(const std::string &vertex_path,
-                                          const std::string &fragment_path) {
+RenderResource ResourceLoader::loadShader(
+    const std::string &vertex_path, const std::string &fragment_path,
+    const std::string &geometry_path) {
     RenderResource shader_rc;
+    std::string vertex_s;
+    std::string fragment_s;
+    std::string geometry_s;
+
     Ref<File> vertex_f = File::open(vertex_path, "r");
     if (vertex_f.is_null()) {
         throw std::runtime_error("Can't open vertex shader.");
@@ -45,12 +50,21 @@ RenderResource ResourceLoader::loadShader(const std::string &vertex_path,
     if (fragment_f.is_null()) {
         throw std::runtime_error("Can't open fragment shader.");
     }
-    std::string vertex_s = vertex_f->read_str();
-    std::string fragment_s = fragment_f->read_str();
+    if (!geometry_path.empty()) {
+        Ref<File> geomertry_f = File::open(geometry_path, "r");
+        if (geomertry_f.is_null()) {
+            throw std::runtime_error("Can't open geometry shader.");
+        }
+        geometry_s = geomertry_f->read_str();
+    }
+    vertex_s = vertex_f->read_str();
+    fragment_s = fragment_f->read_str();
     const char *vertex_code = vertex_s.c_str();
     const char *fragment_code = fragment_s.c_str();
+    const char *geomertry_code = geometry_s.c_str();
+
     try {
-        shader_rc.alloc_shader(vertex_code, fragment_code);
+        shader_rc.alloc_shader(vertex_code, fragment_code, geomertry_code);
         return shader_rc;
     } catch (std::exception &e) {
         throw e;
@@ -102,7 +116,7 @@ Ref<Model> ResourceLoader::load(const std::string &path) {
         materials.push_back(
             Material::create(diffuse_rc, specular_rc, normal_rc));
     }
-    return Model::create(meshs, materials);
+    return Model::create(meshs, materials, model_header.bounding_box);
 }
 
 }  // namespace Seed

@@ -53,6 +53,12 @@ struct Vec3 {
 
     Vec3 operator*(const Vec3 &b) { return Vec3{x * b.x, y * b.y, z * b.z}; }
 
+    void operator*=(const Vec3 &b) {
+        x *= b.x;
+        y *= b.y;
+        z *= b.z;
+    }
+
     bool operator==(const Vec3 &b) { return x == b.x && y == b.y && z == b.z; }
 
     Vec3 cross(const Vec3 &b) {

@@ -15,7 +15,7 @@ struct Light {
     alignas(16) Vec3 diffuse;
     alignas(16) Vec3 specular;
 
-    void set_postion(Vec3 pos) {
+    void set_position(Vec3 pos) {
         this->position = Vec4{pos.x, pos.y, pos.z, -1};
     }
     void set_direction(Vec3 dir) {

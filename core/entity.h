@@ -7,7 +7,7 @@
 
 namespace Seed {
 class Entity {
-   private:
+   protected:
     u32 id;
     Vec3 position;
     Vec3 rotation;
