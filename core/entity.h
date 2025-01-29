@@ -19,9 +19,10 @@ class Entity {
     Vec3 get_position();
     void set_position(Vec3 position);
     Vec3 get_rotation();
-    void set_rotation(Vec3 position);
+    void set_rotation(Vec3 rotation);
+    void rotate(f32 x_angle, f32 y_angle, f32 z_angle);
     Vec3 get_scale();
-    void set_scale(Vec3 position);
+    void set_scale(Vec3 scale);
     Mat4 get_transform();
     virtual void update(f32 dt) {}
     virtual void render(RenderCommandDispatcher &dp) {}

@@ -18,12 +18,18 @@ void Entity::set_scale(Vec3 scale) {
     this->scale = scale;
     this->dirty = true;
 }
+
+void Entity::rotate(f32 x_angle, f32 y_angle, f32 z_angle) {
+    this->rotation.x += x_angle;
+    this->rotation.y += y_angle;
+    this->rotation.z += z_angle;
+    this->dirty = true;
+}
+
 void Entity::update_transform() {
     Mat4 transform;
     transform *= Mat4::translate_mat(position);
-    transform *= Mat4::rotate_mat(rotation.z, Vec3{0, 0, 1});
-    transform *= Mat4::rotate_mat(rotation.y, Vec3{0, 1, 0});
-    transform *= Mat4::rotate_mat(rotation.x, Vec3{1, 0, 0});
+    transform *= Mat4::rotate_mat(Quaternion::from_euler(rotation));
     transform *= Mat4::scale_mat(scale);
     this->transform = transform;
 }
@@ -37,7 +43,7 @@ Mat4 Entity::get_transform() {
 }
 
 Entity::Entity(Vec3 position)
-    : position(position), rotation(Vec3{0, 0, 0}), scale(Vec3{1, 1, 1}) {}
+    : position(position), rotation({0, 0, 0}), scale(Vec3{1, 1, 1}) {}
 
 Entity::Entity() : Entity(Vec3{0, 0, 0}) {}
 

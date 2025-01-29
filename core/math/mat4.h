@@ -2,6 +2,7 @@
 #define _SEED_Mat4_H_
 #include "vec4.h"
 #include "vec3.h"
+#include "quaternion.h"
 #include <fmt/format.h>
 
 namespace Seed {
@@ -63,9 +64,7 @@ struct Mat4 {
                     data[3].dot(b)};
     }
 
-    void operator*=(const Mat4 &b) {
-        *this = *this * b;
-    }
+    void operator*=(const Mat4 &b) { *this = *this * b; }
 
     Mat4 transpose() const {
         return Mat4{this->data[0][0], this->data[1][0], this->data[2][0],
@@ -109,6 +108,16 @@ struct Mat4 {
                     Vec4{z * x * comp_c - y * s, z * y * comp_c + x * s,
                          c + z * z * comp_c, 0},
                     Vec4{0, 0, 0, 1}};
+    }
+
+    inline static Mat4 rotate_mat(Quaternion q) {
+        f32 xx = 2 * q.x * q.x, yy = 2 * q.y * q.y, zz = 2 * q.z * q.z;
+        f32 xy = 2 * q.x * q.y, xz = 2 * q.x * q.z, yz = 2 * q.y * q.z;
+        f32 wx = 2 * q.w * q.x, wy = 2 * q.w * q.y, wz = 2 * q.w * q.z;
+        return Mat4{1 - yy - zz, xy - wz,     xz + wy,     0,
+                    xy + wz,     1 - xx - zz, yz - wx,     0,
+                    xz - wy,     yz + wx,     1 - xx - yy, 0,
+                    0,           0,           0,           1};
     }
 
     Mat4 rotate(f32 rad, Vec3 axis) {

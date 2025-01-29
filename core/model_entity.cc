@@ -6,11 +6,8 @@
 namespace Seed {
 
 void ModelEntity::update(f32 dt) {
-    Vec3 rot = this->get_rotation();
-    rot.x += dt;
-    rot.y += dt;
-    rot.z += dt;
-    this->set_rotation(rot);
+    f32 speed = 90;
+    this->rotate(0, speed * dt, 0);
 }
 
 void ModelEntity::render(RenderCommandDispatcher &dp) {}
@@ -24,11 +21,19 @@ Ref<Model> ModelEntity::get_model() { return model; }
 u32 ModelEntity::get_material_variant() { return mat_variant; }
 
 AABB ModelEntity::get_model_aabb() {
-    if(model.is_null()) return {};
+    AABB result = {};
+    if(model.is_null()) return result;
     AABB bounding_box = model->get_bounding_box();
-    bounding_box.center += position;
-    bounding_box.ext *= scale;
-    return bounding_box;
+    Mat4 rot_mat = Mat4::rotate_mat(Quaternion::from_euler(rotation));
+    result.center = position;
+    result.ext = {0, 0, 0};
+    for(int i=0;i<3;i++){
+        for(int j=0;j<3;j++){
+            result.center[i] += rot_mat[i][j] * bounding_box.center[j] * scale[j];
+            result.ext[i] += abs(rot_mat[i][j]) * bounding_box.ext[j] * scale[j];
+        }
+    }
+    return result;
 }
 
 ModelEntity::ModelEntity(Vec3 position, Ref<Model> model)
