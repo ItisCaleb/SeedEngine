@@ -21,8 +21,10 @@ class RenderDevice {
     virtual void alloc_indices(RenderResource *rc,
                                std::vector<u32> &indices) = 0;
     virtual void alloc_shader(RenderResource *rc, const char *vertex_code,
-                              const char *fragment_code, const char *geometry_code) = 0;
-    virtual void alloc_constant(RenderResource *rc, u32 size, void *data) = 0;
+                              const char *fragment_code,
+                              const char *geometry_code) = 0;
+    virtual void alloc_constant(RenderResource *rc, const std::string &name,
+                                u32 size, void *data) = 0;
     virtual void dealloc(RenderResource *r) = 0;
     void push_cmd(RenderCommand &cmd) { this->cmd_queue.push_back(cmd); }
     virtual void process() = 0;

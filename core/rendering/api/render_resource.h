@@ -42,14 +42,12 @@ struct RenderResource {
     void alloc_vertex_desc(std::vector<VertexAttribute> &attrs);
     void alloc_index(std::vector<u32> &indices);
     void alloc_shader(const char *vertex_code, const char *fragment_code, const char *geometry_code);
-    void alloc_constant(u32 size, void *data);
+    void alloc_constant(const std::string &name, u32 size, void *data);
     void dealloc();
     bool inited();
     inline static std::map<std::string, RenderResource> texture;
-    inline static std::map<std::string, RenderResource> constants;
-    inline static std::map<std::string, RenderResource> shaders;
+
     inline static u32 constant_cnt = 0;
-    static void register_resource(const std::string &name, RenderResource rc);
     RenderResource() = default;
     ~RenderResource() = default;
 };

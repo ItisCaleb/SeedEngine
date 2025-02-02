@@ -6,9 +6,7 @@
 namespace Seed {
 class CameraEntity : public Entity {
    private:
-    Camera cam;
-    RenderResource *matrices_rc;
-    RenderResource *cam_rc;
+    Camera *cam;
 
    public:
     void update(f32 dt) override;

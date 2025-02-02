@@ -9,7 +9,6 @@
 #include "core/rendering/model.h"
 #include "core/allocator/linear_allocator.h"
 #include "core/rendering/render_pass/color_pass.h"
-#include "core/rendering/render_pass/debug_pass.h"
 #include <queue>
 #include <vector>
 
@@ -19,16 +18,16 @@ class RenderEngine {
 
     inline static RenderEngine *instance = nullptr;
     RenderDevice *device;
-    RenderResource *debug_shader;
-
+    RenderResource matrices_rc, cam_rc;
+    Camera cam;
     LinearAllocator mem_pool;
     ColorPass color_pass;
-    DebugPass debug_pass;
    public:
     static RenderEngine *get_instance();
     void process();
     LinearAllocator *get_mem_pool();
     RenderDevice *get_device();
+    Camera *get_cam();
     RenderEngine(GLFWwindow *window, int w, int h);
     ~RenderEngine();
 };

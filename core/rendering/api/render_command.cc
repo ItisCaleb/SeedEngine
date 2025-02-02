@@ -18,9 +18,7 @@ void RenderCommandDispatcher::begin(u64 sortkey) {
 }
 void *RenderCommandDispatcher::update(RenderResource *resource, u32 offset,
                                       u32 size, void *data) {
-    if (resource->type == RenderResourceType::UNINITIALIZE ||
-        resource->type == RenderResourceType::TEXTURE)
-        return NULL;
+    if (resource->type == RenderResourceType::UNINITIALIZE) return NULL;
     RenderCommand cmd;
     cmd.sort_key = get_sort_key();
     cmd.type = RenderCommandType::UPDATE;
@@ -32,7 +30,6 @@ void *RenderCommandDispatcher::update(RenderResource *resource, u32 offset,
     cmd.resource = resource;
     cmd.buffer.size = size;
     cmd.buffer.offset = offset;
-
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
     return cmd.data;
 }

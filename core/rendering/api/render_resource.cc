@@ -33,9 +33,10 @@ void RenderResource::alloc_vertex_desc(std::vector<VertexAttribute> &attrs) {
     RenderEngine::get_instance()->get_device()->alloc_vertex_desc(this, attrs);
 }
 
-void RenderResource::alloc_constant(u32 size, void *data) {
+void RenderResource::alloc_constant(const std::string &name, u32 size,
+                                    void *data) {
     this->type = RenderResourceType::CONSTANT;
-    RenderEngine::get_instance()->get_device()->alloc_constant(this, size,
+    RenderEngine::get_instance()->get_device()->alloc_constant(this, name, size,
                                                                data);
 }
 void RenderResource::dealloc() {
@@ -49,24 +50,6 @@ void RenderResource::dealloc() {
 
 bool RenderResource::inited() {
     return this->type != RenderResourceType::UNINITIALIZE;
-}
-
-void RenderResource::register_resource(const std::string &name,
-                                       RenderResource rc) {
-    constants[name] = rc;
-    if (rc.type == RenderResourceType::CONSTANT) {
-        for (auto &e : shaders) {
-            u32 idx = glGetUniformBlockIndex(e.second.handle, name.c_str());
-            if(idx != GL_INVALID_INDEX){
-                glUniformBlockBinding(e.second.handle, idx, constant_cnt);
-            }
-        }
-        glBindBufferBase(GL_UNIFORM_BUFFER, constant_cnt, rc.handle);
-        constant_cnt++;
-    }
-    if (rc.type == RenderResourceType::SHADER) {
-        shaders[name] = rc;
-    }
 }
 
 }  // namespace Seed

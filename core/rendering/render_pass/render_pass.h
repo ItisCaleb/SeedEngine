@@ -7,12 +7,11 @@ class RenderEngine;
 class RenderPass {
     friend RenderEngine;
 
-   protected:
-    RenderResource shader;
-
-   private:
+   private: 
     virtual void init() = 0;
+    virtual void preprocess() = 0;
     virtual void process(RenderCommandDispatcher &dp, u64 sort_key) = 0;
+    virtual void cleanup() = 0;
 };
 
 }  // namespace Seed

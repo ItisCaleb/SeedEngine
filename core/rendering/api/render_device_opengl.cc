@@ -140,13 +140,23 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
     glDeleteShader(vertex);
     glDeleteShader(fragment);
     rc->handle = program;
+    shaders[rc->handle] = *rc;
 }
-void RenderDeviceOpenGL::alloc_constant(RenderResource *rc, u32 size,
+void RenderDeviceOpenGL::alloc_constant(RenderResource *rc, const std::string &name, u32 size,
                                         void *data) {
     glGenBuffers(1, &rc->handle);
     glBindBuffer(GL_UNIFORM_BUFFER, rc->handle);
     glBufferData(GL_UNIFORM_BUFFER, size, data, GL_STATIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    constants[name] = *rc;
+    for (auto &e : shaders) {
+        u32 idx = glGetUniformBlockIndex(e.second.handle, name.c_str());
+        if(idx != GL_INVALID_INDEX){
+            glUniformBlockBinding(e.second.handle, idx, constant_cnt);
+        }
+    }
+    glBindBufferBase(GL_UNIFORM_BUFFER, constant_cnt, rc->handle);
+    constant_cnt++;
 }
 void RenderDeviceOpenGL::dealloc(RenderResource *r) {
     switch (r->type) {
