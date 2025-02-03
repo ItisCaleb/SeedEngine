@@ -2,6 +2,8 @@
 #define _SEED_CAMERA_H_
 #include "core/math/vec3.h"
 #include "core/math/mat4.h"
+#include "core/collision/plane.h"
+#include "core/collision/aabb.h"
 
 namespace Seed {
 class Camera {
@@ -15,6 +17,14 @@ class Camera {
         f32 bottom, top;
         f32 near, far;
     } frustum;
+    struct {
+        Plane left, right;
+        Plane top, bottom;
+        Plane near, far;
+    } frustum_plane;
+    bool dirty = true;
+    bool test_aabb_plane(AABB &aabb, Plane &plane);
+    void calculate_frustum();
 
    public:
     void set_position(Vec3 pos);
@@ -26,6 +36,7 @@ class Camera {
     void set_frustum(f32 left, f32 right, f32 bottom, f32 top, f32 near,
                      f32 far, bool is_ortho);
     void set_perspective(f64 fovy, f64 aspect, f64 near, f64 far);
+    bool within_frustum(AABB &bounding_box);
     Mat4 look_at();
     Mat4 perspective();
     Camera(Vec3 pos, Vec3 up, Vec3 front);

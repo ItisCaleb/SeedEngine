@@ -92,13 +92,19 @@ void ColorPass::init() {
 void ColorPass::preprocess() {
     std::vector<ModelEntity *> &entities =
         SeedEngine::get_instance()->get_world()->get_model_entities();
+    Camera *cam = RenderEngine::get_instance()->get_cam();
     for (ModelEntity *e : entities) {
         Ref<Model> model = e->get_model();
         if (model.is_null()) continue;
+        AABB bounding_box = e->get_model_aabb();
+        /* frustum culling */
+        if(cam && !cam->within_frustum(bounding_box)){
+            continue;
+        } 
         u32 variant = e->get_material_variant();
         auto &instance = model_instances[*model][variant];
         instance.push_back(e->get_transform().transpose());
-        entity_aabb.push_back(e->get_model_aabb());
+        entity_aabb.push_back(bounding_box);
     }
 }
 
