@@ -37,8 +37,6 @@ class Model : public RefCounted {
           const std::vector<Ref<Material>> &mats, AABB bounding_box);
     AABB get_bounding_box();
     ~Model();
-    static Ref<Model> create(const std::vector<Mesh> &meshes,
-                             const std::vector<Ref<Material>> &mats, AABB bounding_box);
 };
 }  // namespace Seed
 

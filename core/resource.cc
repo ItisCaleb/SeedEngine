@@ -73,6 +73,7 @@ RenderResource ResourceLoader::loadShader(
 
 template <>
 Ref<Model> ResourceLoader::load(const std::string &path) {
+    Ref<Model> model;
     Ref<File> file = File::open(path, "rb");
     std::vector<Mesh> meshs;
     std::vector<Ref<Material>> materials;
@@ -81,7 +82,7 @@ Ref<Model> ResourceLoader::load(const std::string &path) {
     if (memcmp(magic.c_str(), model_file_magic, strlen(model_file_magic)) !=
         0) {
         spdlog::warn("Can't load model file '{}'", path);
-        return {};
+        return model;
     }
     ModelHeader model_header;
     file->read(&model_header);
@@ -116,7 +117,8 @@ Ref<Model> ResourceLoader::load(const std::string &path) {
         materials.push_back(
             Material::create(diffuse_rc, specular_rc, normal_rc));
     }
-    return Model::create(meshs, materials, model_header.bounding_box);
+    model.create(meshs, materials, model_header.bounding_box);
+    return model;
 }
 
 }  // namespace Seed

@@ -6,17 +6,10 @@ namespace Seed {
 
 Model::Model(const std::vector<Mesh> &meshes,
              const std::vector<Ref<Material>> &mats, AABB bounding_box)
-    : meshes(std::move(meshes)), model_mat(mats), bounding_box(bounding_box) {}
+    : meshes(std::move(meshes)), model_mat(mats), bounding_box(bounding_box) {
+        instance_rc.alloc_vertex(sizeof(Mat4), 1, NULL);
+    }
 
-Ref<Model> Model::create(const std::vector<Mesh> &meshes,
-                         const std::vector<Ref<Material>> &mats,
-                         AABB bounding_box) {
-    Ref<Model> model(meshes, mats, bounding_box);
-
-    model->instance_rc.alloc_vertex(sizeof(Mat4), 1, NULL);
-
-    return model;
-}
 
 AABB Model::get_bounding_box() { return bounding_box; }
 
