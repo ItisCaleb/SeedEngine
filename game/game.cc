@@ -52,7 +52,6 @@ int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
     ResourceLoader *loader = ResourceLoader::get_instance();
 
-    RenderResource tex = loader->load_texture("assets/1.png");
     std::vector<Vertex> vertices;
     std::vector<u32> indices;
 
@@ -70,9 +69,7 @@ int main(void) {
     Mesh mesh(vertices, indices);
     std::vector<Mesh> meshs = {mesh};
 
-    Ref<Material> mat = Material::create(tex);
-    std::vector<Ref<Material>> mats = {mat};
-    Ref<Model> model = Model::create(meshs, mats, {});
+    //Ref<Model> model = Model::create(meshs, mats, {});
     // for (int i = -100; i < 100; i++) {
     //     for (int j = -100; j < 100; j++) {
     //         ModelEntity *ent = new ModelEntity(Vec3{(f32)i, (f32)j, 0},

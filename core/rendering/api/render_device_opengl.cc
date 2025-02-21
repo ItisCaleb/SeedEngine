@@ -316,11 +316,10 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
 
 void RenderDeviceOpenGL::process() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    std::sort(std::begin(cmd_queue), std::end(cmd_queue));
+    std::sort(std::begin(cmd_queue), std::end(cmd_queue), RenderCommand::cmp);
     while (!cmd_queue.empty()) {
         RenderCommand &cmd = cmd_queue.front();
         cmd_queue.pop_front();
-
         switch (cmd.type) {
             case RenderCommandType::UPDATE:
                 handle_update(cmd);

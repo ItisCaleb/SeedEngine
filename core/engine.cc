@@ -57,6 +57,7 @@ void SeedEngine::start() {
         if (input->is_key_pressed(KeyCode::Q)) {
             break;
         }
+        
         glfwPollEvents();
         world->tick(delta);
 
@@ -90,7 +91,11 @@ SeedEngine::SeedEngine(f32 target_fps) {
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+#else
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+#endif
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 

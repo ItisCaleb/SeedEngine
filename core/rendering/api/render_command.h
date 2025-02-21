@@ -34,8 +34,8 @@ struct RenderCommand {
             RenderPrimitiveType prim_type;
         } render;
     };
-    bool operator<(RenderCommand const &other) {
-        return sort_key < other.sort_key;
+    static bool cmp(RenderCommand const &a, RenderCommand const &b){
+        return a.sort_key < b.sort_key;
     }
 };
 
