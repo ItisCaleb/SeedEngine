@@ -8,7 +8,7 @@
 #include "core/rendering/mesh.h"
 #include "core/rendering/model.h"
 #include "core/allocator/linear_allocator.h"
-#include "core/rendering/render_pass/color_pass.h"
+#include "core/rendering/renderer/model_renderer.h"
 #include <queue>
 #include <vector>
 
@@ -21,7 +21,7 @@ class RenderEngine {
     RenderResource matrices_rc, cam_rc;
     Camera cam;
     LinearAllocator mem_pool;
-    ColorPass color_pass;
+    ModelRenderer model_renderer;
    public:
     static RenderEngine *get_instance();
     void process();

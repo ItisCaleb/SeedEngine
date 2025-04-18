@@ -16,12 +16,12 @@ void RenderResource::alloc_vertex(u32 stride, u32 vertex_cnt, void *data) {
     RenderEngine::get_instance()->get_device()->alloc_vertex(this, stride,
                                                              vertex_cnt, data);
 }
-void RenderResource::alloc_shader(const char *vertex_code,
-                                  const char *fragment_code,
-                                  const char *geometry_code) {
+void RenderResource::alloc_shader(const std::string &vertex_code,
+    const std::string &fragment_code,
+     const std::string &geometry_code, const std::string &tess_ctrl_code, const std::string &tess_eval_code) {
     this->type = RenderResourceType::SHADER;
     RenderEngine::get_instance()->get_device()->alloc_shader(
-        this, vertex_code, fragment_code, geometry_code);
+        this, vertex_code, fragment_code, geometry_code, tess_ctrl_code, tess_eval_code);
 }
 void RenderResource::alloc_index(std::vector<u32> &indices) {
     this->type = RenderResourceType::INDEX;

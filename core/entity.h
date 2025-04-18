@@ -15,6 +15,7 @@ class Entity {
     Mat4 transform;
     bool dirty;
     void update_transform();
+
    public:
     Vec3 get_position();
     void set_position(Vec3 position);

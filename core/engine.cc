@@ -57,7 +57,7 @@ void SeedEngine::start() {
         if (input->is_key_pressed(KeyCode::Q)) {
             break;
         }
-        
+
         glfwPollEvents();
         world->tick(delta);
 

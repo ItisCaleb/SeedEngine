@@ -87,18 +87,23 @@ void RenderDeviceOpenGL::alloc_indices(RenderResource *rc,
                  indices.data(), GL_STATIC_DRAW);
 }
 
-void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
-                                      const char *vertex_code,
-                                      const char *fragment_code,
-                                      const char *geometry_code) {
-    u32 vertex, fragment, geometry;
+void RenderDeviceOpenGL::alloc_shader(RenderResource *rc, const std::string &vertex_code,
+    const std::string &fragment_code,
+    const std::string &geometry_code,const std::string &tess_ctrl_code, const std::string &tess_eval_code) {
+    u32 vertex, fragment, geometry, tess_ctrl, tess_eval;
     int success;
     char info[512];
     u32 program = glCreateProgram();
+    const char *vertex_c = vertex_code.c_str();
+    const char *frag_c = fragment_code.c_str();
+    const char *geo_c = geometry_code.c_str();
+    const char *tess_ctrl_c = tess_ctrl_code.c_str();
+    const char *tess_eval_c = tess_eval_code.c_str();
+
 
     /* vertex shader */
     vertex = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex, 1, &vertex_code, NULL);
+    glShaderSource(vertex, 1, &vertex_c, NULL);
     glCompileShader(vertex);
     glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
     if (!success) {
@@ -109,7 +114,7 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
 
     /* fragment shader */
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment, 1, &fragment_code, NULL);
+    glShaderSource(fragment, 1, &frag_c, NULL);
     glCompileShader(fragment);
     glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
     if (!success) {
@@ -119,9 +124,9 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
     glAttachShader(program, fragment);
 
     /* optional geometry shader */
-    if (strlen(geometry_code) > 0) {
+    if (geometry_code.size() > 0) {
         geometry = glCreateShader(GL_GEOMETRY_SHADER);
-        glShaderSource(geometry, 1, &geometry_code, NULL);
+        glShaderSource(geometry, 1, &geo_c, NULL);
         glCompileShader(geometry);
         glGetShaderiv(geometry, GL_COMPILE_STATUS, &success);
         if (!success) {
@@ -129,6 +134,33 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
             throw std::runtime_error(info);
         }
         glAttachShader(program, geometry);
+    }
+
+    /* optional tesselation shader */
+    if (tess_ctrl_code.size() > 0 && tess_eval_code.size()) {
+        tess_ctrl = glCreateShader(GL_TESS_CONTROL_SHADER);
+        tess_eval = glCreateShader(GL_TESS_EVALUATION_SHADER);
+
+        glShaderSource(tess_ctrl, 1, &tess_ctrl_c, NULL);
+        glShaderSource(tess_eval, 1, &tess_eval_c, NULL);
+
+        glCompileShader(tess_ctrl);
+        glCompileShader(tess_eval);
+        glGetShaderiv(tess_ctrl, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            glGetShaderInfoLog(tess_ctrl, 512, NULL, info);
+            throw std::runtime_error(info);
+        }
+        glGetShaderiv(tess_eval, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            glGetShaderInfoLog(tess_ctrl, 512, NULL, info);
+            throw std::runtime_error(info);
+        }
+        glAttachShader(program, tess_ctrl);
+        glAttachShader(program, tess_eval);
+    }else if(tess_ctrl_code.size() == 0 && tess_eval_code.size() > 0 ||
+    tess_ctrl_code.size() > 0 && tess_eval_code.size() == 0){
+        throw std::runtime_error("TCS and TES need to be provide at same time.");
     }
 
     glLinkProgram(program);

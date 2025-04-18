@@ -36,11 +36,11 @@ RenderResource ResourceLoader::load_texture(const std::string &path) {
 
 RenderResource ResourceLoader::loadShader(
     const std::string &vertex_path, const std::string &fragment_path,
-    const std::string &geometry_path) {
+    const std::string &geometry_path,
+    const std::string &tess_ctrl_path,
+    const std::string &tess_eval_path) {
     RenderResource shader_rc;
-    std::string vertex_s;
-    std::string fragment_s;
-    std::string geometry_s;
+    std::string vertex_s, fragment_s, geometry_s, tess_ctrl_s, tess_eval_s;
 
     Ref<File> vertex_f = File::open(vertex_path, "r");
     if (vertex_f.is_null()) {
@@ -57,14 +57,28 @@ RenderResource ResourceLoader::loadShader(
         }
         geometry_s = geomertry_f->read_str();
     }
+
+    if (!tess_ctrl_path.empty()) {
+        Ref<File> tess_ctrl_f = File::open(tess_ctrl_path, "r");
+        if (tess_ctrl_f.is_null()) {
+            throw std::runtime_error("Can't open tesselation control shader.");
+        }
+        tess_ctrl_s = tess_ctrl_f->read_str();
+    }
+    if (!tess_eval_path.empty()) {
+        Ref<File> tess_eval_f = File::open(tess_eval_path, "r");
+        if (tess_eval_f.is_null()) {
+            throw std::runtime_error(
+                "Can't open tesselation evaluation shader.");
+        }
+        tess_eval_s = tess_eval_f->read_str();
+    }
     vertex_s = vertex_f->read_str();
     fragment_s = fragment_f->read_str();
-    const char *vertex_code = vertex_s.c_str();
-    const char *fragment_code = fragment_s.c_str();
-    const char *geomertry_code = geometry_s.c_str();
 
     try {
-        shader_rc.alloc_shader(vertex_code, fragment_code, geomertry_code);
+        shader_rc.alloc_shader(vertex_s, fragment_s, geometry_s, tess_ctrl_s,
+                               tess_eval_s);
         return shader_rc;
     } catch (std::exception &e) {
         throw e;
@@ -122,7 +136,7 @@ Ref<Model> ResourceLoader::load(const std::string &path) {
 }
 
 template <>
-Ref<Terrain> ResourceLoader::load(const std::string &path){
+Ref<Terrain> ResourceLoader::load(const std::string &path) {
     Ref<Terrain> terrain;
     return terrain;
 }

@@ -9,12 +9,12 @@
 namespace Seed {
 
 class RenderEngine;
-class ColorPass;
+class ModelRenderer;
 
 
 class Model : public RefCounted {
     friend RenderEngine;
-    friend ColorPass;
+    friend ModelRenderer;
    private:
     RenderResource instance_rc;
     std::vector<Ref<Material>> materials;

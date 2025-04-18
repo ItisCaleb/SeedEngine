@@ -25,7 +25,7 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
     glfwGetFramebufferSize(window, &w, &h);
     glViewport(0, 0, w, h);
     glEnable(GL_DEPTH_TEST);
-    color_pass.init();
+    model_renderer.init();
 
     matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
     cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);
@@ -48,10 +48,10 @@ void RenderEngine::process() {
     *cam_pos = this->cam.get_position();
     dp.end();
     /* color pass */
-    color_pass.preprocess();
-    color_pass.process(dp, 0);
+    model_renderer.preprocess();
+    model_renderer.process(dp, 0);
     this->device->process();
-    color_pass.cleanup();
+    model_renderer.cleanup();
     this->mem_pool.free_all();
 }
 

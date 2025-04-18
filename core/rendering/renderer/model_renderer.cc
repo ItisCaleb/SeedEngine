@@ -1,4 +1,4 @@
-#include "color_pass.h"
+#include "model_renderer.h"
 #include "core/rendering/light.h"
 #include "core/rendering/api/render_resource.h"
 #include "core/resource.h"
@@ -8,7 +8,7 @@
 
 namespace Seed {
 
-void ColorPass::init_color() {
+void ModelRenderer::init_color() {
     ResourceLoader *loader = ResourceLoader::get_instance();
 
     try {
@@ -67,7 +67,7 @@ void ColorPass::init_color() {
     lights.lights[1].diffuse = Vec3{1, 1, 1};
     lights_rc.alloc_constant("Lights", sizeof(Lights), &lights);
 }
-void ColorPass::init_debugging() {
+void ModelRenderer::init_debugging() {
     ResourceLoader *loader = ResourceLoader::get_instance();
 
     try {
@@ -84,12 +84,12 @@ void ColorPass::init_debugging() {
     aabb_desc_rc.alloc_vertex_desc(aabb_attrs);
     aabb_vertices_rc.alloc_vertex(sizeof(AABB), 0, NULL);
 }
-void ColorPass::init() {
+void ModelRenderer::init() {
     init_color();
     init_debugging();
 }
 
-void ColorPass::preprocess() {
+void ModelRenderer::preprocess() {
     std::vector<ModelEntity *> &entities =
         SeedEngine::get_instance()->get_world()->get_model_entities();
     Camera *cam = RenderEngine::get_instance()->get_cam();
@@ -107,7 +107,7 @@ void ColorPass::preprocess() {
     }
 }
 
-void ColorPass::process(RenderCommandDispatcher &dp, u64 sort_key) {
+void ModelRenderer::process(RenderCommandDispatcher &dp, u64 sort_key) {
     for (auto &[model, instances] : model_instances) {
         dp.begin(sort_key++);
         dp.use(&model->instance_rc);
@@ -150,7 +150,7 @@ void ColorPass::process(RenderCommandDispatcher &dp, u64 sort_key) {
     dp.render(&this->debugging_shader, RenderPrimitiveType::POINTS, 0, false);
     dp.end();
 }
-void ColorPass::cleanup() {
+void ModelRenderer::cleanup() {
     for (auto &[model, instances] : model_instances) {
         instances.clear();
     }

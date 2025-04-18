@@ -4,7 +4,7 @@
 
 namespace Seed {
 class RenderEngine;
-class RenderPass {
+class Renderer {
     friend RenderEngine;
 
    private: 

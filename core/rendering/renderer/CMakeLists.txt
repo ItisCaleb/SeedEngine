@@ -1,3 +1,3 @@
 target_sources(seed PRIVATE 
-    color_pass.cc
+    model_renderer.cc
     )

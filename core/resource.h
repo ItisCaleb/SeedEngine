@@ -19,8 +19,10 @@ class ResourceLoader {
     Ref<T> load(const std::string &path);
 
     RenderResource load_texture(const std::string &path);
-    RenderResource loadShader(const std::string &vertex_path,
-                              const std::string &fragment_path, const std::string &geometry_path = "");
+    RenderResource loadShader(
+        const std::string &vertex_path, const std::string &fragment_path,
+        const std::string &geometry_path = "", const std::string &tess_ctrl_path = "",
+        const std::string &tess_eval_path = "");
     template <>
     Ref<Model> load(const std::string &path);
     template <>

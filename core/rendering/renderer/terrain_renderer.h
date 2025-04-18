@@ -1,0 +1,23 @@
+#ifndef _SEED_COLOR_PASS_H_
+#define _SEED_COLOR_PASS_H_
+#include "renderer.h"
+#include "core/rendering/api/render_resource.h"
+#include <unordered_map>
+
+namespace Seed {
+class ModelRenderer : public Renderer {
+    friend RenderEngine;
+
+   private:
+    RenderResource vertices_desc_rc;
+    RenderResource instance_desc_rc;
+    RenderResource terrain_shader;
+
+    void init() override;
+    void preprocess() override;
+    void process(RenderCommandDispatcher &dp, u64 sort_key) override;
+    void cleanup() override;
+};
+}  // namespace Seed
+
+#endif

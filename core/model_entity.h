@@ -8,6 +8,7 @@ namespace Seed {
 class ModelEntity : public Entity {
    private:
     Ref<Model> model;
+
    public:
     void update(f32 dt) override;
     void render(RenderCommandDispatcher &dp) override;

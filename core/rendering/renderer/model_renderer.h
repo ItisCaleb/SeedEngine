@@ -1,12 +1,12 @@
 #ifndef _SEED_COLOR_PASS_H_
 #define _SEED_COLOR_PASS_H_
-#include "render_pass.h"
+#include "renderer.h"
 #include "core/rendering/api/render_resource.h"
 #include <unordered_map>
 #include "core/rendering/model.h"
 
 namespace Seed {
-class ColorPass : public RenderPass {
+class ModelRenderer : public Renderer {
     friend RenderEngine;
 
    private:

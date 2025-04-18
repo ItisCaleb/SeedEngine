@@ -19,7 +19,6 @@ class World {
     void add_entity(Entity *entity);
     void add_model_entity(ModelEntity *entity);
 
-
     template <typename T, typename... Args>
     void add_entity(const Args &...args) {
         add_entity(new T(args...));

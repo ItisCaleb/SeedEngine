@@ -31,9 +31,9 @@ class RenderDeviceOpenGL : public RenderDevice {
     void alloc_vertex_desc(RenderResource *rc,
                            std::vector<VertexAttribute> &attrs) override;
     void alloc_indices(RenderResource *rc, std::vector<u32> &indices) override;
-    void alloc_shader(RenderResource *rc, const char *vertex_code,
-                      const char *fragment_code,
-                      const char *geometry_code) override;
+    void alloc_shader(RenderResource *rc, const std::string &vertex_code,
+        const std::string &fragment_code,
+        const std::string &geometry_code, const std::string &tess_ctrl_code, const std::string &tess_eval_code) override;
     void alloc_constant(RenderResource *rc, const std::string &name, u32 size,
                         void *data) override;
     void dealloc(RenderResource *r) override;
