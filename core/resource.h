@@ -2,6 +2,7 @@
 #define _SEED_RESOURCE_H_
 #include "ref.h"
 #include "rendering/model.h"
+#include "rendering/terrain.h"
 #include "rendering/api/render_resource.h"
 #include "types.h"
 
@@ -22,6 +23,8 @@ class ResourceLoader {
                               const std::string &fragment_path, const std::string &geometry_path = "");
     template <>
     Ref<Model> load(const std::string &path);
+    template <>
+    Ref<Terrain> load(const std::string &path);
 
     ResourceLoader(/* args */);
     ~ResourceLoader();

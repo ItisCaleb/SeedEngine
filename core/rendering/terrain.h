@@ -4,12 +4,12 @@
 #include "core/rendering/mesh.h"
 
 namespace Seed {
-class Terrain : RefCounted {
+class Terrain : public RefCounted {
    private:
-    Mesh terrain_mesh;
-
+    u32 width, depth;
+    RenderResource height_map;
    public:
-    Terrain(Mesh terrain_mesh);
+    Terrain(u32 width, u32 depth, RenderResource height_map);
     ~Terrain();
 };
 

@@ -1,6 +1,6 @@
 #include "terrain.h"
 
 namespace Seed {
-Terrain::Terrain(Mesh terrain_mesh) : terrain_mesh(terrain_mesh) {}
+Terrain::Terrain(u32 width, u32 depth, RenderResource height_map):width(width), depth(depth), height_map(height_map) {}
 
 }  // namespace Seed

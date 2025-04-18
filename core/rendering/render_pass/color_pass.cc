@@ -101,8 +101,7 @@ void ColorPass::preprocess() {
         if(cam && !cam->within_frustum(bounding_box)){
             continue;
         } 
-        u32 variant = e->get_material_variant();
-        auto &instance = model_instances[*model][variant];
+        auto &instance = model_instances[*model];
         instance.push_back(e->get_transform().transpose());
         entity_aabb.push_back(bounding_box);
     }
@@ -114,34 +113,32 @@ void ColorPass::process(RenderCommandDispatcher &dp, u64 sort_key) {
         dp.use(&model->instance_rc);
         dp.use(&this->instance_desc_rc);
 
-        for (auto &[mat_variant, matrices] : instances) {
-            dp.begin(sort_key++);
-            dp.update(&model->instance_rc, 0, sizeof(Mat4) * matrices.size(),
-                      (void *)matrices.data());
-            for (Mesh &mesh : model->meshes) {
-                dp.use(&mesh.vertices_rc);
-                dp.use(&this->vertices_desc_rc);
-                dp.use(&mesh.indices_rc);
-                Ref<Material> material = model->model_mat.get_material(
-                    mesh.material_handle, mat_variant);
-                if (material.is_null()) {
-                    material = default_material;
-                }
-                if (material->diffuse_map.inited()) {
-                    dp.use(&material->diffuse_map, 0);
-                } else {
-                    dp.use(&default_material->diffuse_map, 0);
-                }
-                if (material->specular_map.inited()) {
-                    dp.use(&material->specular_map, 1);
-                } else {
-                    dp.use(&default_material->specular_map, 1);
-                }
-                dp.render(&this->color_shader, RenderPrimitiveType::TRIANGLES,
-                          matrices.size());
+        dp.begin(sort_key++);
+        dp.update(&model->instance_rc, 0, sizeof(Mat4) * instances.size(),
+                  (void *)instances.data());
+        for (Mesh &mesh : model->meshes) {
+            dp.use(&mesh.vertices_rc);
+            dp.use(&this->vertices_desc_rc);
+            dp.use(&mesh.indices_rc);
+            Ref<Material> material = model->get_material(
+                mesh.material_handle);
+            if (material.is_null()) {
+                material = default_material;
             }
-            dp.end();
+            if (material->diffuse_map.inited()) {
+                dp.use(&material->diffuse_map, 0);
+            } else {
+                dp.use(&default_material->diffuse_map, 0);
+            }
+            if (material->specular_map.inited()) {
+                dp.use(&material->specular_map, 1);
+            } else {
+                dp.use(&default_material->specular_map, 1);
+            }
+            dp.render(&this->color_shader, RenderPrimitiveType::TRIANGLES,
+                instances.size());
         }
+        dp.end();
         dp.end();
     }
     /* debugging */
@@ -155,9 +152,7 @@ void ColorPass::process(RenderCommandDispatcher &dp, u64 sort_key) {
 }
 void ColorPass::cleanup() {
     for (auto &[model, instances] : model_instances) {
-        for (auto &[_, matrices] : instances) {
-            matrices.clear();
-        }
+        instances.clear();
     }
 
     entity_aabb.clear();

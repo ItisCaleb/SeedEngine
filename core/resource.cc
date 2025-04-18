@@ -121,4 +121,10 @@ Ref<Model> ResourceLoader::load(const std::string &path) {
     return model;
 }
 
+template <>
+Ref<Terrain> ResourceLoader::load(const std::string &path){
+    Ref<Terrain> terrain;
+    return terrain;
+}
+
 }  // namespace Seed

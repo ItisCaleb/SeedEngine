@@ -10,7 +10,7 @@ class ColorPass : public RenderPass {
     friend RenderEngine;
 
    private:
-    std::unordered_map<Model *, std::map<u32, std::vector<Mat4>>> model_instances;
+    std::unordered_map<Model *, std::vector<Mat4>> model_instances;
     Ref<Material> default_material;
     RenderResource vertices_desc_rc;
     RenderResource instance_desc_rc;
