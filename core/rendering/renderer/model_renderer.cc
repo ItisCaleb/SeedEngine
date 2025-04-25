@@ -13,9 +13,9 @@ void ModelRenderer::init_color() {
 
     try {
         this->color_shader =
-            loader->loadShader("assets/vertex.glsl", "assets/fragment.glsl");
+            loader->loadShader("assets/default.vert", "assets/default.frag");
     } catch (std::exception &e) {
-        spdlog::error("Error loading Shader: {}", e.what());
+        SPDLOG_ERROR("Error loading Shader: {}", e.what());
         exit(1);
     }
     std::vector<VertexAttribute> vertices_attrs = {
@@ -51,9 +51,11 @@ void ModelRenderer::init_color() {
     vertices_desc_rc.alloc_vertex_desc(vertices_attrs);
     instance_desc_rc.alloc_vertex_desc(instance_attrs);
     u8 white_tex[4] = {255, 255, 255, 255};
-    RenderResource default_tex;
-    default_tex.alloc_texture(1, 1, white_tex);
-    default_material = Material::create(default_tex, default_tex, default_tex);
+    default_texture.create(1, 1, (const char *)white_tex);
+    default_material.create();
+    default_material->set_texture_map(Material::DIFFUSE, default_texture);
+    default_material->set_texture_map(Material::SPECULAR, default_texture);
+    default_material->set_texture_map(Material::NORMAl, default_texture);
 
     RenderResource lights_rc;
 
@@ -74,7 +76,7 @@ void ModelRenderer::init_debugging() {
         this->debugging_shader = loader->loadShader(
             "assets/debug.vert", "assets/debug.frag", "assets/debug.gs");
     } catch (std::exception &e) {
-        spdlog::error("Error loading Shader: {}", e.what());
+        SPDLOG_ERROR("Error loading Shader: {}", e.what());
         exit(1);
     }
 
@@ -120,20 +122,22 @@ void ModelRenderer::process(RenderCommandDispatcher &dp, u64 sort_key) {
             dp.use(&mesh.vertices_rc);
             dp.use(&this->vertices_desc_rc);
             dp.use(&mesh.indices_rc);
-            Ref<Material> material = model->get_material(
-                mesh.material_handle);
+            Ref<Material> material = mesh.get_material();
             if (material.is_null()) {
                 material = default_material;
             }
-            if (material->diffuse_map.inited()) {
-                dp.use(&material->diffuse_map, 0);
+            Ref<Texture> diff_map = material->get_texture_map(Material::DIFFUSE);
+            Ref<Texture> spec_map = material->get_texture_map(Material::SPECULAR);
+
+            if (diff_map.is_valid()) {
+                dp.use(diff_map->get_render_resource(), Material::DIFFUSE);
             } else {
-                dp.use(&default_material->diffuse_map, 0);
+                dp.use(default_texture->get_render_resource(), Material::DIFFUSE);
             }
-            if (material->specular_map.inited()) {
-                dp.use(&material->specular_map, 1);
+            if (spec_map.is_valid()) {
+                dp.use(spec_map->get_render_resource(), Material::SPECULAR);
             } else {
-                dp.use(&default_material->specular_map, 1);
+                dp.use(default_texture->get_render_resource(), Material::SPECULAR);
             }
             dp.render(&this->color_shader, RenderPrimitiveType::TRIANGLES,
                 instances.size());

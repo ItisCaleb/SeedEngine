@@ -4,6 +4,7 @@
 #include "rendering/model.h"
 #include "rendering/terrain.h"
 #include "rendering/api/render_resource.h"
+#include "rendering/texture.h"
 #include "types.h"
 
 #include <string>
@@ -18,11 +19,12 @@ class ResourceLoader {
     template <typename T>
     Ref<T> load(const std::string &path);
 
-    RenderResource load_texture(const std::string &path);
     RenderResource loadShader(
         const std::string &vertex_path, const std::string &fragment_path,
         const std::string &geometry_path = "", const std::string &tess_ctrl_path = "",
         const std::string &tess_eval_path = "");
+    template <>
+    Ref<Texture> load(const std::string &path);
     template <>
     Ref<Model> load(const std::string &path);
     template <>

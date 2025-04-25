@@ -18,15 +18,23 @@ struct Mesh {
     RenderResource vertices_rc;
     RenderResource indices_rc;
 
-    /* material id under model material*/
-    i32 material_handle;
+    Ref<Material> material;
 
-    Mesh(std::vector<Vertex> &vertices, std::vector<u32> &indices,
-                i32 material_handle = -1) {
+    Mesh(std::vector<Vertex> &vertices, std::vector<u32> &indices) {
         this->vertices_rc.alloc_vertex(sizeof(Vertex), vertices.size(),
                                        vertices.data());
         this->indices_rc.alloc_index(indices);
-        this->material_handle = material_handle;
+    }
+
+    Mesh(std::vector<Vertex> &vertices, std::vector<u32> &indices, Ref<Material> material):Mesh(vertices, indices) {
+        this->material = material;
+    }
+
+    void set_material(Ref<Material> mat){
+        this->material = mat;
+    }
+    Ref<Material> get_material(){
+        return material;
     }
 };
 

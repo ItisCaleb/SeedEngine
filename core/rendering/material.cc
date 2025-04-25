@@ -1,20 +1,21 @@
 #include "material.h"
+#include <spdlog/spdlog.h>
 
 namespace Seed {
-Material::~Material() {
-    this->diffuse_map.dealloc();
-    this->specular_map.dealloc();
-    this->normal_map.dealloc();
+
+void Material::set_texture_map(TextureMapType type, Ref<Texture> texture){
+    if(type >= TextureMapType::MAX){
+        SPDLOG_WARN("TextureMapType to big.");
+        return;
+    }
+    this->textures[type] = texture;
 }
-Ref<Material> Material::create(
-                               RenderResource diffuse_map,
-                               RenderResource specular_map, RenderResource normal_map, f32 shiness) {
-    Ref<Material> material;
-    material.create();
-    material->diffuse_map = diffuse_map;
-    material->specular_map = specular_map;
-    material->normal_map = normal_map;
-    material->shiness = shiness;
-    return material;
+Ref<Texture> Material::get_texture_map(TextureMapType type){
+    if(type >= TextureMapType::MAX){
+        SPDLOG_WARN("TextureMapType to big.");
+        return Ref<Texture>();
+    }
+    return this->textures[type];
 }
+
 }  // namespace Seed

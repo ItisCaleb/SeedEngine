@@ -54,7 +54,7 @@ RenderDeviceOpenGL::RenderDeviceOpenGL() {
     }
 }
 void RenderDeviceOpenGL::alloc_texture(RenderResource *rc, u32 w, u32 h,
-                                       void *data) {
+                                       const void *data) {
     glGenTextures(1, &rc->handle);
     glBindTexture(GL_TEXTURE_2D, rc->handle);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);

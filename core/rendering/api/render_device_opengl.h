@@ -25,7 +25,7 @@ class RenderDeviceOpenGL : public RenderDevice {
     RenderDeviceOpenGL();
     ~RenderDeviceOpenGL() = default;
 
-    void alloc_texture(RenderResource *rc, u32 w, u32 h, void *data) override;
+    void alloc_texture(RenderResource *rc, u32 w, u32 h, const void *data) override;
     void alloc_vertex(RenderResource *rc, u32 stride, u32 element_cnt,
                       void *data) override;
     void alloc_vertex_desc(RenderResource *rc,

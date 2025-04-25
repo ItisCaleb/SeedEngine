@@ -12,7 +12,7 @@ class RenderDevice {
     RenderDevice(/* args */) = default;
     ~RenderDevice() = default;
     virtual void alloc_texture(RenderResource *rc, u32 w, u32 h,
-                               void *data) = 0;
+                               const void *data) = 0;
     virtual void alloc_vertex(RenderResource *rc, u32 stride, u32 element_cnt,
                               void *data) = 0;
     virtual void alloc_vertex_desc(RenderResource *rc,

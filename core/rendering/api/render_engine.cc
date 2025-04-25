@@ -26,7 +26,7 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
     glViewport(0, 0, w, h);
     glEnable(GL_DEPTH_TEST);
     model_renderer.init();
-
+    terrain_renderer.init();
     matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
     cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);
 }

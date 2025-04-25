@@ -19,20 +19,6 @@ ResourceLoader::ResourceLoader() {
 
 ResourceLoader::~ResourceLoader() { instance = nullptr; }
 
-RenderResource ResourceLoader::load_texture(const std::string &path) {
-    int w, h, comp;
-    RenderResource tex_rc;
-    stbi_set_flip_vertically_on_load(true);
-    void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
-    if (!data) {
-        spdlog::warn("Can't load texture from {}", path);
-        return tex_rc;
-    }
-    tex_rc.alloc_texture(w, h, data);
-
-    stbi_image_free(data);
-    return tex_rc;
-}
 
 RenderResource ResourceLoader::loadShader(
     const std::string &vertex_path, const std::string &fragment_path,
@@ -81,7 +67,7 @@ RenderResource ResourceLoader::loadShader(
                                tess_eval_s);
         return shader_rc;
     } catch (std::exception &e) {
-        throw e;
+        throw;
     }
 }
 
@@ -90,8 +76,9 @@ Ref<Model> ResourceLoader::load(const std::string &path) {
     Ref<Model> model;
     Ref<File> file = File::open(path, "rb");
     std::vector<Mesh> meshs;
+    std::vector<u32> mesh_mats;
     std::vector<Ref<Material>> materials;
-    std::map<i32, RenderResource> texture_map;
+    std::map<i32, Ref<Texture>> texture_map;
     std::string magic = file->read_str(strlen(model_file_magic));
     if (memcmp(magic.c_str(), model_file_magic, strlen(model_file_magic)) !=
         0) {
@@ -107,7 +94,8 @@ Ref<Model> ResourceLoader::load(const std::string &path) {
         file->read(&mesh_header);
         file->read_vector(vertices, mesh_header.vertex_size);
         file->read_vector(indices, mesh_header.index_size);
-        meshs.push_back(Mesh(vertices, indices, mesh_header.material_id));
+        meshs.emplace_back(vertices, indices);
+        mesh_mats.push_back(mesh_header.material_id);
     }
 
     std::filesystem::path dir = path;
@@ -116,28 +104,50 @@ Ref<Model> ResourceLoader::load(const std::string &path) {
         TextureField tex_field;
         file->read(&tex_field);
         std::string tex_path = file->read_str(tex_field.path_length);
-        RenderResource rc =
-            load_texture(fmt::format("{}/{}", directory, tex_path));
-        if (rc.inited()) {
-            texture_map[i] = rc;
+        Ref<Texture> tex =
+            load<Texture>(fmt::format("{}/{}", directory, tex_path));
+        if (tex.is_valid()) {
+            texture_map[i] = tex;
         }
     }
     for (int i = 0; i < model_header.material_count; i++) {
         MaterialField mat_field;
+        Ref<Material> mat;
+        mat.create();
         file->read(&mat_field);
-        RenderResource diffuse_rc = texture_map[mat_field.diffuse_map];
-        RenderResource specular_rc = texture_map[mat_field.specular_map];
-        RenderResource normal_rc = texture_map[mat_field.normal_map];
-        materials.push_back(
-            Material::create(diffuse_rc, specular_rc, normal_rc));
+        mat->set_texture_map(Material::DIFFUSE, texture_map[mat_field.diffuse_map]);
+        mat->set_texture_map(Material::SPECULAR, texture_map[mat_field.specular_map]);
+        mat->set_texture_map(Material::NORMAl, texture_map[mat_field.normal_map]);
+        materials.push_back(mat);
     }
-    model.create(meshs, materials, model_header.bounding_box);
+    for (int i = 0; i < meshs.size(); i++) {
+        meshs[i].set_material(materials[mesh_mats[i]]);
+    }
+    model.create(meshs, model_header.bounding_box);
     return model;
+}
+
+template <>
+Ref<Texture> ResourceLoader::load(const std::string &path){
+    Ref<Texture> texture;
+    int w, h, comp;
+    stbi_set_flip_vertically_on_load(true);
+    void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
+    if (!data) {
+        spdlog::warn("Can't load texture from {}", path);
+        return texture;
+    }
+    texture.create(w, h,(const char*)data);
+
+    stbi_image_free(data);
+    return texture;
 }
 
 template <>
 Ref<Terrain> ResourceLoader::load(const std::string &path) {
     Ref<Terrain> terrain;
+    Ref<Texture> height_map = load<Texture>(path);
+    terrain.create(1024, 1024, height_map);
     return terrain;
 }
 

@@ -36,7 +36,7 @@ struct RenderResource {
         u32 vertex_cnt;
     };
 
-    void alloc_texture(u32 w, u32 h, void *data);
+    void alloc_texture(u32 w, u32 h, const void *data);
     void alloc_vertex(u32 stride, u32 element_cnt,
                       void *data);
     void alloc_vertex_desc(std::vector<VertexAttribute> &attrs);

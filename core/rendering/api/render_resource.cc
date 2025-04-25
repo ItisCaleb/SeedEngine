@@ -5,7 +5,7 @@
 
 namespace Seed {
 
-void RenderResource::alloc_texture(u32 w, u32 h, void *data) {
+void RenderResource::alloc_texture(u32 w, u32 h, const void *data) {
     this->type = RenderResourceType::TEXTURE;
     RenderEngine::get_instance()->get_device()->alloc_texture(this, w, h, data);
 }

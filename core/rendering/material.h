@@ -3,19 +3,28 @@
 
 #include "core/math/vec3.h"
 #include "api/render_resource.h"
+#include "core/rendering/texture.h"
 #include "core/ref.h"
 
 namespace Seed {
 struct Material : public RefCounted {
-    RenderResource diffuse_map;
-    RenderResource specular_map;
-    RenderResource normal_map;
+public:
+    enum TextureMapType{
+        DIFFUSE,
+        SPECULAR,
+        NORMAl,
+        MAX
+    };
+private:
+    Ref<Texture> textures[TextureMapType::MAX];
 
-    f32 shiness;
+    f32 shiness = 32.0f;
 
-    ~Material();
-    static Ref<Material> create(RenderResource diffuse_map,
-                         RenderResource specular_map = {}, RenderResource normal_map = {}, f32 shiness = 32.f);
+public:
+    void set_texture_map(TextureMapType type, Ref<Texture> texture);
+    Ref<Texture> get_texture_map(TextureMapType type);
+    Material(){}
+    ~Material(){}
 };
 
 }  // namespace Seed

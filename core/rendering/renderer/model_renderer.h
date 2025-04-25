@@ -1,5 +1,5 @@
-#ifndef _SEED_COLOR_PASS_H_
-#define _SEED_COLOR_PASS_H_
+#ifndef _SEED_MODEL_RENDERER_H_
+#define _SEED_MODEL_RENDERER_H_
 #include "renderer.h"
 #include "core/rendering/api/render_resource.h"
 #include <unordered_map>
@@ -11,6 +11,7 @@ class ModelRenderer : public Renderer {
 
    private:
     std::unordered_map<Model *, std::vector<Mat4>> model_instances;
+    Ref<Texture> default_texture;
     Ref<Material> default_material;
     RenderResource vertices_desc_rc;
     RenderResource instance_desc_rc;

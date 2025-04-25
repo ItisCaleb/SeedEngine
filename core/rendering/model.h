@@ -17,13 +17,10 @@ class Model : public RefCounted {
     friend ModelRenderer;
    private:
     RenderResource instance_rc;
-    std::vector<Ref<Material>> materials;
     std::vector<Mesh> meshes;
     AABB bounding_box;
    public:
-    Model(const std::vector<Mesh> &meshes,
-          const std::vector<Ref<Material>> &mats, AABB bounding_box);
-    Ref<Material> get_material(u32 material_handle);
+    Model(const std::vector<Mesh> &meshes, AABB bounding_box);
     AABB get_bounding_box();
     ~Model();
 };

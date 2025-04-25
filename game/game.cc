@@ -66,8 +66,8 @@ int main(void) {
         indices.push_back(i);
     }
 
-    Mesh mesh(vertices, indices);
-    std::vector<Mesh> meshs = {mesh};
+    // Mesh mesh(vertices, indices);
+    // std::vector<Mesh> meshs = {mesh};
 
     //Ref<Model> model = Model::create(meshs, mats, {});
     // for (int i = -100; i < 100; i++) {

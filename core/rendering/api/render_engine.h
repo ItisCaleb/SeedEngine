@@ -9,6 +9,7 @@
 #include "core/rendering/model.h"
 #include "core/allocator/linear_allocator.h"
 #include "core/rendering/renderer/model_renderer.h"
+#include "core/rendering/renderer/terrain_renderer.h"
 #include <queue>
 #include <vector>
 
@@ -22,6 +23,7 @@ class RenderEngine {
     Camera cam;
     LinearAllocator mem_pool;
     ModelRenderer model_renderer;
+    TerrainRenderer terrain_renderer;
    public:
     static RenderEngine *get_instance();
     void process();
