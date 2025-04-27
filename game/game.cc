@@ -79,10 +79,12 @@ int main(void) {
     //     }
     // }
     auto backpack = loader->load<Model>("assets/backpack/test.mdl");
+    auto terrain = loader->load<Terrain>("assets/iceland_heightmap.png");
     ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, backpack);
     engine->get_world()->add_entity(ent);
     engine->get_world()->add_model_entity(ent);
     engine->get_world()->add_entity<CameraEntity>();
+    engine->get_world()->set_terrain(terrain);
 
     engine->start();
 

@@ -18,7 +18,7 @@ static void error_callback(int error, const char *description) {
     spdlog::error("GLFW Error: {}", description);
 }
 
-void key_callback(GLFWwindow *window, int key, int scancode, int action,
+static inline void key_callback(GLFWwindow *window, int key, int scancode, int action,
                   int mods) {
     KeyCode k = static_cast<KeyCode>(key);
     if (action == GLFW_PRESS) {
@@ -26,6 +26,10 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action,
     } else if (action == GLFW_RELEASE) {
         Input::get_instance()->release_key(k);
     }
+}
+
+static inline void mouse_callback(GLFWwindow *window, double x, double y) {
+    Input::get_instance()->mouse_move(x, y);
 }
 SeedEngine *SeedEngine::get_instance() { return instance; }
 
@@ -108,6 +112,7 @@ SeedEngine::SeedEngine(f32 target_fps) {
         exit(1);
     }
     glfwSetKeyCallback(window, key_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
 
     init_systems();
 

@@ -8,7 +8,7 @@ namespace Seed {
 class RenderEngine;
 enum class RenderCommandType { UPDATE, USE, RENDER };
 enum class RenderPrimitiveType: u32{
-    LINES, TRIANGLES, POINTS
+    LINES, TRIANGLES, POINTS, PATCHES
 };
 struct RenderCommand {
     u64 sort_key;

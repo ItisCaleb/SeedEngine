@@ -4,9 +4,9 @@
 
 #define PI 3.14159265358979323846264338327
 namespace Seed {
-inline static f32 to_radians(f32 degree) { return degree * PI / 180.0f; }
+inline static f32 radians(f32 degree) { return degree * PI / 180.0f; }
 
-inline static f32 to_degree(f32 radians) { return radians * 180.0f / PI; }
+inline static f32 degree(f32 radians) { return radians * 180.0f / PI; }
 }  // namespace Seed
 
 #endif

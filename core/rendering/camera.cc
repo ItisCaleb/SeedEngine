@@ -67,7 +67,7 @@ void Camera::set_frustum(f32 left, f32 right, f32 bottom, f32 top, f32 near,
     frustum.is_ortho = is_ortho;
 }
 void Camera::set_perspective(f64 fovy, f64 aspect, f64 near, f64 far) {
-    f64 h = near * tan(to_radians(fovy) / 2);
+    f64 h = near * tan(radians(fovy) / 2);
     f64 w = h * aspect;
     set_frustum(-w, w, -h, h, near, far, false);
     dirty = true;

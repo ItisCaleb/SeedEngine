@@ -47,7 +47,6 @@ struct RenderResource {
     void alloc_constant(const std::string &name, u32 size, void *data);
     void dealloc();
     bool inited();
-    inline static std::map<std::string, RenderResource> texture;
 
     inline static u32 constant_cnt = 0;
     RenderResource() = default;

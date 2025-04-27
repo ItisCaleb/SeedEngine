@@ -50,6 +50,8 @@ void RenderEngine::process() {
     /* color pass */
     model_renderer.preprocess();
     model_renderer.process(dp, 0);
+    terrain_renderer.preprocess();
+    terrain_renderer.process(dp, 100);
     this->device->process();
     model_renderer.cleanup();
     this->mem_pool.free_all();

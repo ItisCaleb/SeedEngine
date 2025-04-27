@@ -52,6 +52,7 @@ RenderDeviceOpenGL::RenderDeviceOpenGL() {
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0,
                               nullptr, GL_TRUE);
     }
+    glPatchParameteri(GL_PATCH_VERTICES, 4);
 }
 void RenderDeviceOpenGL::alloc_texture(RenderResource *rc, u32 w, u32 h,
                                        const void *data) {
@@ -323,6 +324,9 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
             break;
         case RenderPrimitiveType::LINES:
             prim_type = GL_LINES;
+            break;
+        case RenderPrimitiveType::PATCHES:
+            prim_type = GL_PATCHES;
             break;
         case RenderPrimitiveType::TRIANGLES:
         default:

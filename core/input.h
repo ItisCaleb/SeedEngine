@@ -1,6 +1,7 @@
 #ifndef _SEED_INPUT_H_
 #define _SEED_INPUT_H_
 #include <set>
+#include "core/types.h"
 
 namespace Seed {
 
@@ -75,13 +76,16 @@ class Input {
    private:
     inline static Input *instance = nullptr;
     std::set<KeyCode> key_pressed;
-
+    std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> drag_func;
+    i32 last_x = 0, last_y = 0;
    public:
     static Input *get_instance();
     void reset_input();
     void press_key(KeyCode code);
     void release_key(KeyCode code);
     bool is_key_pressed(KeyCode code);
+    void on_mouse_move(std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> cb);
+    void mouse_move(i32 x, i32 y);
     Input();
     ~Input();
 };

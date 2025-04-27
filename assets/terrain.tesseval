@@ -2,16 +2,11 @@
 
 layout (quads, fractional_odd_spacing, ccw) in;
 
-uniform sampler2D heightMap;  // the texture corresponding to our height map
+uniform sampler2D u_texture[8];  // the texture corresponding to our height map
 layout (std140) uniform Matrices
 {
     mat4 u_projection;
     mat4 u_view;
-};
-
-layout (std140) uniform TerrainModel
-{
-    mat4 u_model;
 };
 
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
@@ -39,7 +34,7 @@ void main()
     vec2 texCoord = (t1 - t0) * v + t0;
 
     // lookup texel at patch coordinate for height and scale + shift as desired
-    height = texture(heightMap, texCoord).y * 64.0 - 16.0;
+    height = texture(u_texture[0], texCoord).y * 64.0 - 16.0;
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
@@ -63,5 +58,5 @@ void main()
 
     // ----------------------------------------------------------------------
     // output patch point position in clip space
-    gl_Position = u_projection * u_view * u_model * p;
+    gl_Position = u_projection * u_view * p;
 }

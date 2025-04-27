@@ -41,15 +41,15 @@ struct Quaternion {
     f32 length() { return sqrtf(length_square()); }
 
     Vec3 to_euler() {
-        return Vec3{to_degree(atanf(2 * (y * z + w * x) / (1 - 2 * (x * x + y * y)))),
-                    to_degree(asinf(2 * (x * z - w * y))),
-                    to_degree(atanf(2 * (x * y + w * z) / (1 - 2 * (y * y + z * z))))};
+        return Vec3{degree(atanf(2 * (y * z + w * x) / (1 - 2 * (x * x + y * y)))),
+                    degree(asinf(2 * (x * z - w * y))),
+                    degree(atanf(2 * (x * y + w * z) / (1 - 2 * (y * y + z * z))))};
     }
 
     static Quaternion from_euler(f32 x_angle, f32 y_angle, f32 z_angle) {
-        f32 x_rad = to_radians(x_angle / 2);
-        f32 y_rad = to_radians(y_angle / 2);
-        f32 z_rad = to_radians(z_angle / 2);
+        f32 x_rad = radians(x_angle / 2);
+        f32 y_rad = radians(y_angle / 2);
+        f32 z_rad = radians(z_angle / 2);
         f32 sx = sinf(x_rad);
         f32 cx = cosf(x_rad);
         f32 sy = sinf(y_rad);
