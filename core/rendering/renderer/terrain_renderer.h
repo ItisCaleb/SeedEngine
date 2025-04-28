@@ -10,7 +10,7 @@ class TerrainRenderer : public Renderer {
     friend RenderEngine;
    private:
     RenderResource vertices_desc_rc;
-    RenderResource model_desc_rc;
+    RenderResource model_const_rc;
 
     RenderResource terrain_shader;
 

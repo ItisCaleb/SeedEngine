@@ -9,6 +9,11 @@ layout (std140) uniform Matrices
     mat4 u_view;
 };
 
+layout (std140) uniform TerrainMatrices
+{
+    mat4 u_model;
+};
+
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 in vec2 TextureCoord[];
 
@@ -58,5 +63,5 @@ void main()
 
     // ----------------------------------------------------------------------
     // output patch point position in clip space
-    gl_Position = u_projection * u_view * p;
+    gl_Position = u_projection * u_view * u_model * p;
 }
