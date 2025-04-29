@@ -5,6 +5,7 @@ target_sources(seed PRIVATE
     world.cc
     entity.cc
     model_entity.cc
+    input_handler.cc
     )
 
 

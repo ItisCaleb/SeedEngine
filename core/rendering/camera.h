@@ -35,7 +35,7 @@ class Camera {
     Vec3 get_front();
     void set_frustum(f32 left, f32 right, f32 bottom, f32 top, f32 near,
                      f32 far, bool is_ortho);
-    void set_perspective(f64 fovy, f64 aspect, f64 near, f64 far);
+    void set_perspective(f32 fovy, f32 aspect, f32 near, f32 far);
     bool within_frustum(AABB &bounding_box);
     Mat4 look_at();
     Mat4 perspective();

@@ -5,6 +5,8 @@
 #include "core/rendering/light.h"
 #include "core/rendering/material.h"
 #include "render_device_opengl.h"
+#include "core/rendering/renderer/model_renderer.h"
+#include "core/rendering/renderer/terrain_renderer.h"
 #include <spdlog/spdlog.h>
 
 namespace Seed {
@@ -25,8 +27,11 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
     glfwGetFramebufferSize(window, &w, &h);
     glViewport(0, 0, w, h);
     glEnable(GL_DEPTH_TEST);
-    model_renderer.init();
-    terrain_renderer.init();
+    this->renderers.push_back(new ModelRenderer);
+    this->renderers.push_back(new TerrainRenderer);
+    for(Renderer *rd: this->renderers){
+        rd->init();
+    }
     matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
     cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);
 }
@@ -47,13 +52,16 @@ void RenderEngine::process() {
     Vec3 *cam_pos = (Vec3 *)dp.update(&cam_rc, 0, sizeof(Vec3));
     *cam_pos = this->cam.get_position();
     dp.end();
-    /* color pass */
-    model_renderer.preprocess();
-    model_renderer.process(dp, 0);
-    terrain_renderer.preprocess();
-    terrain_renderer.process(dp, 100);
+    u64 sort_key = 0;
+    for(Renderer *rd: this->renderers){
+        rd->preprocess();
+        rd->process(dp, sort_key);
+        sort_key += 1000;
+    }
     this->device->process();
-    model_renderer.cleanup();
+    for(Renderer *rd: this->renderers){
+        rd->cleanup();
+    }    
     this->mem_pool.free_all();
 }
 

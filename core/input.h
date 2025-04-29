@@ -2,6 +2,7 @@
 #define _SEED_INPUT_H_
 #include <set>
 #include "core/types.h"
+#include "core/input_handler.h"
 
 namespace Seed {
 
@@ -72,20 +73,27 @@ enum class KeyCode {
     QUOTELEFT = 0x0060
 };
 
+enum class MouseEvent{
+    LEFT,
+    MIDDLE, 
+    RIGHT
+};
+
 class Input {
+    friend InputHandler;
    private:
     inline static Input *instance = nullptr;
     std::set<KeyCode> key_pressed;
+    std::set<MouseEvent> mouse_pressed;
     std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> drag_func;
     i32 last_x = 0, last_y = 0;
    public:
     static Input *get_instance();
     void reset_input();
-    void press_key(KeyCode code);
-    void release_key(KeyCode code);
     bool is_key_pressed(KeyCode code);
     void on_mouse_move(std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> cb);
-    void mouse_move(i32 x, i32 y);
+    bool is_mouse_clicked(MouseEvent e);
+    void mouse_click(MouseEvent e);
     Input();
     ~Input();
 };

@@ -50,6 +50,7 @@ bool Camera::test_aabb_plane(AABB &aabb, Plane &plane) {
               aabb.ext.z * std::abs(plane.normal.z);
 
     // Compute distance of box center from plane
+    // (n . C) - d = (n . C) - (n . P) = n . (C - P)
     float s = plane.normal.dot(aabb.center - plane.point);
 
     // Intersection occurs when distance s falls within [-r,+r] interval
@@ -65,12 +66,12 @@ void Camera::set_frustum(f32 left, f32 right, f32 bottom, f32 top, f32 near,
     frustum.near = near;
     frustum.far = far;
     frustum.is_ortho = is_ortho;
-}
-void Camera::set_perspective(f64 fovy, f64 aspect, f64 near, f64 far) {
-    f64 h = near * tan(radians(fovy) / 2);
-    f64 w = h * aspect;
-    set_frustum(-w, w, -h, h, near, far, false);
     dirty = true;
+}
+void Camera::set_perspective(f32 fovy, f32 aspect, f32 near, f32 far) {
+    f32 h = near * tan(radians(fovy) / 2);
+    f32 w = h * aspect;
+    set_frustum(-w, w, -h, h, near, far, false);
 }
 
 Mat4 Camera::look_at() {

@@ -8,7 +8,7 @@ namespace Seed {
 void CameraEntity::update(f32 dt) {
     Input *input = Input::get_instance();
     Vec3 pos = cam->get_position();
-    f32 speed = 5 * dt;
+    f32 speed = 50 * dt;
     if (input->is_key_pressed(KeyCode::W)) {
         pos += cam->get_front() * speed;
     }
@@ -35,6 +35,9 @@ CameraEntity::CameraEntity() {
     this->cam = RenderEngine::get_instance()->get_cam();
     this->cam->set_perspective(45, 1.33, 0.1, 1000.0);
     Input::get_instance()->on_mouse_move([=](i32 last_x, i32 last_y, i32 x, i32 y){
+        if(!Input::get_instance()->is_mouse_clicked(MouseEvent::LEFT)){
+            return;
+        }
         f32 x_off = x - last_x;
         f32 y_off = last_y - y;
         f32 sensitivity = 0.15f;

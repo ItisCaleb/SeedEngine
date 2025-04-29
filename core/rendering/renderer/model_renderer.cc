@@ -111,11 +111,13 @@ void ModelRenderer::preprocess() {
 
 void ModelRenderer::process(RenderCommandDispatcher &dp, u64 sort_key) {
     for (auto &[model, instances] : model_instances) {
+        if(instances.empty()) {
+            continue;
+        }
         dp.begin(sort_key++);
         dp.use(&model->instance_rc);
         dp.use(&this->instance_desc_rc);
 
-        dp.begin(sort_key++);
         dp.update(&model->instance_rc, 0, sizeof(Mat4) * instances.size(),
                   (void *)instances.data());
         for (Mesh &mesh : model->meshes) {
@@ -142,7 +144,6 @@ void ModelRenderer::process(RenderCommandDispatcher &dp, u64 sort_key) {
             dp.render(&this->color_shader, RenderPrimitiveType::TRIANGLES,
                 instances.size());
         }
-        dp.end();
         dp.end();
     }
     /* debugging */
