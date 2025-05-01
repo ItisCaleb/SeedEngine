@@ -2,7 +2,7 @@
 #define _SEED_TERRAIN_RENDERER_H_
 #include "renderer.h"
 #include "core/rendering/api/render_resource.h"
-#include "core/rendering/terrain.h"
+#include "core/resource/terrain.h"
 #include <unordered_map>
 
 namespace Seed {

@@ -1,10 +1,15 @@
 #include <glad/glad.h>
-#include "resource.h"
-#include "io/file.h"
+#include "resource_loader.h"
+#include "core/io/file.h"
 #include <spdlog/spdlog.h>
 #include <stdexcept>
-#include "rendering/model_file.h"
+#include "core/rendering/model_file.h"
 #include <filesystem>
+#include <type_traits>
+
+#include "core/resource/model.h"
+#include "core/resource/terrain.h"
+#include "core/resource/texture.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -70,9 +75,15 @@ RenderResource ResourceLoader::loadShader(
         throw;
     }
 }
+template <>
+Ref<Model> ResourceLoader::_load(const std::string &path);
+template <>
+Ref<Terrain> ResourceLoader::_load(const std::string &path);
+template <>
+Ref<Texture> ResourceLoader::_load(const std::string &path);
 
 template <>
-Ref<Model> ResourceLoader::load(const std::string &path) {
+Ref<Model> ResourceLoader::_load(const std::string &path) {
     Ref<Model> model;
     Ref<File> file = File::open(path, "rb");
     std::vector<Mesh> meshs;
@@ -105,7 +116,7 @@ Ref<Model> ResourceLoader::load(const std::string &path) {
         file->read(&tex_field);
         std::string tex_path = file->read_str(tex_field.path_length);
         Ref<Texture> tex =
-            load<Texture>(fmt::format("{}/{}", directory, tex_path));
+            _load<Texture>(fmt::format("{}/{}", directory, tex_path));
         if (tex.is_valid()) {
             texture_map[i] = tex;
         }
@@ -128,7 +139,7 @@ Ref<Model> ResourceLoader::load(const std::string &path) {
 }
 
 template <>
-Ref<Texture> ResourceLoader::load(const std::string &path){
+Ref<Texture> ResourceLoader::_load(const std::string &path){
     Ref<Texture> texture;
     int w, h, comp;
     stbi_set_flip_vertically_on_load(true);
@@ -144,9 +155,9 @@ Ref<Texture> ResourceLoader::load(const std::string &path){
 }
 
 template <>
-Ref<Terrain> ResourceLoader::load(const std::string &path) {
+Ref<Terrain> ResourceLoader::_load(const std::string &path) {
     Ref<Terrain> terrain;
-    Ref<Texture> height_map = load<Texture>(path);
+    Ref<Texture> height_map = _load<Texture>(path);
     terrain.create(1024, 1024, height_map);
     return terrain;
 }

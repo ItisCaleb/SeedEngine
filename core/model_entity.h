@@ -2,7 +2,7 @@
 #define _SEED_MODEL_ENTITY_H_
 #include "core/entity.h"
 #include "core/rendering/api/render_engine.h"
-#include "core/rendering/material.h"
+#include "core/resource/material.h"
 
 namespace Seed {
 class ModelEntity : public Entity {

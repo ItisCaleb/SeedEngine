@@ -3,7 +3,7 @@
 #include "renderer.h"
 #include "core/rendering/api/render_resource.h"
 #include <unordered_map>
-#include "core/rendering/model.h"
+#include "core/resource/model.h"
 
 namespace Seed {
 class ModelRenderer : public Renderer {

@@ -3,8 +3,8 @@
 #include "core/math/vec2.h"
 #include "core/math/vec3.h"
 #include "core/ref.h"
-#include "api/render_resource.h"
-#include "material.h"
+#include "core/rendering/api/render_resource.h"
+#include "core/resource/material.h"
 #include <vector>
 
 namespace Seed {

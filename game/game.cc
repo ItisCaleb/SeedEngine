@@ -1,5 +1,5 @@
 #include "core/engine.h"
-#include "core/resource.h"
+#include "core/resource/resource_loader.h"
 #include "core/rendering/api/render_engine.h"
 #include "camera_entity.h"
 #include "core/model_entity.h"

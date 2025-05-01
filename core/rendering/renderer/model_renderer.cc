@@ -1,7 +1,7 @@
 #include "model_renderer.h"
 #include "core/rendering/light.h"
 #include "core/rendering/api/render_resource.h"
-#include "core/resource.h"
+#include "core/resource/resource_loader.h"
 #include "core/engine.h"
 #include <spdlog/spdlog.h>
 #include <vector>

@@ -1,7 +1,7 @@
 #include "model_entity.h"
 #include "core/rendering/api/render_engine.h"
-#include "core/rendering/material.h"
-#include "core/rendering/model.h"
+#include "core/resource/material.h"
+#include "core/resource/model.h"
 
 namespace Seed {
 

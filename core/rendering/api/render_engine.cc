@@ -1,9 +1,11 @@
 #include "render_engine.h"
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include "core/engine.h"
-#include "core/resource.h"
+#include "core/resource/resource_loader.h"
 #include <spdlog/spdlog.h>
 #include "core/rendering/light.h"
-#include "core/rendering/material.h"
+#include "core/resource/material.h"
 #include "render_device_opengl.h"
 #include "core/rendering/renderer/model_renderer.h"
 #include "core/rendering/renderer/terrain_renderer.h"
@@ -11,6 +13,8 @@
 
 namespace Seed {
 RenderEngine *RenderEngine::get_instance() { return instance; }
+
+template <>
 RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
     instance = this;
     spdlog::info("Initializing Rendering engine");

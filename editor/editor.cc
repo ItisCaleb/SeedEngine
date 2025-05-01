@@ -18,10 +18,8 @@
 #include <nfd.h>
 #include <fmt/format.h>
 #define GL_SILENCE_DEPRECATION
-#if defined(IMGUI_IMPL_OPENGL_ES2)
-#include <GLES2/gl2.h>
-#endif
 #include <GLFW/glfw3.h>  // Will drag system OpenGL headers
+#include "core/engine.h"
 
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to
 // maximize ease of testing and compatibility with old VS compilers. To link
@@ -52,7 +50,10 @@ int main(int, char **) {
     NFD_Init();
     // Main loop
     Model *current_model = nullptr;
+    Seed::SeedEngine *engine = new Seed::SeedEngine(60.0f);
+
     while (!glfwWindowShouldClose(window)) {
+        
         glfwPollEvents();
         if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0) {
             ImGui_ImplGlfw_Sleep(10);

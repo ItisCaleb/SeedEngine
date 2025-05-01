@@ -1,5 +1,5 @@
 #include "terrain_renderer.h"
-#include "core/resource.h"
+#include "core/resource/resource_loader.h"
 #include <spdlog/spdlog.h>
 #include "core/engine.h"
 

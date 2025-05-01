@@ -2,12 +2,12 @@
 #define _SEED_MATERIAL_H_
 
 #include "core/math/vec3.h"
-#include "api/render_resource.h"
-#include "core/rendering/texture.h"
-#include "core/ref.h"
+#include "core/rendering/api/render_resource.h"
+#include "core/resource/texture.h"
+#include "core/resource/resource.h"
 
 namespace Seed {
-struct Material : public RefCounted {
+class Material : public Resource{
 public:
     enum TextureMapType{
         DIFFUSE,

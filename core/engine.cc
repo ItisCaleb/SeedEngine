@@ -1,7 +1,9 @@
 #include "engine.h"
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include "input.h"
 #include "rendering/api/render_engine.h"
-#include "resource.h"
+#include "core/resource/resource_loader.h"
 #include "types.h"
 #include <spdlog/spdlog.h>
 #include <stdio.h>
@@ -11,6 +13,17 @@
 #else
 #include <unistd.h>
 #endif
+#include <Jolt/Jolt.h>
+#include <Jolt/RegisterTypes.h>
+#include <Jolt/Core/Factory.h>
+#include <Jolt/Core/TempAllocator.h>
+#include <Jolt/Core/JobSystemThreadPool.h>
+#include <Jolt/Physics/PhysicsSettings.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Body/BodyActivationListener.h>
 
 namespace Seed {
 
@@ -30,8 +43,8 @@ void SeedEngine::delay(f32 seconds) {
 
 void SeedEngine::init_systems() {
     Input *input = new Input;
-    input_handler.init(this->window);
-    RenderEngine *render_engine = new RenderEngine(window, width, height);
+    input_handler.init((GLFWwindow*)this->window);
+    RenderEngine *render_engine = new RenderEngine((GLFWwindow*)window, width, height);
     ResourceLoader *resource_loader = new ResourceLoader;
     this->world = new World;
 }
@@ -44,7 +57,7 @@ void SeedEngine::start() {
     Input *input = Input::get_instance();
     RenderEngine *render_engine = RenderEngine::get_instance();
     f64 delta = frame_limit;
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose((GLFWwindow*)window)) {
         f64 start = glfwGetTime();
         if (input->is_key_pressed(KeyCode::Q)) {
             break;
@@ -54,7 +67,7 @@ void SeedEngine::start() {
         world->tick(delta);
 
         render_engine->process();
-        glfwSwapBuffers(window);
+        glfwSwapBuffers((GLFWwindow*)window);
 
         delta = glfwGetTime() - start;
 
@@ -64,7 +77,7 @@ void SeedEngine::start() {
         }
     }
 
-    glfwDestroyWindow(window);
+    glfwDestroyWindow((GLFWwindow*)window);
 
     glfwTerminate();
 }
@@ -73,6 +86,7 @@ World *SeedEngine::get_world() { return world; }
 
 SeedEngine::SeedEngine(f32 target_fps) {
     instance = this;
+
     glfwSetErrorCallback(error_callback);
 
     spdlog::info("Initializing SeedEngine");

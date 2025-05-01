@@ -2,7 +2,7 @@
 #define _SEED_WORLD_H_
 #include "entity.h"
 #include "model_entity.h"
-#include "rendering/terrain.h"
+#include "core/resource/terrain.h"
 
 #include <vector>
 

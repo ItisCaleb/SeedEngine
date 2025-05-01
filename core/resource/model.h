@@ -1,9 +1,9 @@
 #ifndef _SEED_MODEL_H_
 #define _SEED_MODEL_H_
-#include "core/ref.h"
-#include "api/render_resource.h"
+#include "core/rendering/api/render_resource.h"
 #include "core/collision/aabb.h"
-#include "mesh.h"
+#include "core/resource/resource.h"
+#include "core/rendering/mesh.h"
 #include <vector>
 
 namespace Seed {
@@ -12,7 +12,7 @@ class RenderEngine;
 class ModelRenderer;
 
 
-class Model : public RefCounted {
+class Model : public Resource {
     friend RenderEngine;
     friend ModelRenderer;
    private:

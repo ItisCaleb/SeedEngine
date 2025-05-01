@@ -1,7 +1,6 @@
 #ifndef _SEED_ENGINE_H_
 #define _SEED_ENGINE_H_
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+
 #include "types.h"
 #include "world.h"
 #include "input_handler.h"
@@ -12,7 +11,7 @@ class SeedEngine {
     inline static SeedEngine *instance = nullptr;
     InputHandler input_handler;
     f32 frame_limit = 60.0;
-    GLFWwindow *window = nullptr;
+    void *window = nullptr;
     void delay(f32 seconds);
     void init_systems();
     World *world;

@@ -1,7 +1,6 @@
 #include "model.h"
 #include "core/math/mat4.h"
-#include "api/render_resource.h"
-
+ 
 namespace Seed {
 
 Model::Model(const std::vector<Mesh> &meshes,

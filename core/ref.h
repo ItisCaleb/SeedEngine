@@ -83,6 +83,11 @@ class Ref {
     }
 };
 
+
+template <typename T, typename K>
+inline Ref<T> ref_cast(Ref<K> ref) noexcept {
+    return Ref<T>(static_cast<T*>(ref.data));
+}
 };  // namespace Seed
 
 #endif

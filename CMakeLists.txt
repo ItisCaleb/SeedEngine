@@ -29,7 +29,7 @@ find_package(Stb REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(nfd CONFIG REQUIRED)
-
+find_package(Jolt CONFIG REQUIRED)
 
 target_link_libraries(seed PUBLIC 
     glad::glad
@@ -38,6 +38,7 @@ target_link_libraries(seed PUBLIC
     fmt::fmt
     spdlog::spdlog
     nlohmann_json::nlohmann_json
+    Jolt::Jolt
 )
 add_subdirectory(core)
 

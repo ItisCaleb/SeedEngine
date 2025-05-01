@@ -2,6 +2,7 @@
 #define _SEED_TERRAIN_H_
 #include "core/ref.h"
 #include "core/rendering/mesh.h"
+#include "core/resource/resource.h"
 
 namespace Seed {
 
@@ -10,7 +11,7 @@ struct TerrainVertex{
     Vec2 tex_coord;
 };
 class TerrainRenderer;
-class Terrain : public RefCounted {
+class Terrain : public Resource {
     friend TerrainRenderer;
    private:
     u32 width, depth;

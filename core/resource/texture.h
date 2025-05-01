@@ -1,12 +1,12 @@
 #ifndef _SEED_TEXTURE_H_
 #define _SEED_TEXTURE_H_
 #include "core/rendering/api/render_resource.h"
-#include "core/ref.h"
+#include "core/resource/resource.h"
 
 
 namespace Seed
 {
-    class Texture : public RefCounted{
+    class Texture : public Resource{
         RenderResource tex_rc;
         u32 w, h;
 

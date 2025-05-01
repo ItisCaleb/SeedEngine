@@ -2,7 +2,7 @@
 #define _SEED_OBJECT_H_
 #include "math/vec3.h"
 #include "math/mat4.h"
-#include "rendering/mesh.h"
+#include "rendering//mesh.h"
 #include "rendering/api/render_command.h"
 
 namespace Seed {

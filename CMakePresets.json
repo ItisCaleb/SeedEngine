@@ -41,10 +41,6 @@
         "targets":["seed", "app"]
       },
       {
-        "name": "release",
-        "inherits":["default"]
-      },
-      {
         "name": "editor",
         "jobs": 4,
         "configurePreset": "default",

@@ -1,12 +1,11 @@
 #ifndef _SEED_RENDER_ENGINE_H_
 #define _SEED_RENDER_ENGINE_H_
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+
 #include "core/rendering/camera.h"
 #include "render_command.h"
 #include "render_device.h"
 #include "core/rendering/mesh.h"
-#include "core/rendering/model.h"
+#include "core/resource/model.h"
 #include "core/allocator/linear_allocator.h"
 #include "core/rendering/renderer/renderer.h"
 #include <queue>
@@ -28,7 +27,8 @@ class RenderEngine {
     LinearAllocator *get_mem_pool();
     RenderDevice *get_device();
     Camera *get_cam();
-    RenderEngine(GLFWwindow *window, int w, int h);
+    template <class T>
+    RenderEngine(T *window, int w, int h);
     ~RenderEngine();
 };
 
