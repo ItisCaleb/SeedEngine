@@ -42,10 +42,11 @@ void SeedEngine::delay(f32 seconds) {
 }
 
 void SeedEngine::init_systems() {
-    Input *input = new Input;
-    input_handler.init((GLFWwindow*)this->window);
-    RenderEngine *render_engine = new RenderEngine((GLFWwindow*)window, width, height);
     ResourceLoader *resource_loader = new ResourceLoader;
+    Input *input = new Input;
+    input_handler.init((GLFWwindow *)this->window);
+    RenderEngine *render_engine =
+        new RenderEngine((GLFWwindow *)window, width, height);
     this->world = new World;
 }
 
@@ -57,7 +58,7 @@ void SeedEngine::start() {
     Input *input = Input::get_instance();
     RenderEngine *render_engine = RenderEngine::get_instance();
     f64 delta = frame_limit;
-    while (!glfwWindowShouldClose((GLFWwindow*)window)) {
+    while (!glfwWindowShouldClose((GLFWwindow *)window)) {
         f64 start = glfwGetTime();
         if (input->is_key_pressed(KeyCode::Q)) {
             break;
@@ -67,7 +68,7 @@ void SeedEngine::start() {
         world->tick(delta);
 
         render_engine->process();
-        glfwSwapBuffers((GLFWwindow*)window);
+        glfwSwapBuffers((GLFWwindow *)window);
 
         delta = glfwGetTime() - start;
 
@@ -77,7 +78,7 @@ void SeedEngine::start() {
         }
     }
 
-    glfwDestroyWindow((GLFWwindow*)window);
+    glfwDestroyWindow((GLFWwindow *)window);
 
     glfwTerminate();
 }

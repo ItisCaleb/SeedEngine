@@ -73,25 +73,24 @@ enum class KeyCode {
     QUOTELEFT = 0x0060
 };
 
-enum class MouseEvent{
-    LEFT,
-    MIDDLE, 
-    RIGHT
-};
+enum class MouseEvent { LEFT, MIDDLE, RIGHT };
 
 class Input {
     friend InputHandler;
+
    private:
     inline static Input *instance = nullptr;
     std::set<KeyCode> key_pressed;
     std::set<MouseEvent> mouse_pressed;
     std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> drag_func;
     i32 last_x = 0, last_y = 0;
+
    public:
     static Input *get_instance();
     void reset_input();
     bool is_key_pressed(KeyCode code);
-    void on_mouse_move(std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> cb);
+    void on_mouse_move(
+        std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> cb);
     bool is_mouse_clicked(MouseEvent e);
     void mouse_click(MouseEvent e);
     Input();

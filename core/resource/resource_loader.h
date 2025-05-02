@@ -11,14 +11,20 @@ namespace Seed{
          inline static ResourceLoader *instance = nullptr;
          template <typename T>
          Ref<T> _load(const std::string &path);
-         std::unordered_map<std::string, Ref<Resource>> res_cache;
+         std::unordered_map<std::string, Resource*> res_cache;
         public:
          static ResourceLoader *get_instance();
+         void register_resource(Resource *res);
+         void unregister_resource(Resource *res);
          template <typename T>
          Ref<T> load(const std::string &path){
             static_assert(std::is_base_of_v<Resource, T>);
+            if(res_cache.find(path) != res_cache.end()){
+                return Ref<T>(static_cast<T*>(res_cache[path]));
+            }
             Ref<Resource> res = ref_cast<Resource>(this->_load<T>(path));
             res->set_path(path);
+            this->register_resource(res.ptr());
             return ref_cast<T>(res);
          }
      

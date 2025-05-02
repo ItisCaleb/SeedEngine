@@ -34,8 +34,9 @@ class Ref {
                   "T must be a derived class of RefCounted in Ref<T>.");
 
    private:
-   public:
     T *data = nullptr;
+
+   public:
     T *operator*() { return data; }
 
     T *operator->() { return data; }
@@ -83,10 +84,9 @@ class Ref {
     }
 };
 
-
 template <typename T, typename K>
 inline Ref<T> ref_cast(Ref<K> ref) noexcept {
-    return Ref<T>(static_cast<T*>(ref.data));
+    return Ref<T>(static_cast<T *>(ref.ptr()));
 }
 };  // namespace Seed
 

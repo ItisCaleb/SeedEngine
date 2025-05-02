@@ -75,12 +75,6 @@ RenderResource ResourceLoader::loadShader(
         throw;
     }
 }
-template <>
-Ref<Model> ResourceLoader::_load(const std::string &path);
-template <>
-Ref<Terrain> ResourceLoader::_load(const std::string &path);
-template <>
-Ref<Texture> ResourceLoader::_load(const std::string &path);
 
 template <>
 Ref<Model> ResourceLoader::_load(const std::string &path) {
@@ -116,7 +110,7 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
         file->read(&tex_field);
         std::string tex_path = file->read_str(tex_field.path_length);
         Ref<Texture> tex =
-            _load<Texture>(fmt::format("{}/{}", directory, tex_path));
+            load<Texture>(fmt::format("{}/{}", directory, tex_path));
         if (tex.is_valid()) {
             texture_map[i] = tex;
         }
@@ -160,6 +154,17 @@ Ref<Terrain> ResourceLoader::_load(const std::string &path) {
     Ref<Texture> height_map = _load<Texture>(path);
     terrain.create(1024, 1024, height_map);
     return terrain;
+}
+
+
+void ResourceLoader::register_resource(Resource *res){
+    if(res == nullptr) return;
+    this->res_cache[res->get_path()] = res;
+}
+
+void ResourceLoader::unregister_resource(Resource *res){
+    if(res == nullptr) return;
+    this->res_cache.erase(res->get_path());
 }
 
 }  // namespace Seed
