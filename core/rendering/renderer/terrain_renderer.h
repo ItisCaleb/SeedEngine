@@ -9,7 +9,7 @@ namespace Seed {
 class TerrainRenderer : public Renderer {
     friend RenderEngine;
    private:
-    RenderResource vertices_desc_rc;
+    VertexDescription vertices_desc;
     RenderResource model_const_rc;
 
     RenderResource terrain_shader;

@@ -10,7 +10,6 @@ class RenderDeviceOpenGL : public RenderDevice {
     u32 vertex_cnt = 0;
     u32 global_vao;
     u32 current_program;
-    std::vector<std::vector<VertexAttribute>> vertex_attrs;
 
     /* uniform buffer */
     std::map<std::string, RenderResource> constants;
@@ -19,7 +18,7 @@ class RenderDeviceOpenGL : public RenderDevice {
     void handle_update(RenderCommand &cmd);
     void handle_use(RenderCommand &cmd);
     void handle_render(RenderCommand &cmd);
-    void use_vertex_desc(u32 handle);
+    void use_vertex_desc(VertexDescription *desc);
 
    public:
     RenderDeviceOpenGL();
@@ -28,8 +27,6 @@ class RenderDeviceOpenGL : public RenderDevice {
     void alloc_texture(RenderResource *rc, u32 w, u32 h, const void *data) override;
     void alloc_vertex(RenderResource *rc, u32 stride, u32 element_cnt,
                       void *data) override;
-    void alloc_vertex_desc(RenderResource *rc,
-                           std::vector<VertexAttribute> &attrs) override;
     void alloc_indices(RenderResource *rc, std::vector<u32> &indices) override;
     void alloc_shader(RenderResource *rc, const std::string &vertex_code,
         const std::string &fragment_code,

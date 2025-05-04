@@ -1,6 +1,7 @@
 #ifndef _SEED_RENDERING_COMMAND_H_
 #define _SEED_RENDERING_COMMAND_H_
 #include "render_resource.h"
+#include "core/rendering/vertex_desc.h"
 #include <queue>
 #include <stack>
 
@@ -14,7 +15,10 @@ struct RenderCommand {
     u64 sort_key;
     RenderCommandType type;
     RenderResource *resource;
-    void *data;
+    union{
+        void *data;
+        VertexDescription *desc;
+    };
     union {
         u32 texture_unit;
         struct {
@@ -63,7 +67,10 @@ class RenderCommandDispatcher {
         return (T *)update(resource, 0, sizeof(T));
     }
 
-    void use(RenderResource *resource, u32 texture_unit = 0);
+    void use(RenderResource *resource);
+    void use_texture(RenderResource *resource, u32 texture_unit = 0);
+    void use_vertex(RenderResource *resource, VertexDescription *desc);
+
 
     void render(RenderResource *shader, RenderPrimitiveType prim_type, u32 instance_cnt, bool indexed = true);
     void end();

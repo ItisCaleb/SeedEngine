@@ -28,10 +28,6 @@ void RenderResource::alloc_index(std::vector<u32> &indices) {
     this->element_cnt = indices.size();
     RenderEngine::get_instance()->get_device()->alloc_indices(this, indices);
 }
-void RenderResource::alloc_vertex_desc(std::vector<VertexAttribute> &attrs) {
-    this->type = RenderResourceType::VERTEX_DESC;
-    RenderEngine::get_instance()->get_device()->alloc_vertex_desc(this, attrs);
-}
 
 void RenderResource::alloc_constant(const std::string &name, u32 size,
                                     void *data) {

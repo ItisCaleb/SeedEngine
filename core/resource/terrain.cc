@@ -11,19 +11,19 @@ Terrain::Terrain(u32 width, u32 depth, Ref<Texture> height_map)
     for (i32 i = 0; i < rez; i++) {
         for (i32 j = 0; j < rez; j++) {
             vertices.emplace_back(TerrainVertex{
-                Vec3{left + width * i / rezf, 0.0f, top + depth * j / rezf},
+                Vec2{left + width * i / rezf, top + depth * j / rezf},
                 Vec2{i / rezf, j / rezf}});
             vertices.emplace_back(TerrainVertex{
-                Vec3{left + width * (i+1) / rezf, 0.0f, top + depth * j / rezf},
+                Vec2{left + width * (i+1) / rezf, top + depth * j / rezf},
                 Vec2{(i + 1) / rezf, j / rezf}});
             vertices.emplace_back(TerrainVertex{
-                Vec3{left + width * i / rezf, 0.0f, top + depth * (j + 1) / rezf},
+                Vec2{left + width * i / rezf, top + depth * (j + 1) / rezf},
                 Vec2{i / rezf, (j + 1) / rezf}});
             vertices.emplace_back(TerrainVertex{
-                Vec3{left + width * (i + 1) / rezf, 0.0f, top + depth * (j + 1) / rezf},
+                Vec2{left + width * (i + 1) / rezf, top + depth * (j + 1) / rezf},
                 Vec2{(i + 1) / rezf, (j + 1) / rezf}});
         }
-    }
+    } 
     this->vertices.alloc_vertex(sizeof(TerrainVertex), vertices.size(), vertices.data());
 }
 

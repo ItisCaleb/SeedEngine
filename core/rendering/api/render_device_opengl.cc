@@ -74,12 +74,6 @@ void RenderDeviceOpenGL::alloc_vertex(RenderResource *rc, u32 stride,
     glBufferData(GL_ARRAY_BUFFER, vertex_cnt * stride, data, GL_STATIC_DRAW);
 }
 
-void RenderDeviceOpenGL::alloc_vertex_desc(
-    RenderResource *rc, std::vector<VertexAttribute> &attrs) {
-    rc->handle = vertex_attrs.size();
-    vertex_attrs.push_back(attrs);
-}
-
 void RenderDeviceOpenGL::alloc_indices(RenderResource *rc,
                                        std::vector<u32> &indices) {
     glGenBuffers(1, &rc->handle);
@@ -248,10 +242,13 @@ void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
             break;
     }
 }
-void RenderDeviceOpenGL::use_vertex_desc(u32 handle) {
-    std::vector<VertexAttribute> &attrs = vertex_attrs[handle];
+void RenderDeviceOpenGL::use_vertex_desc(VertexDescription *desc) {
+    if(!desc){
+        SPDLOG_ERROR("VertexDescription is null");
+        return;
+    }
     int cnt = 0;
-    for (VertexAttribute &attr : attrs) {
+    for (VertexAttribute &attr : desc->get_attrs()) {
         u32 type;
         u32 size;
         switch (attr.type) {
@@ -271,9 +268,9 @@ void RenderDeviceOpenGL::use_vertex_desc(u32 handle) {
         }
         glEnableVertexAttribArray(attr.layout_num);
         glVertexAttribPointer(attr.layout_num, attr.size, type,
-                              attr.should_normalized, attr.stride,
+                              attr.should_normalized, desc->get_stride(),
                               (void *)(size_t)cnt);
-        glVertexAttribDivisor(attr.layout_num, attr.is_instance ? 1 : 0);
+        glVertexAttribDivisor(attr.layout_num, attr.instance_step);
         cnt += attr.size * size;
     }
     glEnableVertexAttribArray(0);
@@ -285,6 +282,7 @@ void RenderDeviceOpenGL::handle_use(RenderCommand &cmd) {
         case RenderResourceType::VERTEX:
             glBindBuffer(GL_ARRAY_BUFFER, rc->handle);
             vertex_cnt = rc->vertex_cnt;
+            use_vertex_desc(cmd.desc);
             break;
         case RenderResourceType::INDEX:
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rc->handle);
@@ -293,10 +291,6 @@ void RenderDeviceOpenGL::handle_use(RenderCommand &cmd) {
         case RenderResourceType::TEXTURE:
             glActiveTexture(GL_TEXTURE0 + cmd.texture_unit);
             glBindTexture(GL_TEXTURE_2D, rc->handle);
-            break;
-
-        case RenderResourceType::VERTEX_DESC:
-            use_vertex_desc(rc->handle);
             break;
         default:
             break;

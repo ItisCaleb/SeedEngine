@@ -9,23 +9,14 @@ namespace Seed {
 enum class RenderResourceType: u16 {
     TEXTURE,
     VERTEX,
-    VERTEX_DESC,
     INDEX,
     CONSTANT,
     SHADER,
     UNINITIALIZE
 };
-enum class VertexAttributeType: u8 { FLOAT, INT, UNSIGNED };
 
 typedef u32 RenderResourceHandle;
-struct VertexAttribute {
-    u8 layout_num;
-    VertexAttributeType type = VertexAttributeType::FLOAT;
-    bool should_normalized = false;
-    bool is_instance = false;
-    u32 size;
-    u32 stride;
-};
+
 
 struct RenderResource {
     RenderResourceHandle handle;
@@ -39,7 +30,6 @@ struct RenderResource {
     void alloc_texture(u32 w, u32 h, const void *data);
     void alloc_vertex(u32 stride, u32 element_cnt,
                       void *data);
-    void alloc_vertex_desc(std::vector<VertexAttribute> &attrs);
     void alloc_index(std::vector<u32> &indices);
     void alloc_shader(const std::string &vertex_code,
         const std::string &fragment_code,

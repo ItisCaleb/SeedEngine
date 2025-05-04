@@ -2,6 +2,7 @@
 #define _SEED_MODEL_RENDERER_H_
 #include "renderer.h"
 #include "core/rendering/api/render_resource.h"
+#include "core/rendering/vertex_data.h"
 #include <unordered_map>
 #include "core/resource/model.h"
 
@@ -13,14 +14,14 @@ class ModelRenderer : public Renderer {
     std::unordered_map<Model *, std::vector<Mat4>> model_instances;
     Ref<Texture> default_texture;
     Ref<Material> default_material;
-    RenderResource vertices_desc_rc;
-    RenderResource instance_desc_rc;
+    VertexDescription vertices_desc;
+    VertexDescription instance_desc;
     RenderResource color_shader;
     
     /* for debugging */
     std::vector<AABB> entity_aabb;
     RenderResource aabb_vertices_rc;
-    RenderResource aabb_desc_rc;
+    VertexDescription aabb_desc;
     RenderResource debugging_shader;
 
 

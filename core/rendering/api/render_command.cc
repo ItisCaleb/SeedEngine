@@ -6,7 +6,7 @@ namespace Seed {
 
 u64 RenderCommandDispatcher::get_sort_key() {
     if (sort_keys.empty()) {
-        spdlog::warn("Doesn't set sort_key {}:{}", __FILE__, __LINE__);
+        SPDLOG_WARN("Doesn't set sort_key");
         return 0;
 
     } else
@@ -56,14 +56,42 @@ void *RenderCommandDispatcher::update(RenderResource *resource, u16 x_off,
     return cmd.data;
 }
 
-void RenderCommandDispatcher::use(RenderResource *resource, u32 texutre_unit) {
+void RenderCommandDispatcher::use(RenderResource *resource) {
     if (resource->type == RenderResourceType::UNINITIALIZE) return;
     RenderCommand cmd;
     cmd.sort_key = get_sort_key();
 
     cmd.type = RenderCommandType::USE;
     cmd.resource = resource;
-    cmd.texture_unit = texutre_unit;
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+}
+
+void RenderCommandDispatcher::use_texture(RenderResource *resource, u32 texture_unit){
+    if (resource->type == RenderResourceType::UNINITIALIZE) return;
+    if (resource->type != RenderResourceType::TEXTURE){
+        SPDLOG_ERROR("The render resource is not a Texture.");
+        return;
+    }
+    RenderCommand cmd;
+    cmd.sort_key = get_sort_key();
+
+    cmd.type = RenderCommandType::USE;
+    cmd.resource = resource;
+    cmd.texture_unit = texture_unit;
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+}
+void RenderCommandDispatcher::use_vertex(RenderResource *resource, VertexDescription *desc){
+    if (resource->type == RenderResourceType::UNINITIALIZE) return;
+    if (resource->type != RenderResourceType::VERTEX){
+        SPDLOG_ERROR("The render resource is not a Vertex.");
+        return;
+    }
+    RenderCommand cmd;
+    cmd.sort_key = get_sort_key();
+
+    cmd.type = RenderCommandType::USE;
+    cmd.resource = resource;
+    cmd.desc = desc;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 void RenderCommandDispatcher::render(RenderResource *shader,
@@ -73,7 +101,7 @@ void RenderCommandDispatcher::render(RenderResource *shader,
     cmd.sort_key = get_sort_key();
 
     if (shader->type != RenderResourceType::SHADER) {
-        spdlog::error("The render resource is not a shader.");
+        SPDLOG_ERROR("The render resource is not a shader.");
         return;
     }
     cmd.type = RenderCommandType::RENDER;

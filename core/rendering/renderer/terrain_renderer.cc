@@ -15,10 +15,9 @@ namespace Seed{
             SPDLOG_ERROR("Error loading Shader: {}", e.what());
             exit(1);
         }
-        std::vector<VertexAttribute> vertices_attrs = {
-            {.layout_num = 0, .size = 3, .stride = sizeof(TerrainVertex)},
-            {.layout_num = 1, .size = 2, .stride = sizeof(TerrainVertex)}};
-        vertices_desc_rc.alloc_vertex_desc(vertices_attrs);
+
+        vertices_desc.add_attr(0, VertexAttributeType::FLOAT, 2, 0);
+        vertices_desc.add_attr(1, VertexAttributeType::FLOAT, 2, 0);
         auto model = Mat4::translate_mat({0, 0, 0}).transpose();
         model_const_rc.alloc_constant("TerrainMatrices", sizeof(Mat4), &model);
     }
@@ -33,9 +32,8 @@ namespace Seed{
             return;
         }
         dp.begin(sort_key);
-        dp.use(&terrain->vertices);
-        dp.use(&vertices_desc_rc);
-        dp.use(terrain->height_map->get_render_resource(), 0);
+        dp.use_vertex(&terrain->vertices, &this->vertices_desc);
+        dp.use_texture(terrain->height_map->get_render_resource(), 0);
         dp.render(&terrain_shader, RenderPrimitiveType::PATCHES, 0, false);
         dp.end();
         

@@ -7,7 +7,7 @@
 namespace Seed {
 
 struct TerrainVertex{
-    Vec3 pos;
+    Vec2 pos;
     Vec2 tex_coord;
 };
 class TerrainRenderer;
