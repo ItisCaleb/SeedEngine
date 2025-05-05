@@ -23,7 +23,7 @@ Terrain::Terrain(u32 width, u32 depth, Ref<Texture> height_map)
                 Vec2{left + width * (i + 1) / rezf, top + depth * (j + 1) / rezf},
                 Vec2{(i + 1) / rezf, (j + 1) / rezf}});
         }
-    } 
+    }
     this->vertices.alloc_vertex(sizeof(TerrainVertex), vertices.size(), vertices.data());
 }
 

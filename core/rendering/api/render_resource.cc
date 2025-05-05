@@ -9,7 +9,7 @@ void RenderResource::alloc_texture(u32 w, u32 h, const void *data) {
     this->type = RenderResourceType::TEXTURE;
     RenderEngine::get_instance()->get_device()->alloc_texture(this, w, h, data);
 }
-void RenderResource::alloc_vertex(u32 stride, u32 vertex_cnt, void *data) {
+void RenderResource::alloc_vertex(u32 stride, u32 vertex_cnt,const void *data) {
     this->type = RenderResourceType::VERTEX;
     this->stride = stride;
     this->vertex_cnt = vertex_cnt;
@@ -23,7 +23,7 @@ void RenderResource::alloc_shader(const std::string &vertex_code,
     RenderEngine::get_instance()->get_device()->alloc_shader(
         this, vertex_code, fragment_code, geometry_code, tess_ctrl_code, tess_eval_code);
 }
-void RenderResource::alloc_index(std::vector<u32> &indices) {
+void RenderResource::alloc_index(const std::vector<u32> &indices) {
     this->type = RenderResourceType::INDEX;
     this->element_cnt = indices.size();
     RenderEngine::get_instance()->get_device()->alloc_indices(this, indices);

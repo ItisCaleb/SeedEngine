@@ -14,10 +14,10 @@ class RenderDevice {
     virtual void alloc_texture(RenderResource *rc, u32 w, u32 h,
                                const void *data) = 0;
     virtual void alloc_vertex(RenderResource *rc, u32 stride, u32 element_cnt,
-                              void *data) = 0;
+        const void *data) = 0;
 
     virtual void alloc_indices(RenderResource *rc,
-                               std::vector<u32> &indices) = 0;
+        const std::vector<u32> &indices) = 0;
     virtual void alloc_shader(RenderResource *rc, const std::string &vertex_code,
         const std::string &fragment_code,
         const std::string &geometry_code, const std::string &tesselation_code, const std::string &tess_eval_code) = 0;

@@ -29,8 +29,8 @@ struct RenderResource {
 
     void alloc_texture(u32 w, u32 h, const void *data);
     void alloc_vertex(u32 stride, u32 element_cnt,
-                      void *data);
-    void alloc_index(std::vector<u32> &indices);
+        const void *data);
+    void alloc_index(const std::vector<u32> &indices);
     void alloc_shader(const std::string &vertex_code,
         const std::string &fragment_code,
          const std::string &geometry_code, const std::string &tess_ctrl_code, const std::string &tess_eval_code);

@@ -1,18 +1,19 @@
 #include "vertex_data.h"
 
 namespace Seed {
-VertexData::VertexData(VertexDescription *desc, u32 vertex_cnt,
-                       u32 vertex_stride, void *vertex_data)
-    : desc(desc) {
+VertexData::VertexData(u32 stride,
+                       u32 vertex_cnt,const void *data)
+    {
     this->vertices_cnt = vertex_cnt;
-    this->stride = vertex_stride;
-    this->vertices.alloc_vertex(this->stride, vertex_cnt, vertex_data);
+    this->stride = stride;
+    this->vertices.alloc_vertex(stride, vertex_cnt, data);
 }
 
-VertexData::VertexData(VertexDescription *desc, u32 vertex_cnt, u32 stride,
-                       void *vertex_data, std::vector<u32> &indices)
-    : VertexData(desc, vertex_cnt, stride, vertex_data) {
+VertexData::VertexData(u32 stride, u32 vertex_cnt,
+                       const void *data,const std::vector<u32> &indices)
+    : VertexData(stride, vertex_cnt, data) {
     this->use_index = true;
+    this->indices_cnt = indices.size();
     this->indices.alloc_index(indices);
 }
 

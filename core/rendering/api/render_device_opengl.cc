@@ -68,14 +68,14 @@ void RenderDeviceOpenGL::alloc_texture(RenderResource *rc, u32 w, u32 h,
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 void RenderDeviceOpenGL::alloc_vertex(RenderResource *rc, u32 stride,
-                                      u32 vertex_cnt, void *data) {
+                                      u32 vertex_cnt,const void *data) {
     glGenBuffers(1, &rc->handle);
     glBindBuffer(GL_ARRAY_BUFFER, rc->handle);
     glBufferData(GL_ARRAY_BUFFER, vertex_cnt * stride, data, GL_STATIC_DRAW);
 }
 
 void RenderDeviceOpenGL::alloc_indices(RenderResource *rc,
-                                       std::vector<u32> &indices) {
+    const std::vector<u32> &indices) {
     glGenBuffers(1, &rc->handle);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rc->handle);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(u32),

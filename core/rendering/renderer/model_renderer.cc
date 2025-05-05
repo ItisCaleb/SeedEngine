@@ -36,7 +36,7 @@ void ModelRenderer::init_color() {
     RenderResource lights_rc;
 
     Lights lights;
-    lights.ambient = Vec3{0.2, 0.2, 0.2};
+    lights.ambient = Vec3{0.8, 0.8, 0.8};
     lights.lights[0].set_position(Vec3{2, 0, 2});
     lights.lights[0].diffuse = Vec3{0.9, 0.5, 0.5};
     lights.lights[0].specular = Vec3{1, 1, 1};
@@ -94,10 +94,10 @@ void ModelRenderer::process(RenderCommandDispatcher &dp, u64 sort_key) {
 
         dp.update(&model->instance_rc, 0, sizeof(Mat4) * instances.size(),
                   (void *)instances.data());
-        for (Mesh &mesh : model->meshes) {
-            dp.use_vertex(&mesh.vertices_rc, &this->vertices_desc);
-            dp.use(&mesh.indices_rc);
-            Ref<Material> material = mesh.get_material();
+        for (Ref<Mesh> mesh : model->meshes) {
+            dp.use_vertex(mesh->vertex_data.get_vertices(), &this->vertices_desc);
+            dp.use(mesh->vertex_data.get_indices());
+            Ref<Material> material = mesh->get_material();
             if (material.is_null()) {
                 material = default_material;
             }

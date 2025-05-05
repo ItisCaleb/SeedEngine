@@ -6,6 +6,7 @@
 #include "core/rendering/api/render_resource.h"
 #include "core/resource/material.h"
 #include <vector>
+#include "core/rendering/vertex_data.h"
 
 namespace Seed {
 struct Vertex {
@@ -14,28 +15,23 @@ struct Vertex {
     Vec2 tex_coord;
 };
 
-struct Mesh {
-    RenderResource vertices_rc;
-    RenderResource indices_rc;
-
+struct Mesh: RefCounted {
+    VertexData vertex_data;
     Ref<Material> material;
 
-    Mesh(std::vector<Vertex> &vertices, std::vector<u32> &indices) {
-        this->vertices_rc.alloc_vertex(sizeof(Vertex), vertices.size(),
-                                       vertices.data());
-        this->indices_rc.alloc_index(indices);
+    Mesh(const std::vector<Vertex> &vertices,const std::vector<u32> &indices)
+        : vertex_data(sizeof(Vertex), vertices.size(), vertices.data(),
+                      indices) {
     }
 
-    Mesh(std::vector<Vertex> &vertices, std::vector<u32> &indices, Ref<Material> material):Mesh(vertices, indices) {
+    Mesh(const std::vector<Vertex> &vertices,const std::vector<u32> &indices,
+         Ref<Material> material)
+        : Mesh(vertices, indices) {
         this->material = material;
     }
 
-    void set_material(Ref<Material> mat){
-        this->material = mat;
-    }
-    Ref<Material> get_material(){
-        return material;
-    }
+    void set_material(Ref<Material> mat) { this->material = mat; }
+    Ref<Material> get_material() { return material; }
 };
 
 }  // namespace Seed

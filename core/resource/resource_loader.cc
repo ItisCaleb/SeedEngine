@@ -80,7 +80,7 @@ template <>
 Ref<Model> ResourceLoader::_load(const std::string &path) {
     Ref<Model> model;
     Ref<File> file = File::open(path, "rb");
-    std::vector<Mesh> meshs;
+    std::vector<Ref<Mesh>> meshs;
     std::vector<u32> mesh_mats;
     std::vector<Ref<Material>> materials;
     std::map<i32, Ref<Texture>> texture_map;
@@ -99,7 +99,7 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
         file->read(&mesh_header);
         file->read_vector(vertices, mesh_header.vertex_size);
         file->read_vector(indices, mesh_header.index_size);
-        meshs.emplace_back(vertices, indices);
+        meshs.push_back(Ref<Mesh>(vertices, indices));
         mesh_mats.push_back(mesh_header.material_id);
     }
 
@@ -126,7 +126,7 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
         materials.push_back(mat);
     }
     for (int i = 0; i < meshs.size(); i++) {
-        meshs[i].set_material(materials[mesh_mats[i]]);
+        meshs[i]->set_material(materials[mesh_mats[i]]);
     }
     model.create(meshs, model_header.bounding_box);
     return model;
@@ -136,7 +136,7 @@ template <>
 Ref<Texture> ResourceLoader::_load(const std::string &path){
     Ref<Texture> texture;
     int w, h, comp;
-    stbi_set_flip_vertically_on_load(true);
+    
     void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
     if (!data) {
         spdlog::warn("Can't load texture from {}", path);

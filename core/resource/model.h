@@ -17,10 +17,10 @@ class Model : public Resource {
     friend ModelRenderer;
    private:
     RenderResource instance_rc;
-    std::vector<Mesh> meshes;
+    std::vector<Ref<Mesh>> meshes;
     AABB bounding_box;
    public:
-    Model(const std::vector<Mesh> &meshes, AABB bounding_box);
+    Model(const std::vector<Ref<Mesh>> &meshes, AABB bounding_box);
     AABB get_bounding_box();
     ~Model();
 };

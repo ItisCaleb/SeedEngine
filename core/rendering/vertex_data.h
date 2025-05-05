@@ -14,11 +14,10 @@ class VertexData {
     u32 indices_cnt;
     RenderResource indices;
 
-    VertexDescription *desc;
     bool use_index = false;
    public:
-    VertexData(VertexDescription *desc, u32 vertex_cnt, u32 stride, void *vertex_data);
-    VertexData(VertexDescription *desc, u32 vertex_cnt, u32 stride, void *vertex_data, std::vector<u32> &indices);
+    VertexData(u32 stride, u32 vertex_cnt,const void *data);
+    VertexData(u32 stride, u32 vertex_cnt,const void *data, const  std::vector<u32> &indices);
 
     ~VertexData();
     RenderResource* get_vertices(){
@@ -26,7 +25,7 @@ class VertexData {
     }
 
     RenderResource* get_indices(){
-        return &this->vertices;
+        return &this->indices;
     }
     
 };
