@@ -7,23 +7,25 @@
 
 namespace Seed {
 class SeedEngine {
-   private:
-    inline static SeedEngine *instance = nullptr;
-    InputHandler input_handler;
-    f32 frame_limit = 60.0;
-    void *window = nullptr;
-    void init_systems();
-    World *world;
+    private:
+        inline static SeedEngine *instance = nullptr;
+        InputHandler input_handler;
+        f32 frame_limit = 60.0;
+        void *window = nullptr;
+        void init_systems();
+        World *world;
 
-   public:
-    static SeedEngine *get_instance();
-    int width, height;
-    void start();
-    World *get_world();
-    SeedEngine(f32 target_fps = 60.0);
-    ~SeedEngine();
+    public:
+        static SeedEngine *get_instance();
+        int width, height;
+        void start();
+        World *get_world();
+        SeedEngine(f32 target_fps = 60.0);
+        ~SeedEngine();
 
-    inline void set_fps(f32 target_fps) { this->frame_limit = 1 / target_fps; }
+        inline void set_fps(f32 target_fps) {
+            this->frame_limit = 1 / target_fps;
+        }
 };
 }  // namespace Seed
 

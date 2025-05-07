@@ -76,25 +76,25 @@ enum class KeyCode {
 enum class MouseEvent { LEFT, MIDDLE, RIGHT };
 
 class Input {
-    friend InputHandler;
+        friend InputHandler;
 
-   private:
-    inline static Input *instance = nullptr;
-    std::set<KeyCode> key_pressed;
-    std::set<MouseEvent> mouse_pressed;
-    std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> drag_func;
-    i32 last_x = 0, last_y = 0;
+    private:
+        inline static Input *instance = nullptr;
+        std::set<KeyCode> key_pressed;
+        std::set<MouseEvent> mouse_pressed;
+        std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> drag_func;
+        i32 last_x = 0, last_y = 0;
 
-   public:
-    static Input *get_instance();
-    void reset_input();
-    bool is_key_pressed(KeyCode code);
-    void on_mouse_move(
-        std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> cb);
-    bool is_mouse_clicked(MouseEvent e);
-    void mouse_click(MouseEvent e);
-    Input();
-    ~Input();
+    public:
+        static Input *get_instance();
+        void reset_input();
+        bool is_key_pressed(KeyCode code);
+        void on_mouse_move(
+            std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> cb);
+        bool is_mouse_clicked(MouseEvent e);
+        void mouse_click(MouseEvent e);
+        Input();
+        ~Input();
 };
 
 }  // namespace Seed

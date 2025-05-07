@@ -3,15 +3,15 @@
 namespace Seed {
 class SeedEngine;
 class InputHandler {
-    friend SeedEngine;
+        friend SeedEngine;
 
-   private:
-    template <class T>
-    void init(T *window);
+    private:
+        template <class T>
+        void init(T *window);
 
-   public:
-    InputHandler() = default;
-    ~InputHandler() = default;
+    public:
+        InputHandler() = default;
+        ~InputHandler() = default;
 };
 
 }  // namespace Seed

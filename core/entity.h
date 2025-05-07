@@ -7,30 +7,30 @@
 
 namespace Seed {
 class Entity {
-   protected:
-    u32 id;
-    Vec3 position;
-    Vec3 rotation;
-    Vec3 scale;
-    Mat4 transform;
-    bool dirty;
-    void update_transform();
+    protected:
+        u32 id;
+        Vec3 position;
+        Vec3 rotation;
+        Vec3 scale;
+        Mat4 transform;
+        bool dirty;
+        void update_transform();
 
-   public:
-    Vec3 get_position();
-    void set_position(Vec3 position);
-    Vec3 get_rotation();
-    void set_rotation(Vec3 rotation);
-    void rotate(f32 x_angle, f32 y_angle, f32 z_angle);
-    Vec3 get_scale();
-    void set_scale(Vec3 scale);
-    Mat4 get_transform();
-    virtual void update(f32 dt) {}
-    virtual void render(RenderCommandDispatcher &dp) {}
+    public:
+        Vec3 get_position();
+        void set_position(Vec3 position);
+        Vec3 get_rotation();
+        void set_rotation(Vec3 rotation);
+        void rotate(f32 x_angle, f32 y_angle, f32 z_angle);
+        Vec3 get_scale();
+        void set_scale(Vec3 scale);
+        Mat4 get_transform();
+        virtual void update(f32 dt) {}
+        virtual void render(RenderCommandDispatcher &dp) {}
 
-    Entity(Vec3 position);
-    Entity();
-    ~Entity() = default;
+        Entity(Vec3 position);
+        Entity();
+        ~Entity() = default;
 };
 
 }  // namespace Seed

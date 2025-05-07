@@ -6,18 +6,18 @@
 
 namespace Seed {
 class ModelEntity : public Entity {
-   private:
-    Ref<Model> model;
+    private:
+        Ref<Model> model;
 
-   public:
-    void update(f32 dt) override;
-    void render(RenderCommandDispatcher &dp) override;
-    AABB get_model_aabb();
-    Ref<Model> get_model();
-    ModelEntity(Vec3 position, Ref<Model> model);
-    ModelEntity(Ref<Model> model);
+    public:
+        void update(f32 dt) override;
+        void render(RenderCommandDispatcher &dp) override;
+        AABB get_model_aabb();
+        Ref<Model> get_model();
+        ModelEntity(Vec3 position, Ref<Model> model);
+        ModelEntity(Ref<Model> model);
 
-    ~ModelEntity() = default;
+        ~ModelEntity() = default;
 };
 
 }  // namespace Seed

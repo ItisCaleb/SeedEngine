@@ -31,7 +31,6 @@ static void error_callback(int error, const char *description) {
 
 SeedEngine *SeedEngine::get_instance() { return instance; }
 
-
 void SeedEngine::init_systems() {
     ResourceLoader *resource_loader = new ResourceLoader;
     Input *input = new Input;
