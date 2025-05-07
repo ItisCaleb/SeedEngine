@@ -4,6 +4,8 @@
 #include "camera_entity.h"
 #include "core/model_entity.h"
 #include <spdlog/spdlog.h>
+#include "core/concurrency/thread_pool.h"
+#include "core/os.h"
 
 using namespace Seed;
 
@@ -85,7 +87,15 @@ int main(void) {
     engine->get_world()->add_model_entity(ent);
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->set_terrain(terrain);
-
+    ThreadPool::get_instance()->add_work([=](void* data){
+        OS::delay(3);
+        printf("123\n");
+    }, nullptr);
+    ThreadPool::get_instance()->add_work([=](void* data){
+        OS::delay(1);
+        printf("456\n");
+    }, nullptr);
+    
     engine->start();
 
     return 0;

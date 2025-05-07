@@ -5,3 +5,4 @@ Language: Cpp
 DerivePointerAlignment: false
 PointerAlignment: Right
 SortIncludes: false
+IndentAccessModifiers: true

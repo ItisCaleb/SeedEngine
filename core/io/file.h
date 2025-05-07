@@ -6,6 +6,8 @@
 #include <vector>
 #include <string>
 #include <fmt/format.h>
+#include <spdlog/spdlog.h>
+#include <filesystem>
 namespace Seed {
 class File : public RefCounted {
    private:
@@ -16,8 +18,10 @@ class File : public RefCounted {
 
    public:
     static Ref<File> open(const std::string &path, const char *mode) {
-        FILE *f = fopen(path.c_str(), mode);
+        std::string fullpath = std::filesystem::absolute(path);
+        FILE *f = fopen(fullpath.c_str(), mode);
         if (!f) {
+            SPDLOG_WARN("Can't open file '{}'", fullpath);
             return Ref<File>();
         }
         fseek(f, 0L, SEEK_END);

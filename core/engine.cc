@@ -2,17 +2,15 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "input.h"
-#include "rendering/api/render_engine.h"
+#include "core/rendering/api/render_engine.h"
 #include "core/resource/resource_loader.h"
+#include "core/concurrency/thread_pool.h"
 #include "types.h"
 #include <spdlog/spdlog.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef _WIN32
-#include <Windows.h>
-#else
-#include <unistd.h>
-#endif
+#include "core/os.h"
+
 #include <Jolt/Jolt.h>
 #include <Jolt/RegisterTypes.h>
 #include <Jolt/Core/Factory.h>
@@ -33,13 +31,6 @@ static void error_callback(int error, const char *description) {
 
 SeedEngine *SeedEngine::get_instance() { return instance; }
 
-void SeedEngine::delay(f32 seconds) {
-#ifdef _WIN32
-    Sleep((u32)(seconds * 1000));
-#else
-    usleep((u32)(seconds * 1000000));
-#endif
-}
 
 void SeedEngine::init_systems() {
     ResourceLoader *resource_loader = new ResourceLoader;
@@ -47,6 +38,7 @@ void SeedEngine::init_systems() {
     input_handler.init((GLFWwindow *)this->window);
     RenderEngine *render_engine =
         new RenderEngine((GLFWwindow *)window, width, height);
+    ThreadPool *pool = new ThreadPool(OS::cpu_count());
     this->world = new World;
 }
 
@@ -73,7 +65,7 @@ void SeedEngine::start() {
         delta = glfwGetTime() - start;
 
         if (delta < frame_limit) {
-            delay(frame_limit - delta);
+            OS::delay(frame_limit - delta);
             delta = frame_limit;
         }
     }

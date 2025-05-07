@@ -12,7 +12,6 @@ class SeedEngine {
     InputHandler input_handler;
     f32 frame_limit = 60.0;
     void *window = nullptr;
-    void delay(f32 seconds);
     void init_systems();
     World *world;
 

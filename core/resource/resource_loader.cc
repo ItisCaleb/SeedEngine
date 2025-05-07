@@ -152,7 +152,7 @@ template <>
 Ref<Terrain> ResourceLoader::_load(const std::string &path) {
     Ref<Terrain> terrain;
     Ref<Texture> height_map = _load<Texture>(path);
-    terrain.create(1024, 1024, height_map);
+    terrain.create(height_map->get_width(), height_map->get_height(), height_map);
     return terrain;
 }
 

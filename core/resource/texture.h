@@ -7,12 +7,20 @@
 namespace Seed
 {
     class Texture : public Resource{
+    private:
         RenderResource tex_rc;
         u32 w, h;
 
     public:
         RenderResource* get_render_resource(){
             return &tex_rc;
+        }
+        u32 get_width(){
+            return w;
+        }
+
+        u32 get_height(){
+            return h;
         }
 
         Texture(u32 w, u32 h, const char *image_data);
