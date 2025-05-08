@@ -3,12 +3,18 @@
 
 namespace Seed {
 void Camera::set_position(Vec3 pos) {
+    if(this->position == pos){
+        return;
+    }
     this->position = pos;
     dirty = true;
 }
 Vec3 Camera::get_position() { return this->position; }
 void Camera::set_up(Vec3 up) {
-    this->up = up.norm();
+    if(this->up == up){
+        return;
+    }
+    this->up = up;
     dirty = true;
 }
 Vec3 Camera::get_up() { return this->up; }
@@ -21,9 +27,9 @@ Vec3 Camera::get_front() { return this->front; }
 void Camera::calculate_frustum() {
     Vec3 w = -front;
     /* right */
-    Vec3 u = up.cross(w);
+    Vec3 u = up.cross(w).norm();
     /* vup */
-    Vec3 v = w.cross(u);
+    Vec3 v = w.cross(u).norm();
     if (!frustum.is_ortho) {
         frustum_plane.right = {
             .point = position,
@@ -75,10 +81,22 @@ void Camera::set_perspective(f32 fovy, f32 aspect, f32 near, f32 far) {
 }
 
 Mat4 Camera::look_at() {
+    calculate_dirty();
+    return this->lookat_mat;
+}
+
+void Camera::calculate_lookat(){
     Vec3 w = -front;
-    Vec3 u = up.cross(w);
-    Vec3 v = w.cross(u);
-    return Mat4::coord_transform_mat(u, v, w) * Mat4::translate_mat(-position);
+    Vec3 u = up.cross(w).norm();
+    Vec3 v = w.cross(u).norm();
+    this->lookat_mat = Mat4::coord_transform_mat(u, v, w) * Mat4::translate_mat(-position);
+}
+void Camera::calculate_dirty(){
+    if(this->dirty){
+        calculate_lookat();
+        calculate_frustum();
+        this->dirty = false;
+    }
 }
 
 Mat4 Camera::perspective() {
@@ -94,10 +112,7 @@ Mat4 Camera::perspective() {
 }
 
 bool Camera::within_frustum(AABB &bounding_box) {
-    if (dirty) {
-        calculate_frustum();
-        dirty = false;
-    }
+    this->calculate_dirty();
     return test_aabb_plane(bounding_box, frustum_plane.right) &&
            test_aabb_plane(bounding_box, frustum_plane.left) &&
            test_aabb_plane(bounding_box, frustum_plane.top) &&
@@ -107,7 +122,7 @@ bool Camera::within_frustum(AABB &bounding_box) {
 }
 
 Camera::Camera(Vec3 pos, Vec3 up, Vec3 front)
-    : position(pos), up(up.norm()), front(front.norm()) {}
+    : position(pos), up(up), front(front.norm()) {}
 
 Camera::Camera()
     : position(Vec3{0, 0, 0}), up(Vec3{0, 1, 0}), front(Vec3{0, 0, -1}) {}

@@ -22,10 +22,12 @@ class Camera {
         Plane top, bottom;
         Plane near, far;
     } frustum_plane;
+    Mat4 lookat_mat;
     bool dirty = true;
     bool test_aabb_plane(AABB &aabb, Plane &plane);
     void calculate_frustum();
-
+    void calculate_lookat();
+    void calculate_dirty();
    public:
     void set_position(Vec3 pos);
     Vec3 get_position();
