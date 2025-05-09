@@ -41,9 +41,10 @@ void OcTree::findNodes(AABB *shape, std::vector<OcNodeData> &nodes) {
             // AABB BR{bd.x, bd.y, bd.z, half_w, half_h, half_d};
             // int nx = node.next;
             // if (TL.isCollide(shape)) st.push({TL, nx, node_data.depth + 1});
-            // if (TR.isCollide(shape)) st.push({TR, nx + 1, node_data.depth + 1});
-            // if (BL.isCollide(shape)) st.push({BL, nx + 2, node_data.depth + 1});
-            // if (BR.isCollide(shape)) st.push({BR, nx + 3, node_data.depth + 1});
+            // if (TR.isCollide(shape)) st.push({TR, nx + 1, node_data.depth +
+            // 1}); if (BL.isCollide(shape)) st.push({BL, nx + 2,
+            // node_data.depth + 1}); if (BR.isCollide(shape)) st.push({BR, nx +
+            // 3, node_data.depth + 1});
         }
     }
 }
@@ -75,7 +76,8 @@ void OcTree::subDivide(OcNodeData &data) {
     // // bottom left
     // AABB BL(data.boundary.x, data.boundary.y + half_h, half_w, half_h);
     // // bottom right
-    // AABB BR(data.boundary.x + half_w, data.boundary.y + half_h, half_w, half_h);
+    // AABB BR(data.boundary.x + half_w, data.boundary.y + half_h, half_w,
+    // half_h);
 
     int new_fc = this->nodes.size();
     if (this->free_node == -1) {

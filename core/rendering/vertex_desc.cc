@@ -9,16 +9,15 @@ void VertexDescription::add_attr(u8 layout_num, VertexAttributeType type,
                            .size = size,
                            .instance_step = instance_step,
                            .should_normalized = should_normalized});
-    
+
     u32 type_size = 1;
-    switch (type)
-    {
-    case VertexAttributeType::FLOAT:
-    case VertexAttributeType::INT:
-    case VertexAttributeType::UNSIGNED:
-    default:
-        type_size = 4;
-        break;
+    switch (type) {
+        case VertexAttributeType::FLOAT:
+        case VertexAttributeType::INT:
+        case VertexAttributeType::UNSIGNED:
+        default:
+            type_size = 4;
+            break;
     }
     this->stride += size * type_size;
 }

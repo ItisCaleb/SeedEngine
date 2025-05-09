@@ -16,7 +16,7 @@ class TerrainRenderer : public Renderer {
 
     void init() override;
     void preprocess() override;
-    void process(RenderCommandDispatcher &dp, u64 sort_key) override;
+    void process(u8 layer) override;
     void cleanup() override;
 };
 }  // namespace Seed

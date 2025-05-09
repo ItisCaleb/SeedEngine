@@ -3,7 +3,7 @@
 
 namespace Seed {
 void Camera::set_position(Vec3 pos) {
-    if(this->position == pos){
+    if (this->position == pos) {
         return;
     }
     this->position = pos;
@@ -11,7 +11,7 @@ void Camera::set_position(Vec3 pos) {
 }
 Vec3 Camera::get_position() { return this->position; }
 void Camera::set_up(Vec3 up) {
-    if(this->up == up){
+    if (this->up == up) {
         return;
     }
     this->up = up;
@@ -36,13 +36,15 @@ void Camera::calculate_frustum() {
             .normal = v.cross(front * frustum.near + u * frustum.right).norm()};
         frustum_plane.left = {
             .point = position,
-            .normal = (front * frustum.near + u * frustum.left).cross(v).norm()};
+            .normal =
+                (front * frustum.near + u * frustum.left).cross(v).norm()};
         frustum_plane.top = {
             .point = position,
             .normal = (front * frustum.near + v * frustum.top).cross(u).norm()};
         frustum_plane.bottom = {
             .point = position,
-            .normal = u.cross(front * frustum.near + v * frustum.bottom).norm()};
+            .normal =
+                u.cross(front * frustum.near + v * frustum.bottom).norm()};
         frustum_plane.near = {.point = position + front * frustum.near,
                               .normal = front};
         frustum_plane.far = {.point = position + front * frustum.far,
@@ -85,14 +87,15 @@ Mat4 Camera::look_at() {
     return this->lookat_mat;
 }
 
-void Camera::calculate_lookat(){
+void Camera::calculate_lookat() {
     Vec3 w = -front;
     Vec3 u = up.cross(w).norm();
     Vec3 v = w.cross(u).norm();
-    this->lookat_mat = Mat4::coord_transform_mat(u, v, w) * Mat4::translate_mat(-position);
+    this->lookat_mat =
+        Mat4::coord_transform_mat(u, v, w) * Mat4::translate_mat(-position);
 }
-void Camera::calculate_dirty(){
-    if(this->dirty){
+void Camera::calculate_dirty() {
+    if (this->dirty) {
         calculate_lookat();
         calculate_frustum();
         this->dirty = false;

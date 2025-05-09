@@ -20,9 +20,8 @@ void World::tick(f32 dt) {
     for (Entity *e : this->entities) {
         e->update(dt);
     }
-    RenderCommandDispatcher dp;
     for (Entity *e : this->entities) {
-        e->render(dp);
+        e->render();
     }
 }
 

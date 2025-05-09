@@ -27,7 +27,7 @@ void CameraEntity::update(f32 dt) {
     cam->set_position(pos);
 }
 
-void CameraEntity::render(RenderCommandDispatcher &dp) {
+void CameraEntity::render() {
 
 }
 

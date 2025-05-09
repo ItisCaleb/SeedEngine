@@ -4,115 +4,169 @@
 
 namespace Seed {
 
-u64 RenderCommandDispatcher::get_sort_key() {
-    if (sort_keys.empty()) {
-        SPDLOG_WARN("Doesn't set sort_key");
-        return 0;
-
-    } else
-        return sort_keys.top();
-}
-void RenderCommandDispatcher::begin(u64 sortkey) {
-    this->sort_keys.push(sortkey);
-    engine = RenderEngine::get_instance();
-}
-void *RenderCommandDispatcher::update(RenderResource *resource, u32 offset,
-                                      u32 size, void *data) {
-    if (resource->type == RenderResourceType::UNINITIALIZE) return NULL;
-    RenderCommand cmd;
-    cmd.sort_key = get_sort_key();
-    cmd.type = RenderCommandType::UPDATE;
-    if (data != nullptr) {
-        cmd.data = data;
-    } else {
-        cmd.data = RenderEngine::get_instance()->get_mem_pool()->alloc(size);
+u64 RenderCommandDispatcher::gen_sort_key(RenderCommandType type, u16 depth,
+                                          u16 material_id) {
+    u64 sort_key = 0;
+    u8 type_num = static_cast<u8>(type);
+    sort_key |= ((u64)this->layer & 0b1111111u) << 34;
+    sort_key |= ((u64)type_num & 0b11u) << 18;
+    if (type == RenderCommandType::RENDER) {
+        sort_key |= (u64)depth << 16;
+        sort_key |= (u64)material_id;
     }
-    cmd.resource = resource;
-    cmd.buffer.size = size;
-    cmd.buffer.offset = offset;
-    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
-    return cmd.data;
+    return sort_key;
+}
+void RenderCommandDispatcher::begin_state() {
+    // if (this->beginned()) {
+    //     SPDLOG_WARN("Starting a state without ever ending");
+    // }
 }
 
-void *RenderCommandDispatcher::update(RenderResource *resource, u16 x_off,
-                                      u16 y_off, u16 w, u16 h, void *data) {
-    if (resource->type != RenderResourceType::TEXTURE) return NULL;
+void RenderCommandDispatcher::end_state() {
+    // if (!this->beginned()) {
+    //     SPDLOG_WARN("Ending a state without ever starting");
+    // }
+    // this->current_layer = -1;
+}
+void RenderCommandDispatcher::update_buffer(RenderResource *buffer, u32 offset,
+                                            u32 size, void *data) {
+    if (buffer->type != RenderResourceType::VERTEX &&
+        buffer->type != RenderResourceType::CONSTANT &&
+        buffer->type != RenderResourceType::INDEX)
+        return;
     RenderCommand cmd;
-    cmd.sort_key = get_sort_key();
-
+    cmd.sort_key = gen_sort_key(RenderCommandType::UPDATE, 0, 0);
     cmd.type = RenderCommandType::UPDATE;
-    if (data != nullptr) {
-        cmd.data = data;
-    } else {
-        cmd.data = RenderEngine::get_instance()->get_mem_pool()->alloc(w * h);
-    }
-    cmd.resource = resource;
-    cmd.texture.x_off = x_off;
-    cmd.texture.y_off = y_off;
-    cmd.texture.w = w;
-    cmd.texture.w = h;
+    RenderUpdateData *update_data =
+        (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
+    cmd.data = update_data;
 
+    update_data->data = data;
+
+    update_data->dst_buffer = buffer;
+    update_data->buffer.size = size;
+    update_data->buffer.offset = offset;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
-    return cmd.data;
 }
 
-void RenderCommandDispatcher::use(RenderResource *resource) {
-    if (resource->type == RenderResourceType::UNINITIALIZE) return;
+void *RenderCommandDispatcher::map_buffer(RenderResource *buffer, u32 offset,
+                                          u32 size) {
+    if (buffer->type != RenderResourceType::VERTEX &&
+        buffer->type != RenderResourceType::CONSTANT &&
+        buffer->type != RenderResourceType::INDEX)
+        return nullptr;
     RenderCommand cmd;
-    cmd.sort_key = get_sort_key();
+    cmd.sort_key = gen_sort_key(RenderCommandType::UPDATE, 0, 0);
+    cmd.type = RenderCommandType::UPDATE;
+    RenderUpdateData *update_data =
+        (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
+    cmd.data = update_data;
 
-    cmd.type = RenderCommandType::USE;
-    cmd.resource = resource;
+    update_data->data =
+        RenderEngine::get_instance()->get_mem_pool()->alloc(size);
+
+    update_data->dst_buffer = buffer;
+    update_data->buffer.size = size;
+    update_data->buffer.offset = offset;
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+    return update_data->data;
+}
+
+void RenderCommandDispatcher::update_texture(RenderResource *texture, u16 x_off,
+                                             u16 y_off, u16 w, u16 h,
+                                             void *data) {
+    if (texture->type != RenderResourceType::TEXTURE) return;
+    RenderCommand cmd;
+    cmd.sort_key = gen_sort_key(RenderCommandType::UPDATE, 0, 0);
+    cmd.type = RenderCommandType::UPDATE;
+    RenderUpdateData *update_data =
+        (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
+    cmd.data = update_data;
+
+    update_data->data = data;
+    update_data->dst_buffer = texture;
+    update_data->texture.x_off = x_off;
+    update_data->texture.y_off = y_off;
+    update_data->texture.w = w;
+    update_data->texture.w = h;
+
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
-void RenderCommandDispatcher::use_texture(RenderResource *resource, u32 texture_unit){
-    if (resource->type == RenderResourceType::UNINITIALIZE) return;
-    if (resource->type != RenderResourceType::TEXTURE){
-        SPDLOG_ERROR("The render resource is not a Texture.");
+void *RenderCommandDispatcher::map_texture(RenderResource *texture, u16 x_off,
+                                           u16 y_off, u16 w, u16 h) {
+    if (texture->type != RenderResourceType::TEXTURE) return nullptr;
+    RenderCommand cmd;
+    cmd.sort_key = gen_sort_key(RenderCommandType::UPDATE, 0, 0);
+    cmd.type = RenderCommandType::UPDATE;
+    RenderUpdateData *update_data =
+        (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
+    cmd.data = update_data;
+
+    update_data->data =
+        RenderEngine::get_instance()->get_mem_pool()->alloc(w * h);
+    update_data->dst_buffer = texture;
+    update_data->texture.x_off = x_off;
+    update_data->texture.y_off = y_off;
+    update_data->texture.w = w;
+    update_data->texture.w = h;
+
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+    return update_data->data;
+}
+
+RenderDispatchData RenderCommandDispatcher::generate_render_data(
+    VertexData *vertices, VertexDescription *desc,
+    RenderPrimitiveType prim_type, Ref<Material> mat) {
+    RenderDispatchData dispatch_data;
+    if (!vertices || !vertices->get_vertices()->inited()) {
+        SPDLOG_WARN("Vertices is null or uninited.");
+    }
+    dispatch_data.vertices = vertices;
+    dispatch_data.desc = desc;
+    dispatch_data.prim_type = prim_type;
+    dispatch_data.mat = mat;
+    return dispatch_data;
+}
+
+RenderDispatchData RenderCommandDispatcher::generate_render_data(
+    VertexData *vertices, VertexDescription *desc,
+    RenderPrimitiveType prim_type, Ref<Material> mat, RenderResource *instance,
+    VertexDescription *instance_desc, u32 instance_cnt) {
+    RenderDispatchData dispatch_data;
+    if (!vertices || !vertices->get_vertices()->inited()) {
+        SPDLOG_WARN("Vertices is null or uninited.");
+    }
+    dispatch_data.vertices = vertices;
+    dispatch_data.desc = desc;
+    dispatch_data.prim_type = prim_type;
+    dispatch_data.mat = mat;
+    dispatch_data.instance = instance;
+    dispatch_data.instance_desc = instance_desc;
+    dispatch_data.instance_cnt = instance_cnt;
+    return dispatch_data;
+}
+
+void RenderCommandDispatcher::render(RenderDispatchData *data,
+                                     RenderResource *shader) {
+    if (data == nullptr) {
+        SPDLOG_ERROR("Render data is null.");
         return;
     }
     RenderCommand cmd;
-    cmd.sort_key = get_sort_key();
-
-    cmd.type = RenderCommandType::USE;
-    cmd.resource = resource;
-    cmd.texture_unit = texture_unit;
-    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
-}
-void RenderCommandDispatcher::use_vertex(RenderResource *resource, VertexDescription *desc){
-    if (resource->type == RenderResourceType::UNINITIALIZE) return;
-    if (resource->type != RenderResourceType::VERTEX){
-        SPDLOG_ERROR("The render resource is not a Vertex.");
-        return;
-    }
-    RenderCommand cmd;
-    cmd.sort_key = get_sort_key();
-
-    cmd.type = RenderCommandType::USE;
-    cmd.resource = resource;
-    cmd.desc = desc;
-    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
-}
-void RenderCommandDispatcher::render(RenderResource *shader,
-                                     RenderPrimitiveType prim_type,
-                                     u32 instance_cnt, bool indexed) {
-    RenderCommand cmd;
-    cmd.sort_key = get_sort_key();
-
+    u16 mat_id = data->mat.is_null() ? 0 : data->mat->get_id();
+    cmd.sort_key = gen_sort_key(RenderCommandType::RENDER, 0, mat_id);
+    RenderDispatchData *dispatch_data =
+        (RenderDispatchData *)malloc(sizeof(RenderDispatchData));
+    *dispatch_data = *data;
     if (shader->type != RenderResourceType::SHADER) {
         SPDLOG_ERROR("The render resource is not a shader.");
         return;
     }
     cmd.type = RenderCommandType::RENDER;
-    cmd.resource = shader;
-    cmd.render.instance_cnt = instance_cnt;
-    cmd.render.prim_type = prim_type;
-    cmd.render.indexed = indexed;
+    cmd.data = dispatch_data;
+    dispatch_data->shader = shader;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
-void RenderCommandDispatcher::end() {
-    if (!sort_keys.empty()) sort_keys.pop();
-    this->engine = nullptr;
-}
+
 }  // namespace Seed

@@ -26,7 +26,7 @@ class Entity {
         void set_scale(Vec3 scale);
         Mat4 get_transform();
         virtual void update(f32 dt) {}
-        virtual void render(RenderCommandDispatcher &dp) {}
+        virtual void render() {}
 
         Entity(Vec3 position);
         Entity();

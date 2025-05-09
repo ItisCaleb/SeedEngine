@@ -21,12 +21,20 @@ class RenderEngine {
     Camera cam;
     LinearAllocator mem_pool;
     std::vector<Renderer*> renderers;
+    Ref<Texture> default_tex;
+    Ref<Material> default_mat;
    public:
     static RenderEngine *get_instance();
     void process();
     LinearAllocator *get_mem_pool();
     RenderDevice *get_device();
     Camera *get_cam();
+    Ref<Texture> get_default_texture(){
+        return default_tex;
+    }
+    Ref<Material> get_default_material(){
+        return default_mat;
+    }
     template <class T>
     RenderEngine(T *window, int w, int h);
     ~RenderEngine();

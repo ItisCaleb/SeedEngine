@@ -6,17 +6,15 @@
 namespace Seed {
 class RenderDeviceOpenGL : public RenderDevice {
    private:
-    u32 element_cnt = 0;
-    u32 vertex_cnt = 0;
     u32 global_vao;
     u32 current_program;
-
+    u16 last_material = 0xffff;
     /* uniform buffer */
     std::map<std::string, RenderResource> constants;
     u32 constant_cnt = 0;
     std::map<u32, RenderResource> shaders;
     void handle_update(RenderCommand &cmd);
-    void handle_use(RenderCommand &cmd);
+    void handle_state(RenderCommand &cmd);
     void handle_render(RenderCommand &cmd);
     void use_vertex_desc(VertexDescription *desc);
 

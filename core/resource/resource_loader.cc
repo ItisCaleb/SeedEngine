@@ -24,12 +24,11 @@ ResourceLoader::ResourceLoader() {
 
 ResourceLoader::~ResourceLoader() { instance = nullptr; }
 
-
-RenderResource ResourceLoader::loadShader(
-    const std::string &vertex_path, const std::string &fragment_path,
-    const std::string &geometry_path,
-    const std::string &tess_ctrl_path,
-    const std::string &tess_eval_path) {
+RenderResource ResourceLoader::loadShader(const std::string &vertex_path,
+                                          const std::string &fragment_path,
+                                          const std::string &geometry_path,
+                                          const std::string &tess_ctrl_path,
+                                          const std::string &tess_eval_path) {
     RenderResource shader_rc;
     std::string vertex_s, fragment_s, geometry_s, tess_ctrl_s, tess_eval_s;
 
@@ -120,9 +119,12 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
         Ref<Material> mat;
         mat.create();
         file->read(&mat_field);
-        mat->set_texture_map(Material::DIFFUSE, texture_map[mat_field.diffuse_map]);
-        mat->set_texture_map(Material::SPECULAR, texture_map[mat_field.specular_map]);
-        mat->set_texture_map(Material::NORMAl, texture_map[mat_field.normal_map]);
+        mat->set_texture_map(Material::DIFFUSE,
+                             texture_map[mat_field.diffuse_map]);
+        mat->set_texture_map(Material::SPECULAR,
+                             texture_map[mat_field.specular_map]);
+        mat->set_texture_map(Material::NORMAl,
+                             texture_map[mat_field.normal_map]);
         materials.push_back(mat);
     }
     for (int i = 0; i < meshs.size(); i++) {
@@ -133,16 +135,16 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
 }
 
 template <>
-Ref<Texture> ResourceLoader::_load(const std::string &path){
+Ref<Texture> ResourceLoader::_load(const std::string &path) {
     Ref<Texture> texture;
     int w, h, comp;
-    
+
     void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
     if (!data) {
         spdlog::warn("Can't load texture from {}", path);
         return texture;
     }
-    texture.create(w, h,(const char*)data);
+    texture.create(w, h, (const char *)data);
 
     stbi_image_free(data);
     return texture;
@@ -152,18 +154,18 @@ template <>
 Ref<Terrain> ResourceLoader::_load(const std::string &path) {
     Ref<Terrain> terrain;
     Ref<Texture> height_map = _load<Texture>(path);
-    terrain.create(height_map->get_width(), height_map->get_height(), height_map);
+    terrain.create(height_map->get_width(), height_map->get_height(),
+                   height_map);
     return terrain;
 }
 
-
-void ResourceLoader::register_resource(Resource *res){
-    if(res == nullptr) return;
+void ResourceLoader::register_resource(Resource *res) {
+    if (res == nullptr) return;
     this->res_cache[res->get_path()] = res;
 }
 
-void ResourceLoader::unregister_resource(Resource *res){
-    if(res == nullptr) return;
+void ResourceLoader::unregister_resource(Resource *res) {
+    if (res == nullptr) return;
     this->res_cache.erase(res->get_path());
 }
 

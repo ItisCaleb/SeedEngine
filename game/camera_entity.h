@@ -10,7 +10,7 @@ class CameraEntity : public Entity {
     f32 yaw = 0, pitch = 0;
    public:
     void update(f32 dt) override;
-    void render(RenderCommandDispatcher &dp) override;
+    void render() override;
     CameraEntity();
     ~CameraEntity();
 };

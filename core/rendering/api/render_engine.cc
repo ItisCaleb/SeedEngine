@@ -33,11 +33,18 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
     glEnable(GL_DEPTH_TEST);
     this->renderers.push_back(new ModelRenderer);
     this->renderers.push_back(new TerrainRenderer);
-    for(Renderer *rd: this->renderers){
+    for (Renderer *rd : this->renderers) {
         rd->init();
     }
     matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
     cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);
+    u8 white_tex[4] = {255, 255, 255, 255};
+    default_tex.create(1, 1, (const char *)white_tex);
+    default_mat.create();
+    for (u32 i = 0; i < Material::MAX; i++) {
+        default_mat->set_texture_map(static_cast<Material::TextureMapType>(i),
+                                     default_tex);
+    }
 }
 
 RenderDevice *RenderEngine::get_device() { return device; }
@@ -47,25 +54,22 @@ LinearAllocator *RenderEngine::get_mem_pool() { return &this->mem_pool; }
 Camera *RenderEngine::get_cam() { return &cam; }
 
 void RenderEngine::process() {
-    RenderCommandDispatcher dp;
+    RenderCommandDispatcher dp(0);
 
-    dp.begin(0);
-    Mat4 *matrices = (Mat4 *)dp.update(&matrices_rc, 0, sizeof(Mat4) * 2);
+    Mat4 *matrices = (Mat4 *)dp.map_buffer(&matrices_rc, 0, sizeof(Mat4) * 2);
     matrices[0] = cam.perspective().transpose();
     matrices[1] = cam.look_at().transpose();
-    Vec3 *cam_pos = (Vec3 *)dp.update(&cam_rc, 0, sizeof(Vec3));
+    Vec3 *cam_pos = (Vec3 *)dp.map_buffer(&cam_rc, 0, sizeof(Vec3));
     *cam_pos = this->cam.get_position();
-    dp.end();
-    u64 sort_key = 0;
-    for(Renderer *rd: this->renderers){
+    u8 layer = 1;
+    for (Renderer *rd : this->renderers) {
         rd->preprocess();
-        rd->process(dp, sort_key);
-        sort_key += 1000;
+        rd->process(layer++);
     }
     this->device->process();
-    for(Renderer *rd: this->renderers){
+    for (Renderer *rd : this->renderers) {
         rd->cleanup();
-    }    
+    }
     this->mem_pool.free_all();
 }
 

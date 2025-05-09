@@ -1,8 +1,10 @@
 #ifndef _SEED_TERRAIN_H_
 #define _SEED_TERRAIN_H_
 #include "core/ref.h"
-#include "core/rendering/mesh.h"
-#include "core/resource/resource.h"
+#include "core/math/vec2.h"
+#include "core/resource/material.h"
+#include "core/rendering/vertex_data.h"
+
 
 namespace Seed {
 
@@ -15,8 +17,8 @@ class Terrain : public Resource {
     friend TerrainRenderer;
    private:
     u32 width, depth;
-    Ref<Texture> height_map;
-    RenderResource vertices;
+    Ref<Material> terrain_mat;
+    VertexData vertices;
    public:
     Terrain(u32 width, u32 depth, Ref<Texture> height_map);
     ~Terrain();

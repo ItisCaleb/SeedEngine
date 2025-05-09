@@ -9,13 +9,14 @@
 namespace Seed {
 class Material : public Resource{
 public:
-    enum TextureMapType{
-        DIFFUSE,
+    enum TextureMapType: u8{
+        DIFFUSE = 0,
         SPECULAR,
         NORMAl,
         MAX
     };
 private:
+    u16 id;
     Ref<Texture> textures[TextureMapType::MAX];
 
     f32 shiness = 32.0f;
@@ -23,7 +24,13 @@ private:
 public:
     void set_texture_map(TextureMapType type, Ref<Texture> texture);
     Ref<Texture> get_texture_map(TextureMapType type);
-    Material(){}
+    Ref<Texture>* get_texture_maps();
+
+    u16 get_id(){
+        return id;
+    }
+    inline static u16 last_id = 0;
+    Material():id(last_id++){}
     ~Material(){}
 };
 

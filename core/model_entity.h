@@ -11,7 +11,7 @@ class ModelEntity : public Entity {
 
     public:
         void update(f32 dt) override;
-        void render(RenderCommandDispatcher &dp) override;
+        void render() override;
         AABB get_model_aabb();
         Ref<Model> get_model();
         ModelEntity(Vec3 position, Ref<Model> model);

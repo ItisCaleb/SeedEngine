@@ -26,13 +26,6 @@ void ModelRenderer::init_color() {
     this->instance_desc.add_attr(5, VertexAttributeType::FLOAT, 4, 1);
     this->instance_desc.add_attr(6, VertexAttributeType::FLOAT, 4, 1);
 
-    u8 white_tex[4] = {255, 255, 255, 255};
-    default_texture.create(1, 1, (const char *)white_tex);
-    default_material.create();
-    default_material->set_texture_map(Material::DIFFUSE, default_texture);
-    default_material->set_texture_map(Material::SPECULAR, default_texture);
-    default_material->set_texture_map(Material::NORMAl, default_texture);
-
     RenderResource lights_rc;
 
     Lights lights;
@@ -58,8 +51,9 @@ void ModelRenderer::init_debugging() {
 
     aabb_desc.add_attr(0, VertexAttributeType::FLOAT, 3, 0);
     aabb_desc.add_attr(1, VertexAttributeType::FLOAT, 3, 0);
-
-    aabb_vertices_rc.alloc_vertex(sizeof(AABB), 0, NULL);
+    RenderResource aabb_rc;
+    aabb_rc.alloc_vertex(sizeof(AABB), 0, NULL);
+    aabb_vertices.bind_vertices(sizeof(AABB), 0, aabb_rc);
 }
 void ModelRenderer::init() {
     init_color();
@@ -75,57 +69,44 @@ void ModelRenderer::preprocess() {
         if (model.is_null()) continue;
         AABB bounding_box = e->get_model_aabb();
         /* frustum culling */
-        if(cam && !cam->within_frustum(bounding_box)){
+        if (cam && !cam->within_frustum(bounding_box)) {
             continue;
-        } 
+        }
         auto &instance = model_instances[*model];
         instance.push_back(e->get_transform().transpose());
         entity_aabb.push_back(bounding_box);
     }
 }
 
-void ModelRenderer::process(RenderCommandDispatcher &dp, u64 sort_key) {
+void ModelRenderer::process(u8 layer) {
+    RenderCommandDispatcher dp(layer);
     for (auto &[model, instances] : model_instances) {
-        if(instances.empty()) {
+        if (instances.empty()) {
             continue;
         }
-        dp.begin(sort_key++);
-        dp.use_vertex(&model->instance_rc, &this->instance_desc);
 
-        dp.update(&model->instance_rc, 0, sizeof(Mat4) * instances.size(),
-                  (void *)instances.data());
+        dp.update_buffer(&model->instance_rc, 0,
+                         sizeof(Mat4) * instances.size(),
+                         (void *)instances.data());
         for (Ref<Mesh> mesh : model->meshes) {
-            dp.use_vertex(mesh->vertex_data.get_vertices(), &this->vertices_desc);
-            dp.use(mesh->vertex_data.get_indices());
-            Ref<Material> material = mesh->get_material();
-            if (material.is_null()) {
-                material = default_material;
-            }
-            Ref<Texture> diff_map = material->get_texture_map(Material::DIFFUSE);
-            Ref<Texture> spec_map = material->get_texture_map(Material::SPECULAR);
+            RenderDispatchData data = dp.generate_render_data(
+                &mesh->vertex_data, &this->vertices_desc,
+                RenderPrimitiveType::TRIANGLES, mesh->get_material(),
+                &model->instance_rc, &this->instance_desc, instances.size());
 
-            if (diff_map.is_valid()) {
-                dp.use_texture(diff_map->get_render_resource(), Material::DIFFUSE);
-            } else {
-                dp.use_texture(default_texture->get_render_resource(), Material::DIFFUSE);
-            }
-            if (spec_map.is_valid()) {
-                dp.use_texture(spec_map->get_render_resource(), Material::SPECULAR);
-            } else {
-                dp.use_texture(default_texture->get_render_resource(), Material::SPECULAR);
-            }
-            dp.render(&this->color_shader, RenderPrimitiveType::TRIANGLES,
-                instances.size());
+            dp.render(&data, &this->color_shader);
         }
-        dp.end();
     }
     /* debugging */
-    dp.begin(++sort_key);
-    dp.use_vertex(&aabb_vertices_rc, &this->aabb_desc);
-    dp.update(&aabb_vertices_rc, 0, sizeof(AABB) * entity_aabb.size(),
-              (void *)entity_aabb.data());
-    dp.render(&this->debugging_shader, RenderPrimitiveType::POINTS, 0, false);
-    dp.end();
+    RenderDispatchData aabb_data =
+        dp.generate_render_data(&aabb_vertices, &this->aabb_desc,
+                                RenderPrimitiveType::POINTS, Ref<Material>());
+    dp.update_buffer(aabb_vertices.get_vertices(), 0,
+                     sizeof(AABB) * entity_aabb.size(),
+                     (void *)entity_aabb.data());
+    aabb_vertices.bind_vertices(sizeof(AABB), entity_aabb.size(),
+                                *aabb_vertices.get_vertices());
+    dp.render(&aabb_data, &this->debugging_shader);
 }
 void ModelRenderer::cleanup() {
     for (auto &[model, instances] : model_instances) {

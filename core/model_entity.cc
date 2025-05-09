@@ -10,7 +10,7 @@ void ModelEntity::update(f32 dt) {
     this->rotate(0, speed * dt, 0);
 }
 
-void ModelEntity::render(RenderCommandDispatcher &dp) {}
+void ModelEntity::render() {}
 
 Ref<Model> ModelEntity::get_model() { return model; }
 
