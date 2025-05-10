@@ -21,11 +21,6 @@ typedef u32 RenderResourceHandle;
 struct RenderResource {
     RenderResourceHandle handle;
     RenderResourceType type = RenderResourceType::UNINITIALIZE;
-    u16 stride = 0;
-    union{
-        u32 element_cnt = 0;
-        u32 vertex_cnt;
-    };
 
     void alloc_texture(u32 w, u32 h, const void *data);
     void alloc_vertex(u32 stride, u32 element_cnt,

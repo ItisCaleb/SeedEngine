@@ -29,7 +29,6 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
 
     this->device = new RenderDeviceOpenGL();
     glfwGetFramebufferSize(window, &w, &h);
-    glViewport(0, 0, w, h);
     glEnable(GL_DEPTH_TEST);
     this->renderers.push_back(new ModelRenderer);
     this->renderers.push_back(new TerrainRenderer);
@@ -45,6 +44,10 @@ RenderEngine::RenderEngine(GLFWwindow *window, int w, int h) {
         default_mat->set_texture_map(static_cast<Material::TextureMapType>(i),
                                      default_tex);
     }
+    RenderCommandDispatcher dp(0);
+    dp.begin_state();
+    dp.set_viewport(0, 0, w, h);
+    dp.end_state();
 }
 
 RenderDevice *RenderEngine::get_device() { return device; }
@@ -55,7 +58,10 @@ Camera *RenderEngine::get_cam() { return &cam; }
 
 void RenderEngine::process() {
     RenderCommandDispatcher dp(0);
-
+    dp.begin_state();
+    dp.clear(StateClearFlag::CLEAR_COLOR);
+    dp.clear(StateClearFlag::CLEAR_DEPTH);
+    dp.end_state();
     Mat4 *matrices = (Mat4 *)dp.map_buffer(&matrices_rc, 0, sizeof(Mat4) * 2);
     matrices[0] = cam.perspective().transpose();
     matrices[1] = cam.look_at().transpose();

@@ -12,8 +12,6 @@ void RenderResource::alloc_texture(u32 w, u32 h, const void *data) {
 void RenderResource::alloc_vertex(u32 stride, u32 vertex_cnt,
                                   const void *data) {
     this->type = RenderResourceType::VERTEX;
-    this->stride = stride;
-    this->vertex_cnt = vertex_cnt;
     RenderEngine::get_instance()->get_device()->alloc_vertex(this, stride,
                                                              vertex_cnt, data);
 }
@@ -29,7 +27,6 @@ void RenderResource::alloc_shader(const std::string &vertex_code,
 }
 void RenderResource::alloc_index(const std::vector<u32> &indices) {
     this->type = RenderResourceType::INDEX;
-    this->element_cnt = indices.size();
     RenderEngine::get_instance()->get_device()->alloc_indices(this, indices);
 }
 

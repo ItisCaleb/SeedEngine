@@ -1,11 +1,16 @@
 #ifndef _SEED_RENDER_DIVICE_OPENGL_H_
 #define _SEED_RENDER_DIVICE_OPENGL_H_
 #include "render_device.h"
+#include "core/container/freelist.h"
 #include <map>
 
 namespace Seed {
 class RenderDeviceOpenGL : public RenderDevice {
    private:
+    struct HardwareBufferGL{
+        u32 handle = -1;
+        u64 size;
+    };
     u32 global_vao;
     u32 current_program;
     u16 last_material = 0xffff;
@@ -13,11 +18,12 @@ class RenderDeviceOpenGL : public RenderDevice {
     std::map<std::string, RenderResource> constants;
     u32 constant_cnt = 0;
     std::map<u32, RenderResource> shaders;
+    FreeList<HardwareBufferGL> buffers;
     void handle_update(RenderCommand &cmd);
     void handle_state(RenderCommand &cmd);
     void handle_render(RenderCommand &cmd);
     void use_vertex_desc(VertexDescription *desc);
-
+    void bind_buffer(RenderResource *rc);
    public:
     RenderDeviceOpenGL();
     ~RenderDeviceOpenGL() = default;

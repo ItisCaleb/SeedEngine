@@ -23,13 +23,20 @@ struct RenderDispatchData {
         u32 instance_cnt = 0;
 };
 
+enum RenderStateFlag : u64 {
+    VIEWPORT = 1 << 0,
+    CLEAR = 1 << 1,
+    DEPTH = 1 << 2,
+};
+
+enum StateClearFlag : u8 { CLEAR_COLOR = 1, CLEAR_DEPTH = 2, CLEAR_STENCIL = 4 };
+
 struct RenderStateData {
-        union {
-                struct {
-                        VertexData *instance;
-                        VertexDescription *desc;
-                } instance;
-        };
+        u64 flag;
+        struct Viewport {
+                f32 x, y, width, height;
+        } viewport;
+        u8 clear_flag = 0;
 };
 
 struct RenderUpdateData {
@@ -70,38 +77,39 @@ struct RenderCommand {
 class RenderCommandDispatcher {
     private:
         u8 layer = 0;
+        RenderStateData *state_data = nullptr;
         u64 gen_sort_key(RenderCommandType type, u16 depth, u16 material_id);
+        inline void ensure_state_begin();
+
     public:
         void begin_state();
+        void set_viewport(f32 x, f32 y, f32 width, f32 height);
+        void clear(StateClearFlag flag);
         void end_state();
 
         /* Make sure the `data` life cycle is longer than the entire frame.*/
         void update_buffer(RenderResource *buffer, u32 offset, u32 size,
-                            void *data);
+                           void *data);
         void *map_buffer(RenderResource *buffer, u32 offset, u32 size);
 
         /* Make sure the `data` life cycle is longer than the entire frame.*/
         void update_texture(RenderResource *texture, u16 x_off, u16 y_off,
-                             u16 w, u16 h, void *data);
-        void *map_texture(RenderResource *buffer, u16 x_off, u16 y_off,
-            u16 w, u16 h);
-
-
+                            u16 w, u16 h, void *data);
+        void *map_texture(RenderResource *buffer, u16 x_off, u16 y_off, u16 w,
+                          u16 h);
 
         RenderDispatchData generate_render_data(VertexData *vertices,
                                                 VertexDescription *desc,
                                                 RenderPrimitiveType prim_type,
                                                 Ref<Material> mat);
-        RenderDispatchData generate_render_data(VertexData *vertices,
-                                                VertexDescription *desc,
-                                                RenderPrimitiveType prim_type,
-                                                Ref<Material> mat,
-                                                RenderResource *instance,
-                                                VertexDescription *instance_desc,
-                                                u32 instance_cnt);
+        RenderDispatchData generate_render_data(
+            VertexData *vertices, VertexDescription *desc,
+            RenderPrimitiveType prim_type, Ref<Material> mat,
+            RenderResource *instance, VertexDescription *instance_desc,
+            u32 instance_cnt);
         void render(RenderDispatchData *data, RenderResource *shader);
-        RenderCommandDispatcher(u8 layer): layer(layer){}
-
+        RenderCommandDispatcher(u8 layer) : layer(layer) {}
+        ~RenderCommandDispatcher();
 };
 
 }  // namespace Seed

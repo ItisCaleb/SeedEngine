@@ -17,16 +17,40 @@ u64 RenderCommandDispatcher::gen_sort_key(RenderCommandType type, u16 depth,
     return sort_key;
 }
 void RenderCommandDispatcher::begin_state() {
-    // if (this->beginned()) {
-    //     SPDLOG_WARN("Starting a state without ever ending");
-    // }
+    if (this->state_data) {
+        SPDLOG_ERROR("Starting a state without ever ending");
+        return;
+    }
+    this->state_data = (RenderStateData *)malloc(sizeof(RenderUpdateData));
+}
+
+void RenderCommandDispatcher::ensure_state_begin() {
+    if (!this->state_data) {
+        throw std::runtime_error("Ending a state without ever starting");
+    }
+}
+
+void RenderCommandDispatcher::set_viewport(f32 x, f32 y, f32 width,
+                                           f32 height) {
+    ensure_state_begin();
+    this->state_data->flag |= RenderStateFlag::VIEWPORT;
+    this->state_data->viewport = {
+        .x = x, .y = y, .width = width, .height = height};
+}
+void RenderCommandDispatcher::clear(StateClearFlag flag) {
+    ensure_state_begin();
+    this->state_data->flag |= RenderStateFlag::CLEAR;
+    this->state_data->clear_flag |= flag;
 }
 
 void RenderCommandDispatcher::end_state() {
-    // if (!this->beginned()) {
-    //     SPDLOG_WARN("Ending a state without ever starting");
-    // }
-    // this->current_layer = -1;
+    ensure_state_begin();
+    RenderCommand cmd;
+    cmd.sort_key = gen_sort_key(RenderCommandType::STATE, 0, 0);
+    cmd.type = RenderCommandType::STATE;
+    cmd.data = this->state_data;
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+    this->state_data = nullptr;
 }
 void RenderCommandDispatcher::update_buffer(RenderResource *buffer, u32 offset,
                                             u32 size, void *data) {
@@ -167,6 +191,14 @@ void RenderCommandDispatcher::render(RenderDispatchData *data,
     cmd.data = dispatch_data;
     dispatch_data->shader = shader;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+}
+
+RenderCommandDispatcher::~RenderCommandDispatcher() {
+    if (this->state_data) {
+        SPDLOG_WARN("Starting a state without ever ending");
+        return;
+    }
+    free(this->state_data);
 }
 
 }  // namespace Seed

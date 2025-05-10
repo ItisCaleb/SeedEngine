@@ -10,7 +10,7 @@ void TerrainRenderer::init() {
     try {
         this->terrain_shader = loader->loadShader(
             "assets/terrain.vert", "assets/terrain.frag", "",
-            "assets/terrain.tessctl", "assets/terrain.tesseval");
+            "assets/terrain.tesc", "assets/terrain.tese");
     } catch (std::exception &e) {
         SPDLOG_ERROR("Error loading Shader: {}", e.what());
         exit(1);

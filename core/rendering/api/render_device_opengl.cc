@@ -70,17 +70,45 @@ void RenderDeviceOpenGL::alloc_texture(RenderResource *rc, u32 w, u32 h,
 }
 void RenderDeviceOpenGL::alloc_vertex(RenderResource *rc, u32 stride,
                                       u32 vertex_cnt, const void *data) {
-    glGenBuffers(1, &rc->handle);
-    glBindBuffer(GL_ARRAY_BUFFER, rc->handle);
+    GLuint handle;
+    glGenBuffers(1, &handle);
+    glBindBuffer(GL_ARRAY_BUFFER, handle);
     glBufferData(GL_ARRAY_BUFFER, vertex_cnt * stride, data, GL_STATIC_DRAW);
+    rc->handle = this->buffers.insert(
+        HardwareBufferGL{.handle = handle, .size = vertex_cnt * stride});
 }
 
 void RenderDeviceOpenGL::alloc_indices(RenderResource *rc,
                                        const std::vector<u32> &indices) {
-    glGenBuffers(1, &rc->handle);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rc->handle);
+    GLuint handle;
+
+    glGenBuffers(1, &handle);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(u32),
                  indices.data(), GL_STATIC_DRAW);
+    rc->handle = this->buffers.insert(HardwareBufferGL{
+        .handle = handle, .size = indices.size() * sizeof(u32)});
+}
+
+void RenderDeviceOpenGL::alloc_constant(RenderResource *rc,
+                                        const std::string &name, u32 size,
+                                        void *data) {
+    GLuint handle;
+    glGenBuffers(1, &handle);
+    glBindBuffer(GL_UNIFORM_BUFFER, handle);
+    glBufferData(GL_UNIFORM_BUFFER, size, data, GL_STATIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    constants[name] = *rc;
+    for (auto &e : shaders) {
+        u32 idx = glGetUniformBlockIndex(e.second.handle, name.c_str());
+        if (idx != GL_INVALID_INDEX) {
+            glUniformBlockBinding(e.second.handle, idx, constant_cnt);
+        }
+    }
+    glBindBufferBase(GL_UNIFORM_BUFFER, constant_cnt, handle);
+    constant_cnt++;
+    rc->handle = this->buffers.insert(HardwareBufferGL{
+        .handle = handle, .size = size});
 }
 
 void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
@@ -173,32 +201,20 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
     rc->handle = program;
     shaders[rc->handle] = *rc;
 }
-void RenderDeviceOpenGL::alloc_constant(RenderResource *rc,
-                                        const std::string &name, u32 size,
-                                        void *data) {
-    glGenBuffers(1, &rc->handle);
-    glBindBuffer(GL_UNIFORM_BUFFER, rc->handle);
-    glBufferData(GL_UNIFORM_BUFFER, size, data, GL_STATIC_DRAW);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    constants[name] = *rc;
-    for (auto &e : shaders) {
-        u32 idx = glGetUniformBlockIndex(e.second.handle, name.c_str());
-        if (idx != GL_INVALID_INDEX) {
-            glUniformBlockBinding(e.second.handle, idx, constant_cnt);
-        }
-    }
-    glBindBufferBase(GL_UNIFORM_BUFFER, constant_cnt, rc->handle);
-    constant_cnt++;
-}
+
 void RenderDeviceOpenGL::dealloc(RenderResource *r) {
     switch (r->type) {
         case RenderResourceType::VERTEX:
-        case RenderResourceType::INDEX:
-            glDeleteBuffers(1, &r->handle);
-            break;
-        case RenderResourceType::TEXTURE:
-            glDeleteTextures(1, &r->handle);
-            break;
+        case RenderResourceType::INDEX: {
+            HardwareBufferGL &hb = this->buffers[r->handle];
+            glDeleteBuffers(1, &hb.handle);
+            this->buffers.erase(r->handle);
+        } break;
+        case RenderResourceType::TEXTURE: {
+            HardwareBufferGL &hb = this->buffers[r->handle];
+            glDeleteTextures(1, &hb.handle);
+            this->buffers.erase(r->handle);
+        } break;
         case RenderResourceType::SHADER:
             glDeleteProgram(r->handle);
             break;
@@ -210,19 +226,19 @@ void RenderDeviceOpenGL::dealloc(RenderResource *r) {
 void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
     RenderResource *buffer = update_data->dst_buffer;
+    HardwareBufferGL &hb = this->buffers[buffer->handle];
     switch (buffer->type) {
         case RenderResourceType::VERTEX:
             u32 vbo;
-            glBindBuffer(GL_ARRAY_BUFFER, buffer->handle);
-            if (buffer->vertex_cnt * buffer->stride <
-                update_data->buffer.size) {
+            glBindBuffer(GL_ARRAY_BUFFER, hb.handle);
+            if (hb.size < update_data->buffer.size) {
                 glBufferData(GL_ARRAY_BUFFER, update_data->buffer.size,
                              update_data->data, GL_DYNAMIC_DRAW);
+                hb.size = update_data->buffer.size;
             } else {
                 glBufferSubData(GL_ARRAY_BUFFER, update_data->buffer.offset,
                                 update_data->buffer.size, update_data->data);
             }
-            buffer->vertex_cnt = update_data->buffer.size / buffer->stride;
             break;
         case RenderResourceType::TEXTURE:
             glBindTexture(GL_TEXTURE_2D, buffer->handle);
@@ -234,17 +250,16 @@ void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
 
             break;
         case RenderResourceType::CONSTANT:
-            glBindBuffer(GL_UNIFORM_BUFFER, buffer->handle);
+            glBindBuffer(GL_UNIFORM_BUFFER, hb.handle);
             glBufferSubData(GL_UNIFORM_BUFFER, update_data->buffer.offset,
                             update_data->buffer.size, update_data->data);
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
             break;
         case RenderResourceType::INDEX:
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->handle);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hb.handle);
             glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, update_data->buffer.offset,
                             update_data->buffer.size, update_data->data);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-            buffer->element_cnt = update_data->buffer.size / sizeof(u32);
             break;
         default:
             break;
@@ -284,8 +299,39 @@ void RenderDeviceOpenGL::use_vertex_desc(VertexDescription *desc) {
     glEnableVertexAttribArray(0);
 }
 
+void RenderDeviceOpenGL::bind_buffer(RenderResource *rc) {
+    HardwareBufferGL &hb = this->buffers[rc->handle];
+    switch (rc->type) {
+        case RenderResourceType::VERTEX:
+            glBindBuffer(GL_ARRAY_BUFFER, hb.handle);
+            break;
+        case RenderResourceType::INDEX:
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hb.handle);
+        default:
+            break;
+    }
+}
+
 void RenderDeviceOpenGL::handle_state(RenderCommand &cmd) {
     RenderStateData *state_data = static_cast<RenderStateData *>(cmd.data);
+    u64 flag = state_data->flag;
+    if(flag & RenderStateFlag::VIEWPORT){
+        RenderStateData::Viewport &vp = state_data->viewport;
+        glViewport(vp.x, vp.y, vp.width, vp.height);
+    }
+    if(flag & RenderStateFlag::CLEAR){
+        GLuint clear_flag = 0;
+        if(state_data->clear_flag & StateClearFlag::CLEAR_COLOR){
+            clear_flag |= GL_COLOR_BUFFER_BIT;
+        }
+        if(state_data->clear_flag & StateClearFlag::CLEAR_DEPTH){
+            clear_flag |= GL_DEPTH_BUFFER_BIT;
+        }        
+        if(state_data->clear_flag & StateClearFlag::CLEAR_STENCIL){
+            clear_flag |= GL_STENCIL_BUFFER_BIT;
+        }
+        glClear(clear_flag);
+    }
 }
 
 void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
@@ -321,13 +367,13 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
             break;
     }
     VertexData *vertices = dispatch_data->vertices;
-    glBindBuffer(GL_ARRAY_BUFFER, vertices->get_vertices()->handle);
+    bind_buffer(vertices->get_vertices());
     use_vertex_desc(dispatch_data->desc);
     if (vertices->use_index()) {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertices->get_indices()->handle);
+        bind_buffer(vertices->get_indices());
     }
     if (dispatch_data->instance_cnt > 0) {
-        glBindBuffer(GL_ARRAY_BUFFER, dispatch_data->instance->handle);
+        bind_buffer(dispatch_data->instance);
         use_vertex_desc(dispatch_data->instance_desc);
     }
 
@@ -368,7 +414,6 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
 }
 
 void RenderDeviceOpenGL::process() {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     std::sort(std::begin(cmd_queue), std::end(cmd_queue), RenderCommand::cmp);
     while (!cmd_queue.empty()) {
         RenderCommand &cmd = cmd_queue.front();
