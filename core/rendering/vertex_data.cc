@@ -29,4 +29,21 @@ void VertexData::bind_vertices(u32 stride, u32 vertex_cnt,
     this->stride = stride;
     this->vertices_cnt = vertex_cnt;
 }
+
+void VertexData::alloc_vertex(u32 stride, u32 vertex_cnt, const void *data){
+    if(this->vertices.inited()){
+        this->vertices.dealloc();
+    }
+    this->stride = stride;
+    this->vertices_cnt = vertex_cnt;
+    this->vertices.alloc_vertex(stride, vertex_cnt, data);
+}
+void VertexData::alloc_index(const std::vector<u32> &indices){
+    if(this->indices.inited()){
+        this->indices.dealloc();
+    }
+    this->indices_cnt = indices.size();
+    this->indices.alloc_index(indices);
+    this->indexing = true;
+}
 }  // namespace Seed

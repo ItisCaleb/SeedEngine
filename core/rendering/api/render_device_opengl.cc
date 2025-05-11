@@ -98,7 +98,6 @@ void RenderDeviceOpenGL::alloc_constant(RenderResource *rc,
     glBindBuffer(GL_UNIFORM_BUFFER, handle);
     glBufferData(GL_UNIFORM_BUFFER, size, data, GL_STATIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    constants[name] = *rc;
     for (auto &e : shaders) {
         u32 idx = glGetUniformBlockIndex(e.second.handle, name.c_str());
         if (idx != GL_INVALID_INDEX) {
@@ -107,8 +106,8 @@ void RenderDeviceOpenGL::alloc_constant(RenderResource *rc,
     }
     glBindBufferBase(GL_UNIFORM_BUFFER, constant_cnt, handle);
     constant_cnt++;
-    rc->handle = this->buffers.insert(HardwareBufferGL{
-        .handle = handle, .size = size});
+    rc->handle =
+        this->buffers.insert(HardwareBufferGL{.handle = handle, .size = size});
 }
 
 void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
@@ -251,14 +250,28 @@ void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
             break;
         case RenderResourceType::CONSTANT:
             glBindBuffer(GL_UNIFORM_BUFFER, hb.handle);
-            glBufferSubData(GL_UNIFORM_BUFFER, update_data->buffer.offset,
-                            update_data->buffer.size, update_data->data);
+            if (hb.size < update_data->buffer.size) {
+                glBufferData(GL_UNIFORM_BUFFER, update_data->buffer.size,
+                             update_data->data, GL_DYNAMIC_DRAW);
+                hb.size = update_data->buffer.size;
+            } else {
+                glBufferSubData(GL_UNIFORM_BUFFER,
+                                update_data->buffer.offset,
+                                update_data->buffer.size, update_data->data);
+            }
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
             break;
         case RenderResourceType::INDEX:
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hb.handle);
-            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, update_data->buffer.offset,
-                            update_data->buffer.size, update_data->data);
+            if (hb.size < update_data->buffer.size) {
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, update_data->buffer.size,
+                             update_data->data, GL_DYNAMIC_DRAW);
+                hb.size = update_data->buffer.size;
+            } else {
+                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
+                                update_data->buffer.offset,
+                                update_data->buffer.size, update_data->data);
+            }
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
             break;
         default:
@@ -275,6 +288,10 @@ void RenderDeviceOpenGL::use_vertex_desc(VertexDescription *desc) {
         u32 type;
         u32 size;
         switch (attr.type) {
+            case VertexAttributeType::UNSIGNED_BYTE:
+                type = GL_UNSIGNED_BYTE;
+                size = sizeof(u8);
+                break;
             case VertexAttributeType::UNSIGNED:
                 type = GL_UNSIGNED_INT;
                 size = sizeof(u32);
@@ -312,46 +329,148 @@ void RenderDeviceOpenGL::bind_buffer(RenderResource *rc) {
     }
 }
 
+void RenderDeviceOpenGL::setup_rasterizer(RenderRasterizerState &state) {
+    switch (state.cull_mode) {
+        case RenderRasterizerState::Cullmode::FRONT:
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_FRONT);
+            break;
+        case RenderRasterizerState::Cullmode::BACK:
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_BACK);
+            break;
+        case RenderRasterizerState::Cullmode::BOTH:
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_FRONT);
+            break;
+        case RenderRasterizerState::Cullmode::NONE:
+        default:
+            glDisable(GL_CULL_FACE);
+            break;
+    }
+}
+
+void RenderDeviceOpenGL::setup_depth_stencil(RenderDepthStencilState &state) {
+    if (state.depth_on)
+        glEnable(GL_DEPTH_TEST);
+    else
+        glDisable(GL_DEPTH_TEST);
+
+    if (state.stencil_on)
+        glEnable(GL_STENCIL_TEST);
+    else
+        glDisable(GL_STENCIL_TEST);
+}
+
+inline static u32 get_blend_func(BlendFactor factor) {
+    switch (factor) {
+        case BlendFactor::ZERO:
+            return GL_ZERO;
+        case BlendFactor::ONE:
+            return GL_ONE;
+        case BlendFactor::SRC_COLOR:
+            return GL_SRC_COLOR;
+        case BlendFactor::ONE_MINUS_SRC_COLOR:
+            return GL_ONE_MINUS_SRC_COLOR;
+        case BlendFactor::DST_COLOR:
+            return GL_DST_COLOR;
+        case BlendFactor::ONE_MINUS_DST_COLOR:
+            return GL_ONE_MINUS_DST_COLOR;
+        case BlendFactor::SRC_ALPHA:
+            return GL_SRC_ALPHA;
+        case BlendFactor::ONE_MINUS_SRC_ALPHA:
+            return GL_ONE_MINUS_SRC_ALPHA;
+        case BlendFactor::DST_ALPHA:
+            return GL_DST_ALPHA;
+        case BlendFactor::ONE_MINUS_DST_ALPHA:
+            return GL_ONE_MINUS_DST_ALPHA;
+        case BlendFactor::CONSTANT_COLOR:
+            return GL_CONSTANT_COLOR;
+        case BlendFactor::ONE_MINUS_CONSTANT_COLOR:
+            return GL_ONE_MINUS_CONSTANT_COLOR;
+        case BlendFactor::CONSTANT_ALPHA:
+            return GL_CONSTANT_COLOR;
+        case BlendFactor::ONE_MINUS_CONSTANT_ALPHA:
+            return GL_ONE_MINUS_CONSTANT_ALPHA;
+        case BlendFactor::SRC_ALPHA_SATURATE:
+            return GL_SRC_ALPHA_SATURATE;
+        case BlendFactor::SRC1_COLOR:
+            return GL_SRC1_COLOR;
+        case BlendFactor::ONE_MINUS_SRC1_COLOR:
+            return GL_ONE_MINUS_SRC1_COLOR;
+        case BlendFactor::SRC1_ALPHA:
+            return GL_SRC1_ALPHA;
+        case BlendFactor::ONE_MINUS_SRC1_ALPHA:
+            return GL_ONE_MINUS_SRC1_ALPHA;
+    }
+}
+void RenderDeviceOpenGL::setup_blend(RenderBlendState &state) {
+    if (state.blend_on)
+        glEnable(GL_BLEND);
+    else
+        glDisable(GL_BLEND);
+    glBlendFuncSeparate(get_blend_func(state.func.src_rgb),
+                        get_blend_func(state.func.dst_rgb),
+                        get_blend_func(state.func.src_alpha),
+                        get_blend_func(state.func.dst_alpha));
+}
+
 void RenderDeviceOpenGL::handle_state(RenderCommand &cmd) {
     RenderStateData *state_data = static_cast<RenderStateData *>(cmd.data);
     u64 flag = state_data->flag;
-    if(flag & RenderStateFlag::VIEWPORT){
-        RenderStateData::Viewport &vp = state_data->viewport;
-        glViewport(vp.x, vp.y, vp.width, vp.height);
-    }
-    if(flag & RenderStateFlag::CLEAR){
+
+    if (flag & RenderStateFlag::CLEAR) {
         GLuint clear_flag = 0;
-        if(state_data->clear_flag & StateClearFlag::CLEAR_COLOR){
+        if (state_data->clear_flag & StateClearFlag::CLEAR_COLOR) {
             clear_flag |= GL_COLOR_BUFFER_BIT;
         }
-        if(state_data->clear_flag & StateClearFlag::CLEAR_DEPTH){
+        if (state_data->clear_flag & StateClearFlag::CLEAR_DEPTH) {
             clear_flag |= GL_DEPTH_BUFFER_BIT;
-        }        
-        if(state_data->clear_flag & StateClearFlag::CLEAR_STENCIL){
+        }
+        if (state_data->clear_flag & StateClearFlag::CLEAR_STENCIL) {
             clear_flag |= GL_STENCIL_BUFFER_BIT;
         }
         glClear(clear_flag);
     }
+    if (flag & RenderStateFlag::VIEWPORT) {
+        ViewportState &vp = state_data->viewport;
+        glViewport(vp.x, vp.y, vp.w, vp.h);
+    }
+    if (flag & RenderStateFlag::SCISSOR) {
+        ScissorRect &rect = state_data->rect;
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(rect.x, rect.y, rect.w, rect.h);
+    }
 }
 
 void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
-    RenderDispatchData *dispatch_data =
-        static_cast<RenderDispatchData *>(cmd.data);
-    u32 shader_handle = dispatch_data->shader->handle;
-    if (current_program != shader_handle) {
+    RenderDrawData *draw_data = static_cast<RenderDrawData *>(cmd.data);
+    if (draw_data->set_viewport) {
+        ViewportState &vp = draw_data->viewport;
+        glViewport(vp.x, vp.y, vp.w, vp.h);
+    }
+    if (draw_data->set_scissor) {
+        ScissorRect &rect = draw_data->scissor;
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(rect.x, rect.y, rect.w, rect.h);
+    }
+    if (this->pipeline != draw_data->pipeline) {
+        this->pipeline = draw_data->pipeline;
+        u32 shader_handle = this->pipeline->shader->get_rc()->handle;
         glUseProgram(shader_handle);
-        current_program = shader_handle;
-        /* bind texture unit in fragment shader */
         for (int i = 0; i < 8; i++) {
             std::string name = fmt::format("u_texture[{}]", i);
             u32 loc = glGetUniformLocation(shader_handle, name.c_str());
             if (loc == -1) break;
             glUniform1i(loc, i);
         }
+        setup_rasterizer(this->pipeline->rst_state);
+        setup_depth_stencil(this->pipeline->depth_state);
+        setup_blend(this->pipeline->blend_state);
     }
     /* select primitive to draw */
     u32 prim_type;
-    switch (dispatch_data->prim_type) {
+    switch (pipeline->type) {
         case RenderPrimitiveType::POINTS:
             prim_type = GL_POINTS;
             break;
@@ -366,18 +485,18 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
             prim_type = GL_TRIANGLES;
             break;
     }
-    VertexData *vertices = dispatch_data->vertices;
+    VertexData *vertices = draw_data->vertices;
     bind_buffer(vertices->get_vertices());
-    use_vertex_desc(dispatch_data->desc);
+    use_vertex_desc(pipeline->desc);
     if (vertices->use_index()) {
         bind_buffer(vertices->get_indices());
     }
-    if (dispatch_data->instance_cnt > 0) {
-        bind_buffer(dispatch_data->instance);
-        use_vertex_desc(dispatch_data->instance_desc);
+    if (draw_data->instance_cnt > 0 && pipeline->instance_desc) {
+        bind_buffer(draw_data->instance);
+        use_vertex_desc(pipeline->instance_desc);
     }
 
-    Ref<Material> mat = dispatch_data->mat;
+    Ref<Material> mat = draw_data->mat;
     if (mat.is_null()) {
         mat = RenderEngine::get_instance()->get_default_material();
     }
@@ -395,18 +514,18 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
     }
 
     if (vertices->use_index()) {
-        if (dispatch_data->instance_cnt > 0) {
-            glDrawElementsInstanced(prim_type, vertices->get_indices_cnt(),
-                                    GL_UNSIGNED_INT, 0,
-                                    dispatch_data->instance_cnt);
+        if (draw_data->instance_cnt > 0) {
+            glDrawElementsInstanced(prim_type, draw_data->index_cnt,
+                                    GL_UNSIGNED_INT, (void*)(u64)draw_data->index_offset,
+                                    draw_data->instance_cnt);
         } else {
-            glDrawElements(prim_type, vertices->get_indices_cnt(),
-                           GL_UNSIGNED_INT, 0);
+            glDrawElements(prim_type, draw_data->index_cnt,
+            GL_UNSIGNED_SHORT, (void*)(u64)draw_data->index_offset);
         }
     } else {
-        if (dispatch_data->instance_cnt > 0) {
+        if (draw_data->instance_cnt > 0) {
             glDrawArraysInstanced(prim_type, 0, vertices->get_vertices_cnt(),
-                                  dispatch_data->instance_cnt);
+                                  draw_data->instance_cnt);
         } else {
             glDrawArrays(prim_type, 0, vertices->get_vertices_cnt());
         }
@@ -414,7 +533,12 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
 }
 
 void RenderDeviceOpenGL::process() {
-    std::sort(std::begin(cmd_queue), std::end(cmd_queue), RenderCommand::cmp);
+    std::stable_sort(std::begin(cmd_queue), std::end(cmd_queue),
+                     RenderCommand::cmp);
+    glBlendEquation(GL_FUNC_ADD);
+    glDisable(GL_PRIMITIVE_RESTART);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glBindSampler(0, 0);
     while (!cmd_queue.empty()) {
         RenderCommand &cmd = cmd_queue.front();
         cmd_queue.pop_front();

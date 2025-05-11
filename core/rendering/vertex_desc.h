@@ -4,7 +4,7 @@
 #include <vector>
 
 namespace Seed {
-enum class VertexAttributeType { FLOAT, INT, UNSIGNED };
+enum class VertexAttributeType { FLOAT, INT, UNSIGNED, UNSIGNED_BYTE };
 
 struct VertexAttribute {
     u8 layout_num;

@@ -8,6 +8,7 @@
 #include "core/resource/model.h"
 #include "core/allocator/linear_allocator.h"
 #include "core/rendering/renderer/renderer.h"
+#include "core/window.h"
 #include <queue>
 #include <vector>
 
@@ -35,8 +36,9 @@ class RenderEngine {
     Ref<Material> get_default_material(){
         return default_mat;
     }
-    template <class T>
-    RenderEngine(T *window, int w, int h);
+    template<typename T, typename ...Args>
+    void register_renderer(const Args &...args);
+    RenderEngine(Window *window);
     ~RenderEngine();
 };
 

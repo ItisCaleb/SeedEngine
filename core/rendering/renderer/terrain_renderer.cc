@@ -7,34 +7,43 @@ namespace Seed {
 void TerrainRenderer::init() {
     ResourceLoader *loader = ResourceLoader::get_instance();
 
-    try {
-        this->terrain_shader = loader->loadShader(
-            "assets/terrain.vert", "assets/terrain.frag", "",
-            "assets/terrain.tesc", "assets/terrain.tese");
-    } catch (std::exception &e) {
-        SPDLOG_ERROR("Error loading Shader: {}", e.what());
-        exit(1);
-    }
+    Ref<Shader> terrain_shader =
+        loader->load_shader("assets/terrain.vert", "assets/terrain.frag", "",
+                            "assets/terrain.tesc", "assets/terrain.tese");
 
     vertices_desc.add_attr(0, VertexAttributeType::FLOAT, 2, 0);
     vertices_desc.add_attr(1, VertexAttributeType::FLOAT, 2, 0);
+
+    RenderRasterizerState rst_state;
+    RenderDepthStencilState depth_state = {.depth_on = true};
+    RenderBlendState blend_state;
+    terrain_pipeline.create(terrain_shader, &vertices_desc,
+                            RenderPrimitiveType::PATCHES, rst_state,
+                            depth_state, blend_state);
+
     auto model = Mat4::translate_mat({0, 0, 0}).transpose();
     model_const_rc.alloc_constant("TerrainMatrices", sizeof(Mat4), &model);
 }
 
 void TerrainRenderer::preprocess() {}
 
-void TerrainRenderer::process(u8 layer) {
+void TerrainRenderer::process() {
+    Window *window = SeedEngine::get_instance()->get_window();
     RenderCommandDispatcher dp(layer);
     Ref<Terrain> terrain =
         SeedEngine::get_instance()->get_world()->get_terrain();
     if (terrain.is_null()) {
         return;
     }
-    RenderDispatchData data = dp.generate_render_data(
-        &terrain->vertices, &this->vertices_desc, RenderPrimitiveType::PATCHES,
-        terrain->terrain_mat);
-    dp.render(&data, &terrain_shader);
+    dp.begin_draw();
+
+    RenderDrawData data =
+        dp.generate_render_data(&terrain->vertices, terrain->terrain_mat);
+    dp.draw_set_viewport(data, 0, 0, window->get_width(), window->get_height());
+    dp.draw_cancel_scissor(data);
+
+    dp.render(&data, terrain_pipeline, 0);
+    dp.end_draw();
 }
 void TerrainRenderer::cleanup() {}
 }  // namespace Seed

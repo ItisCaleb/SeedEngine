@@ -4,6 +4,7 @@
 #include "types.h"
 #include "world.h"
 #include "input_handler.h"
+#include "window.h"
 
 namespace Seed {
 class SeedEngine {
@@ -11,7 +12,7 @@ class SeedEngine {
         inline static SeedEngine *instance = nullptr;
         InputHandler input_handler;
         f32 frame_limit = 60.0;
-        void *window = nullptr;
+        Window *window;
         void init_systems();
         World *world;
 
@@ -19,7 +20,8 @@ class SeedEngine {
         static SeedEngine *get_instance();
         int width, height;
         void start();
-        World *get_world();
+        World *get_world() { return world; }
+        Window *get_window() { return window; }
         SeedEngine(f32 target_fps = 60.0);
         ~SeedEngine();
 

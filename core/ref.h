@@ -42,6 +42,8 @@ class Ref {
         T *operator->() { return data; }
 
         bool operator==(const Ref &other) { return this->data == other.data; }
+        bool operator!=(const Ref &other) { return this->data != other.data; }
+
 
         void operator=(T *from) {
             if (from) {

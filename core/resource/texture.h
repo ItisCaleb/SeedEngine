@@ -23,7 +23,7 @@ namespace Seed
             return h;
         }
 
-        Texture(u32 w, u32 h, const char *image_data);
+        Texture(u32 w, u32 h, const u8 *image_data);
         ~Texture();
     };
 } // namespace Seed

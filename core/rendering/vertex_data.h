@@ -34,6 +34,17 @@ class VertexData {
         u32 get_stride() { return stride; }
 
         bool use_index() { return indexing; }
+
+        void alloc_vertex(u32 stride, u32 vertex_cnt, const void *data);
+        void alloc_index(const std::vector<u32> &indices);
+        void set_vertices_cnt(u32 cnt){
+            this->vertices_cnt = cnt;
+        };
+        void set_indices_cnt(u32 cnt){
+            this->indices_cnt = cnt;
+        };
+
+
 };
 }  // namespace Seed
 

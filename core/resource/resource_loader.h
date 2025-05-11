@@ -4,6 +4,7 @@
 #include "core/ref.h"
 #include "core/resource/resource.h"
 #include "core/rendering/api/render_resource.h"
+#include "core/resource/shader.h"
 
 namespace Seed{
     class ResourceLoader {
@@ -28,7 +29,7 @@ namespace Seed{
             return ref_cast<T>(res);
          }
      
-         RenderResource loadShader(const std::string &vertex_path,
+         Ref<Shader> load_shader(const std::string &vertex_path,
                                    const std::string &fragment_path,
                                    const std::string &geometry_path = "",
                                    const std::string &tess_ctrl_path = "",

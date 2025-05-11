@@ -39,6 +39,8 @@ target_link_libraries(seed PUBLIC
     spdlog::spdlog
     nlohmann_json::nlohmann_json
     Jolt::Jolt
+    imgui::imgui
+    nfd::nfd
 )
 add_subdirectory(core)
 

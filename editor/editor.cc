@@ -50,7 +50,7 @@ int main(int, char **) {
     NFD_Init();
     // Main loop
     Model *current_model = nullptr;
-    Seed::SeedEngine *engine = new Seed::SeedEngine(60.0f);
+    //Seed::SeedEngine *engine = new Seed::SeedEngine(60.0f);
 
     while (!glfwWindowShouldClose(window)) {
         
@@ -73,32 +73,32 @@ int main(int, char **) {
         // 2. Show a simple window that we create ourselves. We use a Begin/End
         // pair to create a named window.
         {
-            static float f = 0.0f;
-            static int counter = 0;
+            // static float f = 0.0f;
+            // static int counter = 0;
 
-            ImGui::Begin("Hello, world!");  // Create a window called "Hello,
-                                            // world!" and append into it.
+            // ImGui::Begin("Hello, world!");  // Create a window called "Hello,
+            //                                 // world!" and append into it.
 
-            if (ImGui::Button("Open model file")) {
-                nfdu8char_t *path;
-                nfdopendialogu8args_t args = {0};
-                nfdresult_t r = NFD_OpenDialogU8_With(&path, &args);
-                if (r == NFD_OKAY) {
-                    current_model = new Model(path);
-                }
-            }
+            // if (ImGui::Button("Open model file")) {
+            //     nfdu8char_t *path;
+            //     nfdopendialogu8args_t args = {0};
+            //     nfdresult_t r = NFD_OpenDialogU8_With(&path, &args);
+            //     if (r == NFD_OKAY) {
+            //         current_model = new Model(path);
+            //     }
+            // }
 
-            if (ImGui::Button("Dump model")) {
-                if (current_model != nullptr) {
-                    current_model->dump();
-                }
-            }
-            if (current_model != nullptr) {
-                ImGui::Text("mesh count: %zu", current_model->meshes.size());
-                ImGui::Text("texture count: %zu",
-                            current_model->textures.size());
-            }
-            ImGui::End();
+            // if (ImGui::Button("Dump model")) {
+            //     if (current_model != nullptr) {
+            //         current_model->dump();
+            //     }
+            // }
+            // if (current_model != nullptr) {
+            //     ImGui::Text("mesh count: %zu", current_model->meshes.size());
+            //     ImGui::Text("texture count: %zu",
+            //                 current_model->textures.size());
+            // }
+            // ImGui::End();
         }
 
         // 3. Show another simple window.
@@ -148,9 +148,9 @@ GLFWwindow *init() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
 #elif defined(__APPLE__)
     // GL 3.2 + GLSL 150
-    const char *glsl_version = "#version 150";
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    const char *glsl_version = "#version 410";
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // Required on Mac
 #else

@@ -1,0 +1,38 @@
+#include "gui_engine.h"
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <nfd.h>
+#include <spdlog/spdlog.h>
+
+namespace Seed {
+GuiEngine::GuiEngine(Window *window) {
+    if (!window) {
+        SPDLOG_ERROR("Can't initialize Gui engine, window is null, exiting.");
+        exit(1);
+    }
+    GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
+
+    ImGui::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    io.ConfigFlags |=
+        ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+    io.ConfigFlags |=
+        ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    // ImGui::StyleColorsLight();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(glfw_window, true);
+    NFD_Init();
+}
+void GuiEngine::update() {
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    bool show_demo_window = true;
+
+    ImGui::ShowDemoWindow(&show_demo_window);
+    ImGui::Render();
+}
+}  // namespace Seed

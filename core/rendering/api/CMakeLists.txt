@@ -3,4 +3,5 @@ target_sources(seed PRIVATE
     render_resource.cc
     render_command.cc
     render_device_opengl.cc
+    render_pipeline.cc
     )

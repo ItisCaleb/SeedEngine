@@ -4,6 +4,7 @@
 #include "input.h"
 #include "core/rendering/api/render_engine.h"
 #include "core/resource/resource_loader.h"
+#include "core/gui/gui_engine.h"
 #include "core/concurrency/thread_pool.h"
 #include "types.h"
 #include <spdlog/spdlog.h>
@@ -34,9 +35,9 @@ SeedEngine *SeedEngine::get_instance() { return instance; }
 void SeedEngine::init_systems() {
     ResourceLoader *resource_loader = new ResourceLoader;
     Input *input = new Input;
-    input_handler.init((GLFWwindow *)this->window);
-    RenderEngine *render_engine =
-        new RenderEngine((GLFWwindow *)window, width, height);
+    input_handler.init(this->window);
+    GuiEngine *gui = new GuiEngine(this->window);
+    RenderEngine *render_engine = new RenderEngine(window);
     ThreadPool *pool = new ThreadPool(OS::cpu_count());
     this->world = new World;
 }
@@ -49,17 +50,19 @@ void SeedEngine::start() {
     Input *input = Input::get_instance();
     RenderEngine *render_engine = RenderEngine::get_instance();
     f64 delta = frame_limit;
-    while (!glfwWindowShouldClose((GLFWwindow *)window)) {
+    GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
+    while (!glfwWindowShouldClose(glfw_window)) {
         f64 start = glfwGetTime();
         if (input->is_key_pressed(KeyCode::Q)) {
             break;
         }
 
         glfwPollEvents();
+        GuiEngine::get_instance()->update();
         world->tick(delta);
 
         render_engine->process();
-        glfwSwapBuffers((GLFWwindow *)window);
+        glfwSwapBuffers(glfw_window);
 
         delta = glfwGetTime() - start;
 
@@ -69,12 +72,10 @@ void SeedEngine::start() {
         }
     }
 
-    glfwDestroyWindow((GLFWwindow *)window);
+    glfwDestroyWindow(glfw_window);
 
     glfwTerminate();
 }
-
-World *SeedEngine::get_world() { return world; }
 
 SeedEngine::SeedEngine(f32 target_fps) {
     instance = this;
@@ -97,9 +98,7 @@ SeedEngine::SeedEngine(f32 target_fps) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
-    width = 640;
-    height = 480;
-    window = glfwCreateWindow(width, height, "Simple example", NULL, NULL);
+    window = new Window(640, 480, "Ave Mujica");
     if (!window) {
         spdlog::error("Can't create window. Exiting");
         glfwTerminate();

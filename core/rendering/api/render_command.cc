@@ -4,54 +4,61 @@
 
 namespace Seed {
 
-u64 RenderCommandDispatcher::gen_sort_key(RenderCommandType type, u16 depth,
-                                          u16 material_id) {
+u64 RenderCommandDispatcher::gen_sort_key(f32 depth, u16 material_id) {
     u64 sort_key = 0;
-    u8 type_num = static_cast<u8>(type);
-    sort_key |= ((u64)this->layer & 0b1111111u) << 34;
-    sort_key |= ((u64)type_num & 0b11u) << 18;
-    if (type == RenderCommandType::RENDER) {
-        sort_key |= (u64)depth << 16;
-        sort_key |= (u64)material_id;
-    }
+    if (depth < 0.0f) depth = 0.0f;
+    if (depth > 1.0f) depth = 1.0f;
+    u16 depth_value = (u16)((f32)(u16)(-1) * depth);
+    sort_key |= ((u64)this->layer & 0b1111111u) << 32;
+    sort_key |= (u64)depth_value << 16;
+    sort_key |= (u64)material_id;
     return sort_key;
 }
-void RenderCommandDispatcher::begin_state() {
-    if (this->state_data) {
-        SPDLOG_ERROR("Starting a state without ever ending");
-        return;
-    }
-    this->state_data = (RenderStateData *)malloc(sizeof(RenderUpdateData));
+u64 RenderCommandDispatcher::gen_sort_key(f32 depth, RenderDrawData &data) {
+    u16 mat_id = data.mat.is_null() ? 0 : data.mat->get_id();
+    return gen_sort_key(depth, mat_id);
 }
 
-void RenderCommandDispatcher::ensure_state_begin() {
-    if (!this->state_data) {
-        throw std::runtime_error("Ending a state without ever starting");
-    }
+void RenderCommandDispatcher::clear(StateClearFlag flag) {
+    RenderCommand cmd;
+    cmd.layer = layer;
+    cmd.type = RenderCommandType::STATE;
+    RenderStateData *state_data =
+        (RenderStateData *)malloc(sizeof(RenderStateData));
+    cmd.data = state_data;
+    state_data->flag |= RenderStateFlag::CLEAR;
+    state_data->clear_flag |= flag;
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
 void RenderCommandDispatcher::set_viewport(f32 x, f32 y, f32 width,
                                            f32 height) {
-    ensure_state_begin();
-    this->state_data->flag |= RenderStateFlag::VIEWPORT;
-    this->state_data->viewport = {
-        .x = x, .y = y, .width = width, .height = height};
+    RenderCommand cmd;
+    cmd.layer = layer;
+    cmd.type = RenderCommandType::STATE;
+    RenderStateData *state_data =
+        (RenderStateData *)malloc(sizeof(RenderStateData));
+    cmd.data = state_data;
+    state_data->flag |= RenderStateFlag::VIEWPORT;
+    state_data->viewport = {.x = x, .y = y, .w = width, .h = height};
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
-void RenderCommandDispatcher::clear(StateClearFlag flag) {
-    ensure_state_begin();
-    this->state_data->flag |= RenderStateFlag::CLEAR;
-    this->state_data->clear_flag |= flag;
+void RenderCommandDispatcher::set_scissor(f32 x, f32 y, f32 width, f32 height) {
+    RenderCommand cmd;
+    cmd.layer = layer;
+    cmd.type = RenderCommandType::STATE;
+    RenderStateData *state_data =
+        (RenderStateData *)malloc(sizeof(RenderStateData));
+    cmd.data = state_data;
+    state_data->flag |= RenderStateFlag::SCISSOR;
+    state_data->rect = {.x = x, .y = y, .w = width, .h = height};
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+}
+void RenderCommandDispatcher::cancel_scissor() {
+    this->set_scissor(this->viewport.x, this->viewport.y, this->viewport.w,
+                      this->viewport.h);
 }
 
-void RenderCommandDispatcher::end_state() {
-    ensure_state_begin();
-    RenderCommand cmd;
-    cmd.sort_key = gen_sort_key(RenderCommandType::STATE, 0, 0);
-    cmd.type = RenderCommandType::STATE;
-    cmd.data = this->state_data;
-    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
-    this->state_data = nullptr;
-}
 void RenderCommandDispatcher::update_buffer(RenderResource *buffer, u32 offset,
                                             u32 size, void *data) {
     if (buffer->type != RenderResourceType::VERTEX &&
@@ -59,7 +66,9 @@ void RenderCommandDispatcher::update_buffer(RenderResource *buffer, u32 offset,
         buffer->type != RenderResourceType::INDEX)
         return;
     RenderCommand cmd;
-    cmd.sort_key = gen_sort_key(RenderCommandType::UPDATE, 0, 0);
+
+    cmd.layer = layer;
+
     cmd.type = RenderCommandType::UPDATE;
     RenderUpdateData *update_data =
         (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
@@ -80,7 +89,8 @@ void *RenderCommandDispatcher::map_buffer(RenderResource *buffer, u32 offset,
         buffer->type != RenderResourceType::INDEX)
         return nullptr;
     RenderCommand cmd;
-    cmd.sort_key = gen_sort_key(RenderCommandType::UPDATE, 0, 0);
+    cmd.layer = layer;
+
     cmd.type = RenderCommandType::UPDATE;
     RenderUpdateData *update_data =
         (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
@@ -101,7 +111,8 @@ void RenderCommandDispatcher::update_texture(RenderResource *texture, u16 x_off,
                                              void *data) {
     if (texture->type != RenderResourceType::TEXTURE) return;
     RenderCommand cmd;
-    cmd.sort_key = gen_sort_key(RenderCommandType::UPDATE, 0, 0);
+    cmd.layer = layer;
+
     cmd.type = RenderCommandType::UPDATE;
     RenderUpdateData *update_data =
         (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
@@ -121,7 +132,8 @@ void *RenderCommandDispatcher::map_texture(RenderResource *texture, u16 x_off,
                                            u16 y_off, u16 w, u16 h) {
     if (texture->type != RenderResourceType::TEXTURE) return nullptr;
     RenderCommand cmd;
-    cmd.sort_key = gen_sort_key(RenderCommandType::UPDATE, 0, 0);
+    cmd.layer = layer;
+
     cmd.type = RenderCommandType::UPDATE;
     RenderUpdateData *update_data =
         (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
@@ -139,66 +151,118 @@ void *RenderCommandDispatcher::map_texture(RenderResource *texture, u16 x_off,
     return update_data->data;
 }
 
-RenderDispatchData RenderCommandDispatcher::generate_render_data(
-    VertexData *vertices, VertexDescription *desc,
-    RenderPrimitiveType prim_type, Ref<Material> mat) {
-    RenderDispatchData dispatch_data;
+RenderDrawData RenderCommandDispatcher::generate_render_data(
+    VertexData *vertices, Ref<Material> mat) {
+    RenderDrawData dispatch_data;
     if (!vertices || !vertices->get_vertices()->inited()) {
         SPDLOG_WARN("Vertices is null or uninited.");
     }
     dispatch_data.vertices = vertices;
-    dispatch_data.desc = desc;
-    dispatch_data.prim_type = prim_type;
     dispatch_data.mat = mat;
+    dispatch_data.index_cnt = vertices->get_indices_cnt();
     return dispatch_data;
 }
 
-RenderDispatchData RenderCommandDispatcher::generate_render_data(
-    VertexData *vertices, VertexDescription *desc,
-    RenderPrimitiveType prim_type, Ref<Material> mat, RenderResource *instance,
-    VertexDescription *instance_desc, u32 instance_cnt) {
-    RenderDispatchData dispatch_data;
+RenderDrawData RenderCommandDispatcher::generate_render_data(
+    VertexData *vertices, Ref<Material> mat, RenderResource *instance,
+    u32 instance_cnt) {
+    RenderDrawData dispatch_data;
     if (!vertices || !vertices->get_vertices()->inited()) {
         SPDLOG_WARN("Vertices is null or uninited.");
     }
     dispatch_data.vertices = vertices;
-    dispatch_data.desc = desc;
-    dispatch_data.prim_type = prim_type;
     dispatch_data.mat = mat;
     dispatch_data.instance = instance;
-    dispatch_data.instance_desc = instance_desc;
     dispatch_data.instance_cnt = instance_cnt;
+    dispatch_data.index_cnt = vertices->get_indices_cnt();
+
     return dispatch_data;
 }
 
-void RenderCommandDispatcher::render(RenderDispatchData *data,
-                                     RenderResource *shader) {
+void RenderCommandDispatcher::ensure_draw_begin() {
+    if (!this->start_draw) {
+        throw std::runtime_error("Ending a state without ever starting");
+    }
+}
+
+void RenderCommandDispatcher::begin_draw() {
+    if (this->start_draw) {
+        SPDLOG_ERROR("Starting a state without ever ending");
+        return;
+    }
+    this->start_draw = true;
+}
+
+void RenderCommandDispatcher::draw_set_viewport(RenderDrawData &rdd, f32 x,
+                                                f32 y, f32 width, f32 height) {
+    ensure_draw_begin();
+    rdd.set_viewport = true;
+    rdd.viewport = {.x = x, .y = y, .w = width, .h = height};
+    this->viewport = rdd.viewport;
+}
+
+void RenderCommandDispatcher::end_draw() {
+    ensure_draw_begin();
+    for (RenderDrawData *rdd : this->ordered_draw_data) {
+        RenderCommand cmd;
+        cmd.layer = layer;
+        cmd.type = RenderCommandType::RENDER;
+        cmd.data = rdd;
+        RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+    }
+    this->ordered_draw_data.clear();
+    start_draw = false;
+}
+void RenderCommandDispatcher::draw_set_scissor(RenderDrawData &rdd, f32 x,
+                                               f32 y, f32 width, f32 height) {
+    ensure_draw_begin();
+    rdd.set_scissor = true;
+    rdd.scissor = {.x = x, .y = y, .w = width, .h = height};
+}
+void RenderCommandDispatcher::draw_cancel_scissor(RenderDrawData &rdd) {
+    ensure_draw_begin();
+    this->draw_set_scissor(rdd, this->viewport.x, this->viewport.y,
+                           this->viewport.w, this->viewport.h);
+}
+
+void RenderCommandDispatcher::render(RenderDrawData *data,
+                                     Ref<RenderPipeline> pipeline, f32 depth) {
+    ensure_draw_begin();
     if (data == nullptr) {
         SPDLOG_ERROR("Render data is null.");
         return;
     }
-    RenderCommand cmd;
-    u16 mat_id = data->mat.is_null() ? 0 : data->mat->get_id();
-    cmd.sort_key = gen_sort_key(RenderCommandType::RENDER, 0, mat_id);
-    RenderDispatchData *dispatch_data =
-        (RenderDispatchData *)malloc(sizeof(RenderDispatchData));
-    *dispatch_data = *data;
-    if (shader->type != RenderResourceType::SHADER) {
-        SPDLOG_ERROR("The render resource is not a shader.");
+
+    RenderDrawData *draw_data =
+        (RenderDrawData *)malloc(sizeof(RenderDrawData));
+    *draw_data = *data;
+    draw_data->pipeline = pipeline;
+    ordered_draw_data.push_back(draw_data);
+}
+
+void RenderCommandDispatcher::render(RenderDrawData *data,
+                                     Ref<RenderPipeline> pipeline, f32 depth,
+                                     u32 index_cnt, u32 index_offset) {
+    ensure_draw_begin();
+    if (data == nullptr) {
+        SPDLOG_ERROR("Render data is null.");
         return;
     }
-    cmd.type = RenderCommandType::RENDER;
-    cmd.data = dispatch_data;
-    dispatch_data->shader = shader;
-    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+
+    RenderDrawData *draw_data =
+        (RenderDrawData *)malloc(sizeof(RenderDrawData));
+    *draw_data = *data;
+    draw_data->pipeline = pipeline;
+    draw_data->index_offset = index_offset;
+    draw_data->index_cnt = index_cnt;
+    ordered_draw_data.push_back(draw_data);
 }
 
 RenderCommandDispatcher::~RenderCommandDispatcher() {
-    if (this->state_data) {
+    if (this->start_draw) {
         SPDLOG_WARN("Starting a state without ever ending");
         return;
     }
-    free(this->state_data);
 }
 
 }  // namespace Seed

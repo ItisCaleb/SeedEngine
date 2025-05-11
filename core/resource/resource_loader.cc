@@ -24,12 +24,12 @@ ResourceLoader::ResourceLoader() {
 
 ResourceLoader::~ResourceLoader() { instance = nullptr; }
 
-RenderResource ResourceLoader::loadShader(const std::string &vertex_path,
-                                          const std::string &fragment_path,
-                                          const std::string &geometry_path,
-                                          const std::string &tess_ctrl_path,
-                                          const std::string &tess_eval_path) {
-    RenderResource shader_rc;
+Ref<Shader> ResourceLoader::load_shader(const std::string &vertex_path,
+                                        const std::string &fragment_path,
+                                        const std::string &geometry_path,
+                                        const std::string &tess_ctrl_path,
+                                        const std::string &tess_eval_path) {
+    Ref<Shader> shader;
     std::string vertex_s, fragment_s, geometry_s, tess_ctrl_s, tess_eval_s;
 
     Ref<File> vertex_f = File::open(vertex_path, "r");
@@ -65,14 +65,9 @@ RenderResource ResourceLoader::loadShader(const std::string &vertex_path,
     }
     vertex_s = vertex_f->read_str();
     fragment_s = fragment_f->read_str();
-
-    try {
-        shader_rc.alloc_shader(vertex_s, fragment_s, geometry_s, tess_ctrl_s,
-                               tess_eval_s);
-        return shader_rc;
-    } catch (std::exception &e) {
-        throw;
-    }
+    shader.create(vertex_s, fragment_s, geometry_s, tess_ctrl_s,
+        tess_eval_s);
+    return shader;
 }
 
 template <>
@@ -144,7 +139,7 @@ Ref<Texture> ResourceLoader::_load(const std::string &path) {
         spdlog::warn("Can't load texture from {}", path);
         return texture;
     }
-    texture.create(w, h, (const char *)data);
+    texture.create(w, h, (const u8 *)data);
 
     stbi_image_free(data);
     return texture;

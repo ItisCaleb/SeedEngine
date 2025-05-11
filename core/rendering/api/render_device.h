@@ -7,6 +7,7 @@ namespace Seed {
 class RenderDevice {
     protected:
         std::deque<RenderCommand> cmd_queue;
+        Ref<RenderPipeline> pipeline;
 
     public:
         RenderDevice(/* args */) = default;

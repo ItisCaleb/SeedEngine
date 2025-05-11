@@ -5,10 +5,15 @@
 
 namespace Seed {
 
-template <>
-void InputHandler::init(GLFWwindow *window) {
-    spdlog::info("Initializing Input Handler");
-    glfwSetKeyCallback(window, [](GLFWwindow *window, int key, int scancode,
+void InputHandler::init(Window *window) {
+    spdlog::info("Initializing Input handler");
+    if (!window) {
+        SPDLOG_ERROR(
+            "Can't initialize Input handler, window is null, exiting.");
+        exit(1);
+    }
+    GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
+    glfwSetKeyCallback(glfw_window, [](GLFWwindow *window, int key, int scancode,
                                   int action, int mods) {
         KeyCode k = static_cast<KeyCode>(key);
         Input *input = Input::get_instance();
@@ -19,7 +24,7 @@ void InputHandler::init(GLFWwindow *window) {
         }
     });
     glfwSetCursorPosCallback(
-        window, [](GLFWwindow *window, double x, double y) {
+        glfw_window, [](GLFWwindow *window, double x, double y) {
             Input *input = Input::get_instance();
             if (input->drag_func) {
                 input->drag_func(input->last_x, input->last_y, x, y);
@@ -28,7 +33,7 @@ void InputHandler::init(GLFWwindow *window) {
             input->last_y = y;
         });
     glfwSetMouseButtonCallback(
-        window, [](GLFWwindow *window, int button, int action, int mods) {
+        glfw_window, [](GLFWwindow *window, int button, int action, int mods) {
             Input *input = Input::get_instance();
             MouseEvent me = MouseEvent::LEFT;
             if (button == GLFW_MOUSE_BUTTON_LEFT) {

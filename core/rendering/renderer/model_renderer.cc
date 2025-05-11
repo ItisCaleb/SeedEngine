@@ -11,21 +11,23 @@ namespace Seed {
 void ModelRenderer::init_color() {
     ResourceLoader *loader = ResourceLoader::get_instance();
 
-    try {
-        this->color_shader =
-            loader->loadShader("assets/default.vert", "assets/default.frag");
-    } catch (std::exception &e) {
-        SPDLOG_ERROR("Error loading Shader: {}", e.what());
-        exit(1);
-    }
-    this->vertices_desc.add_attr(0, VertexAttributeType::FLOAT, 3, 0);
-    this->vertices_desc.add_attr(1, VertexAttributeType::FLOAT, 3, 0);
-    this->vertices_desc.add_attr(2, VertexAttributeType::FLOAT, 2, 0);
-    this->instance_desc.add_attr(3, VertexAttributeType::FLOAT, 4, 1);
-    this->instance_desc.add_attr(4, VertexAttributeType::FLOAT, 4, 1);
-    this->instance_desc.add_attr(5, VertexAttributeType::FLOAT, 4, 1);
-    this->instance_desc.add_attr(6, VertexAttributeType::FLOAT, 4, 1);
+    Ref<Shader> color_shader =
+        loader->load_shader("assets/default.vert", "assets/default.frag");
+    color_desc.add_attr(0, VertexAttributeType::FLOAT, 3, 0);
+    color_desc.add_attr(1, VertexAttributeType::FLOAT, 3, 0);
+    color_desc.add_attr(2, VertexAttributeType::FLOAT, 2, 0);
+    instance_desc.add_attr(3, VertexAttributeType::FLOAT, 4, 1);
+    instance_desc.add_attr(4, VertexAttributeType::FLOAT, 4, 1);
+    instance_desc.add_attr(5, VertexAttributeType::FLOAT, 4, 1);
+    instance_desc.add_attr(6, VertexAttributeType::FLOAT, 4, 1);
 
+    RenderRasterizerState rst_state;
+    RenderDepthStencilState depth_state = {.depth_on = true};
+    RenderBlendState blend_state;
+
+    this->color_pipeline.create(color_shader, &color_desc,
+                                RenderPrimitiveType::TRIANGLES, rst_state,
+                                depth_state, blend_state, &instance_desc);
     RenderResource lights_rc;
 
     Lights lights;
@@ -41,16 +43,18 @@ void ModelRenderer::init_color() {
 void ModelRenderer::init_debugging() {
     ResourceLoader *loader = ResourceLoader::get_instance();
 
-    try {
-        this->debugging_shader = loader->loadShader(
-            "assets/debug.vert", "assets/debug.frag", "assets/debug.gs");
-    } catch (std::exception &e) {
-        SPDLOG_ERROR("Error loading Shader: {}", e.what());
-        exit(1);
-    }
+    Ref<Shader> debug_shader = loader->load_shader(
+        "assets/debug.vert", "assets/debug.frag", "assets/debug.gs");
 
     aabb_desc.add_attr(0, VertexAttributeType::FLOAT, 3, 0);
     aabb_desc.add_attr(1, VertexAttributeType::FLOAT, 3, 0);
+
+    RenderRasterizerState rst_state;
+    RenderDepthStencilState depth_state = {.depth_on = true};
+    RenderBlendState blend_state;
+
+    debug_pipeline.create(debug_shader, &aabb_desc, RenderPrimitiveType::POINTS,
+                          rst_state, depth_state, blend_state);
     RenderResource aabb_rc;
     aabb_rc.alloc_vertex(sizeof(AABB), 0, NULL);
     aabb_vertices.bind_vertices(sizeof(AABB), 0, aabb_rc);
@@ -78,8 +82,10 @@ void ModelRenderer::preprocess() {
     }
 }
 
-void ModelRenderer::process(u8 layer) {
+void ModelRenderer::process() {
+    Window *window = SeedEngine::get_instance()->get_window();
     RenderCommandDispatcher dp(layer);
+    dp.begin_draw();
     for (auto &[model, instances] : model_instances) {
         if (instances.empty()) {
             continue;
@@ -89,24 +95,29 @@ void ModelRenderer::process(u8 layer) {
                          sizeof(Mat4) * instances.size(),
                          (void *)instances.data());
         for (Ref<Mesh> mesh : model->meshes) {
-            RenderDispatchData data = dp.generate_render_data(
-                &mesh->vertex_data, &this->vertices_desc,
-                RenderPrimitiveType::TRIANGLES, mesh->get_material(),
-                &model->instance_rc, &this->instance_desc, instances.size());
+            RenderDrawData data = dp.generate_render_data(
+                &mesh->vertex_data, mesh->get_material(), &model->instance_rc,
+                instances.size());
+            dp.draw_set_viewport(data, 0, 0, window->get_width(),
+                            window->get_height());
 
-            dp.render(&data, &this->color_shader);
+            dp.render(&data, color_pipeline, 0);
         }
     }
+    dp.end_draw();
     /* debugging */
-    RenderDispatchData aabb_data =
-        dp.generate_render_data(&aabb_vertices, &this->aabb_desc,
-                                RenderPrimitiveType::POINTS, Ref<Material>());
+    RenderDrawData aabb_data =
+        dp.generate_render_data(&aabb_vertices, Ref<Material>());
+    u64 sort_key = dp.gen_sort_key(0.1, aabb_data);
     dp.update_buffer(aabb_vertices.get_vertices(), 0,
                      sizeof(AABB) * entity_aabb.size(),
                      (void *)entity_aabb.data());
     aabb_vertices.bind_vertices(sizeof(AABB), entity_aabb.size(),
                                 *aabb_vertices.get_vertices());
-    dp.render(&aabb_data, &this->debugging_shader);
+    dp.begin_draw();
+
+    dp.render(&aabb_data, debug_pipeline, 0.1);
+    dp.end_draw();
 }
 void ModelRenderer::cleanup() {
     for (auto &[model, instances] : model_instances) {

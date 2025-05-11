@@ -28,7 +28,7 @@ struct RenderResource {
     void alloc_index(const std::vector<u32> &indices);
     void alloc_shader(const std::string &vertex_code,
         const std::string &fragment_code,
-         const std::string &geometry_code, const std::string &tess_ctrl_code, const std::string &tess_eval_code);
+         const std::string &geometry_code = "", const std::string &tess_ctrl_code = "", const std::string &tess_eval_code = "");
     void alloc_constant(const std::string &name, u32 size, void *data);
     void dealloc();
     bool inited();

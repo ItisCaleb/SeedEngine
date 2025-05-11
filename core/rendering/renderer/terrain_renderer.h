@@ -3,6 +3,7 @@
 #include "renderer.h"
 #include "core/rendering/api/render_resource.h"
 #include "core/resource/terrain.h"
+#include "core/rendering/api/render_pipeline.h"
 #include <unordered_map>
 
 namespace Seed {
@@ -11,13 +12,13 @@ class TerrainRenderer : public Renderer {
    private:
     VertexDescription vertices_desc;
     RenderResource model_const_rc;
-
-    RenderResource terrain_shader;
+    Ref<RenderPipeline> terrain_pipeline;
 
     void init() override;
     void preprocess() override;
-    void process(u8 layer) override;
+    void process() override;
     void cleanup() override;
+    TerrainRenderer(u8 layer):Renderer(layer){}
 };
 }  // namespace Seed
 
