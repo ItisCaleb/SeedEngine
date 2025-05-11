@@ -17,7 +17,7 @@ void ImguiRenderer::init() {
     desc.add_attr(1, VertexAttributeType::FLOAT, 2, 0);
     desc.add_attr(2, VertexAttributeType::UNSIGNED_BYTE, 4, 0, true);
     bd->vertex.alloc_vertex(desc.get_stride(), 0, nullptr);
-    bd->vertex.alloc_index({});
+    bd->vertex.alloc_index(std::vector<u16>{});
 
     const char *vertex_shader =
         "#version 410 core\n"

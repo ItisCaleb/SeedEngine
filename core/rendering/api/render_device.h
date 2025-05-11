@@ -17,8 +17,8 @@ class RenderDevice {
         virtual void alloc_vertex(RenderResource *rc, u32 stride,
                                   u32 element_cnt, const void *data) = 0;
 
-        virtual void alloc_indices(RenderResource *rc,
-                                   const std::vector<u32> &indices) = 0;
+        virtual void alloc_indices(RenderResource *rc, IndexType type,
+                                   u32 element_cnt, void *data) = 0;
         virtual void alloc_shader(RenderResource *rc,
                                   const std::string &vertex_code,
                                   const std::string &fragment_code,

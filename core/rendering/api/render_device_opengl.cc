@@ -78,16 +78,29 @@ void RenderDeviceOpenGL::alloc_vertex(RenderResource *rc, u32 stride,
         HardwareBufferGL{.handle = handle, .size = vertex_cnt * stride});
 }
 
-void RenderDeviceOpenGL::alloc_indices(RenderResource *rc,
-                                       const std::vector<u32> &indices) {
+void RenderDeviceOpenGL::alloc_indices(RenderResource *rc, IndexType type,
+                                       u32 element_cnt, void *data) {
     GLuint handle;
-
+    u32 type_size = 0;
+    switch (type) {
+        case IndexType::UNSIGNED_BYTE:
+            type_size = 1;
+            break;
+        case IndexType::UNSIGNED_SHORT:
+            type_size = 2;
+            break;
+        case IndexType::UNSIGNED_INT:
+            type_size = 4;
+            break;
+        default:
+            break;
+    }
     glGenBuffers(1, &handle);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(u32),
-                 indices.data(), GL_STATIC_DRAW);
-    rc->handle = this->buffers.insert(HardwareBufferGL{
-        .handle = handle, .size = indices.size() * sizeof(u32)});
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_cnt * type_size, data,
+                 GL_STATIC_DRAW);
+    rc->handle = this->buffers.insert(
+        HardwareBufferGL{.handle = handle, .size = element_cnt * type_size});
 }
 
 void RenderDeviceOpenGL::alloc_constant(RenderResource *rc,
@@ -255,8 +268,7 @@ void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
                              update_data->data, GL_DYNAMIC_DRAW);
                 hb.size = update_data->buffer.size;
             } else {
-                glBufferSubData(GL_UNIFORM_BUFFER,
-                                update_data->buffer.offset,
+                glBufferSubData(GL_UNIFORM_BUFFER, update_data->buffer.offset,
                                 update_data->buffer.size, update_data->data);
             }
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
@@ -512,15 +524,27 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
             glBindTexture(GL_TEXTURE_2D, tex->get_render_resource()->handle);
         }
     }
+    u32 index_type = 0;
+    switch (vertices->get_index_type()) {
+        case IndexType::UNSIGNED_BYTE:
+            index_type = GL_UNSIGNED_BYTE;
+            break;
+        case IndexType::UNSIGNED_SHORT:
+            index_type = GL_UNSIGNED_SHORT;
+            break;
+        case IndexType::UNSIGNED_INT:
+            index_type = GL_UNSIGNED_INT;
+            break;
+    }
 
     if (vertices->use_index()) {
         if (draw_data->instance_cnt > 0) {
-            glDrawElementsInstanced(prim_type, draw_data->index_cnt,
-                                    GL_UNSIGNED_INT, (void*)(u64)draw_data->index_offset,
-                                    draw_data->instance_cnt);
+            glDrawElementsInstanced(
+                prim_type, draw_data->index_cnt, index_type,
+                (void *)(u64)draw_data->index_offset, draw_data->instance_cnt);
         } else {
-            glDrawElements(prim_type, draw_data->index_cnt,
-            GL_UNSIGNED_SHORT, (void*)(u64)draw_data->index_offset);
+            glDrawElements(prim_type, draw_data->index_cnt, index_type,
+                           (void *)(u64)draw_data->index_offset);
         }
     } else {
         if (draw_data->instance_cnt > 0) {
@@ -535,10 +559,7 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
 void RenderDeviceOpenGL::process() {
     std::stable_sort(std::begin(cmd_queue), std::end(cmd_queue),
                      RenderCommand::cmp);
-    glBlendEquation(GL_FUNC_ADD);
-    glDisable(GL_PRIMITIVE_RESTART);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glBindSampler(0, 0);
+
     while (!cmd_queue.empty()) {
         RenderCommand &cmd = cmd_queue.front();
         cmd_queue.pop_front();

@@ -35,8 +35,8 @@ RenderEngine::RenderEngine(Window *window) {
     }
     this->device = new RenderDeviceOpenGL();
     u8 layer = 1;
-    //this->register_renderer<ModelRenderer>(layer++);
-    //this->register_renderer<TerrainRenderer>(layer++);
+    this->register_renderer<ModelRenderer>(layer++);
+    this->register_renderer<TerrainRenderer>(layer++);
     this->register_renderer<ImguiRenderer>(layer++);
 
     

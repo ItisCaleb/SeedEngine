@@ -34,7 +34,8 @@ class RenderDeviceOpenGL : public RenderDevice {
     void alloc_texture(RenderResource *rc, u32 w, u32 h, const void *data) override;
     void alloc_vertex(RenderResource *rc, u32 stride, u32 element_cnt,
         const void *data) override;
-    void alloc_indices(RenderResource *rc, const std::vector<u32> &indices) override;
+    void alloc_indices(RenderResource *rc, IndexType type, u32 element_cnt,
+                                   void *data) override;
     void alloc_shader(RenderResource *rc, const std::string &vertex_code,
         const std::string &fragment_code,
         const std::string &geometry_code, const std::string &tess_ctrl_code, const std::string &tess_eval_code) override;

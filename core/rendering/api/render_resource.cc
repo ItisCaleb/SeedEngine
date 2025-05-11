@@ -25,9 +25,21 @@ void RenderResource::alloc_shader(const std::string &vertex_code,
         this, vertex_code, fragment_code, geometry_code, tess_ctrl_code,
         tess_eval_code);
 }
+
+void RenderResource::alloc_index(const std::vector<u8> &indices) {
+    this->type = RenderResourceType::INDEX;
+    RenderEngine::get_instance()->get_device()->alloc_indices(
+        this, IndexType::UNSIGNED_BYTE, indices.size(), (void *)indices.data());
+}
+void RenderResource::alloc_index(const std::vector<u16> &indices) {
+    this->type = RenderResourceType::INDEX;
+    RenderEngine::get_instance()->get_device()->alloc_indices(
+        this, IndexType::UNSIGNED_SHORT, indices.size(), (void *)indices.data());
+}
 void RenderResource::alloc_index(const std::vector<u32> &indices) {
     this->type = RenderResourceType::INDEX;
-    RenderEngine::get_instance()->get_device()->alloc_indices(this, indices);
+    RenderEngine::get_instance()->get_device()->alloc_indices(
+        this, IndexType::UNSIGNED_INT, indices.size(), (void *)indices.data());
 }
 
 void RenderResource::alloc_constant(const std::string &name, u32 size,
