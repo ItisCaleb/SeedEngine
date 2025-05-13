@@ -15,6 +15,7 @@ struct RenderRasterizerState {
             BACK,
             BOTH
         } cull_mode = Cullmode::NONE;
+        u32 patch_control_points = 1;
 };
 
 struct RenderDepthStencilState {

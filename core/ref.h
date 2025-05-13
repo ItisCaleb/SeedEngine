@@ -7,10 +7,10 @@
 namespace Seed {
 
 class RefCounted {
+    template <typename T>
+    friend class Ref;
     private:
         std::atomic_uint rc;
-
-    public:
         void init_ref() { rc = 1; }
 
         bool ref() {

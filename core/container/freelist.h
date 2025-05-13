@@ -58,6 +58,10 @@ class FreeList {
             return data[n].element;
         }
 
+        bool present(int n) const{
+            return data[n].next == -1;
+        }
+
     private:
         struct FreeElement {
                 T element;

@@ -118,9 +118,9 @@ class RenderCommandDispatcher {
         void *map_texture(RenderResource *buffer, u16 x_off, u16 y_off, u16 w,
                           u16 h);
 
-        RenderDrawData generate_render_data(VertexData *vertices,
+        RenderDrawData generate_render_data(VertexData &vertices,
                                             Ref<Material> mat);
-        RenderDrawData generate_render_data(VertexData *vertices,
+        RenderDrawData generate_render_data(VertexData &vertices,
                                             Ref<Material> mat,
                                             RenderResource *instance,
                                             u32 instance_cnt);

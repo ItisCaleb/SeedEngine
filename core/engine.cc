@@ -98,7 +98,7 @@ SeedEngine::SeedEngine(f32 target_fps) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
-    window = new Window(640, 480, "Ave Mujica");
+    window = new Window(1260, 768, "Ave Mujica");
     if (!window) {
         spdlog::error("Can't create window. Exiting");
         glfwTerminate();

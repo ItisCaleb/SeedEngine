@@ -53,7 +53,6 @@ RenderDeviceOpenGL::RenderDeviceOpenGL() {
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0,
                               nullptr, GL_TRUE);
     }
-    glPatchParameteri(GL_PATCH_VERTICES, 4);
 }
 void RenderDeviceOpenGL::alloc_texture(RenderResource *rc, u32 w, u32 h,
                                        const void *data) {
@@ -360,6 +359,8 @@ void RenderDeviceOpenGL::setup_rasterizer(RenderRasterizerState &state) {
             glDisable(GL_CULL_FACE);
             break;
     }
+    glPatchParameteri(GL_PATCH_VERTICES, state.patch_control_points);
+
 }
 
 void RenderDeviceOpenGL::setup_depth_stencil(RenderDepthStencilState &state) {

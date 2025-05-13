@@ -144,7 +144,7 @@ void ImguiRenderer::process() {
                 if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
                     continue;
                 RenderDrawData imgui_data =
-                    dp.generate_render_data(&bd->vertex, this->font_mat);
+                    dp.generate_render_data(bd->vertex, this->font_mat);
                 dp.draw_set_viewport(imgui_data, 0, 0, fb_width, fb_height);
                 dp.draw_set_scissor(
                     imgui_data, clip_min.x, fb_height - clip_max.y,

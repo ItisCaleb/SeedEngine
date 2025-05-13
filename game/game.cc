@@ -87,15 +87,18 @@ int main(void) {
     engine->get_world()->add_model_entity(ent);
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->set_terrain(terrain);
-    ThreadPool::get_instance()->add_work([=](void* data){
+    WorkId id =  ThreadPool::get_instance()->add_work([=](void* data){
         OS::delay(3);
         printf("123\n");
     }, nullptr);
+
     ThreadPool::get_instance()->add_work([=](void* data){
         OS::delay(1);
+        ThreadPool::get_instance()->wait(id);
+        printf("waiting done\n");
         printf("456\n");
     }, nullptr);
-    
+
     engine->start();
 
     return 0;

@@ -14,7 +14,9 @@ void TerrainRenderer::init() {
     vertices_desc.add_attr(0, VertexAttributeType::FLOAT, 2, 0);
     vertices_desc.add_attr(1, VertexAttributeType::FLOAT, 2, 0);
 
-    RenderRasterizerState rst_state;
+    RenderRasterizerState rst_state = {
+        .patch_control_points = 4
+    };
     RenderDepthStencilState depth_state = {.depth_on = true};
     RenderBlendState blend_state;
     terrain_pipeline.create(terrain_shader, &vertices_desc,
@@ -38,9 +40,8 @@ void TerrainRenderer::process() {
     dp.begin_draw();
 
     RenderDrawData data =
-        dp.generate_render_data(&terrain->vertices, terrain->terrain_mat);
+        dp.generate_render_data(terrain->vertices, terrain->terrain_mat);
     dp.draw_set_viewport(data, 0, 0, window->get_width(), window->get_height());
-    dp.draw_cancel_scissor(data);
 
     dp.render(&data, terrain_pipeline, 0);
     dp.end_draw();

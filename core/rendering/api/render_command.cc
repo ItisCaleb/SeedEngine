@@ -152,29 +152,29 @@ void *RenderCommandDispatcher::map_texture(RenderResource *texture, u16 x_off,
 }
 
 RenderDrawData RenderCommandDispatcher::generate_render_data(
-    VertexData *vertices, Ref<Material> mat) {
+    VertexData &vertices, Ref<Material> mat) {
     RenderDrawData dispatch_data;
-    if (!vertices || !vertices->get_vertices()->inited()) {
-        SPDLOG_WARN("Vertices is null or uninited.");
+    if (!vertices.get_vertices()->inited()) {
+        SPDLOG_WARN("Vertices is uninitialize.");
     }
-    dispatch_data.vertices = vertices;
+    dispatch_data.vertices = &vertices;
     dispatch_data.mat = mat;
-    dispatch_data.index_cnt = vertices->get_indices_cnt();
+    dispatch_data.index_cnt = vertices.get_indices_cnt();
     return dispatch_data;
 }
 
 RenderDrawData RenderCommandDispatcher::generate_render_data(
-    VertexData *vertices, Ref<Material> mat, RenderResource *instance,
+    VertexData &vertices, Ref<Material> mat, RenderResource *instance,
     u32 instance_cnt) {
     RenderDrawData dispatch_data;
-    if (!vertices || !vertices->get_vertices()->inited()) {
-        SPDLOG_WARN("Vertices is null or uninited.");
+    if (!vertices.get_vertices()->inited()) {
+        SPDLOG_WARN("Vertices is uninitialize.");
     }
-    dispatch_data.vertices = vertices;
+    dispatch_data.vertices = &vertices;
     dispatch_data.mat = mat;
     dispatch_data.instance = instance;
     dispatch_data.instance_cnt = instance_cnt;
-    dispatch_data.index_cnt = vertices->get_indices_cnt();
+    dispatch_data.index_cnt = vertices.get_indices_cnt();
 
     return dispatch_data;
 }

@@ -17,12 +17,14 @@ class RingBuffer {
         bool is_empty() { return this->size() == 0; }
 
         bool is_full() { return this->size() == (this->cap - 1); }
-        void push(const T &element) {
+        T* push(const T &element) {
             if (this->is_full()) {
                 throw std::runtime_error("Ring buffer is full.");
             }
             data[tail] = element;
+            T* tmp = &data[tail];
             tail = (tail + 1) % cap;
+            return tmp;
         }
 
         T &peek() {

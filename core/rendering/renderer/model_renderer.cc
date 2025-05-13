@@ -96,7 +96,7 @@ void ModelRenderer::process() {
                          (void *)instances.data());
         for (Ref<Mesh> mesh : model->meshes) {
             RenderDrawData data = dp.generate_render_data(
-                &mesh->vertex_data, mesh->get_material(), &model->instance_rc,
+                mesh->vertex_data, mesh->get_material(), &model->instance_rc,
                 instances.size());
             dp.draw_set_viewport(data, 0, 0, window->get_width(),
                             window->get_height());
@@ -107,7 +107,7 @@ void ModelRenderer::process() {
     dp.end_draw();
     /* debugging */
     RenderDrawData aabb_data =
-        dp.generate_render_data(&aabb_vertices, Ref<Material>());
+        dp.generate_render_data(aabb_vertices, Ref<Material>());
     u64 sort_key = dp.gen_sort_key(0.1, aabb_data);
     dp.update_buffer(aabb_vertices.get_vertices(), 0,
                      sizeof(AABB) * entity_aabb.size(),
