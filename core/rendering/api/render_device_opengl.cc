@@ -360,7 +360,6 @@ void RenderDeviceOpenGL::setup_rasterizer(RenderRasterizerState &state) {
             break;
     }
     glPatchParameteri(GL_PATCH_VERTICES, state.patch_control_points);
-
 }
 
 void RenderDeviceOpenGL::setup_depth_stencil(RenderDepthStencilState &state) {
@@ -540,9 +539,9 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
 
     if (vertices->use_index()) {
         if (draw_data->instance_cnt > 0) {
-            glDrawElementsInstanced(
-                prim_type, draw_data->index_cnt, index_type,
-                (void *)(u64)draw_data->index_offset, draw_data->instance_cnt);
+            glDrawElementsInstanced(prim_type, draw_data->index_cnt, index_type,
+                                    (void *)(u64)draw_data->index_offset,
+                                    draw_data->instance_cnt);
         } else {
             glDrawElements(prim_type, draw_data->index_cnt, index_type,
                            (void *)(u64)draw_data->index_offset);
@@ -567,17 +566,19 @@ void RenderDeviceOpenGL::process() {
         switch (cmd.type) {
             case RenderCommandType::UPDATE:
                 handle_update(cmd);
+                static_cast<RenderUpdateData *>(cmd.data)->~RenderUpdateData();
                 break;
             case RenderCommandType::STATE:
                 handle_state(cmd);
+                static_cast<RenderStateData *>(cmd.data)->~RenderStateData();
                 break;
             case RenderCommandType::RENDER:
                 handle_render(cmd);
+                static_cast<RenderDrawData *>(cmd.data)->~RenderDrawData();
                 break;
             default:
                 break;
         }
-        free(cmd.data);
     }
 }
 }  // namespace Seed

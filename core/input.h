@@ -84,6 +84,7 @@ class Input {
         std::set<MouseEvent> mouse_pressed;
         std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> drag_func;
         i32 last_x = 0, last_y = 0;
+        bool should_capture_mouse = true;;
 
     public:
         static Input *get_instance();
@@ -93,6 +94,9 @@ class Input {
             std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> cb);
         bool is_mouse_clicked(MouseEvent e);
         void mouse_click(MouseEvent e);
+        void set_capture_mouse(bool on){
+            should_capture_mouse = on;
+        }
         Input();
         ~Input();
 };

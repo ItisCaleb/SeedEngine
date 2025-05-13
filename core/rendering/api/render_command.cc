@@ -19,13 +19,25 @@ u64 RenderCommandDispatcher::gen_sort_key(f32 depth, RenderDrawData &data) {
     return gen_sort_key(depth, mat_id);
 }
 
-void RenderCommandDispatcher::clear(StateClearFlag flag) {
+RenderCommand RenderCommandDispatcher::prepare_state_cmd() {
     RenderCommand cmd;
     cmd.layer = layer;
     cmd.type = RenderCommandType::STATE;
-    RenderStateData *state_data =
-        (RenderStateData *)malloc(sizeof(RenderStateData));
-    cmd.data = state_data;
+    cmd.data = RenderEngine::get_instance()->get_mem_pool()->alloc_new<RenderStateData>();
+    return cmd;
+}
+
+RenderCommand RenderCommandDispatcher::prepare_update_cmd() {
+    RenderCommand cmd;
+    cmd.layer = layer;
+    cmd.type = RenderCommandType::UPDATE;
+    cmd.data = RenderEngine::get_instance()->get_mem_pool()->alloc_new<RenderUpdateData>();
+    return cmd;
+}
+
+void RenderCommandDispatcher::clear(StateClearFlag flag) {
+    RenderCommand cmd = prepare_state_cmd();
+    RenderStateData *state_data = static_cast<RenderStateData *>(cmd.data);
     state_data->flag |= RenderStateFlag::CLEAR;
     state_data->clear_flag |= flag;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
@@ -33,23 +45,15 @@ void RenderCommandDispatcher::clear(StateClearFlag flag) {
 
 void RenderCommandDispatcher::set_viewport(f32 x, f32 y, f32 width,
                                            f32 height) {
-    RenderCommand cmd;
-    cmd.layer = layer;
-    cmd.type = RenderCommandType::STATE;
-    RenderStateData *state_data =
-        (RenderStateData *)malloc(sizeof(RenderStateData));
-    cmd.data = state_data;
+    RenderCommand cmd = prepare_state_cmd();
+    RenderStateData *state_data = static_cast<RenderStateData *>(cmd.data);
     state_data->flag |= RenderStateFlag::VIEWPORT;
     state_data->viewport = {.x = x, .y = y, .w = width, .h = height};
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 void RenderCommandDispatcher::set_scissor(f32 x, f32 y, f32 width, f32 height) {
-    RenderCommand cmd;
-    cmd.layer = layer;
-    cmd.type = RenderCommandType::STATE;
-    RenderStateData *state_data =
-        (RenderStateData *)malloc(sizeof(RenderStateData));
-    cmd.data = state_data;
+    RenderCommand cmd = prepare_state_cmd();
+    RenderStateData *state_data = static_cast<RenderStateData *>(cmd.data);
     state_data->flag |= RenderStateFlag::SCISSOR;
     state_data->rect = {.x = x, .y = y, .w = width, .h = height};
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
@@ -65,16 +69,11 @@ void RenderCommandDispatcher::update_buffer(RenderResource *buffer, u32 offset,
         buffer->type != RenderResourceType::CONSTANT &&
         buffer->type != RenderResourceType::INDEX)
         return;
-    RenderCommand cmd;
+    RenderCommand cmd = prepare_update_cmd();
+    RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
-    cmd.layer = layer;
-
-    cmd.type = RenderCommandType::UPDATE;
-    RenderUpdateData *update_data =
-        (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
-    cmd.data = update_data;
-
-    update_data->data = data;
+    update_data->data =
+        RenderEngine::get_instance()->get_mem_pool()->alloc_data(size, data);
 
     update_data->dst_buffer = buffer;
     update_data->buffer.size = size;
@@ -88,13 +87,8 @@ void *RenderCommandDispatcher::map_buffer(RenderResource *buffer, u32 offset,
         buffer->type != RenderResourceType::CONSTANT &&
         buffer->type != RenderResourceType::INDEX)
         return nullptr;
-    RenderCommand cmd;
-    cmd.layer = layer;
-
-    cmd.type = RenderCommandType::UPDATE;
-    RenderUpdateData *update_data =
-        (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
-    cmd.data = update_data;
+    RenderCommand cmd = prepare_update_cmd();
+    RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
         RenderEngine::get_instance()->get_mem_pool()->alloc(size);
@@ -110,15 +104,11 @@ void RenderCommandDispatcher::update_texture(RenderResource *texture, u16 x_off,
                                              u16 y_off, u16 w, u16 h,
                                              void *data) {
     if (texture->type != RenderResourceType::TEXTURE) return;
-    RenderCommand cmd;
-    cmd.layer = layer;
+    RenderCommand cmd = prepare_update_cmd();
+    RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
-    cmd.type = RenderCommandType::UPDATE;
-    RenderUpdateData *update_data =
-        (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
-    cmd.data = update_data;
-
-    update_data->data = data;
+    update_data->data =
+        RenderEngine::get_instance()->get_mem_pool()->alloc_data(w * h, data);
     update_data->dst_buffer = texture;
     update_data->texture.x_off = x_off;
     update_data->texture.y_off = y_off;
@@ -131,13 +121,8 @@ void RenderCommandDispatcher::update_texture(RenderResource *texture, u16 x_off,
 void *RenderCommandDispatcher::map_texture(RenderResource *texture, u16 x_off,
                                            u16 y_off, u16 w, u16 h) {
     if (texture->type != RenderResourceType::TEXTURE) return nullptr;
-    RenderCommand cmd;
-    cmd.layer = layer;
-
-    cmd.type = RenderCommandType::UPDATE;
-    RenderUpdateData *update_data =
-        (RenderUpdateData *)malloc(sizeof(RenderUpdateData));
-    cmd.data = update_data;
+    RenderCommand cmd = prepare_update_cmd();
+    RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
         RenderEngine::get_instance()->get_mem_pool()->alloc(w * h);
@@ -233,8 +218,10 @@ void RenderCommandDispatcher::render(RenderDrawData *data,
         return;
     }
 
-    RenderDrawData *draw_data =
-        (RenderDrawData *)malloc(sizeof(RenderDrawData));
+    RenderDrawData *draw_data = RenderEngine::get_instance()
+                                    ->get_mem_pool()
+                                    ->alloc_new<RenderDrawData>();
+
     *draw_data = *data;
     draw_data->pipeline = pipeline;
     ordered_draw_data.push_back(draw_data);
@@ -248,9 +235,9 @@ void RenderCommandDispatcher::render(RenderDrawData *data,
         SPDLOG_ERROR("Render data is null.");
         return;
     }
-
-    RenderDrawData *draw_data =
-        (RenderDrawData *)malloc(sizeof(RenderDrawData));
+    RenderDrawData *draw_data = RenderEngine::get_instance()
+                                    ->get_mem_pool()
+                                    ->alloc_new<RenderDrawData>();
     *draw_data = *data;
     draw_data->pipeline = pipeline;
     draw_data->index_offset = index_offset;

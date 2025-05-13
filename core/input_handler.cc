@@ -26,6 +26,9 @@ void InputHandler::init(Window *window) {
     glfwSetCursorPosCallback(
         glfw_window, [](GLFWwindow *window, double x, double y) {
             Input *input = Input::get_instance();
+            if(!input->should_capture_mouse){
+                return;
+            }
             if (input->drag_func) {
                 input->drag_func(input->last_x, input->last_y, x, y);
             }

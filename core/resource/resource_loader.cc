@@ -65,8 +65,7 @@ Ref<Shader> ResourceLoader::load_shader(const std::string &vertex_path,
     }
     vertex_s = vertex_f->read_str();
     fragment_s = fragment_f->read_str();
-    shader.create(vertex_s, fragment_s, geometry_s, tess_ctrl_s,
-        tess_eval_s);
+    shader.create(vertex_s, fragment_s, geometry_s, tess_ctrl_s, tess_eval_s);
     return shader;
 }
 

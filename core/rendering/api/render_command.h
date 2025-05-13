@@ -56,8 +56,8 @@ struct RenderDrawData {
 
 enum RenderStateFlag : u64 {
     CLEAR = 1 << 0,
-    VIEWPORT = 1<< 1,
-    SCISSOR = 1<<2
+    VIEWPORT = 1 << 1,
+    SCISSOR = 1 << 2
 };
 
 enum StateClearFlag : u8 {
@@ -97,6 +97,8 @@ class RenderCommandDispatcher {
         ViewportState viewport;
         std::vector<RenderDrawData *> ordered_draw_data;
         inline void ensure_draw_begin();
+        RenderCommand prepare_state_cmd();
+        RenderCommand prepare_update_cmd();
 
     public:
         u64 gen_sort_key(f32 depth, u16 material_id);
@@ -107,12 +109,12 @@ class RenderCommandDispatcher {
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
         void cancel_scissor();
 
-        /* Make sure the `data` life cycle is longer than the entire frame.*/
+        /* Will copy data to a temporary buffer.*/
         void update_buffer(RenderResource *buffer, u32 offset, u32 size,
                            void *data);
         void *map_buffer(RenderResource *buffer, u32 offset, u32 size);
 
-        /* Make sure the `data` life cycle is longer than the entire frame.*/
+        /* Will copy data to a temporary buffer.*/
         void update_texture(RenderResource *texture, u16 x_off, u16 y_off,
                             u16 w, u16 h, void *data);
         void *map_texture(RenderResource *buffer, u16 x_off, u16 y_off, u16 w,
@@ -135,7 +137,7 @@ class RenderCommandDispatcher {
         void render(RenderDrawData *data, Ref<RenderPipeline> pipeline,
                     f32 depth);
         void render(RenderDrawData *data, Ref<RenderPipeline> pipeline,
-                f32 depth, u32 index_cnt, u32 index_offset);
+                    f32 depth, u32 index_cnt, u32 index_offset);
         void end_draw();
 
         RenderCommandDispatcher(u8 layer) : layer(layer) {}

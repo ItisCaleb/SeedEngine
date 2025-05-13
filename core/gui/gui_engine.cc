@@ -3,6 +3,7 @@
 #include <imgui_impl_glfw.h>
 #include <nfd.h>
 #include <spdlog/spdlog.h>
+#include "core/input.h"
 
 namespace Seed {
 GuiEngine::GuiEngine(Window *window) {
@@ -30,6 +31,8 @@ GuiEngine::GuiEngine(Window *window) {
 void GuiEngine::update() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+    ImGuiIO &io = ImGui::GetIO();
+    Input::get_instance()->set_capture_mouse(!io.WantCaptureMouse);
     bool show_demo_window = true;
 
     ImGui::ShowDemoWindow(&show_demo_window);
