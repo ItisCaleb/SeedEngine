@@ -417,14 +417,16 @@ inline static u32 get_blend_func(BlendFactor factor) {
     }
 }
 void RenderDeviceOpenGL::setup_blend(RenderBlendState &state) {
-    if (state.blend_on)
+    if (state.blend_on){
         glEnable(GL_BLEND);
+        glBlendFuncSeparate(get_blend_func(state.func.src_rgb),
+        get_blend_func(state.func.dst_rgb),
+        get_blend_func(state.func.src_alpha),
+        get_blend_func(state.func.dst_alpha));
+    }
     else
         glDisable(GL_BLEND);
-    glBlendFuncSeparate(get_blend_func(state.func.src_rgb),
-                        get_blend_func(state.func.dst_rgb),
-                        get_blend_func(state.func.src_alpha),
-                        get_blend_func(state.func.dst_alpha));
+
 }
 
 void RenderDeviceOpenGL::handle_state(RenderCommand &cmd) {

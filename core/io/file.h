@@ -18,7 +18,7 @@ class File : public RefCounted {
 
    public:
     static Ref<File> open(const std::string &path, const char *mode) {
-        std::string fullpath = std::filesystem::absolute(path);
+        std::string fullpath = std::filesystem::absolute(path).string();
         FILE *f = fopen(fullpath.c_str(), mode);
         if (!f) {
             SPDLOG_WARN("Can't open file '{}'", fullpath);

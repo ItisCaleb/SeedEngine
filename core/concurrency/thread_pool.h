@@ -2,6 +2,9 @@
 #define _SEED_THREAD_POOL_H_
 #include <vector>
 #include <thread>
+#include <functional>
+#include <mutex>
+#include <condition_variable>
 #include "core/types.h"
 #include "core/container/ring_buffer.h"
 #include "core/container/freelist.h"

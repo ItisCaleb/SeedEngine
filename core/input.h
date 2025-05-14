@@ -1,6 +1,7 @@
 #ifndef _SEED_INPUT_H_
 #define _SEED_INPUT_H_
 #include <set>
+#include <functional>
 #include "core/types.h"
 #include "core/input_handler.h"
 
