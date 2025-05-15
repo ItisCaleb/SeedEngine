@@ -10,17 +10,14 @@ class Window {
         std::string title;
         bool fullscreen;
         void *window;
+
     public:
-        u32 get_width(){
-            return w;
-        }
-        u32 get_height(){
-            return h;
-        }
+        u32 get_width() { return w; }
+        u32 get_height() { return h; }
 
         template <typename T>
-        T* get_window(){
-            return static_cast<T*>(window);
+        T *get_window() {
+            return static_cast<T *>(window);
         }
         Window(u32 w, u32 h, const std::string &title);
         ~Window();

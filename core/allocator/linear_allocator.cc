@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "core/math/utils.h"
+#include <spdlog/spdlog.h>
 
 namespace Seed {
 void *LinearAllocator::alloc(u64 size) {
@@ -32,6 +33,7 @@ void LinearAllocator::free_all() {
         this->cap = roundup_to_pow2(this->cap + this->overflow_size);
         this->memory_base = realloc(this->memory_base, this->cap);
         this->overflow_size = 0;
+        spdlog::debug("Linear allocator resize to '{}'", this->cap);
     }
     this->cur = 0;
 }

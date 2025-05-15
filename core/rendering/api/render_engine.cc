@@ -43,7 +43,7 @@ RenderEngine::RenderEngine(Window *window) {
     matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
     cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);
     u8 white_tex[4] = {255, 255, 255, 255};
-    default_tex.create(1, 1, (const u8 *)white_tex);
+    default_tex.create(TextureType::TEXTURE_2D, 1, 1, (const u8 *)white_tex);
     default_mat.create();
     for (u32 i = 0; i < Material::MAX; i++) {
         default_mat->set_texture_map(static_cast<Material::TextureMapType>(i),
@@ -70,10 +70,10 @@ void RenderEngine::process() {
     RenderCommandDispatcher dp(0);
     dp.clear(StateClearFlag::CLEAR_COLOR);
     dp.clear(StateClearFlag::CLEAR_DEPTH);
-    Mat4 *matrices = (Mat4 *)dp.map_buffer(&matrices_rc, 0, sizeof(Mat4) * 2);
+    Mat4 *matrices = (Mat4 *)dp.map_buffer(matrices_rc, 0, sizeof(Mat4) * 2);
     matrices[0] = cam.perspective().transpose();
     matrices[1] = cam.look_at().transpose();
-    Vec3 *cam_pos = (Vec3 *)dp.map_buffer(&cam_rc, 0, sizeof(Vec3));
+    Vec3 *cam_pos = (Vec3 *)dp.map_buffer(cam_rc, 0, sizeof(Vec3));
     *cam_pos = this->cam.get_position();
     for (Renderer *rd : this->renderers) {
         rd->preprocess();

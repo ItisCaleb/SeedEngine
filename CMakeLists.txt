@@ -65,6 +65,4 @@ add_subdirectory(editor)
 target_link_libraries(editor PUBLIC 
     seed
     assimp::assimp
-    nfd::nfd
-    imgui::imgui
 )

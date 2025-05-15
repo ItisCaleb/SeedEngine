@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 #include <map>
+#include "core/rendering/api/render_common.h"
+#include "core/handle.h"
 
 namespace Seed {
 enum class RenderResourceType: u16 {
@@ -20,10 +22,10 @@ typedef u32 RenderResourceHandle;
 
 
 struct RenderResource {
-    RenderResourceHandle handle;
+    Handle handle;
     RenderResourceType type = RenderResourceType::UNINITIALIZE;
 
-    void alloc_texture(u32 w, u32 h, const void *data);
+    void alloc_texture(TextureType type, u32 w, u32 h, const void *data);
     void alloc_vertex(u32 stride, u32 element_cnt,
         const void *data);
     void alloc_index(const std::vector<u8> &indices);
@@ -38,7 +40,6 @@ struct RenderResource {
     void dealloc();
     bool inited();
 
-    inline static u32 constant_cnt = 0;
     RenderResource() = default;
     ~RenderResource() = default;
 };

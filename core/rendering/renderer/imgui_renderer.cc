@@ -53,7 +53,7 @@ void ImguiRenderer::init() {
     u8 *pixels;
     int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-    Ref<Texture> font_tex(width, height, pixels);
+    Ref<Texture> font_tex(TextureType::TEXTURE_2D, width, height, pixels);
     font_mat.create();
     font_mat->set_texture_map(Material::TextureMapType::DIFFUSE, font_tex);
 
@@ -84,7 +84,9 @@ void ImguiRenderer::preprocess() {
         {(R + L) / (L - R), (T + B) / (B - T), 0.0f, 1.0f},
     };
     RenderCommandDispatcher dp(layer);
-    void* mat = dp.map_buffer(&gui_proj, 0, sizeof(ortho_projection));
+    DEBUG_DISPATCH(dp);
+
+    void *mat = dp.map_buffer(gui_proj, 0, sizeof(ortho_projection));
     memcpy(mat, ortho_projection, sizeof(ortho_projection));
 }
 
@@ -95,6 +97,7 @@ ImguiRenderer::ImguiData *ImguiRenderer::get_imgui_data() {
 }
 void ImguiRenderer::process() {
     RenderCommandDispatcher dp(layer);
+    DEBUG_DISPATCH(dp);
     ImDrawData *draw_data = ImGui::GetDrawData();
     ImguiData *bd = get_imgui_data();
     int fb_width =
@@ -149,7 +152,8 @@ void ImguiRenderer::process() {
                 dp.draw_set_scissor(
                     imgui_data, clip_min.x, fb_height - clip_max.y,
                     clip_max.x - clip_min.x, clip_max.y - clip_min.y);
-                dp.render(&imgui_data, gui_pipeline, 0, pcmd->ElemCount, pcmd->IdxOffset * sizeof(ImDrawIdx));
+                dp.render(&imgui_data, gui_pipeline, 0, pcmd->ElemCount,
+                          pcmd->IdxOffset * sizeof(ImDrawIdx));
             }
         }
         dp.end_draw();

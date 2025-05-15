@@ -19,19 +19,29 @@ u64 RenderCommandDispatcher::gen_sort_key(f32 depth, RenderDrawData &data) {
     return gen_sort_key(depth, mat_id);
 }
 
+void RenderCommandDispatcher::set_scope(const std::string &scope) {
+    this->scope = scope;
+}
+
 RenderCommand RenderCommandDispatcher::prepare_state_cmd() {
     RenderCommand cmd;
+    cmd.scope = scope;
     cmd.layer = layer;
     cmd.type = RenderCommandType::STATE;
-    cmd.data = RenderEngine::get_instance()->get_mem_pool()->alloc_new<RenderStateData>();
+    cmd.data = RenderEngine::get_instance()
+                   ->get_mem_pool()
+                   ->alloc_new<RenderStateData>();
     return cmd;
 }
 
 RenderCommand RenderCommandDispatcher::prepare_update_cmd() {
     RenderCommand cmd;
+    cmd.scope = scope;
     cmd.layer = layer;
     cmd.type = RenderCommandType::UPDATE;
-    cmd.data = RenderEngine::get_instance()->get_mem_pool()->alloc_new<RenderUpdateData>();
+    cmd.data = RenderEngine::get_instance()
+                   ->get_mem_pool()
+                   ->alloc_new<RenderUpdateData>();
     return cmd;
 }
 
@@ -63,11 +73,11 @@ void RenderCommandDispatcher::cancel_scissor() {
                       this->viewport.h);
 }
 
-void RenderCommandDispatcher::update_buffer(RenderResource *buffer, u32 offset,
+void RenderCommandDispatcher::update_buffer(RenderResource &buffer, u32 offset,
                                             u32 size, void *data) {
-    if (buffer->type != RenderResourceType::VERTEX &&
-        buffer->type != RenderResourceType::CONSTANT &&
-        buffer->type != RenderResourceType::INDEX)
+    if (buffer.type != RenderResourceType::VERTEX &&
+        buffer.type != RenderResourceType::CONSTANT &&
+        buffer.type != RenderResourceType::INDEX)
         return;
     RenderCommand cmd = prepare_update_cmd();
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
@@ -75,17 +85,17 @@ void RenderCommandDispatcher::update_buffer(RenderResource *buffer, u32 offset,
     update_data->data =
         RenderEngine::get_instance()->get_mem_pool()->alloc_data(size, data);
 
-    update_data->dst_buffer = buffer;
+    update_data->rc = buffer;
     update_data->buffer.size = size;
     update_data->buffer.offset = offset;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
-void *RenderCommandDispatcher::map_buffer(RenderResource *buffer, u32 offset,
+void *RenderCommandDispatcher::map_buffer(RenderResource &buffer, u32 offset,
                                           u32 size) {
-    if (buffer->type != RenderResourceType::VERTEX &&
-        buffer->type != RenderResourceType::CONSTANT &&
-        buffer->type != RenderResourceType::INDEX)
+    if (buffer.type != RenderResourceType::VERTEX &&
+        buffer.type != RenderResourceType::CONSTANT &&
+        buffer.type != RenderResourceType::INDEX)
         return nullptr;
     RenderCommand cmd = prepare_update_cmd();
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
@@ -93,40 +103,40 @@ void *RenderCommandDispatcher::map_buffer(RenderResource *buffer, u32 offset,
     update_data->data =
         RenderEngine::get_instance()->get_mem_pool()->alloc(size);
 
-    update_data->dst_buffer = buffer;
+    update_data->rc = buffer;
     update_data->buffer.size = size;
     update_data->buffer.offset = offset;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
     return update_data->data;
 }
 
-void RenderCommandDispatcher::update_texture(RenderResource *texture, u16 x_off,
+void RenderCommandDispatcher::update_texture(RenderResource &texture, u16 x_off,
                                              u16 y_off, u16 w, u16 h,
                                              void *data) {
-    if (texture->type != RenderResourceType::TEXTURE) return;
+    if (texture.type != RenderResourceType::TEXTURE) return;
     RenderCommand cmd = prepare_update_cmd();
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
-        RenderEngine::get_instance()->get_mem_pool()->alloc_data(w * h, data);
-    update_data->dst_buffer = texture;
+        RenderEngine::get_instance()->get_mem_pool()->alloc_data(w * h * 4, data);
+    update_data->rc = texture;
     update_data->texture.x_off = x_off;
     update_data->texture.y_off = y_off;
     update_data->texture.w = w;
-    update_data->texture.w = h;
+    update_data->texture.h = h;
 
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
-void *RenderCommandDispatcher::map_texture(RenderResource *texture, u16 x_off,
+void *RenderCommandDispatcher::map_texture(RenderResource &texture, u16 x_off,
                                            u16 y_off, u16 w, u16 h) {
-    if (texture->type != RenderResourceType::TEXTURE) return nullptr;
+    if (texture.type != RenderResourceType::TEXTURE) return nullptr;
     RenderCommand cmd = prepare_update_cmd();
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
         RenderEngine::get_instance()->get_mem_pool()->alloc(w * h);
-    update_data->dst_buffer = texture;
+    update_data->rc = texture;
     update_data->texture.x_off = x_off;
     update_data->texture.y_off = y_off;
     update_data->texture.w = w;
@@ -139,7 +149,7 @@ void *RenderCommandDispatcher::map_texture(RenderResource *texture, u16 x_off,
 RenderDrawData RenderCommandDispatcher::generate_render_data(
     VertexData &vertices, Ref<Material> mat) {
     RenderDrawData dispatch_data;
-    if (!vertices.get_vertices()->inited()) {
+    if (!vertices.get_vertices().inited()) {
         SPDLOG_WARN("Vertices is uninitialize.");
     }
     dispatch_data.vertices = &vertices;
@@ -149,10 +159,10 @@ RenderDrawData RenderCommandDispatcher::generate_render_data(
 }
 
 RenderDrawData RenderCommandDispatcher::generate_render_data(
-    VertexData &vertices, Ref<Material> mat, RenderResource *instance,
+    VertexData &vertices, Ref<Material> mat, RenderResource &instance,
     u32 instance_cnt) {
     RenderDrawData dispatch_data;
-    if (!vertices.get_vertices()->inited()) {
+    if (!vertices.get_vertices().inited()) {
         SPDLOG_WARN("Vertices is uninitialize.");
     }
     dispatch_data.vertices = &vertices;
@@ -191,6 +201,7 @@ void RenderCommandDispatcher::end_draw() {
     for (RenderDrawData *rdd : this->ordered_draw_data) {
         RenderCommand cmd;
         cmd.layer = layer;
+        cmd.scope = scope;
         cmd.type = RenderCommandType::RENDER;
         cmd.data = rdd;
         RenderEngine::get_instance()->get_device()->push_cmd(cmd);

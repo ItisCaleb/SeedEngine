@@ -30,9 +30,9 @@ class VertexData {
         ~VertexData();
 
         void bind_vertices(u32 stride, u32 vertex_cnt, RenderResource vertices);
-        RenderResource *get_vertices() { return &this->vertices; }
+        RenderResource &get_vertices() { return this->vertices; }
 
-        RenderResource *get_indices() { return &this->indices; }
+        RenderResource &get_indices() { return this->indices; }
 
         u32 get_vertices_cnt() { return vertices_cnt; }
 

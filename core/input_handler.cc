@@ -13,8 +13,8 @@ void InputHandler::init(Window *window) {
         exit(1);
     }
     GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
-    glfwSetKeyCallback(glfw_window, [](GLFWwindow *window, int key, int scancode,
-                                  int action, int mods) {
+    glfwSetKeyCallback(glfw_window, [](GLFWwindow *window, int key,
+                                       int scancode, int action, int mods) {
         KeyCode k = static_cast<KeyCode>(key);
         Input *input = Input::get_instance();
         if (action == GLFW_PRESS) {
@@ -26,7 +26,7 @@ void InputHandler::init(Window *window) {
     glfwSetCursorPosCallback(
         glfw_window, [](GLFWwindow *window, double x, double y) {
             Input *input = Input::get_instance();
-            if(!input->should_capture_mouse){
+            if (!input->should_capture_mouse) {
                 return;
             }
             if (input->drag_func) {

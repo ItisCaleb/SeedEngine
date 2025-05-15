@@ -85,18 +85,20 @@ void ModelRenderer::preprocess() {
 void ModelRenderer::process() {
     Window *window = SeedEngine::get_instance()->get_window();
     RenderCommandDispatcher dp(layer);
+            DEBUG_DISPATCH(dp);
+
     dp.begin_draw();
     for (auto &[model, instances] : model_instances) {
         if (instances.empty()) {
             continue;
         }
 
-        dp.update_buffer(&model->instance_rc, 0,
+        dp.update_buffer(model->instance_rc, 0,
                          sizeof(Mat4) * instances.size(),
                          (void *)instances.data());
         for (Ref<Mesh> mesh : model->meshes) {
             RenderDrawData data = dp.generate_render_data(
-                mesh->vertex_data, mesh->get_material(), &model->instance_rc,
+                mesh->vertex_data, mesh->get_material(), model->instance_rc,
                 instances.size());
             dp.draw_set_viewport(data, 0, 0, window->get_width(),
                             window->get_height());
@@ -113,7 +115,7 @@ void ModelRenderer::process() {
                      sizeof(AABB) * entity_aabb.size(),
                      (void *)entity_aabb.data());
     aabb_vertices.bind_vertices(sizeof(AABB), entity_aabb.size(),
-                                *aabb_vertices.get_vertices());
+                                aabb_vertices.get_vertices());
     dp.begin_draw();
 
     dp.render(&aabb_data, debug_pipeline, 0.1);

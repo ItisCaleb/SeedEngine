@@ -2,6 +2,7 @@
 #define _SEED_FREE_LIST_H_
 #include <vector>
 #include "core/types.h"
+#include <iterator>
 
 namespace Seed {
 template <typename T>
@@ -25,22 +26,35 @@ class FreeList {
                 data.push_back(fe);
                 return static_cast<int>(data.size() - 1);
             }
+            this->cnt++;
+        }
+
+        bool present(int n) const {
+            if (n >= data.size()) return false;
+            return data[n].next == -1;
         }
 
         // Removes the nth element from the free list.
         void erase(int n) {
+            if (!present(n)) return;
+            data[n].element.~T();
             data[n].next = first_free;
             first_free = n;
+            this->cnt--;
         }
 
         // Removes all elements from the free list.
         void clear() {
             data.clear();
             first_free = -1;
+            this->cnt = 0;
         }
 
         // Returns the range of valid indices.
         int range() const { return static_cast<int>(data.size()); }
+
+        // Returns the usage count
+        int count() const { return this->cnt; }
 
         // Returns the nth element.
         T &operator[](int n) {
@@ -58,9 +72,13 @@ class FreeList {
             return data[n].element;
         }
 
-        bool present(int n) const{
-            return data[n].next == -1;
-        }
+        struct Iterator {
+                using iterator_category = std::forward_iterator_tag;
+                using difference_type = std::ptrdiff_t;
+                using value_type = T;
+                using pointer = T *;    // or also value_type*
+                using reference = T &;  // or also value_type&
+        };
 
     private:
         struct FreeElement {
@@ -69,6 +87,7 @@ class FreeList {
         };
         std::vector<FreeElement> data;
         int first_free;
+        int cnt = 0;
 };
 
 }  // namespace Seed

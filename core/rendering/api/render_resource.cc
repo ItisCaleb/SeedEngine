@@ -5,15 +5,26 @@
 
 namespace Seed {
 
-void RenderResource::alloc_texture(u32 w, u32 h, const void *data) {
+void RenderResource::alloc_texture(TextureType type, u32 w, u32 h,
+                                   const void *data) {
     this->type = RenderResourceType::TEXTURE;
-    RenderEngine::get_instance()->get_device()->alloc_texture(this, w, h, data);
+    RenderEngine::get_instance()->get_device()->alloc_texture(this, type, w, h);
+    if (data) {
+        RenderCommandDispatcher dp(0);
+        DEBUG_DISPATCH(dp);
+        dp.update_texture(*this, 0, 0, w, h, (void *)data);
+    }
 }
 void RenderResource::alloc_vertex(u32 stride, u32 vertex_cnt,
                                   const void *data) {
     this->type = RenderResourceType::VERTEX;
     RenderEngine::get_instance()->get_device()->alloc_vertex(this, stride,
-                                                             vertex_cnt, data);
+                                                             vertex_cnt);
+    if (data) {
+        RenderCommandDispatcher dp(0);
+        DEBUG_DISPATCH(dp);
+        dp.update_buffer(*this, 0, stride * vertex_cnt, (void *)data);
+    }
 }
 void RenderResource::alloc_shader(const std::string &vertex_code,
                                   const std::string &fragment_code,
@@ -29,24 +40,40 @@ void RenderResource::alloc_shader(const std::string &vertex_code,
 void RenderResource::alloc_index(const std::vector<u8> &indices) {
     this->type = RenderResourceType::INDEX;
     RenderEngine::get_instance()->get_device()->alloc_indices(
-        this, IndexType::UNSIGNED_BYTE, indices.size(), (void *)indices.data());
+        this, IndexType::UNSIGNED_BYTE, indices.size());
+    RenderCommandDispatcher dp(0);
+    DEBUG_DISPATCH(dp);
+    dp.update_buffer(*this, 0, indices.size(), (void *)indices.data());
 }
 void RenderResource::alloc_index(const std::vector<u16> &indices) {
     this->type = RenderResourceType::INDEX;
     RenderEngine::get_instance()->get_device()->alloc_indices(
-        this, IndexType::UNSIGNED_SHORT, indices.size(), (void *)indices.data());
+        this, IndexType::UNSIGNED_SHORT, indices.size());
+    RenderCommandDispatcher dp(0);
+    DEBUG_DISPATCH(dp);
+    dp.update_buffer(*this, 0, indices.size() * sizeof(u16),
+                     (void *)indices.data());
 }
 void RenderResource::alloc_index(const std::vector<u32> &indices) {
     this->type = RenderResourceType::INDEX;
     RenderEngine::get_instance()->get_device()->alloc_indices(
-        this, IndexType::UNSIGNED_INT, indices.size(), (void *)indices.data());
+        this, IndexType::UNSIGNED_INT, indices.size());
+    RenderCommandDispatcher dp(0);
+    DEBUG_DISPATCH(dp);
+    dp.update_buffer(*this, 0, indices.size() * sizeof(u32),
+                     (void *)indices.data());
 }
 
 void RenderResource::alloc_constant(const std::string &name, u32 size,
                                     void *data) {
     this->type = RenderResourceType::CONSTANT;
-    RenderEngine::get_instance()->get_device()->alloc_constant(this, name, size,
-                                                               data);
+    RenderEngine::get_instance()->get_device()->alloc_constant(this, name,
+                                                               size);
+    if (data) {
+        RenderCommandDispatcher dp(0);
+        DEBUG_DISPATCH(dp);
+        dp.update_buffer(*this, 0, size, (void *)data);
+    }
 }
 void RenderResource::dealloc() {
     if (this->type == RenderResourceType::UNINITIALIZE) {

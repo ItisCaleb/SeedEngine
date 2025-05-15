@@ -2,6 +2,7 @@
 #include "render_engine.h"
 #include <glad/glad.h>
 #include <spdlog/spdlog.h>
+#include "core/macro.h"
 
 namespace Seed {
 
@@ -54,31 +55,29 @@ RenderDeviceOpenGL::RenderDeviceOpenGL() {
                               nullptr, GL_TRUE);
     }
 }
-void RenderDeviceOpenGL::alloc_texture(RenderResource *rc, u32 w, u32 h,
-                                       const void *data) {
-    glGenTextures(1, &rc->handle);
-    glBindTexture(GL_TEXTURE_2D, rc->handle);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-                 data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, 0);
+void RenderDeviceOpenGL::alloc_texture(RenderResource *rc, TextureType type,
+                                       u32 w, u32 h) {
+    HardwareTextureGL texture;
+    texture.w = w;
+    texture.h = h;
+    texture.type = type;
+    rc->handle = this->textures.insert(texture);
+    this->alloc_cmds.push(AllocCommand{.handle = rc->handle,
+                                       .type = RenderResourceType::TEXTURE,
+                                       .is_alloc = true});
 }
 void RenderDeviceOpenGL::alloc_vertex(RenderResource *rc, u32 stride,
-                                      u32 vertex_cnt, const void *data) {
-    GLuint handle;
-    glGenBuffers(1, &handle);
-    glBindBuffer(GL_ARRAY_BUFFER, handle);
-    glBufferData(GL_ARRAY_BUFFER, vertex_cnt * stride, data, GL_STATIC_DRAW);
-    rc->handle = this->buffers.insert(
-        HardwareBufferGL{.handle = handle, .size = vertex_cnt * stride});
+                                      u32 vertex_cnt) {
+    HardwareBufferGL buffer;
+    buffer.size = stride * vertex_cnt;
+    rc->handle = this->buffers.insert(buffer);
+    this->alloc_cmds.push(AllocCommand{.handle = rc->handle,
+                                       .type = RenderResourceType::VERTEX,
+                                       .is_alloc = true});
 }
 
 void RenderDeviceOpenGL::alloc_indices(RenderResource *rc, IndexType type,
-                                       u32 element_cnt, void *data) {
+                                       u32 element_cnt) {
     GLuint handle;
     u32 type_size = 0;
     switch (type) {
@@ -94,32 +93,25 @@ void RenderDeviceOpenGL::alloc_indices(RenderResource *rc, IndexType type,
         default:
             break;
     }
-    glGenBuffers(1, &handle);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_cnt * type_size, data,
-                 GL_STATIC_DRAW);
-    rc->handle = this->buffers.insert(
-        HardwareBufferGL{.handle = handle, .size = element_cnt * type_size});
+    HardwareIndexGL index;
+    index.size = element_cnt * type_size;
+    index.type = type;
+    rc->handle = this->indices.insert(index);
+    this->alloc_cmds.push(AllocCommand{.handle = rc->handle,
+                                       .type = RenderResourceType::INDEX,
+                                       .is_alloc = true});
 }
 
 void RenderDeviceOpenGL::alloc_constant(RenderResource *rc,
-                                        const std::string &name, u32 size,
-                                        void *data) {
-    GLuint handle;
-    glGenBuffers(1, &handle);
-    glBindBuffer(GL_UNIFORM_BUFFER, handle);
-    glBufferData(GL_UNIFORM_BUFFER, size, data, GL_STATIC_DRAW);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    for (auto &e : shaders) {
-        u32 idx = glGetUniformBlockIndex(e.second.handle, name.c_str());
-        if (idx != GL_INVALID_INDEX) {
-            glUniformBlockBinding(e.second.handle, idx, constant_cnt);
-        }
-    }
-    glBindBufferBase(GL_UNIFORM_BUFFER, constant_cnt, handle);
-    constant_cnt++;
-    rc->handle =
-        this->buffers.insert(HardwareBufferGL{.handle = handle, .size = size});
+                                        const std::string &name, u32 size) {
+    HardwareConstantGL constant;
+    constant.size = size;
+    constant.name = name;
+    rc->handle = this->constants.insert(constant);
+    this->constants.get_or_null(rc->handle)->buffer_base = rc->handle;
+    this->alloc_cmds.push(AllocCommand{.handle = rc->handle,
+                                       .type = RenderResourceType::CONSTANT,
+                                       .is_alloc = true});
 }
 
 void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
@@ -128,107 +120,242 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
                                       const std::string &geometry_code,
                                       const std::string &tess_ctrl_code,
                                       const std::string &tess_eval_code) {
-    u32 vertex, fragment, geometry, tess_ctrl, tess_eval;
-    int success;
-    char info[512];
-    u32 program = glCreateProgram();
-    const char *vertex_c = vertex_code.c_str();
-    const char *frag_c = fragment_code.c_str();
-    const char *geo_c = geometry_code.c_str();
-    const char *tess_ctrl_c = tess_ctrl_code.c_str();
-    const char *tess_eval_c = tess_eval_code.c_str();
+    HardwareShaderGL shader;
+    shader.vertex_src = vertex_code;
+    shader.fragment_src = fragment_code;
+    shader.geo_src = geometry_code;
+    shader.tess_ctrl_src = tess_ctrl_code;
+    shader.tess_eval_src = tess_eval_code;
 
-    /* vertex shader */
-    vertex = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex, 1, &vertex_c, NULL);
-    glCompileShader(vertex);
-    glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(vertex, 512, NULL, info);
-        throw std::runtime_error(info);
-    }
-    glAttachShader(program, vertex);
-
-    /* fragment shader */
-    fragment = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment, 1, &frag_c, NULL);
-    glCompileShader(fragment);
-    glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(fragment, 512, NULL, info);
-        throw std::runtime_error(info);
-    }
-    glAttachShader(program, fragment);
-
-    /* optional geometry shader */
-    if (geometry_code.size() > 0) {
-        geometry = glCreateShader(GL_GEOMETRY_SHADER);
-        glShaderSource(geometry, 1, &geo_c, NULL);
-        glCompileShader(geometry);
-        glGetShaderiv(geometry, GL_COMPILE_STATUS, &success);
-        if (!success) {
-            glGetShaderInfoLog(geometry, 512, NULL, info);
-            throw std::runtime_error(info);
-        }
-        glAttachShader(program, geometry);
-    }
-
-    /* optional tesselation shader */
-    if (tess_ctrl_code.size() > 0 && tess_eval_code.size()) {
-        tess_ctrl = glCreateShader(GL_TESS_CONTROL_SHADER);
-        tess_eval = glCreateShader(GL_TESS_EVALUATION_SHADER);
-
-        glShaderSource(tess_ctrl, 1, &tess_ctrl_c, NULL);
-        glShaderSource(tess_eval, 1, &tess_eval_c, NULL);
-
-        glCompileShader(tess_ctrl);
-        glCompileShader(tess_eval);
-        glGetShaderiv(tess_ctrl, GL_COMPILE_STATUS, &success);
-        if (!success) {
-            glGetShaderInfoLog(tess_ctrl, 512, NULL, info);
-            throw std::runtime_error(info);
-        }
-        glGetShaderiv(tess_eval, GL_COMPILE_STATUS, &success);
-        if (!success) {
-            glGetShaderInfoLog(tess_ctrl, 512, NULL, info);
-            throw std::runtime_error(info);
-        }
-        glAttachShader(program, tess_ctrl);
-        glAttachShader(program, tess_eval);
-    } else if (tess_ctrl_code.size() == 0 && tess_eval_code.size() > 0 ||
-               tess_ctrl_code.size() > 0 && tess_eval_code.size() == 0) {
-        throw std::runtime_error(
-            "TCS and TES need to be provide at same time.");
-    }
-
-    glLinkProgram(program);
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(program, 512, NULL, info);
-        throw std::runtime_error(info);
-    }
-    glDeleteShader(vertex);
-    glDeleteShader(fragment);
-    rc->handle = program;
-    shaders[rc->handle] = *rc;
+    rc->handle = this->shaders.insert(shader);
+    this->alloc_cmds.push(AllocCommand{.handle = rc->handle,
+                                       .type = RenderResourceType::SHADER,
+                                       .is_alloc = true});
+    this->shader_in_use.push_back(rc->handle);
 }
 
 void RenderDeviceOpenGL::dealloc(RenderResource *r) {
-    switch (r->type) {
-        case RenderResourceType::VERTEX:
+    this->alloc_cmds.push(
+        AllocCommand{.handle = r->handle, .type = r->type, .is_alloc = false});
+}
+
+void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
+    switch (cmd.type) {
+        case RenderResourceType::VERTEX: {
+            HardwareBufferGL *buffer = this->buffers.get_or_null(cmd.handle);
+            EXPECT_NOT_NULL_RET(buffer);
+            glGenBuffers(1, &buffer->handle);
+            glBindBuffer(GL_ARRAY_BUFFER, buffer->handle);
+            glBufferData(GL_ARRAY_BUFFER, buffer->size, nullptr,
+                         GL_DYNAMIC_DRAW);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            break;
+        }
         case RenderResourceType::INDEX: {
-            HardwareBufferGL &hb = this->buffers[r->handle];
-            glDeleteBuffers(1, &hb.handle);
-            this->buffers.erase(r->handle);
+            HardwareIndexGL *index = this->indices.get_or_null(cmd.handle);
+            EXPECT_NOT_NULL_RET(index);
+            glGenBuffers(1, &index->handle);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index->handle);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, index->size, nullptr,
+                         GL_STATIC_DRAW);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+            break;
+        }
+        case RenderResourceType::CONSTANT: {
+            HardwareConstantGL *constant =
+                this->constants.get_or_null(cmd.handle);
+            EXPECT_NOT_NULL_RET(constant);
+
+            glGenBuffers(1, &constant->handle);
+            glBindBuffer(GL_UNIFORM_BUFFER, constant->handle);
+            glBufferData(GL_UNIFORM_BUFFER, constant->size, nullptr,
+                         GL_STATIC_DRAW);
+            glBindBuffer(GL_UNIFORM_BUFFER, 0);
+            glBindBufferBase(GL_UNIFORM_BUFFER, cmd.handle, constant->handle);
+            constant->buffer_base = cmd.handle;
+            for (Handle handle : shader_in_use) {
+                HardwareShaderGL *shader = this->shaders.get_or_null(handle);
+                u32 idx = glGetUniformBlockIndex(shader->handle,
+                                                 constant->name.c_str());
+                if (idx != GL_INVALID_INDEX) {
+                    glUniformBlockBinding(shader->handle, idx,
+                                          constant->buffer_base);
+                }
+            }
+            break;
+        }
+        case RenderResourceType::TEXTURE: {
+            HardwareTextureGL *tex = this->textures.get_or_null(cmd.handle);
+            EXPECT_NOT_NULL_RET(tex);
+
+            GLuint type = convert_texture_type(tex->type);
+            glGenTextures(1, &tex->handle);
+            glBindTexture(type, tex->handle);
+            glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexImage2D(type, 0, GL_RGBA, tex->w, tex->h, 0, GL_RGBA,
+                         GL_UNSIGNED_BYTE, nullptr);
+            glGenerateMipmap(type);
+            glBindTexture(type, 0);
+            break;
+        }
+        case RenderResourceType::SHADER: {
+            HardwareShaderGL *shader = this->shaders.get_or_null(cmd.handle);
+            EXPECT_NOT_NULL_RET(shader);
+            u32 vertex, fragment, geometry, tess_ctrl, tess_eval;
+            int success;
+            char info[512];
+            u32 program = glCreateProgram();
+            const char *vertex_c = shader->vertex_src.c_str();
+            const char *frag_c = shader->fragment_src.c_str();
+            const char *geo_c = shader->geo_src.c_str();
+            const char *tess_ctrl_c = shader->tess_ctrl_src.c_str();
+            const char *tess_eval_c = shader->tess_eval_src.c_str();
+
+            /* vertex shader */
+            vertex = glCreateShader(GL_VERTEX_SHADER);
+            glShaderSource(vertex, 1, &vertex_c, NULL);
+            glCompileShader(vertex);
+            glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
+            if (!success) {
+                glGetShaderInfoLog(vertex, 512, NULL, info);
+                throw std::runtime_error(info);
+            }
+            glAttachShader(program, vertex);
+
+            /* fragment shader */
+            fragment = glCreateShader(GL_FRAGMENT_SHADER);
+            glShaderSource(fragment, 1, &frag_c, NULL);
+            glCompileShader(fragment);
+            glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
+            if (!success) {
+                glGetShaderInfoLog(fragment, 512, NULL, info);
+                throw std::runtime_error(info);
+            }
+            glAttachShader(program, fragment);
+
+            /* optional geometry shader */
+            if (shader->geo_src.size() > 0) {
+                geometry = glCreateShader(GL_GEOMETRY_SHADER);
+                glShaderSource(geometry, 1, &geo_c, NULL);
+                glCompileShader(geometry);
+                glGetShaderiv(geometry, GL_COMPILE_STATUS, &success);
+                if (!success) {
+                    glGetShaderInfoLog(geometry, 512, NULL, info);
+                    throw std::runtime_error(info);
+                }
+                glAttachShader(program, geometry);
+            }
+
+            /* optional tesselation shader */
+            if (shader->tess_ctrl_src.size() > 0 &&
+                shader->tess_eval_src.size() > 0) {
+                tess_ctrl = glCreateShader(GL_TESS_CONTROL_SHADER);
+                tess_eval = glCreateShader(GL_TESS_EVALUATION_SHADER);
+
+                glShaderSource(tess_ctrl, 1, &tess_ctrl_c, NULL);
+                glShaderSource(tess_eval, 1, &tess_eval_c, NULL);
+
+                glCompileShader(tess_ctrl);
+                glCompileShader(tess_eval);
+                glGetShaderiv(tess_ctrl, GL_COMPILE_STATUS, &success);
+                if (!success) {
+                    glGetShaderInfoLog(tess_ctrl, 512, NULL, info);
+                    throw std::runtime_error(info);
+                }
+                glGetShaderiv(tess_eval, GL_COMPILE_STATUS, &success);
+                if (!success) {
+                    glGetShaderInfoLog(tess_ctrl, 512, NULL, info);
+                    throw std::runtime_error(info);
+                }
+                glAttachShader(program, tess_ctrl);
+                glAttachShader(program, tess_eval);
+            } else if (shader->tess_ctrl_src.size() == 0 &&
+                           shader->tess_eval_src.size() > 0 ||
+                       shader->tess_ctrl_src.size() > 0 &&
+                           shader->tess_eval_src.size() == 0) {
+                throw std::runtime_error(
+                    "TCS and TES need to be provide at same time.");
+            }
+
+            glLinkProgram(program);
+            glGetProgramiv(program, GL_LINK_STATUS, &success);
+            if (!success) {
+                glGetProgramInfoLog(program, 512, NULL, info);
+                throw std::runtime_error(info);
+            }
+            glDeleteShader(vertex);
+            glDeleteShader(fragment);
+            shader->handle = program;
+            break;
+        }
+
+        default:
+            break;
+    }
+}
+
+GLuint RenderDeviceOpenGL::convert_texture_type(TextureType type) {
+    GLuint t;
+    switch (type) {
+        case TextureType::TEXTURE_1D:
+            t = GL_TEXTURE_1D;
+            break;
+        case TextureType::TEXTURE_2D:
+            t = GL_TEXTURE_2D;
+            break;
+        case TextureType::TEXTURE_3D:
+            t = GL_TEXTURE_3D;
+            break;
+        case TextureType::TEXTURE_CUBEMAP:
+            t = GL_TEXTURE_CUBE_MAP;
+            break;
+        case TextureType::TEXTURE_2D_ARRAY:
+            t = GL_TEXTURE_2D_ARRAY;
+            break;
+        default:
+            break;
+    }
+    return t;
+}
+
+void RenderDeviceOpenGL::handle_dealloc(AllocCommand &cmd) {
+    switch (cmd.type) {
+        case RenderResourceType::VERTEX: {
+            HardwareBufferGL *buffer = this->buffers.get_or_null(cmd.handle);
+            EXPECT_NOT_NULL_RET(buffer);
+            glDeleteBuffers(1, &buffer->handle);
+            this->buffers.remove(cmd.handle);
+        }
+
+        case RenderResourceType::INDEX: {
+            HardwareIndexGL *index = this->indices.get_or_null(cmd.handle);
+            EXPECT_NOT_NULL_RET(index);
+
+            if (index) {
+                glDeleteBuffers(1, &index->handle);
+                this->indices.remove(cmd.handle);
+            }
         } break;
         case RenderResourceType::TEXTURE: {
-            HardwareBufferGL &hb = this->buffers[r->handle];
-            glDeleteTextures(1, &hb.handle);
-            this->buffers.erase(r->handle);
+            HardwareTextureGL *tex = this->textures.get_or_null(cmd.handle);
+            EXPECT_NOT_NULL_RET(tex);
+            if (tex) {
+                glDeleteBuffers(1, &tex->handle);
+                this->textures.remove(cmd.handle);
+            }
         } break;
-        case RenderResourceType::SHADER:
-            glDeleteProgram(r->handle);
-            break;
+        case RenderResourceType::SHADER: {
+            HardwareShaderGL *shader = this->shaders.get_or_null(cmd.handle);
+            EXPECT_NOT_NULL_RET(shader);
+
+            if (shader) {
+                glDeleteProgram(shader->handle);
+                this->shaders.remove(cmd.handle);
+            }
+        } break;
         default:
             break;
     }
@@ -236,55 +363,68 @@ void RenderDeviceOpenGL::dealloc(RenderResource *r) {
 
 void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
-    RenderResource *buffer = update_data->dst_buffer;
-    HardwareBufferGL &hb = this->buffers[buffer->handle];
-    switch (buffer->type) {
-        case RenderResourceType::VERTEX:
-            u32 vbo;
-            glBindBuffer(GL_ARRAY_BUFFER, hb.handle);
-            if (hb.size < update_data->buffer.size) {
+    RenderResource buffer = update_data->rc;
+    switch (buffer.type) {
+        case RenderResourceType::VERTEX: {
+            HardwareBufferGL *hb = this->buffers.get_or_null(buffer.handle);
+            EXPECT_NOT_NULL_RET(hb);
+
+            glBindBuffer(GL_ARRAY_BUFFER, hb->handle);
+            if (hb->size < update_data->buffer.size) {
                 glBufferData(GL_ARRAY_BUFFER, update_data->buffer.size,
                              update_data->data, GL_DYNAMIC_DRAW);
-                hb.size = update_data->buffer.size;
+                hb->size = update_data->buffer.size;
             } else {
                 glBufferSubData(GL_ARRAY_BUFFER, update_data->buffer.offset,
                                 update_data->buffer.size, update_data->data);
             }
             break;
+        }
         case RenderResourceType::TEXTURE:
-            glBindTexture(GL_TEXTURE_2D, buffer->handle);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, update_data->texture.x_off,
+
+        {
+            HardwareTextureGL *tex = this->textures.get_or_null(buffer.handle);
+            EXPECT_NOT_NULL_RET(tex);
+            GLuint type = convert_texture_type(tex->type);
+            glBindTexture(type, tex->handle);
+            glTexSubImage2D(type, 0, update_data->texture.x_off,
                             update_data->texture.y_off, update_data->texture.w,
                             update_data->texture.h, GL_RGBA, GL_UNSIGNED_BYTE,
                             update_data->data);
-            glBindTexture(GL_TEXTURE_2D, 0);
+            glBindTexture(type, 0);
+        } break;
+        case RenderResourceType::CONSTANT: {
+            HardwareConstantGL *constant =
+                this->constants.get_or_null(buffer.handle);
+            EXPECT_NOT_NULL_RET(constant);
 
-            break;
-        case RenderResourceType::CONSTANT:
-            glBindBuffer(GL_UNIFORM_BUFFER, hb.handle);
-            if (hb.size < update_data->buffer.size) {
+            glBindBuffer(GL_UNIFORM_BUFFER, constant->handle);
+            if (constant->size < update_data->buffer.size) {
                 glBufferData(GL_UNIFORM_BUFFER, update_data->buffer.size,
                              update_data->data, GL_DYNAMIC_DRAW);
-                hb.size = update_data->buffer.size;
+                constant->size = update_data->buffer.size;
             } else {
                 glBufferSubData(GL_UNIFORM_BUFFER, update_data->buffer.offset,
                                 update_data->buffer.size, update_data->data);
             }
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
-            break;
-        case RenderResourceType::INDEX:
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hb.handle);
-            if (hb.size < update_data->buffer.size) {
+        } break;
+        case RenderResourceType::INDEX: {
+            HardwareIndexGL *index = this->indices.get_or_null(buffer.handle);
+            EXPECT_NOT_NULL_RET(index);
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index->handle);
+            if (index->size < update_data->buffer.size) {
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, update_data->buffer.size,
                              update_data->data, GL_DYNAMIC_DRAW);
-                hb.size = update_data->buffer.size;
+                index->size = update_data->buffer.size;
             } else {
                 glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
                                 update_data->buffer.offset,
                                 update_data->buffer.size, update_data->data);
             }
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-            break;
+        } break;
         default:
             break;
     }
@@ -327,17 +467,42 @@ void RenderDeviceOpenGL::use_vertex_desc(VertexDescription *desc) {
     glEnableVertexAttribArray(0);
 }
 
-void RenderDeviceOpenGL::bind_buffer(RenderResource *rc) {
-    HardwareBufferGL &hb = this->buffers[rc->handle];
-    switch (rc->type) {
-        case RenderResourceType::VERTEX:
-            glBindBuffer(GL_ARRAY_BUFFER, hb.handle);
+void RenderDeviceOpenGL::bind_buffer(RenderResource &rc) {
+    switch (rc.type) {
+        case RenderResourceType::VERTEX: {
+            HardwareBufferGL *hb = this->buffers.get_or_null(rc.handle);
+            EXPECT_NOT_NULL_RET(hb);
+            glBindBuffer(GL_ARRAY_BUFFER, hb->handle);
             break;
-        case RenderResourceType::INDEX:
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hb.handle);
+        }
+        case RenderResourceType::INDEX: {
+            HardwareBufferGL *hb = this->indices.get_or_null(rc.handle);
+            EXPECT_NOT_NULL_RET(hb);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hb->handle);
+            break;
+        }
         default:
             break;
     }
+}
+
+void RenderDeviceOpenGL::use_shader(RenderResource &rc) {
+    HardwareShaderGL *shader = this->shaders.get_or_null(rc.handle);
+    EXPECT_NOT_NULL_RET(shader);
+    glUseProgram(shader->handle);
+    for (int i = 0; i < 8; i++) {
+        std::string name = fmt::format("u_texture[{}]", i);
+        u32 loc = glGetUniformLocation(shader->handle, name.c_str());
+        if (loc == -1) break;
+        glUniform1i(loc, i);
+    }
+}
+void RenderDeviceOpenGL::use_texture(u32 unit, RenderResource &rc) {
+    HardwareTextureGL *tex = this->textures.get_or_null(rc.handle);
+    EXPECT_NOT_NULL_RET(tex);
+    GLuint type = convert_texture_type(tex->type);
+    glActiveTexture(GL_TEXTURE0 + unit);
+    glBindTexture(type, tex->handle);
 }
 
 void RenderDeviceOpenGL::setup_rasterizer(RenderRasterizerState &state) {
@@ -417,16 +582,14 @@ inline static u32 get_blend_func(BlendFactor factor) {
     }
 }
 void RenderDeviceOpenGL::setup_blend(RenderBlendState &state) {
-    if (state.blend_on){
+    if (state.blend_on) {
         glEnable(GL_BLEND);
         glBlendFuncSeparate(get_blend_func(state.func.src_rgb),
-        get_blend_func(state.func.dst_rgb),
-        get_blend_func(state.func.src_alpha),
-        get_blend_func(state.func.dst_alpha));
-    }
-    else
+                            get_blend_func(state.func.dst_rgb),
+                            get_blend_func(state.func.src_alpha),
+                            get_blend_func(state.func.dst_alpha));
+    } else
         glDisable(GL_BLEND);
-
 }
 
 void RenderDeviceOpenGL::handle_state(RenderCommand &cmd) {
@@ -470,14 +633,7 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
     }
     if (this->pipeline != draw_data->pipeline) {
         this->pipeline = draw_data->pipeline;
-        u32 shader_handle = this->pipeline->shader->get_rc()->handle;
-        glUseProgram(shader_handle);
-        for (int i = 0; i < 8; i++) {
-            std::string name = fmt::format("u_texture[{}]", i);
-            u32 loc = glGetUniformLocation(shader_handle, name.c_str());
-            if (loc == -1) break;
-            glUniform1i(loc, i);
-        }
+        use_shader(this->pipeline->shader->ger_render_resource());
         setup_rasterizer(this->pipeline->rst_state);
         setup_depth_stencil(this->pipeline->depth_state);
         setup_blend(this->pipeline->blend_state);
@@ -522,8 +678,7 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
             if (tex.is_null()) {
                 tex = RenderEngine::get_instance()->get_default_texture();
             }
-            glActiveTexture(GL_TEXTURE0 + i);
-            glBindTexture(GL_TEXTURE_2D, tex->get_render_resource()->handle);
+            use_texture(i, tex->get_render_resource());
         }
     }
     u32 index_type = 0;
@@ -559,12 +714,22 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
 }
 
 void RenderDeviceOpenGL::process() {
+    /* alloc resources first */
+    while (!alloc_cmds.empty()) {
+        AllocCommand &cmd = alloc_cmds.front();
+        if (cmd.is_alloc) {
+            handle_alloc(cmd);
+        } else {
+            handle_dealloc(cmd);
+        }
+        alloc_cmds.pop();
+    }
+
     std::stable_sort(std::begin(cmd_queue), std::end(cmd_queue),
                      RenderCommand::cmp);
 
     while (!cmd_queue.empty()) {
         RenderCommand &cmd = cmd_queue.front();
-        cmd_queue.pop_front();
         switch (cmd.type) {
             case RenderCommandType::UPDATE:
                 handle_update(cmd);
@@ -581,6 +746,7 @@ void RenderDeviceOpenGL::process() {
             default:
                 break;
         }
+        cmd_queue.pop_front();
     }
 }
 }  // namespace Seed

@@ -7,8 +7,9 @@
 namespace Seed {
 
 class RefCounted {
-    template <typename T>
-    friend class Ref;
+        template <typename T>
+        friend class Ref;
+
     private:
         std::atomic_uint rc;
         void init_ref() { rc = 1; }
@@ -43,7 +44,6 @@ class Ref {
 
         bool operator==(const Ref &other) { return this->data == other.data; }
         bool operator!=(const Ref &other) { return this->data != other.data; }
-
 
         void operator=(T *from) {
             if (from) {

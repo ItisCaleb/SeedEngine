@@ -3,47 +3,93 @@
 #include "render_device.h"
 #include "core/container/freelist.h"
 #include "core/rendering/api/render_pipeline.h"
+#include "core/handle.h"
+#include <glad/glad.h>
 #include <map>
+#include "core/rendering/api/render_common.h"
 
 namespace Seed {
-class RenderDeviceOpenGL : public RenderDevice {
-   private:
-    struct HardwareBufferGL{
-        u32 handle = -1;
+
+struct HardwareBufferGL {
+        GLuint handle;
         u64 size;
-    };
-    u32 global_vao;
-    u16 last_material = 0xffff;
-    /* uniform buffer */
-    std::map<std::string, RenderResource> constants;
-    u32 constant_cnt = 0;
-    std::map<u32, RenderResource> shaders;
-    FreeList<HardwareBufferGL> buffers;
-    void setup_rasterizer(RenderRasterizerState &state);
-    void setup_depth_stencil(RenderDepthStencilState &state);
-    void setup_blend(RenderBlendState&state);
-    void handle_update(RenderCommand &cmd);
-    void handle_state(RenderCommand &cmd);
-    void handle_render(RenderCommand &cmd);
-    void use_vertex_desc(VertexDescription *desc);
-    void bind_buffer(RenderResource *rc);
-   public:
-    RenderDeviceOpenGL();
-    ~RenderDeviceOpenGL() = default;
+};
 
-    void alloc_texture(RenderResource *rc, u32 w, u32 h, const void *data) override;
-    void alloc_vertex(RenderResource *rc, u32 stride, u32 element_cnt,
-        const void *data) override;
-    void alloc_indices(RenderResource *rc, IndexType type, u32 element_cnt,
-                                   void *data) override;
-    void alloc_shader(RenderResource *rc, const std::string &vertex_code,
-        const std::string &fragment_code,
-        const std::string &geometry_code, const std::string &tess_ctrl_code, const std::string &tess_eval_code) override;
-    void alloc_constant(RenderResource *rc, const std::string &name, u32 size,
-                        void *data) override;
-    void dealloc(RenderResource *r) override;
+struct HardwareIndexGL : public HardwareBufferGL{
+        IndexType type;
+};
 
-    void process() override;
+struct HardwareConstantGL: public HardwareBufferGL {
+        std::string name;
+        GLuint buffer_base;
+};
+
+struct HardwareTextureGL {
+        GLuint handle;
+        u32 w, h;
+        TextureType type;
+};
+
+struct HardwareShaderGL {
+        GLuint handle;
+        std::string vertex_src;
+        std::string geo_src;
+        std::string tess_ctrl_src;
+        std::string tess_eval_src;
+        std::string fragment_src;
+};
+
+class RenderDeviceOpenGL : public RenderDevice {
+    private:
+        struct AllocCommand {
+                Handle handle;
+                RenderResourceType type;
+                bool is_alloc;
+        };
+        GLuint global_vao;
+        u16 last_material = 0xffff;
+        std::queue<AllocCommand> alloc_cmds;
+
+        HandleOwner<HardwareBufferGL> buffers;
+        HandleOwner<HardwareIndexGL> indices;
+        HandleOwner<HardwareConstantGL> constants;
+        HandleOwner<HardwareTextureGL> textures;
+        HandleOwner<HardwareShaderGL> shaders;
+        std::vector<Handle> shader_in_use;
+
+        void setup_rasterizer(RenderRasterizerState &state);
+        void setup_depth_stencil(RenderDepthStencilState &state);
+        void setup_blend(RenderBlendState &state);
+        void handle_alloc(AllocCommand &cmd);
+        void handle_dealloc(AllocCommand &cmd);
+        GLuint convert_texture_type(TextureType type);
+        void handle_update(RenderCommand &cmd);
+        void handle_state(RenderCommand &cmd);
+        void handle_render(RenderCommand &cmd);
+        void use_vertex_desc(VertexDescription *desc);
+        void bind_buffer(RenderResource &rc);
+        void use_shader(RenderResource &rc);
+        void use_texture(u32 unit, RenderResource &rc);
+
+    public:
+        RenderDeviceOpenGL();
+        ~RenderDeviceOpenGL() = default;
+
+        void alloc_texture(RenderResource *rc, TextureType type, u32 w, u32 h) override;
+        void alloc_vertex(RenderResource *rc, u32 stride,
+                          u32 element_cnt) override;
+        void alloc_indices(RenderResource *rc, IndexType type,
+                           u32 element_cnt) override;
+        void alloc_shader(RenderResource *rc, const std::string &vertex_code,
+                          const std::string &fragment_code,
+                          const std::string &geometry_code,
+                          const std::string &tess_ctrl_code,
+                          const std::string &tess_eval_code) override;
+        void alloc_constant(RenderResource *rc, const std::string &name,
+                            u32 size) override;
+        void dealloc(RenderResource *r) override;
+
+        void process() override;
 };
 
 }  // namespace Seed

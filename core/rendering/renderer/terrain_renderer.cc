@@ -32,6 +32,8 @@ void TerrainRenderer::preprocess() {}
 void TerrainRenderer::process() {
     Window *window = SeedEngine::get_instance()->get_window();
     RenderCommandDispatcher dp(layer);
+            DEBUG_DISPATCH(dp);
+
     Ref<Terrain> terrain =
         SeedEngine::get_instance()->get_world()->get_terrain();
     if (terrain.is_null()) {

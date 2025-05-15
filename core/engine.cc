@@ -81,7 +81,7 @@ SeedEngine::SeedEngine(f32 target_fps) {
     instance = this;
 
     glfwSetErrorCallback(error_callback);
-
+    spdlog::set_level(spdlog::level::debug);
     spdlog::info("Initializing SeedEngine");
 
     if (!glfwInit()) {

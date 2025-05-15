@@ -7,11 +7,12 @@
 #include "core/rendering/api/render_pipeline.h"
 #include <queue>
 #include <stack>
+#include <fmt/format.h>
 
 namespace Seed {
 class RenderEngine;
 enum class RenderCommandType : u8 { STATE, UPDATE, RENDER };
-
+#define DEBUG_DISPATCH(_dp) _dp.set_scope(fmt::format("DEBUG: {}:{}", __FILE__, __LINE__))
 /*
  sort key structure
 |--------------------------------------------|
@@ -25,7 +26,7 @@ struct RenderCommand {
         u32 layer;
         RenderCommandType type;
         void *data;
-
+        std::string scope;
         static bool cmp(RenderCommand const &a, RenderCommand const &b) {
             return a.layer < b.layer;
         }
@@ -42,7 +43,7 @@ struct RenderDrawData {
         u64 sort_key;
         VertexData *vertices;
         Ref<Material> mat;
-        RenderResource *instance = nullptr;
+        RenderResource instance;
         u32 instance_cnt = 0;
         u32 index_cnt = 0;
         u32 index_offset = 0;
@@ -75,7 +76,7 @@ struct RenderStateData {
 
 struct RenderUpdateData {
         void *data;
-        RenderResource *dst_buffer;
+        RenderResource rc;
         struct {
                 u32 offset;
                 u32 size;
@@ -96,6 +97,7 @@ class RenderCommandDispatcher {
         u64 draw_key = 0;
         ViewportState viewport;
         std::vector<RenderDrawData *> ordered_draw_data;
+        std::string scope;
         inline void ensure_draw_begin();
         RenderCommand prepare_state_cmd();
         RenderCommand prepare_update_cmd();
@@ -103,6 +105,7 @@ class RenderCommandDispatcher {
     public:
         u64 gen_sort_key(f32 depth, u16 material_id);
         u64 gen_sort_key(f32 depth, RenderDrawData &data);
+        void set_scope(const std::string &scope);
 
         void clear(StateClearFlag flag);
         void set_viewport(f32 x, f32 y, f32 width, f32 height);
@@ -110,21 +113,21 @@ class RenderCommandDispatcher {
         void cancel_scissor();
 
         /* Will copy data to a temporary buffer.*/
-        void update_buffer(RenderResource *buffer, u32 offset, u32 size,
+        void update_buffer(RenderResource &buffer, u32 offset, u32 size,
                            void *data);
-        void *map_buffer(RenderResource *buffer, u32 offset, u32 size);
+        void *map_buffer(RenderResource &buffer, u32 offset, u32 size);
 
         /* Will copy data to a temporary buffer.*/
-        void update_texture(RenderResource *texture, u16 x_off, u16 y_off,
+        void update_texture(RenderResource &texture, u16 x_off, u16 y_off,
                             u16 w, u16 h, void *data);
-        void *map_texture(RenderResource *buffer, u16 x_off, u16 y_off, u16 w,
+        void *map_texture(RenderResource &buffer, u16 x_off, u16 y_off, u16 w,
                           u16 h);
 
         RenderDrawData generate_render_data(VertexData &vertices,
                                             Ref<Material> mat);
         RenderDrawData generate_render_data(VertexData &vertices,
                                             Ref<Material> mat,
-                                            RenderResource *instance,
+                                            RenderResource &instance,
                                             u32 instance_cnt);
         void begin_draw();
 

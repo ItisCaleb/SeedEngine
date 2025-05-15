@@ -138,7 +138,7 @@ Ref<Texture> ResourceLoader::_load(const std::string &path) {
         spdlog::warn("Can't load texture from {}", path);
         return texture;
     }
-    texture.create(w, h, (const u8 *)data);
+    texture.create(TextureType::TEXTURE_2D, w, h, (const u8 *)data);
 
     stbi_image_free(data);
     return texture;

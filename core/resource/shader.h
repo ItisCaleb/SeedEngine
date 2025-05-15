@@ -15,8 +15,8 @@ class Shader : public Resource {
                const std::string &tese = "") {
             shader.alloc_shader(vertex, frag, geom, tesc, tese);
         }
-        RenderResource *get_rc(){
-            return &shader;
+        RenderResource &ger_render_resource(){
+            return shader;
         }
         ~Shader(){
             shader.dealloc();
