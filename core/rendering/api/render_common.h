@@ -9,5 +9,11 @@ enum class TextureType{
     TEXTURE_2D_ARRAY
 };
 
+enum class TextureFormat{
+    FORMAT_R,
+    FORMAT_RG,
+    FORMAT_RGB,
+    FORMAT_RGBA
+};
 
 #endif

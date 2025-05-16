@@ -38,8 +38,9 @@ void LinearAllocator::free_all() {
     this->cur = 0;
 }
 LinearAllocator::LinearAllocator() {
-    this->memory_base = malloc(1024);
-    this->cap = 1024;
+    u64 size = 1024 * 1024 * 16;
+    this->memory_base = malloc(size);
+    this->cap = size;
 }
 LinearAllocator::~LinearAllocator() { free(this->memory_base); }
 }  // namespace Seed

@@ -52,18 +52,18 @@ class ResourceLoader {
             return ref_cast<T>(res);
         }
 
-        // template <typename T>
-        // Ref<AsyncResource<T>> load_async(const std::string &path) {
-        //     Ref<AsyncResource<T>> async_rc;
-        //     async_rc.create();
-        //     async_rc->work_id = ThreadPool::get_instance()->add_work(
-        //         [=](void*) mutable{
-        //             async_rc->resource = _load<T>(path);
-        //             async_rc->loaded = true;
-        //         },
-        //         nullptr);
-        //     return async_rc;
-        // }
+        template <typename T>
+        Ref<AsyncResource<T>> load_async(const std::string &path) {
+            Ref<AsyncResource<T>> async_rc;
+            async_rc.create();
+            async_rc->work_id = ThreadPool::get_instance()->add_work(
+                [=](void*) mutable{
+                    async_rc->resource = _load<T>(path);
+                    async_rc->loaded = true;
+                },
+                nullptr);
+            return async_rc;
+        }
 
         Ref<Shader> load_shader(const std::string &vertex_path,
                                 const std::string &fragment_path,

@@ -80,13 +80,13 @@ int main(void) {
     //         engine->get_world()->add_model_entity(ent);
     //     }
     // }
-    auto backpack = loader->load<Model>("assets/backpack/test.mdl");
-    auto terrain = loader->load<Terrain>("assets/iceland_heightmap.png");
-    ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, backpack);
+    auto backpack = loader->load_async<Model>("assets/backpack/test.mdl");
+    auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
+    ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, backpack->wait());
     engine->get_world()->add_entity(ent);
     engine->get_world()->add_model_entity(ent);
     engine->get_world()->add_entity<CameraEntity>();
-    engine->get_world()->set_terrain(terrain);
+    engine->get_world()->set_terrain(terrain->wait());
     WorkId id =  ThreadPool::get_instance()->add_work([=](void* data){
         OS::delay(3);
         printf("123\n");

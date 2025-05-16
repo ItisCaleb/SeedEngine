@@ -8,7 +8,7 @@
 #include "core/handle.h"
 
 namespace Seed {
-enum class RenderResourceType: u16 {
+enum class RenderResourceType: u8 {
     TEXTURE,
     VERTEX,
     INDEX,
@@ -17,8 +17,6 @@ enum class RenderResourceType: u16 {
     RENDER_TARGET,
     UNINITIALIZE
 };
-
-typedef u32 RenderResourceHandle;
 
 
 struct RenderResource {
@@ -39,6 +37,14 @@ struct RenderResource {
     void alloc_render_target();
     void dealloc();
     bool inited();
+
+    Handle get_handle(){
+        /* retrieve the right 24 bits */
+        return this->handle & 0xffffff;
+    }
+    RenderResourceType get_type(){
+        return static_cast<RenderResourceType>(this->handle >> 24);
+    }
 
     RenderResource() = default;
     ~RenderResource() = default;

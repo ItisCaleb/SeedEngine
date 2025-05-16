@@ -2,7 +2,7 @@
 
 layout (quads, fractional_odd_spacing, ccw) in;
 
-uniform sampler2D u_texture[8];  // the texture corresponding to our height map
+uniform sampler2D height_map;  // the texture corresponding to our height map
 layout (std140) uniform Matrices
 {
     mat4 u_projection;
@@ -39,7 +39,7 @@ void main()
     vec2 texCoord = (t1 - t0) * v + t0;
 
     // lookup texel at patch coordinate for height and scale + shift as desired
-    height = texture(u_texture[0], texCoord).y * 64.0 - 16.0;
+    height = texture(height_map, texCoord).y * 64.0 - 16.0;
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates

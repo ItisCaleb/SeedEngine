@@ -9,21 +9,31 @@ void CameraEntity::update(f32 dt) {
     Input *input = Input::get_instance();
     Vec3 pos = cam->get_position();
     f32 speed = 50 * dt;
+    Vec3 front = cam->get_front();
+    front.y = 0;
+    front = front.norm();
     if (input->is_key_pressed(KeyCode::W)) {
-        pos += cam->get_front() * speed;
+        pos += front * speed;
     }
 
     if (input->is_key_pressed(KeyCode::S)) {
-        pos -= cam->get_front() * speed;
+        pos -= front * speed;
     }
 
     if (input->is_key_pressed(KeyCode::D)) {
-        pos += cam->get_front().cross(cam->get_up()) * speed;
+        pos += front.cross(cam->get_up()) * speed;
     }
 
     if (input->is_key_pressed(KeyCode::A)) {
-        pos -= cam->get_front().cross(cam->get_up()) * speed;
+        pos -= front.cross(cam->get_up()) * speed;
     }
+    if (input->is_key_pressed(KeyCode::SPACE)){
+        pos += cam->get_up() * speed;
+    }
+        if (input->is_key_pressed(KeyCode::X)){
+        pos -= cam->get_up() * speed;
+    }
+
     cam->set_position(pos);
 }
 

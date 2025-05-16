@@ -3,6 +3,7 @@
 #include <glad/glad.h>
 #include <spdlog/spdlog.h>
 #include "core/macro.h"
+#include <regex>
 
 namespace Seed {
 
@@ -138,6 +139,30 @@ void RenderDeviceOpenGL::dealloc(RenderResource *r) {
     this->alloc_cmds.push(
         AllocCommand{.handle = r->handle, .type = r->type, .is_alloc = false});
 }
+void RenderDeviceOpenGL::find_samplers(const std::string &src,
+                                       std::vector<std::string> &result) {
+    std::regex sampler_regex(
+        R"(\b(?:uniform\s+)?sampler\w*\s+(\w+)(\s*\[\s*(\d+)\s*\])?)");
+    std::smatch match;
+
+    std::string::const_iterator search_start(src.cbegin());
+    while (std::regex_search(search_start, src.cend(), match, sampler_regex)) {
+        /* retrive name */
+        std::string name = match[1];
+        /* check if is array */
+        std::string array_size_str = match[3];
+
+        if (!array_size_str.empty()) {
+            i32 array_size = std::stoi(array_size_str);
+            for (i32 i = 0; i < array_size; ++i) {
+                result.push_back(fmt::format("{}[{}]", name, i));
+            }
+        } else {
+            result.push_back(name);
+        }
+        search_start = match.suffix().first;
+    }
+}
 
 void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
     switch (cmd.type) {
@@ -169,7 +194,7 @@ void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
             glGenBuffers(1, &constant->handle);
             glBindBuffer(GL_UNIFORM_BUFFER, constant->handle);
             glBufferData(GL_UNIFORM_BUFFER, constant->size, nullptr,
-                         GL_STATIC_DRAW);
+                         GL_DYNAMIC_DRAW);
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
             glBindBufferBase(GL_UNIFORM_BUFFER, cmd.handle, constant->handle);
             constant->buffer_base = cmd.handle;
@@ -213,6 +238,7 @@ void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
             const char *geo_c = shader->geo_src.c_str();
             const char *tess_ctrl_c = shader->tess_ctrl_src.c_str();
             const char *tess_eval_c = shader->tess_eval_src.c_str();
+            std::vector<std::string> samplers;
 
             /* vertex shader */
             vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -224,6 +250,7 @@ void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
                 throw std::runtime_error(info);
             }
             glAttachShader(program, vertex);
+            find_samplers(shader->vertex_src, samplers);
 
             /* fragment shader */
             fragment = glCreateShader(GL_FRAGMENT_SHADER);
@@ -235,6 +262,7 @@ void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
                 throw std::runtime_error(info);
             }
             glAttachShader(program, fragment);
+            find_samplers(shader->fragment_src, samplers);
 
             /* optional geometry shader */
             if (shader->geo_src.size() > 0) {
@@ -247,6 +275,7 @@ void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
                     throw std::runtime_error(info);
                 }
                 glAttachShader(program, geometry);
+                find_samplers(shader->geo_src, samplers);
             }
 
             /* optional tesselation shader */
@@ -272,6 +301,9 @@ void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
                 }
                 glAttachShader(program, tess_ctrl);
                 glAttachShader(program, tess_eval);
+                find_samplers(shader->tess_ctrl_src, samplers);
+                find_samplers(shader->tess_eval_src, samplers);
+
             } else if (shader->tess_ctrl_src.size() == 0 &&
                            shader->tess_eval_src.size() > 0 ||
                        shader->tess_ctrl_src.size() > 0 &&
@@ -289,6 +321,11 @@ void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
             glDeleteShader(vertex);
             glDeleteShader(fragment);
             shader->handle = program;
+            for (i32 i = 0; i < samplers.size(); i++) {
+                u32 loc =
+                    glGetUniformLocation(shader->handle, samplers[i].c_str());
+                glUniform1i(loc, i);
+            }
             break;
         }
 
@@ -490,12 +527,6 @@ void RenderDeviceOpenGL::use_shader(RenderResource &rc) {
     HardwareShaderGL *shader = this->shaders.get_or_null(rc.handle);
     EXPECT_NOT_NULL_RET(shader);
     glUseProgram(shader->handle);
-    for (int i = 0; i < 8; i++) {
-        std::string name = fmt::format("u_texture[{}]", i);
-        u32 loc = glGetUniformLocation(shader->handle, name.c_str());
-        if (loc == -1) break;
-        glUniform1i(loc, i);
-    }
 }
 void RenderDeviceOpenGL::use_texture(u32 unit, RenderResource &rc) {
     HardwareTextureGL *tex = this->textures.get_or_null(rc.handle);
@@ -633,7 +664,7 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
     }
     if (this->pipeline != draw_data->pipeline) {
         this->pipeline = draw_data->pipeline;
-        use_shader(this->pipeline->shader->ger_render_resource());
+        use_shader(this->pipeline->shader->get_render_resource());
         setup_rasterizer(this->pipeline->rst_state);
         setup_depth_stencil(this->pipeline->depth_state);
         setup_blend(this->pipeline->blend_state);
