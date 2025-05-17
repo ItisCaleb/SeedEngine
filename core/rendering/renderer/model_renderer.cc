@@ -8,6 +8,26 @@
 
 namespace Seed {
 
+Vec3 skyboxVertices[] = {
+    // positions
+    -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f,
+    1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f,
+
+    -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f,
+    -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,
+
+    1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,
+    1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f,
+
+    -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,
+    1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,
+
+    -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,
+    1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f,
+
+    -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f,
+    1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f};
+
 void ModelRenderer::init_color() {
     ResourceLoader *loader = ResourceLoader::get_instance();
 
@@ -23,6 +43,7 @@ void ModelRenderer::init_color() {
 
     RenderRasterizerState rst_state;
     RenderDepthStencilState depth_state = {.depth_on = true};
+
     RenderBlendState blend_state;
 
     this->color_pipeline.create(color_shader, &color_desc,
@@ -62,6 +83,17 @@ void ModelRenderer::init_debugging() {
 void ModelRenderer::init() {
     init_color();
     init_debugging();
+    ResourceLoader *loader = ResourceLoader::get_instance();
+    RenderRasterizerState rst_state;
+    RenderDepthStencilState depth_state;
+    RenderBlendState blend_state;
+    Ref<Shader> sky_shader =
+        loader->load_shader("assets/sky.vert", "assets/sky.frag");
+    sky_desc.add_attr(0, VertexAttributeType::FLOAT, 3, 0);
+    sky_pipeline.create(sky_shader, &sky_desc, RenderPrimitiveType::TRIANGLES,
+                        rst_state, depth_state, blend_state);
+    sky_vert.alloc_vertex(sizeof(Vec3), (sizeof(skyboxVertices) / sizeof(Vec3)),
+                          skyboxVertices);
 }
 
 void ModelRenderer::preprocess() {
@@ -85,25 +117,29 @@ void ModelRenderer::preprocess() {
 void ModelRenderer::process() {
     Window *window = SeedEngine::get_instance()->get_window();
     RenderCommandDispatcher dp(layer);
-            DEBUG_DISPATCH(dp);
+    DEBUG_DISPATCH(dp);
+    dp.set_viewport(0, 0, window->get_width(), window->get_height());
+    dp.begin_draw();
+        auto sky = SeedEngine::get_instance()->get_world()->get_sky();
 
+    RenderDrawData sky_data =
+        dp.generate_render_data(sky_vert, sky->get_material());
+    dp.render(&sky_data, sky_pipeline, 0);
+    dp.end_draw();
     dp.begin_draw();
     for (auto &[model, instances] : model_instances) {
         if (instances.empty()) {
             continue;
         }
 
-        dp.update_buffer(model->instance_rc, 0,
-                         sizeof(Mat4) * instances.size(),
+        dp.update_buffer(model->instance_rc, 0, sizeof(Mat4) * instances.size(),
                          (void *)instances.data());
         for (Ref<Mesh> mesh : model->meshes) {
-            RenderDrawData data = dp.generate_render_data(
-                mesh->vertex_data, mesh->get_material(), model->instance_rc,
-                instances.size());
-            dp.draw_set_viewport(data, 0, 0, window->get_width(),
-                            window->get_height());
+            RenderDrawData data =
+                dp.generate_render_data(mesh->vertex_data, mesh->get_material(),
+                                        model->instance_rc, instances.size());
 
-            dp.render(&data, color_pipeline, 0);
+            dp.render(&data, color_pipeline, 0.1);
         }
     }
     dp.end_draw();
@@ -118,8 +154,9 @@ void ModelRenderer::process() {
                                 aabb_vertices.get_vertices());
     dp.begin_draw();
 
-    dp.render(&aabb_data, debug_pipeline, 0.1);
+    dp.render(&aabb_data, debug_pipeline, 0.2);
     dp.end_draw();
+
 }
 void ModelRenderer::cleanup() {
     for (auto &[model, instances] : model_instances) {

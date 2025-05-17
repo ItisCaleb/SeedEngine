@@ -6,10 +6,12 @@
 #include "core/rendering/model_file.h"
 #include <filesystem>
 #include <type_traits>
+#include <nlohmann/json.hpp>
 
 #include "core/resource/model.h"
 #include "core/resource/terrain.h"
 #include "core/resource/texture.h"
+#include "core/resource/sky.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -126,6 +128,35 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
     }
     model.create(meshs, model_header.bounding_box);
     return model;
+}
+
+template <>
+Ref<Sky> ResourceLoader::_load(const std::string &path) {
+    Ref<Sky> sky;
+    Ref<File> json_file = File::open(path);
+    if (json_file.is_null()) {
+        SPDLOG_ERROR("Can't open json from {}", path);
+        return sky;
+    }
+    nlohmann::json j = json_file->read_json();
+    std::vector<u8 *> texture;
+    texture.resize(6);
+    int w, h, comp;
+    for (auto tex_field : j) {
+        u32 face = tex_field["face"];
+        std::string tex_path = tex_field["path"];
+        std::string r_tex_path =
+            std::filesystem::path(path).parent_path().append(tex_path);
+        u8 *data = stbi_load(r_tex_path.c_str(), &w, &h, &comp, 4);
+        if (!data) {
+            spdlog::warn("Can't load texture from {}", r_tex_path);
+            return sky;
+        }
+        texture[face] = data;
+    }
+    sky.create(w, h, texture[0],texture[1],texture[2],texture[3],texture[4],texture[5]);
+
+    return sky;
 }
 
 template <>

@@ -57,7 +57,6 @@ class RenderDeviceOpenGL : public RenderDevice {
         HandleOwner<HardwareShaderGL> shaders;
         std::vector<Handle> shader_in_use;
         void find_samplers(const std::string& src, std::vector<std::string> &result);
-        void resolve_shader(HardwareShaderGL &shader);
         void setup_rasterizer(RenderRasterizerState &state);
         void setup_depth_stencil(RenderDepthStencilState &state);
         void setup_blend(RenderBlendState &state);

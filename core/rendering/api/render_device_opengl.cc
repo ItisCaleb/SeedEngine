@@ -216,12 +216,18 @@ void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
             GLuint type = convert_texture_type(tex->type);
             glGenTextures(1, &tex->handle);
             glBindTexture(type, tex->handle);
-            glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_REPEAT);
-            glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexImage2D(type, 0, GL_RGBA, tex->w, tex->h, 0, GL_RGBA,
-                         GL_UNSIGNED_BYTE, nullptr);
+            if (tex->type == TextureType::TEXTURE_CUBEMAP) {
+                /* we don't allocate for cube map*/
+                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R,
+                                GL_CLAMP_TO_EDGE);
+            } else {
+                glTexImage2D(type, 0, GL_RGBA, tex->w, tex->h, 0, GL_RGBA,
+                             GL_UNSIGNED_BYTE, nullptr);
+            }
             glGenerateMipmap(type);
             glBindTexture(type, 0);
             break;
@@ -417,19 +423,26 @@ void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
             }
             break;
         }
-        case RenderResourceType::TEXTURE:
-
-        {
+        case RenderResourceType::TEXTURE: {
             HardwareTextureGL *tex = this->textures.get_or_null(buffer.handle);
             EXPECT_NOT_NULL_RET(tex);
             GLuint type = convert_texture_type(tex->type);
             glBindTexture(type, tex->handle);
-            glTexSubImage2D(type, 0, update_data->texture.x_off,
-                            update_data->texture.y_off, update_data->texture.w,
-                            update_data->texture.h, GL_RGBA, GL_UNSIGNED_BYTE,
-                            update_data->data);
+            if (tex->type == TextureType::TEXTURE_CUBEMAP) {
+                glTexImage2D(
+                    GL_TEXTURE_CUBE_MAP_POSITIVE_X + update_data->texture.face,
+                    0, GL_RGBA, update_data->texture.w, update_data->texture.h,
+                    0, GL_RGBA, GL_UNSIGNED_BYTE, update_data->data);
+            } else {
+                glTexSubImage2D(type, 0, update_data->texture.x_off,
+                                update_data->texture.y_off,
+                                update_data->texture.w, update_data->texture.h,
+                                GL_RGBA, GL_UNSIGNED_BYTE, update_data->data);
+            }
+
             glBindTexture(type, 0);
-        } break;
+            break;
+        }
         case RenderResourceType::CONSTANT: {
             HardwareConstantGL *constant =
                 this->constants.get_or_null(buffer.handle);
@@ -445,7 +458,8 @@ void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
                                 update_data->buffer.size, update_data->data);
             }
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
-        } break;
+            break;
+        }
         case RenderResourceType::INDEX: {
             HardwareIndexGL *index = this->indices.get_or_null(buffer.handle);
             EXPECT_NOT_NULL_RET(index);
@@ -461,7 +475,8 @@ void RenderDeviceOpenGL::handle_update(RenderCommand &cmd) {
                                 update_data->buffer.size, update_data->data);
             }
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-        } break;
+            break;
+        }
         default:
             break;
     }
@@ -538,21 +553,34 @@ void RenderDeviceOpenGL::use_texture(u32 unit, RenderResource &rc) {
 
 void RenderDeviceOpenGL::setup_rasterizer(RenderRasterizerState &state) {
     switch (state.cull_mode) {
-        case RenderRasterizerState::Cullmode::FRONT:
+        case Cullmode::FRONT:
             glEnable(GL_CULL_FACE);
             glCullFace(GL_FRONT);
             break;
-        case RenderRasterizerState::Cullmode::BACK:
+        case Cullmode::BACK:
             glEnable(GL_CULL_FACE);
             glCullFace(GL_BACK);
             break;
-        case RenderRasterizerState::Cullmode::BOTH:
+        case Cullmode::BOTH:
             glEnable(GL_CULL_FACE);
-            glCullFace(GL_FRONT);
+            glCullFace(GL_FRONT_AND_BACK);
             break;
-        case RenderRasterizerState::Cullmode::NONE:
+        case Cullmode::NONE:
         default:
             glDisable(GL_CULL_FACE);
+            break;
+    }
+    switch (state.poly_mode) {
+        case PolygonMode::POINT:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+            break;
+        case PolygonMode::LINE:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            break;
+        case PolygonMode::FILL:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            break;
+        default:
             break;
     }
     glPatchParameteri(GL_PATCH_VERTICES, state.patch_control_points);

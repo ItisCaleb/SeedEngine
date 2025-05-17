@@ -118,7 +118,8 @@ void RenderCommandDispatcher::update_texture(RenderResource &texture, u16 x_off,
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
-        RenderEngine::get_instance()->get_mem_pool()->alloc_data(w * h * 4, data);
+        RenderEngine::get_instance()->get_mem_pool()->alloc_data(w * h * 4,
+                                                                 data);
     update_data->rc = texture;
     update_data->texture.x_off = x_off;
     update_data->texture.y_off = y_off;
@@ -144,6 +145,30 @@ void *RenderCommandDispatcher::map_texture(RenderResource &texture, u16 x_off,
 
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
     return update_data->data;
+}
+
+void RenderCommandDispatcher::update_cubemap(RenderResource &texture, u8 face,
+                                             u16 x_off, u16 y_off, u16 w, u16 h,
+                                             void *data) {
+    if (texture.type != RenderResourceType::TEXTURE) return;
+    if(face >= 6){
+        SPDLOG_ERROR("Face is invalid.");
+        return;
+    }
+    RenderCommand cmd = prepare_update_cmd();
+    RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
+
+    update_data->data =
+        RenderEngine::get_instance()->get_mem_pool()->alloc_data(w * h * 4,
+                                                                 data);
+    update_data->rc = texture;
+    update_data->texture.x_off = x_off;
+    update_data->texture.y_off = y_off;
+    update_data->texture.w = w;
+    update_data->texture.h = h;
+    update_data->texture.face = face;
+
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
 RenderDrawData RenderCommandDispatcher::generate_render_data(
@@ -198,6 +223,10 @@ void RenderCommandDispatcher::draw_set_viewport(RenderDrawData &rdd, f32 x,
 
 void RenderCommandDispatcher::end_draw() {
     ensure_draw_begin();
+    std::sort(this->ordered_draw_data.begin(), this->ordered_draw_data.end(),
+              [](RenderDrawData *a, RenderDrawData *b) {
+                  return a->sort_key < b->sort_key;
+              });
     for (RenderDrawData *rdd : this->ordered_draw_data) {
         RenderCommand cmd;
         cmd.layer = layer;
@@ -232,8 +261,8 @@ void RenderCommandDispatcher::render(RenderDrawData *data,
     RenderDrawData *draw_data = RenderEngine::get_instance()
                                     ->get_mem_pool()
                                     ->alloc_new<RenderDrawData>();
-
     *draw_data = *data;
+    draw_data->sort_key = gen_sort_key(depth, *draw_data);
     draw_data->pipeline = pipeline;
     ordered_draw_data.push_back(draw_data);
 }

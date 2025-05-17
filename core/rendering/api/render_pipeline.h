@@ -7,15 +7,13 @@
 namespace Seed {
 
 enum class RenderPrimitiveType { LINES, TRIANGLES, POINTS, PATCHES };
+enum class PolygonMode { POINT, LINE, FILL };
+enum class Cullmode { NONE, FRONT, BACK, BOTH };
 
 struct RenderRasterizerState {
-        enum class Cullmode {
-            NONE,
-            FRONT,
-            BACK,
-            BOTH
-        } cull_mode = Cullmode::NONE;
+        Cullmode cull_mode = Cullmode::NONE;
         u32 patch_control_points = 1;
+        PolygonMode poly_mode = PolygonMode::FILL;
 };
 
 struct RenderDepthStencilState {

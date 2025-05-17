@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 #include <fmt/core.h>
 #include "render_engine.h"
+#include <spdlog/spdlog.h>
 
 namespace Seed {
 
@@ -10,6 +11,10 @@ void RenderResource::alloc_texture(TextureType type, u32 w, u32 h,
     this->type = RenderResourceType::TEXTURE;
     RenderEngine::get_instance()->get_device()->alloc_texture(this, type, w, h);
     if (data) {
+        if (type == TextureType::TEXTURE_CUBEMAP) {
+            SPDLOG_WARN("Cubemap texture will not updload data at allocation.");
+            return;
+        }
         RenderCommandDispatcher dp(0);
         DEBUG_DISPATCH(dp);
         dp.update_texture(*this, 0, 0, w, h, (void *)data);

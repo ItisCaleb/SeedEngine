@@ -6,6 +6,7 @@
 #include <spdlog/spdlog.h>
 #include "core/concurrency/thread_pool.h"
 #include "core/os.h"
+#include "core/resource/sky.h"
 
 using namespace Seed;
 
@@ -82,11 +83,13 @@ int main(void) {
     // }
     auto backpack = loader->load_async<Model>("assets/backpack/test.mdl");
     auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
-    ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, backpack->wait());
+    auto sky = loader->load<Sky>("assets/sky.json");
+    ModelEntity *ent = new ModelEntity(Vec3{0, 20, -5}, backpack->wait());
     engine->get_world()->add_entity(ent);
     engine->get_world()->add_model_entity(ent);
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->set_terrain(terrain->wait());
+    engine->get_world()->set_sky(sky);
     WorkId id =  ThreadPool::get_instance()->add_work([=](void* data){
         OS::delay(3);
         printf("123\n");

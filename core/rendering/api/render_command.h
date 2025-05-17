@@ -87,6 +87,7 @@ struct RenderUpdateData {
                 u16 y_off;
                 u16 w;
                 u16 h;
+                u8 face;
         } texture;
 };
 
@@ -122,6 +123,8 @@ class RenderCommandDispatcher {
                             u16 w, u16 h, void *data);
         void *map_texture(RenderResource &buffer, u16 x_off, u16 y_off, u16 w,
                           u16 h);
+        void update_cubemap(RenderResource &texture, u8 face, u16 x_off, u16 y_off,
+                            u16 w, u16 h, void *data);
 
         RenderDrawData generate_render_data(VertexData &vertices,
                                             Ref<Material> mat);

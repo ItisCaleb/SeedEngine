@@ -1,0 +1,26 @@
+[
+    {
+        "face": 0,
+        "path": "skybox/right.jpg"
+    },
+    {
+        "face": 1,
+        "path": "skybox/left.jpg"
+    },
+    {
+        "face": 2,
+        "path": "skybox/top.jpg"
+    },
+    {
+        "face": 3,
+        "path": "skybox/bottom.jpg"
+    },
+    {
+        "face": 4,
+        "path": "skybox/front.jpg"
+    },
+    {
+        "face": 5,
+        "path": "skybox/back.jpg"
+    }
+]

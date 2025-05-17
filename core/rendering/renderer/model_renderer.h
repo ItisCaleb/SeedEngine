@@ -18,6 +18,9 @@ class ModelRenderer : public Renderer {
 
 
     Ref<RenderPipeline> color_pipeline;
+    Ref<RenderPipeline> sky_pipeline;
+    VertexDescription sky_desc;
+    VertexData sky_vert;
     
     /* for debugging */
     Ref<RenderPipeline> debug_pipeline;

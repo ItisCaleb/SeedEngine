@@ -7,6 +7,8 @@ std::vector<ModelEntity *> &World::get_model_entities() {
 }
 
 Ref<Terrain> World::get_terrain() { return terrain; }
+Ref<Sky> World::get_sky() { return sky; }
+
 
 void World::add_entity(Entity *entity) { this->entities.push_back(entity); }
 
@@ -15,6 +17,10 @@ void World::add_model_entity(ModelEntity *entity) {
 }
 
 void World::set_terrain(Ref<Terrain> terrain) { this->terrain = terrain; }
+
+void World::set_sky(Ref<Sky> sky) {
+    this->sky = sky;
+}
 
 void World::tick(f32 dt) {
     for (Entity *e : this->entities) {

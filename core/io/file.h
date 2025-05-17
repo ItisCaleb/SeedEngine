@@ -8,7 +8,9 @@
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 #include <filesystem>
+#include <nlohmann/json.hpp>
 namespace Seed {
+    
 class File : public RefCounted {
    private:
     FILE *file;
@@ -17,7 +19,7 @@ class File : public RefCounted {
     u64 write_cnt;
 
    public:
-    static Ref<File> open(const std::string &path, const char *mode) {
+    static Ref<File> open(const std::string &path, const char *mode = "rb") {
         std::string fullpath = std::filesystem::absolute(path).string();
         FILE *f = fopen(fullpath.c_str(), mode);
         if (!f) {
@@ -55,6 +57,10 @@ class File : public RefCounted {
             read_cnt += size;
             fread((void *)data, 1, size, file);
         }
+    }
+
+    nlohmann::json read_json(){
+        return nlohmann::json::parse(file);
     }
 
     template<typename T>
