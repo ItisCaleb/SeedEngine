@@ -75,6 +75,10 @@ void Model::processMesh(aiMesh *mesh, const aiScene *scene) {
         model_mat.diffuse = loadMaterialTextures(mat, aiTextureType_DIFFUSE);
         model_mat.specular = loadMaterialTextures(mat, aiTextureType_SPECULAR);
         model_mat.normal = loadMaterialTextures(mat, aiTextureType_NORMALS);
+        if(model_mat.normal == -1){
+            /* we try to load heightmap instead*/
+            model_mat.normal = loadMaterialTextures(mat, aiTextureType_HEIGHT);
+        }
 
         for (int i = 0; i < materials.size(); i++) {
             if (materials[i] == model_mat) {

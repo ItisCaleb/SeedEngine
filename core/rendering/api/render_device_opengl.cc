@@ -147,6 +147,14 @@ void RenderDeviceOpenGL::alloc_pipeline(
     rc->handle = this->pipelines.insert(pl);
 }
 
+void RenderDeviceOpenGL::alloc_render_target(RenderResource *rc) {
+    rc->handle = this->render_targets.insert({});
+    this->alloc_cmds.push(
+        AllocCommand{.handle = rc->handle,
+                     .type = RenderResourceType::RENDER_TARGET,
+                     .is_alloc = true});
+}
+
 void RenderDeviceOpenGL::dealloc(RenderResource *r) {
     this->alloc_cmds.push(
         AllocCommand{.handle = r->handle, .type = r->type, .is_alloc = false});
@@ -243,6 +251,11 @@ void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
             glGenerateMipmap(type);
             glBindTexture(type, 0);
             break;
+        }
+        case RenderResourceType::RENDER_TARGET: {
+            HardwareRenderTargetGL *rt = this->render_targets.get_or_null(cmd.handle);
+            EXPECT_NOT_NULL_RET(rt);
+            glGenFramebuffers(1, &rt->handle);
         }
         case RenderResourceType::SHADER: {
             HardwareShaderGL *shader = this->shaders.get_or_null(cmd.handle);
@@ -388,29 +401,34 @@ void RenderDeviceOpenGL::handle_dealloc(AllocCommand &cmd) {
         case RenderResourceType::INDEX: {
             HardwareIndexGL *index = this->indices.get_or_null(cmd.handle);
             EXPECT_NOT_NULL_RET(index);
-
-            if (index) {
-                glDeleteBuffers(1, &index->handle);
-                this->indices.remove(cmd.handle);
-            }
-        } break;
+            glDeleteBuffers(1, &index->handle);
+            this->indices.remove(cmd.handle);
+            break;
+        }
         case RenderResourceType::TEXTURE: {
             HardwareTextureGL *tex = this->textures.get_or_null(cmd.handle);
             EXPECT_NOT_NULL_RET(tex);
-            if (tex) {
-                glDeleteBuffers(1, &tex->handle);
-                this->textures.remove(cmd.handle);
-            }
-        } break;
+            glDeleteBuffers(1, &tex->handle);
+            this->textures.remove(cmd.handle);
+            break;
+        }
         case RenderResourceType::SHADER: {
             HardwareShaderGL *shader = this->shaders.get_or_null(cmd.handle);
             EXPECT_NOT_NULL_RET(shader);
-
-            if (shader) {
-                glDeleteProgram(shader->handle);
-                this->shaders.remove(cmd.handle);
-            }
-        } break;
+            glDeleteProgram(shader->handle);
+            this->shaders.remove(cmd.handle);
+            break;
+        }
+        case RenderResourceType::PIPELINE: {
+            this->shaders.remove(cmd.handle);
+            break;
+        }
+        case RenderResourceType::RENDER_TARGET: {
+            HardwareRenderTargetGL *rt =
+                this->render_targets.get_or_null(cmd.handle);
+            EXPECT_NOT_NULL_RET(rt);
+            glDeleteFramebuffers(1, &rt->handle);
+        }
         default:
             break;
     }

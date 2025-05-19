@@ -45,6 +45,10 @@ struct HardwarePipelineGL {
         RenderBlendState blend_state;
 };
 
+struct HardwareRenderTargetGL {
+        GLuint handle;
+};
+
 class RenderDeviceOpenGL : public RenderDevice {
     private:
         struct AllocCommand {
@@ -62,18 +66,25 @@ class RenderDeviceOpenGL : public RenderDevice {
         HandleOwner<HardwareShaderGL> shaders;
         std::vector<Handle> shader_in_use;
         HandleOwner<HardwarePipelineGL> pipelines;
+        HandleOwner<HardwareRenderTargetGL> render_targets;
 
         void find_samplers(const std::string &src,
                            std::vector<std::string> &result);
+        GLuint convert_texture_type(TextureType type);
+
+        /* state setup */
         void setup_rasterizer(const RenderRasterizerState &state);
         void setup_depth_stencil(const RenderDepthStencilState &state);
         void setup_blend(const RenderBlendState &state);
+
+        /* allocating and drawing commands */
         void handle_alloc(AllocCommand &cmd);
         void handle_dealloc(AllocCommand &cmd);
-        GLuint convert_texture_type(TextureType type);
         void handle_update(RenderCommand &cmd);
         void handle_state(RenderCommand &cmd);
         void handle_render(RenderCommand &cmd);
+
+        /* binding operations */
         void use_vertex_desc(VertexDescription *desc);
         void bind_buffer(RenderResource &rc);
         void use_shader(RenderResource &rc);
@@ -83,6 +94,7 @@ class RenderDeviceOpenGL : public RenderDevice {
         RenderDeviceOpenGL();
         ~RenderDeviceOpenGL() = default;
 
+        /* we defer the allocation to allow multithreading. */
         void alloc_texture(RenderResource *rc, TextureType type, u32 w,
                            u32 h) override;
         void alloc_vertex(RenderResource *rc, u32 stride,
@@ -100,6 +112,7 @@ class RenderDeviceOpenGL : public RenderDevice {
                             const RenderRasterizerState &rst_state,
                             const RenderDepthStencilState &depth_state,
                             const RenderBlendState &blend_state) override;
+        void alloc_render_target(RenderResource *rc) override;
         void dealloc(RenderResource *r) override;
 
         void process() override;

@@ -81,30 +81,17 @@ int main(void) {
     //          engine->get_world()->add_model_entity(ent);
     //      }
     //  }
-    auto backpack = loader->load_async<Model>("assets/backpack/test.mdl");
     auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
-    auto sky = loader->load<Sky>("assets/sky.json");
-    ModelEntity *ent = new ModelEntity(Vec3{0, 20, -5}, backpack->wait());
-    engine->get_world()->add_entity(ent);
-    engine->get_world()->add_model_entity(ent);
+    auto sky = loader->load_async<Sky>("assets/sky.json");
+    auto backpack = loader->load_async<Model>("assets/backpack/test.mdl", [=](Ref<Model> rc){
+        ModelEntity *ent = new ModelEntity(Vec3{0, 20, -5}, rc);
+        engine->get_world()->add_entity(ent);
+        engine->get_world()->add_model_entity(ent);
+    });
+
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->set_terrain(terrain->wait());
-    engine->get_world()->set_sky(sky);
-    WorkId id = ThreadPool::get_instance()->add_work(
-        [=](void *data) {
-            OS::delay(3);
-            printf("123\n");
-        },
-        nullptr);
-
-    ThreadPool::get_instance()->add_work(
-        [=](void *data) {
-            OS::delay(1);
-            ThreadPool::get_instance()->wait(id);
-            printf("waiting done\n");
-            printf("456\n");
-        },
-        nullptr);
+    engine->get_world()->set_sky(sky->wait());
 
     engine->start();
 

@@ -53,13 +53,18 @@ class ResourceLoader {
         }
 
         template <typename T>
-        Ref<AsyncResource<T>> load_async(const std::string &path) {
+        Ref<AsyncResource<T>> load_async(
+            const std::string &path,
+            std::function<void(Ref<T>)> callback = {}) {
             Ref<AsyncResource<T>> async_rc;
             async_rc.create();
             async_rc->work_id = ThreadPool::get_instance()->add_work(
                 [=](void *) mutable {
                     async_rc->resource = _load<T>(path);
                     async_rc->loaded = true;
+                    if (callback) {
+                        callback(async_rc->resource);
+                    }
                 },
                 nullptr);
             return async_rc;
