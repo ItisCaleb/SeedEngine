@@ -1,3 +1,1 @@
-clang-format -i core/*.cc core/*.h \
-                game/**/*.cc game/**/*.h \
-                editor/**/*.cc editor/**/*.h
+find core/** editor/** game/** -iname '*.h' -o -iname '*.cc' | xargs clang-format -i

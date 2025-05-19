@@ -6,6 +6,7 @@
 #include "core/resource/resource_loader.h"
 #include "core/gui/gui_engine.h"
 #include "core/concurrency/thread_pool.h"
+#include "core/resource/default_storage.h"
 #include "types.h"
 #include <spdlog/spdlog.h>
 #include <stdio.h>
@@ -38,7 +39,9 @@ void SeedEngine::init_systems() {
     input_handler.init(this->window);
     GuiEngine *gui = new GuiEngine(this->window);
     RenderEngine *render_engine = new RenderEngine(window);
+    DefaultStorage *storage = new DefaultStorage();
     ThreadPool *pool = new ThreadPool(OS::cpu_count());
+    render_engine->init();
     this->world = new World;
 }
 

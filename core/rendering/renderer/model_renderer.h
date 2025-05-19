@@ -5,38 +5,30 @@
 #include "core/rendering/vertex_data.h"
 #include <unordered_map>
 #include "core/resource/model.h"
-#include "core/rendering/api/render_pipeline.h"
 
 namespace Seed {
 class ModelRenderer : public Renderer {
-    friend RenderEngine;
+        friend RenderEngine;
 
-   private:
-    std::unordered_map<Model *, std::vector<Mat4>> model_instances;
-    VertexDescription color_desc;
-    VertexDescription instance_desc;
+    private:
+        std::unordered_map<Model *, std::vector<Mat4>> model_instances;
+        VertexDescription instance_desc;
 
+        VertexData sky_vert;
 
-    Ref<RenderPipeline> color_pipeline;
-    Ref<RenderPipeline> sky_pipeline;
-    VertexDescription sky_desc;
-    VertexData sky_vert;
-    
-    /* for debugging */
-    Ref<RenderPipeline> debug_pipeline;
+        /* for debugging */
 
-    std::vector<AABB> entity_aabb;
-    VertexData aabb_vertices;
-    VertexDescription aabb_desc;
+        std::vector<AABB> entity_aabb;
+        VertexData aabb_vertices;
+        VertexDescription aabb_desc;
 
-
-    void init_color();
-    void init_debugging();
-    void init() override;
-    void preprocess() override;
-    void process() override;
-    void cleanup() override;
-    ModelRenderer(u8 layer):Renderer(layer){}
+        void init_color();
+        void init_debugging();
+        void init() override;
+        void preprocess() override;
+        void process() override;
+        void cleanup() override;
+        ModelRenderer(u8 layer) : Renderer(layer) {}
 };
 }  // namespace Seed
 

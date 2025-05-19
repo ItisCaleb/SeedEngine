@@ -9,12 +9,13 @@ namespace Seed {
 class RenderDevice {
     protected:
         std::deque<RenderCommand> cmd_queue;
-        Ref<RenderPipeline> pipeline;
+        RenderResource current_pipeline;
 
     public:
         RenderDevice(/* args */) = default;
         ~RenderDevice() = default;
-        virtual void alloc_texture(RenderResource *rc, TextureType type, u32 w, u32 h) = 0;
+        virtual void alloc_texture(RenderResource *rc, TextureType type, u32 w,
+                                   u32 h) = 0;
         virtual void alloc_vertex(RenderResource *rc, u32 stride,
                                   u32 element_cnt) = 0;
 
@@ -28,6 +29,10 @@ class RenderDevice {
                                   const std::string &tess_eval_code) = 0;
         virtual void alloc_constant(RenderResource *rc, const std::string &name,
                                     u32 size) = 0;
+        virtual void alloc_pipeline(RenderResource *rc, RenderResource shader,
+                                    const RenderRasterizerState &rst_state,
+                                    const RenderDepthStencilState &depth_state,
+                                    const RenderBlendState &blend_state) = 0;
         virtual void dealloc(RenderResource *r) = 0;
         void push_cmd(RenderCommand &cmd) { this->cmd_queue.push_back(cmd); }
         virtual void process() = 0;

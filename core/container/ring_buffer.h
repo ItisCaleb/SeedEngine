@@ -17,12 +17,12 @@ class RingBuffer {
         bool is_empty() { return this->size() == 0; }
 
         bool is_full() { return this->size() == (this->cap - 1); }
-        T* push(const T &element) {
+        T *push(const T &element) {
             if (this->is_full()) {
                 throw std::runtime_error("Ring buffer is full.");
             }
             data[tail] = element;
-            T* tmp = &data[tail];
+            T *tmp = &data[tail];
             tail = (tail + 1) % cap;
             return tmp;
         }
@@ -42,7 +42,7 @@ class RingBuffer {
         }
 
         RingBuffer(u32 cap) : cap(cap) { this->data.resize(cap); }
-        RingBuffer():RingBuffer(32){}
+        RingBuffer() : RingBuffer(32) {}
         RingBuffer(RingBuffer &&rb)
             : data(std::move(rb.data)),
               cap(rb.cap),

@@ -33,22 +33,25 @@ RenderEngine::RenderEngine(Window *window) {
         spdlog::error("Can't initialize GLAD. Exiting");
         exit(1);
     }
-    this->device = new RenderDeviceOpenGL();
+    this->device = new RenderDeviceOpenGL;
+
+    matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
+    cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);
+    // u8 white_tex[4] = {255, 255, 255, 255};
+    // default_tex.create(TextureType::TEXTURE_2D, 1, 1, (const u8 *)white_tex);
+    // default_mat.create();
+    // for (u32 i = 0; i < Material::MAX; i++) {
+    //     default_mat->set_texture_map(static_cast<Material::TextureMapType>(i),
+    //                                  default_tex);
+    // }
+}
+
+void RenderEngine::init() {
     u8 layer = 1;
+
     this->register_renderer<ModelRenderer>(layer++);
     this->register_renderer<TerrainRenderer>(layer++);
     this->register_renderer<ImguiRenderer>(layer++);
-
-    
-    matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
-    cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);
-    u8 white_tex[4] = {255, 255, 255, 255};
-    default_tex.create(TextureType::TEXTURE_2D, 1, 1, (const u8 *)white_tex);
-    default_mat.create();
-    for (u32 i = 0; i < Material::MAX; i++) {
-        default_mat->set_texture_map(static_cast<Material::TextureMapType>(i),
-                                     default_tex);
-    }
 }
 
 RenderDevice *RenderEngine::get_device() { return device; }
@@ -57,11 +60,11 @@ LinearAllocator *RenderEngine::get_mem_pool() { return &this->mem_pool; }
 
 Camera *RenderEngine::get_cam() { return &cam; }
 
-template<typename T, typename ...Args>
-void RenderEngine::register_renderer(const Args &...args){
+template <typename T, typename... Args>
+void RenderEngine::register_renderer(const Args &...args) {
     static_assert(std::is_base_of<Renderer, T>::value,
-        "T must be a derived class of Renderer.");
-    Renderer* renderer = static_cast<Renderer*>(new T(args...));
+                  "T must be a derived class of Renderer.");
+    Renderer *renderer = static_cast<Renderer *>(new T(args...));
     this->renderers.push_back(renderer);
     renderer->init();
 }

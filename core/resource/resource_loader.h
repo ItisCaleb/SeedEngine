@@ -57,7 +57,7 @@ class ResourceLoader {
             Ref<AsyncResource<T>> async_rc;
             async_rc.create();
             async_rc->work_id = ThreadPool::get_instance()->add_work(
-                [=](void*) mutable{
+                [=](void *) mutable {
                     async_rc->resource = _load<T>(path);
                     async_rc->loaded = true;
                 },

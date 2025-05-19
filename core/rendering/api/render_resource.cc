@@ -80,6 +80,15 @@ void RenderResource::alloc_constant(const std::string &name, u32 size,
         dp.update_buffer(*this, 0, size, (void *)data);
     }
 }
+void RenderResource::alloc_pipeline(RenderResource shader,
+                                    const RenderRasterizerState &rst_state,
+                                    const RenderDepthStencilState &depth_state,
+                                    const RenderBlendState &blend_state) {
+    this->type = RenderResourceType::PIPELINE;
+    RenderEngine::get_instance()->get_device()->alloc_pipeline(
+        this, shader, rst_state, depth_state, blend_state);
+}
+
 void RenderResource::dealloc() {
     if (this->type == RenderResourceType::UNINITIALIZE) {
         return;

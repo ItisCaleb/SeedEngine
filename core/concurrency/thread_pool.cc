@@ -34,7 +34,7 @@ WorkId ThreadPool::add_work(UserFunc func, void *user_data) {
     ThreadData *t = this->select_worker();
     w.thread_index = t->index;
     w.is_completed = false;
-    Work* new_work;
+    Work *new_work;
     {
         std::lock_guard lk = std::lock_guard(t->mutex);
         new_work = t->queue.push(w);
@@ -45,10 +45,10 @@ WorkId ThreadPool::add_work(UserFunc func, void *user_data) {
     return new_work->id;
 }
 
-void ThreadPool::wait(WorkId id){
-    if(work_list.present(id)){
-        Work* w = work_list[id];
-        if(w->is_completed){
+void ThreadPool::wait(WorkId id) {
+    if (work_list.present(id)) {
+        Work *w = work_list[id];
+        if (w->is_completed) {
             return;
         }
         ThreadData *td = this->threads[w->thread_index];

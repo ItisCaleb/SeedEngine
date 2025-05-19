@@ -72,15 +72,15 @@ int main(void) {
     // Mesh mesh(vertices, indices);
     // std::vector<Mesh> meshs = {mesh};
 
-    //Ref<Model> model = Model::create(meshs, mats, {});
-    // for (int i = -100; i < 100; i++) {
-    //     for (int j = -100; j < 100; j++) {
-    //         ModelEntity *ent = new ModelEntity(Vec3{(f32)i, (f32)j, 0},
-    //         mesh); ent->set_material(mat); ent->set_scale({0.1, 0.1, 0.1});
-    //         engine->get_world()->add_entity(ent);
-    //         engine->get_world()->add_model_entity(ent);
-    //     }
-    // }
+    // Ref<Model> model = Model::create(meshs, mats, {});
+    //  for (int i = -100; i < 100; i++) {
+    //      for (int j = -100; j < 100; j++) {
+    //          ModelEntity *ent = new ModelEntity(Vec3{(f32)i, (f32)j, 0},
+    //          mesh); ent->set_material(mat); ent->set_scale({0.1, 0.1, 0.1});
+    //          engine->get_world()->add_entity(ent);
+    //          engine->get_world()->add_model_entity(ent);
+    //      }
+    //  }
     auto backpack = loader->load_async<Model>("assets/backpack/test.mdl");
     auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
     auto sky = loader->load<Sky>("assets/sky.json");
@@ -90,17 +90,21 @@ int main(void) {
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->set_terrain(terrain->wait());
     engine->get_world()->set_sky(sky);
-    WorkId id =  ThreadPool::get_instance()->add_work([=](void* data){
-        OS::delay(3);
-        printf("123\n");
-    }, nullptr);
+    WorkId id = ThreadPool::get_instance()->add_work(
+        [=](void *data) {
+            OS::delay(3);
+            printf("123\n");
+        },
+        nullptr);
 
-    ThreadPool::get_instance()->add_work([=](void* data){
-        OS::delay(1);
-        ThreadPool::get_instance()->wait(id);
-        printf("waiting done\n");
-        printf("456\n");
-    }, nullptr);
+    ThreadPool::get_instance()->add_work(
+        [=](void *data) {
+            OS::delay(1);
+            ThreadPool::get_instance()->wait(id);
+            printf("waiting done\n");
+            printf("456\n");
+        },
+        nullptr);
 
     engine->start();
 

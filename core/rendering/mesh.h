@@ -10,28 +10,28 @@
 
 namespace Seed {
 struct Vertex {
-    Vec3 position;
-    Vec3 normal;
-    Vec2 tex_coord;
+        Vec3 position;
+        Vec3 normal;
+        Vec2 tex_coord;
 };
 
-struct Mesh: RefCounted {
-    VertexData vertex_data;
-    Ref<Material> material;
+struct Mesh : RefCounted {
+        VertexData vertex_data;
+        Ref<Material> material;
 
-    Mesh(const std::vector<Vertex> &vertices,const std::vector<u32> &indices)
-        : vertex_data(sizeof(Vertex), vertices.size(), vertices.data(),
-                      indices) {
-    }
+        Mesh(const std::vector<Vertex> &vertices,
+             const std::vector<u32> &indices)
+            : vertex_data(sizeof(Vertex), vertices.size(), vertices.data(),
+                          indices) {}
 
-    Mesh(const std::vector<Vertex> &vertices,const std::vector<u32> &indices,
-         Ref<Material> material)
-        : Mesh(vertices, indices) {
-        this->material = material;
-    }
+        Mesh(const std::vector<Vertex> &vertices,
+             const std::vector<u32> &indices, Ref<Material> material)
+            : Mesh(vertices, indices) {
+            this->material = material;
+        }
 
-    void set_material(Ref<Material> mat) { this->material = mat; }
-    Ref<Material> get_material() { return material; }
+        void set_material(Ref<Material> mat) { this->material = mat; }
+        Ref<Material> get_material() { return material; }
 };
 
 }  // namespace Seed

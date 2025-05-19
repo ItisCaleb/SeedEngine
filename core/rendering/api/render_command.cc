@@ -4,21 +4,104 @@
 
 namespace Seed {
 
-u64 RenderCommandDispatcher::gen_sort_key(f32 depth, u16 material_id) {
+RenderDrawDataBuilder::RenderDrawDataBuilder() {
+    this->buffer.resize(sizeof(RenderDrawData));
+}
+DrawOperation *RenderDrawDataBuilder::alloc_operation(DrawOperationType type) {
+    this->buffer.resize(this->buffer.size() + sizeof(DrawOperation));
+    DrawOperation *dst =
+        (DrawOperation *)(this->buffer.data() + this->buffer.size() -
+                          sizeof(DrawOperation));
+    dst->type = type;
+    RenderDrawData *data = get_draw_data();
+    data->operation_cnt++;
+    op_view.resize(data->operation_cnt);
+    for (i32 i = 0; i < data->operation_cnt; i++) {
+        op_view[i] = (DrawOperation *)((u64)data + sizeof(RenderDrawData) +
+                                       i * sizeof(DrawOperation));
+    }
+    return dst;
+}
+
+RenderDrawData *RenderDrawDataBuilder::get_draw_data() {
+    return static_cast<RenderDrawData *>((void *)&this->buffer[0]);
+}
+
+void RenderDrawDataBuilder::bind_vertex(RenderResource rc) {
+    DrawOperation *op = alloc_operation(DrawOperationType::BIND_VERTEX);
+    op->vertex.rc = rc;
+};
+void RenderDrawDataBuilder::bind_index(RenderResource rc) {
+    DrawOperation *op = alloc_operation(DrawOperationType::BIND_INDEX);
+    op->index.rc = rc;
+};
+
+void RenderDrawDataBuilder::bind_vertex_data(VertexData &data, u32 offset) {
+    bind_vertex(data.get_vertices());
+    /* prevent memory allocation */
+    if (data.use_index()) {
+        bind_index(data.get_indices());
+        RenderDrawData *draw_data = get_draw_data();
+        draw_data->vertex_cnt = data.get_indices_cnt();
+        draw_data->index_offset = offset;
+    } else {
+        RenderDrawData *draw_data = get_draw_data();
+        draw_data->vertex_cnt = data.get_vertices_cnt();
+        draw_data->vertex_offset = offset;
+    }
+}
+
+void RenderDrawDataBuilder::bind_texture(u32 unit, RenderResource rc) {
+    DrawOperation *op = alloc_operation(DrawOperationType::BIND_TEXTURE);
+    op->texure.rc = rc;
+    op->texure.unit = unit;
+};
+void RenderDrawDataBuilder::bind_description(VertexDescription *desc) {
+    DrawOperation *op = alloc_operation(DrawOperationType::BIND_DESC);
+    op->desc.desc = desc;
+};
+void RenderDrawDataBuilder::update_constant(RenderResource rc, u32 offset,
+                                            u32 size, void *data) {
+    DrawOperation *op = alloc_operation(DrawOperationType::UPDATE_CONSTANT);
+    op->constant.rc = rc;
+    op->constant.offset = offset;
+    op->constant.size = size;
+    op->constant.data =
+        RenderEngine::get_instance()->get_mem_pool()->alloc_data(size, data);
+};
+void RenderDrawDataBuilder::set_viewport(f32 x, f32 y, f32 width, f32 height) {
+    DrawOperation *op = alloc_operation(DrawOperationType::VIEWPORT);
+    op->viewport.rect = {.x = x, .y = y, .w = width, .h = height};
+};
+void RenderDrawDataBuilder::set_scissor(f32 x, f32 y, f32 width, f32 height) {
+    DrawOperation *op = alloc_operation(DrawOperationType::SCISSOR);
+    op->scissor.rect = {.x = x, .y = y, .w = width, .h = height};
+};
+
+void RenderDrawDataBuilder::set_draw_vertex(u32 vertex_cnt, u32 vertex_offset,
+                                            u32 instance_cnt) {
+    RenderDrawData *data = this->get_draw_data();
+    data->vertex_cnt = vertex_cnt;
+    data->vertex_offset = vertex_offset;
+    data->instance_cnt = instance_cnt;
+}
+void RenderDrawDataBuilder::set_draw_index(u32 index_cnt, u32 index_offset,
+                                           u32 instance_cnt) {
+    RenderDrawData *data = this->get_draw_data();
+    data->vertex_cnt = index_cnt;
+    data->index_offset = index_offset;
+    data->instance_cnt = instance_cnt;
+}
+
+u32 RenderCommandDispatcher::gen_sort_key(f32 depth) {
     u64 sort_key = 0;
     if (depth < 0.0f) depth = 0.0f;
     if (depth > 1.0f) depth = 1.0f;
     u16 depth_value = (u16)((f32)(u16)(-1) * depth);
-    sort_key |= ((u64)this->layer & 0b1111111u) << 32;
-    sort_key |= (u64)depth_value << 16;
-    sort_key |= (u64)material_id;
+    sort_key |= ((u32)this->layer & 0b1111111u) << 16;
+    sort_key |= (u32)depth_value;
     return sort_key;
 }
-u64 RenderCommandDispatcher::gen_sort_key(f32 depth, RenderDrawData &data) {
-    u16 mat_id = data.mat.is_null() ? 0 : data.mat->get_id();
-    return gen_sort_key(depth, mat_id);
-}
-
 void RenderCommandDispatcher::set_scope(const std::string &scope) {
     this->scope = scope;
 }
@@ -26,7 +109,7 @@ void RenderCommandDispatcher::set_scope(const std::string &scope) {
 RenderCommand RenderCommandDispatcher::prepare_state_cmd() {
     RenderCommand cmd;
     cmd.scope = scope;
-    cmd.layer = layer;
+    cmd.sort_key = 0;
     cmd.type = RenderCommandType::STATE;
     cmd.data = RenderEngine::get_instance()
                    ->get_mem_pool()
@@ -37,7 +120,7 @@ RenderCommand RenderCommandDispatcher::prepare_state_cmd() {
 RenderCommand RenderCommandDispatcher::prepare_update_cmd() {
     RenderCommand cmd;
     cmd.scope = scope;
-    cmd.layer = layer;
+    cmd.sort_key = 0;
     cmd.type = RenderCommandType::UPDATE;
     cmd.data = RenderEngine::get_instance()
                    ->get_mem_pool()
@@ -151,7 +234,7 @@ void RenderCommandDispatcher::update_cubemap(RenderResource &texture, u8 face,
                                              u16 x_off, u16 y_off, u16 w, u16 h,
                                              void *data) {
     if (texture.type != RenderResourceType::TEXTURE) return;
-    if(face >= 6){
+    if (face >= 6) {
         SPDLOG_ERROR("Face is invalid.");
         return;
     }
@@ -171,118 +254,28 @@ void RenderCommandDispatcher::update_cubemap(RenderResource &texture, u8 face,
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
-RenderDrawData RenderCommandDispatcher::generate_render_data(
-    VertexData &vertices, Ref<Material> mat) {
-    RenderDrawData dispatch_data;
-    if (!vertices.get_vertices().inited()) {
-        SPDLOG_WARN("Vertices is uninitialize.");
-    }
-    dispatch_data.vertices = &vertices;
-    dispatch_data.mat = mat;
-    dispatch_data.index_cnt = vertices.get_indices_cnt();
-    return dispatch_data;
+RenderDrawDataBuilder RenderCommandDispatcher::generate_render_data(
+    Ref<Material> mat) {
+    RenderDrawDataBuilder builder;
+    mat->bind_states(builder);
+    return builder;
 }
 
-RenderDrawData RenderCommandDispatcher::generate_render_data(
-    VertexData &vertices, Ref<Material> mat, RenderResource &instance,
-    u32 instance_cnt) {
-    RenderDrawData dispatch_data;
-    if (!vertices.get_vertices().inited()) {
-        SPDLOG_WARN("Vertices is uninitialize.");
-    }
-    dispatch_data.vertices = &vertices;
-    dispatch_data.mat = mat;
-    dispatch_data.instance = instance;
-    dispatch_data.instance_cnt = instance_cnt;
-    dispatch_data.index_cnt = vertices.get_indices_cnt();
-
-    return dispatch_data;
-}
-
-void RenderCommandDispatcher::ensure_draw_begin() {
-    if (!this->start_draw) {
-        throw std::runtime_error("Ending a state without ever starting");
-    }
-}
-
-void RenderCommandDispatcher::begin_draw() {
-    if (this->start_draw) {
-        SPDLOG_ERROR("Starting a state without ever ending");
-        return;
-    }
-    this->start_draw = true;
-}
-
-void RenderCommandDispatcher::draw_set_viewport(RenderDrawData &rdd, f32 x,
-                                                f32 y, f32 width, f32 height) {
-    ensure_draw_begin();
-    rdd.set_viewport = true;
-    rdd.viewport = {.x = x, .y = y, .w = width, .h = height};
-    this->viewport = rdd.viewport;
-}
-
-void RenderCommandDispatcher::end_draw() {
-    ensure_draw_begin();
-    std::sort(this->ordered_draw_data.begin(), this->ordered_draw_data.end(),
-              [](RenderDrawData *a, RenderDrawData *b) {
-                  return a->sort_key < b->sort_key;
-              });
-    for (RenderDrawData *rdd : this->ordered_draw_data) {
-        RenderCommand cmd;
-        cmd.layer = layer;
-        cmd.scope = scope;
-        cmd.type = RenderCommandType::RENDER;
-        cmd.data = rdd;
-        RenderEngine::get_instance()->get_device()->push_cmd(cmd);
-    }
-    this->ordered_draw_data.clear();
-    start_draw = false;
-}
-void RenderCommandDispatcher::draw_set_scissor(RenderDrawData &rdd, f32 x,
-                                               f32 y, f32 width, f32 height) {
-    ensure_draw_begin();
-    rdd.set_scissor = true;
-    rdd.scissor = {.x = x, .y = y, .w = width, .h = height};
-}
-void RenderCommandDispatcher::draw_cancel_scissor(RenderDrawData &rdd) {
-    ensure_draw_begin();
-    this->draw_set_scissor(rdd, this->viewport.x, this->viewport.y,
-                           this->viewport.w, this->viewport.h);
-}
-
-void RenderCommandDispatcher::render(RenderDrawData *data,
-                                     Ref<RenderPipeline> pipeline, f32 depth) {
-    ensure_draw_begin();
-    if (data == nullptr) {
-        SPDLOG_ERROR("Render data is null.");
-        return;
-    }
-
-    RenderDrawData *draw_data = RenderEngine::get_instance()
-                                    ->get_mem_pool()
-                                    ->alloc_new<RenderDrawData>();
-    *draw_data = *data;
-    draw_data->sort_key = gen_sort_key(depth, *draw_data);
+void RenderCommandDispatcher::render(RenderDrawDataBuilder &builder,
+                                     RenderPrimitiveType type,
+                                     RenderResource pipeline, f32 depth) {
+    RenderDrawData *draw_data =
+        (RenderDrawData *)RenderEngine::get_instance()
+            ->get_mem_pool()
+            ->alloc_data(builder.buffer.size(), builder.buffer.data());
+    RenderCommand cmd;
+    cmd.scope = scope;
+    cmd.sort_key = gen_sort_key(depth);
+    cmd.type = RenderCommandType::RENDER;
+    cmd.data = draw_data;
+    draw_data->type = type;
     draw_data->pipeline = pipeline;
-    ordered_draw_data.push_back(draw_data);
-}
-
-void RenderCommandDispatcher::render(RenderDrawData *data,
-                                     Ref<RenderPipeline> pipeline, f32 depth,
-                                     u32 index_cnt, u32 index_offset) {
-    ensure_draw_begin();
-    if (data == nullptr) {
-        SPDLOG_ERROR("Render data is null.");
-        return;
-    }
-    RenderDrawData *draw_data = RenderEngine::get_instance()
-                                    ->get_mem_pool()
-                                    ->alloc_new<RenderDrawData>();
-    *draw_data = *data;
-    draw_data->pipeline = pipeline;
-    draw_data->index_offset = index_offset;
-    draw_data->index_cnt = index_cnt;
-    ordered_draw_data.push_back(draw_data);
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
 RenderCommandDispatcher::~RenderCommandDispatcher() {

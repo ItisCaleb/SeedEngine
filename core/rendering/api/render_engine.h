@@ -14,32 +14,29 @@
 
 namespace Seed {
 class RenderEngine {
-   private:
+    private:
+        inline static RenderEngine *instance = nullptr;
+        RenderDevice *device;
+        RenderResource matrices_rc, cam_rc;
+        Camera cam;
+        LinearAllocator mem_pool;
+        std::vector<Renderer *> renderers;
+        Ref<Texture> default_tex;
+        Ref<Material> default_mat;
 
-    inline static RenderEngine *instance = nullptr;
-    RenderDevice *device;
-    RenderResource matrices_rc, cam_rc;
-    Camera cam;
-    LinearAllocator mem_pool;
-    std::vector<Renderer*> renderers;
-    Ref<Texture> default_tex;
-    Ref<Material> default_mat;
-   public:
-    static RenderEngine *get_instance();
-    void process();
-    LinearAllocator *get_mem_pool();
-    RenderDevice *get_device();
-    Camera *get_cam();
-    Ref<Texture> get_default_texture(){
-        return default_tex;
-    }
-    Ref<Material> get_default_material(){
-        return default_mat;
-    }
-    template<typename T, typename ...Args>
-    void register_renderer(const Args &...args);
-    RenderEngine(Window *window);
-    ~RenderEngine();
+    public:
+        static RenderEngine *get_instance();
+        void init();
+        void process();
+        LinearAllocator *get_mem_pool();
+        RenderDevice *get_device();
+        Camera *get_cam();
+        Ref<Texture> get_default_texture() { return default_tex; }
+        Ref<Material> get_default_material() { return default_mat; }
+        template <typename T, typename... Args>
+        void register_renderer(const Args &...args);
+        RenderEngine(Window *window);
+        ~RenderEngine();
 };
 
 }  // namespace Seed

@@ -9,16 +9,15 @@
 namespace Seed {
 
 class Resource : public RefCounted {
-   private:
-    std::string path;
+    private:
+        std::string path;
 
-   public:
-    std::string &get_path() { return path; }
-    void set_path(const std::string &path) { this->path = path; }
-    Resource();
-    ~Resource();
+    public:
+        std::string &get_path() { return path; }
+        void set_path(const std::string &path) { this->path = path; }
+        Resource();
+        ~Resource();
 };
-
 
 }  // namespace Seed
 

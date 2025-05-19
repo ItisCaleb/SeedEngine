@@ -1,6 +1,17 @@
 #include "terrain.h"
+#include "core/resource/default_storage.h"
 
 namespace Seed {
+
+TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
+    : Material(DS::get_instance()->get_terrain_shader()) {
+    this->add_texture_unit(height_map);
+    this->raster_state = {.patch_control_points = 4};
+    this->depth_state = {.depth_on = true};
+}
+void TerrainMaterial::set_height_map(Ref<Texture> height_map) {
+    this->set_texture_unit(0, height_map);
+}
 Terrain::Terrain(u32 width, u32 depth, Ref<Texture> height_map)
     : width(width), depth(depth) {
     std::vector<TerrainVertex> vertices;
@@ -30,8 +41,7 @@ Terrain::Terrain(u32 width, u32 depth, Ref<Texture> height_map)
                              vertices.data());
     this->vertices.bind_vertices(sizeof(TerrainVertex), vertices.size(),
                                  vertices_rc);
-    terrain_mat.create();
-    terrain_mat->set_texture_map(Material::DIFFUSE, height_map);
+    terrain_mat.create(height_map);
 }
 
 Terrain::~Terrain() {}

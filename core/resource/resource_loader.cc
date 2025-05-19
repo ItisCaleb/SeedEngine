@@ -77,7 +77,7 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
     Ref<File> file = File::open(path, "rb");
     std::vector<Ref<Mesh>> meshs;
     std::vector<u32> mesh_mats;
-    std::vector<Ref<Material>> materials;
+    std::vector<Ref<BaseMaterial>> materials;
     std::map<i32, Ref<Texture>> texture_map;
     std::string magic = file->read_str(strlen(model_file_magic));
     if (memcmp(magic.c_str(), model_file_magic, strlen(model_file_magic)) !=
@@ -112,19 +112,19 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
     }
     for (int i = 0; i < model_header.material_count; i++) {
         MaterialField mat_field;
-        Ref<Material> mat;
+        Ref<BaseMaterial> mat;
         mat.create();
         file->read(&mat_field);
-        mat->set_texture_map(Material::DIFFUSE,
+        mat->set_texture_map(BaseMaterial::DIFFUSE,
                              texture_map[mat_field.diffuse_map]);
-        mat->set_texture_map(Material::SPECULAR,
+        mat->set_texture_map(BaseMaterial::SPECULAR,
                              texture_map[mat_field.specular_map]);
-        mat->set_texture_map(Material::NORMAl,
+        mat->set_texture_map(BaseMaterial::NORMAl,
                              texture_map[mat_field.normal_map]);
         materials.push_back(mat);
     }
     for (int i = 0; i < meshs.size(); i++) {
-        meshs[i]->set_material(materials[mesh_mats[i]]);
+        meshs[i]->set_material(ref_cast<Material>(materials[mesh_mats[i]]));
     }
     model.create(meshs, model_header.bounding_box);
     return model;
@@ -154,7 +154,8 @@ Ref<Sky> ResourceLoader::_load(const std::string &path) {
         }
         texture[face] = data;
     }
-    sky.create(w, h, texture[0],texture[1],texture[2],texture[3],texture[4],texture[5]);
+    sky.create(w, h, texture[0], texture[1], texture[2], texture[3], texture[4],
+               texture[5]);
 
     return sky;
 }

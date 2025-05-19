@@ -50,10 +50,9 @@ int main(int, char **) {
     NFD_Init();
     // Main loop
     Model *current_model = nullptr;
-    //Seed::SeedEngine *engine = new Seed::SeedEngine(60.0f);
+    // Seed::SeedEngine *engine = new Seed::SeedEngine(60.0f);
 
     while (!glfwWindowShouldClose(window)) {
-        
         glfwPollEvents();
         if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0) {
             ImGui_ImplGlfw_Sleep(10);

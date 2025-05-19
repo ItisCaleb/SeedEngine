@@ -135,6 +135,18 @@ void RenderDeviceOpenGL::alloc_shader(RenderResource *rc,
     this->shader_in_use.push_back(rc->handle);
 }
 
+void RenderDeviceOpenGL::alloc_pipeline(
+    RenderResource *rc, RenderResource shader,
+    const RenderRasterizerState &rst_state,
+    const RenderDepthStencilState &depth_state,
+    const RenderBlendState &blend_state) {
+    HardwarePipelineGL pl = {.shader = shader,
+                             .rst_state = rst_state,
+                             .depth_state = depth_state,
+                             .blend_state = blend_state};
+    rc->handle = this->pipelines.insert(pl);
+}
+
 void RenderDeviceOpenGL::dealloc(RenderResource *r) {
     this->alloc_cmds.push(
         AllocCommand{.handle = r->handle, .type = r->type, .is_alloc = false});
@@ -551,7 +563,7 @@ void RenderDeviceOpenGL::use_texture(u32 unit, RenderResource &rc) {
     glBindTexture(type, tex->handle);
 }
 
-void RenderDeviceOpenGL::setup_rasterizer(RenderRasterizerState &state) {
+void RenderDeviceOpenGL::setup_rasterizer(const RenderRasterizerState &state) {
     switch (state.cull_mode) {
         case Cullmode::FRONT:
             glEnable(GL_CULL_FACE);
@@ -586,7 +598,8 @@ void RenderDeviceOpenGL::setup_rasterizer(RenderRasterizerState &state) {
     glPatchParameteri(GL_PATCH_VERTICES, state.patch_control_points);
 }
 
-void RenderDeviceOpenGL::setup_depth_stencil(RenderDepthStencilState &state) {
+void RenderDeviceOpenGL::setup_depth_stencil(
+    const RenderDepthStencilState &state) {
     if (state.depth_on)
         glEnable(GL_DEPTH_TEST);
     else
@@ -640,7 +653,7 @@ inline static u32 get_blend_func(BlendFactor factor) {
             return GL_ONE_MINUS_SRC1_ALPHA;
     }
 }
-void RenderDeviceOpenGL::setup_blend(RenderBlendState &state) {
+void RenderDeviceOpenGL::setup_blend(const RenderBlendState &state) {
     if (state.blend_on) {
         glEnable(GL_BLEND);
         glBlendFuncSeparate(get_blend_func(state.func.src_rgb),
@@ -681,25 +694,90 @@ void RenderDeviceOpenGL::handle_state(RenderCommand &cmd) {
 
 void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
     RenderDrawData *draw_data = static_cast<RenderDrawData *>(cmd.data);
-    if (draw_data->set_viewport) {
-        ViewportState &vp = draw_data->viewport;
-        glViewport(vp.x, vp.y, vp.w, vp.h);
+    /* bind pipeline */
+    if (!this->current_pipeline.inited() ||
+        this->current_pipeline.handle != draw_data->pipeline.handle) {
+        HardwarePipelineGL *pl =
+            pipelines.get_or_null(draw_data->pipeline.handle);
+        EXPECT_NOT_NULL_RET(pl);
+        this->current_pipeline = draw_data->pipeline;
+        use_shader(pl->shader);
+        setup_rasterizer(pl->rst_state);
+        setup_depth_stencil(pl->depth_state);
+        setup_blend(pl->blend_state);
     }
-    if (draw_data->set_scissor) {
-        ScissorRect &rect = draw_data->scissor;
-        glEnable(GL_SCISSOR_TEST);
-        glScissor(rect.x, rect.y, rect.w, rect.h);
+    DrawOperation *head =
+        (DrawOperation *)(((u64)draw_data) + sizeof(RenderDrawData));
+    u32 index_type = 0;
+
+    for (i32 i = 0; i < draw_data->operation_cnt; i++) {
+        DrawOperation *op = &head[i];
+        DrawOperationType type = op->type;
+        switch (type) {
+            case DrawOperationType::BIND_VERTEX:
+                bind_buffer(op->vertex.rc);
+                break;
+            case DrawOperationType::BIND_INDEX: {
+                bind_buffer(op->index.rc);
+                HardwareIndexGL *index =
+                    this->indices.get_or_null(op->index.rc.handle);
+                switch (index->type) {
+                    case IndexType::UNSIGNED_BYTE:
+                        index_type = GL_UNSIGNED_BYTE;
+                        break;
+                    case IndexType::UNSIGNED_SHORT:
+                        index_type = GL_UNSIGNED_SHORT;
+                        break;
+                    case IndexType::UNSIGNED_INT:
+                        index_type = GL_UNSIGNED_INT;
+                        break;
+                }
+                break;
+            }
+            case DrawOperationType::BIND_DESC:
+                use_vertex_desc(op->desc.desc);
+                break;
+            case DrawOperationType::BIND_TEXTURE:
+                use_texture(op->texure.unit, op->texure.rc);
+                break;
+            case DrawOperationType::VIEWPORT: {
+                ViewportState &vp = op->viewport.rect;
+                glViewport(vp.x, vp.y, vp.w, vp.h);
+                break;
+            }
+            case DrawOperationType::SCISSOR: {
+                ScissorRect &rect = op->scissor.rect;
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(rect.x, rect.y, rect.w, rect.h);
+                break;
+            }
+            case DrawOperationType::UPDATE_CONSTANT: {
+                HardwareConstantGL *constant =
+                    this->constants.get_or_null(op->constant.rc.handle);
+                if (!constant) {
+                    SPDLOG_ERROR("Constant is null.");
+                    break;
+                }
+                glBindBuffer(GL_UNIFORM_BUFFER, constant->handle);
+                if (constant->size < op->constant.size) {
+                    glBufferData(GL_UNIFORM_BUFFER, op->constant.size,
+                                 op->constant.data, GL_DYNAMIC_DRAW);
+                    constant->size = op->constant.size;
+                } else {
+                    glBufferSubData(GL_UNIFORM_BUFFER, op->constant.offset,
+                                    op->constant.size, op->constant.data);
+                }
+                glBindBuffer(GL_UNIFORM_BUFFER, 0);
+                break;
+            }
+            default:
+                break;
+        }
     }
-    if (this->pipeline != draw_data->pipeline) {
-        this->pipeline = draw_data->pipeline;
-        use_shader(this->pipeline->shader->get_render_resource());
-        setup_rasterizer(this->pipeline->rst_state);
-        setup_depth_stencil(this->pipeline->depth_state);
-        setup_blend(this->pipeline->blend_state);
-    }
+
     /* select primitive to draw */
     u32 prim_type;
-    switch (pipeline->type) {
+    switch (draw_data->type) {
         case RenderPrimitiveType::POINTS:
             prim_type = GL_POINTS;
             break;
@@ -714,60 +792,24 @@ void RenderDeviceOpenGL::handle_render(RenderCommand &cmd) {
             prim_type = GL_TRIANGLES;
             break;
     }
-    VertexData *vertices = draw_data->vertices;
-    bind_buffer(vertices->get_vertices());
-    use_vertex_desc(pipeline->desc);
-    if (vertices->use_index()) {
-        bind_buffer(vertices->get_indices());
-    }
-    if (draw_data->instance_cnt > 0 && pipeline->instance_desc) {
-        bind_buffer(draw_data->instance);
-        use_vertex_desc(pipeline->instance_desc);
-    }
 
-    Ref<Material> mat = draw_data->mat;
-    if (mat.is_null()) {
-        mat = RenderEngine::get_instance()->get_default_material();
-    }
-    if (mat->get_id() != this->last_material) {
-        this->last_material = mat->get_id();
-        for (u32 i = 0; i < Material::MAX; i++) {
-            Ref<Texture> tex =
-                mat->get_texture_map(static_cast<Material::TextureMapType>(i));
-            if (tex.is_null()) {
-                tex = RenderEngine::get_instance()->get_default_texture();
-            }
-            use_texture(i, tex->get_render_resource());
-        }
-    }
-    u32 index_type = 0;
-    switch (vertices->get_index_type()) {
-        case IndexType::UNSIGNED_BYTE:
-            index_type = GL_UNSIGNED_BYTE;
-            break;
-        case IndexType::UNSIGNED_SHORT:
-            index_type = GL_UNSIGNED_SHORT;
-            break;
-        case IndexType::UNSIGNED_INT:
-            index_type = GL_UNSIGNED_INT;
-            break;
-    }
-
-    if (vertices->use_index()) {
+    if (index_type != 0) {
         if (draw_data->instance_cnt > 0) {
-            glDrawElementsInstanced(prim_type, draw_data->index_cnt, index_type,
-                                    (void *)(u64)draw_data->index_offset,
-                                    draw_data->instance_cnt);
+            glDrawElementsInstanced(
+                prim_type, draw_data->vertex_cnt, index_type,
+                (void *)(u64)draw_data->index_offset, draw_data->instance_cnt);
         } else {
-            glDrawElements(prim_type, draw_data->index_cnt, index_type,
+            glDrawElements(prim_type, draw_data->vertex_cnt, index_type,
                            (void *)(u64)draw_data->index_offset);
         }
     } else {
         if (draw_data->instance_cnt > 0) {
-            glDrawArraysInstanced(prim_type, 0, vertices->get_vertices_cnt(),
+            glDrawArraysInstanced(prim_type, draw_data->vertex_offset,
+                                  draw_data->vertex_cnt,
                                   draw_data->instance_cnt);
         } else {
-            glDrawArrays(prim_type, 0, vertices->get_vertices_cnt());
+            glDrawArrays(prim_type, draw_data->vertex_offset,
+                         draw_data->vertex_cnt);
         }
     }
 }
@@ -783,9 +825,6 @@ void RenderDeviceOpenGL::process() {
         }
         alloc_cmds.pop();
     }
-
-    std::stable_sort(std::begin(cmd_queue), std::end(cmd_queue),
-                     RenderCommand::cmp);
 
     while (!cmd_queue.empty()) {
         RenderCommand &cmd = cmd_queue.front();
