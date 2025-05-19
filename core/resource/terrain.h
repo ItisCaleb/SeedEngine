@@ -27,6 +27,12 @@ class Terrain : public Resource {
 
     public:
         Terrain(u32 width, u32 depth, Ref<Texture> height_map);
+        Ref<TerrainMaterial> get_material(){
+            return terrain_mat;
+        }
+        VertexData *get_vertices(){
+            return &vertices;
+        }
         ~Terrain();
 };
 

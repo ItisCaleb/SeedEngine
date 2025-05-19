@@ -13,8 +13,9 @@ class ModelRenderer : public Renderer {
     private:
         std::unordered_map<Model *, std::vector<Mat4>> model_instances;
         VertexDescription instance_desc;
-
+        Ref<Material> debug_mat;
         VertexData sky_vert;
+        RenderResource terrain_m;
 
         /* for debugging */
 

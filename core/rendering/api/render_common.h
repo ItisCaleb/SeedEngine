@@ -14,6 +14,16 @@ enum class TextureFormat { FORMAT_R, FORMAT_RG, FORMAT_RGB, FORMAT_RGBA };
 enum class RenderPrimitiveType { LINES, TRIANGLES, POINTS, PATCHES };
 enum class PolygonMode { POINT, LINE, FILL };
 enum class Cullmode { NONE, FRONT, BACK, BOTH };
+enum class CompareOP {
+    NEVER,
+    LESS,
+    EQUAL,
+    LESS_OR_EQUAL,
+    GREATER,
+    NOT_EQUAL,
+    GREATER_OR_EQUAL,
+    ALWAYS
+};
 
 struct RenderRasterizerState {
         Cullmode cull_mode = Cullmode::NONE;
@@ -24,6 +34,8 @@ struct RenderRasterizerState {
 struct RenderDepthStencilState {
         bool depth_on = false;
         bool stencil_on = false;
+        CompareOP depth_compare_op = CompareOP::LESS;
+        CompareOP stencil_compare_op = CompareOP::ALWAYS;
 };
 enum class BlendFactor {
     ZERO,

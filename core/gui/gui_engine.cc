@@ -4,6 +4,7 @@
 #include <nfd.h>
 #include <spdlog/spdlog.h>
 #include "core/input.h"
+#include "core/engine.h"
 
 namespace Seed {
 GuiEngine::GuiEngine(Window *window) {
@@ -36,6 +37,23 @@ void GuiEngine::update() {
     bool show_demo_window = true;
 
     ImGui::ShowDemoWindow(&show_demo_window);
+    {
+        ImGui::Begin("Hello, world!");
+        if (ImGui::Button("Change poly")) {
+            auto mat = SeedEngine::get_instance()
+                           ->get_world()
+                           ->get_terrain()
+                           ->get_material();
+            auto state = mat->get_rasterizer_state();
+            if (state.poly_mode == PolygonMode::FILL) {
+                state.poly_mode = PolygonMode::LINE;
+            } else {
+                state.poly_mode = PolygonMode::FILL;
+            }
+            mat->set_rasterizer_state(state);
+        }
+        ImGui::End();
+    }
     ImGui::Render();
 }
 }  // namespace Seed

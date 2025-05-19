@@ -35,6 +35,13 @@ void ModelRenderer::init_color() {
     instance_desc.add_attr(4, VertexAttributeType::FLOAT, 4, 1);
     instance_desc.add_attr(5, VertexAttributeType::FLOAT, 4, 1);
     instance_desc.add_attr(6, VertexAttributeType::FLOAT, 4, 1);
+
+    debug_mat.create(DS::get_instance()->get_mesh_debug_shader());
+    RenderRasterizerState rst = {
+        .poly_mode = PolygonMode::LINE
+    };
+    debug_mat->set_rasterizer_state(rst);
+
     RenderResource lights_rc;
 
     Lights lights;
@@ -46,6 +53,8 @@ void ModelRenderer::init_color() {
     lights.lights[1].set_direction(Vec3{2, 3, -1});
     lights.lights[1].diffuse = Vec3{1, 1, 1};
     lights_rc.alloc_constant("Lights", sizeof(Lights), &lights);
+    auto terrain_model = Mat4::translate_mat({0, 0, 0}).transpose();
+    terrain_m.alloc_constant("TerrainMatrices", sizeof(Mat4), &terrain_model);
 }
 void ModelRenderer::init_debugging() {
     ResourceLoader *loader = ResourceLoader::get_instance();
@@ -101,7 +110,7 @@ void ModelRenderer::process() {
     sky_builder.bind_vertex_data(sky_vert);
     sky_builder.bind_description(DS::get_instance()->get_sky_desc());
     dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
-              sky->get_material()->get_pipeline(), 0);
+              sky->get_material()->get_pipeline(), 1);
 
     for (auto &[model, instances] : model_instances) {
         if (instances.empty()) {
@@ -120,8 +129,24 @@ void ModelRenderer::process() {
 
             dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
                       mesh->get_material()->get_pipeline(), 0.1);
+            // dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
+            //           debug_mat->get_pipeline(), 0.1);
         }
     }
+
+    Ref<Terrain> terrain =
+        SeedEngine::get_instance()->get_world()->get_terrain();
+    if (terrain.is_null()) {
+        return;
+    }
+
+    RenderDrawDataBuilder builder =
+        dp.generate_render_data(ref_cast<Material>(terrain->get_material()));
+    builder.bind_vertex_data(*terrain->get_vertices(), 0);
+    builder.bind_description(DS::get_instance()->get_terrain_desc());
+
+    dp.render(builder, RenderPrimitiveType::PATCHES,
+              terrain->get_material()->get_pipeline(), 0.2);
     /* debugging */
     // RenderDrawData aabb_data =
     //     dp.generate_render_data(aabb_vertices, Ref<Material>());

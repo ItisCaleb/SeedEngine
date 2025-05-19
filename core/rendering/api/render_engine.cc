@@ -8,7 +8,6 @@
 #include "core/resource/material.h"
 #include "render_device_opengl.h"
 #include "core/rendering/renderer/model_renderer.h"
-#include "core/rendering/renderer/terrain_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
 
 #include <spdlog/spdlog.h>
@@ -50,7 +49,6 @@ void RenderEngine::init() {
     u8 layer = 1;
 
     this->register_renderer<ModelRenderer>(layer++);
-    this->register_renderer<TerrainRenderer>(layer++);
     this->register_renderer<ImguiRenderer>(layer++);
 }
 

@@ -106,10 +106,10 @@ void RenderCommandDispatcher::set_scope(const std::string &scope) {
     this->scope = scope;
 }
 
-RenderCommand RenderCommandDispatcher::prepare_state_cmd() {
+RenderCommand RenderCommandDispatcher::prepare_state_cmd(f32 depth) {
     RenderCommand cmd;
     cmd.scope = scope;
-    cmd.sort_key = 0;
+    cmd.sort_key = gen_sort_key(depth);
     cmd.type = RenderCommandType::STATE;
     cmd.data = RenderEngine::get_instance()
                    ->get_mem_pool()
@@ -117,10 +117,10 @@ RenderCommand RenderCommandDispatcher::prepare_state_cmd() {
     return cmd;
 }
 
-RenderCommand RenderCommandDispatcher::prepare_update_cmd() {
+RenderCommand RenderCommandDispatcher::prepare_update_cmd(f32 depth) {
     RenderCommand cmd;
     cmd.scope = scope;
-    cmd.sort_key = 0;
+    cmd.sort_key = gen_sort_key(depth);
     cmd.type = RenderCommandType::UPDATE;
     cmd.data = RenderEngine::get_instance()
                    ->get_mem_pool()
@@ -128,8 +128,8 @@ RenderCommand RenderCommandDispatcher::prepare_update_cmd() {
     return cmd;
 }
 
-void RenderCommandDispatcher::clear(StateClearFlag flag) {
-    RenderCommand cmd = prepare_state_cmd();
+void RenderCommandDispatcher::clear(StateClearFlag flag, f32 depth) {
+    RenderCommand cmd = prepare_state_cmd(depth);
     RenderStateData *state_data = static_cast<RenderStateData *>(cmd.data);
     state_data->flag |= RenderStateFlag::CLEAR;
     state_data->clear_flag |= flag;
@@ -137,32 +137,32 @@ void RenderCommandDispatcher::clear(StateClearFlag flag) {
 }
 
 void RenderCommandDispatcher::set_viewport(f32 x, f32 y, f32 width,
-                                           f32 height) {
-    RenderCommand cmd = prepare_state_cmd();
+                                           f32 height, f32 depth) {
+    RenderCommand cmd = prepare_state_cmd(depth);
     RenderStateData *state_data = static_cast<RenderStateData *>(cmd.data);
     state_data->flag |= RenderStateFlag::VIEWPORT;
     state_data->viewport = {.x = x, .y = y, .w = width, .h = height};
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
-void RenderCommandDispatcher::set_scissor(f32 x, f32 y, f32 width, f32 height) {
-    RenderCommand cmd = prepare_state_cmd();
+void RenderCommandDispatcher::set_scissor(f32 x, f32 y, f32 width, f32 height, f32 depth) {
+    RenderCommand cmd = prepare_state_cmd(depth);
     RenderStateData *state_data = static_cast<RenderStateData *>(cmd.data);
     state_data->flag |= RenderStateFlag::SCISSOR;
     state_data->rect = {.x = x, .y = y, .w = width, .h = height};
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
-void RenderCommandDispatcher::cancel_scissor() {
+void RenderCommandDispatcher::cancel_scissor(f32 depth) {
     this->set_scissor(this->viewport.x, this->viewport.y, this->viewport.w,
                       this->viewport.h);
 }
 
 void RenderCommandDispatcher::update_buffer(RenderResource &buffer, u32 offset,
-                                            u32 size, void *data) {
+                                            u32 size, void *data, f32 depth) {
     if (buffer.type != RenderResourceType::VERTEX &&
         buffer.type != RenderResourceType::CONSTANT &&
         buffer.type != RenderResourceType::INDEX)
         return;
-    RenderCommand cmd = prepare_update_cmd();
+    RenderCommand cmd = prepare_update_cmd(depth);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
@@ -175,12 +175,12 @@ void RenderCommandDispatcher::update_buffer(RenderResource &buffer, u32 offset,
 }
 
 void *RenderCommandDispatcher::map_buffer(RenderResource &buffer, u32 offset,
-                                          u32 size) {
+                                          u32 size, f32 depth) {
     if (buffer.type != RenderResourceType::VERTEX &&
         buffer.type != RenderResourceType::CONSTANT &&
         buffer.type != RenderResourceType::INDEX)
         return nullptr;
-    RenderCommand cmd = prepare_update_cmd();
+    RenderCommand cmd = prepare_update_cmd(depth);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
@@ -195,9 +195,9 @@ void *RenderCommandDispatcher::map_buffer(RenderResource &buffer, u32 offset,
 
 void RenderCommandDispatcher::update_texture(RenderResource &texture, u16 x_off,
                                              u16 y_off, u16 w, u16 h,
-                                             void *data) {
+                                             void *data, f32 depth) {
     if (texture.type != RenderResourceType::TEXTURE) return;
-    RenderCommand cmd = prepare_update_cmd();
+    RenderCommand cmd = prepare_update_cmd(depth);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
@@ -213,9 +213,9 @@ void RenderCommandDispatcher::update_texture(RenderResource &texture, u16 x_off,
 }
 
 void *RenderCommandDispatcher::map_texture(RenderResource &texture, u16 x_off,
-                                           u16 y_off, u16 w, u16 h) {
+                                           u16 y_off, u16 w, u16 h, f32 depth) {
     if (texture.type != RenderResourceType::TEXTURE) return nullptr;
-    RenderCommand cmd = prepare_update_cmd();
+    RenderCommand cmd = prepare_update_cmd(depth);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
@@ -232,13 +232,13 @@ void *RenderCommandDispatcher::map_texture(RenderResource &texture, u16 x_off,
 
 void RenderCommandDispatcher::update_cubemap(RenderResource &texture, u8 face,
                                              u16 x_off, u16 y_off, u16 w, u16 h,
-                                             void *data) {
+                                             void *data, f32 depth) {
     if (texture.type != RenderResourceType::TEXTURE) return;
     if (face >= 6) {
         SPDLOG_ERROR("Face is invalid.");
         return;
     }
-    RenderCommand cmd = prepare_update_cmd();
+    RenderCommand cmd = prepare_update_cmd(depth);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =

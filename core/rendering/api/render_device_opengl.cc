@@ -598,6 +598,27 @@ void RenderDeviceOpenGL::setup_rasterizer(const RenderRasterizerState &state) {
     glPatchParameteri(GL_PATCH_VERTICES, state.patch_control_points);
 }
 
+inline static u32 get_op(CompareOP op) {
+    switch (op) {
+        case CompareOP::NEVER:
+            return GL_NEVER;
+        case CompareOP::LESS:
+            return GL_LESS;
+        case CompareOP::EQUAL:
+            return GL_EQUAL;
+        case CompareOP::LESS_OR_EQUAL:
+            return GL_LEQUAL;
+        case CompareOP::GREATER:
+            return GL_GREATER;
+        case CompareOP::GREATER_OR_EQUAL:
+            return GL_GEQUAL;
+        case CompareOP::NOT_EQUAL:
+            return GL_NOTEQUAL;
+        case CompareOP::ALWAYS:
+            return GL_ALWAYS;
+    }
+}
+
 void RenderDeviceOpenGL::setup_depth_stencil(
     const RenderDepthStencilState &state) {
     if (state.depth_on)
@@ -609,6 +630,8 @@ void RenderDeviceOpenGL::setup_depth_stencil(
         glEnable(GL_STENCIL_TEST);
     else
         glDisable(GL_STENCIL_TEST);
+    glDepthFunc(get_op(state.depth_compare_op));
+    glStencilFunc(get_op(state.stencil_compare_op), 1, 0xff);
 }
 
 inline static u32 get_blend_func(BlendFactor factor) {
@@ -825,21 +848,18 @@ void RenderDeviceOpenGL::process() {
         }
         alloc_cmds.pop();
     }
-
+    std::stable_sort(cmd_queue.begin(), cmd_queue.end(), RenderCommand::cmp);
     while (!cmd_queue.empty()) {
         RenderCommand &cmd = cmd_queue.front();
         switch (cmd.type) {
             case RenderCommandType::UPDATE:
                 handle_update(cmd);
-                static_cast<RenderUpdateData *>(cmd.data)->~RenderUpdateData();
                 break;
             case RenderCommandType::STATE:
                 handle_state(cmd);
-                static_cast<RenderStateData *>(cmd.data)->~RenderStateData();
                 break;
             case RenderCommandType::RENDER:
                 handle_render(cmd);
-                static_cast<RenderDrawData *>(cmd.data)->~RenderDrawData();
                 break;
             default:
                 break;

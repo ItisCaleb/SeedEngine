@@ -13,6 +13,7 @@ class DefaultStorage {
         Ref<Shader> mesh_shader;
         Ref<Shader> gui_shader;
         Ref<Shader> terrain_shader;
+        Ref<Shader> mesh_debug_shader;
         VertexDescription terrain_desc;
         VertexDescription mesh_desc;
         VertexDescription sky_desc;
@@ -23,6 +24,8 @@ class DefaultStorage {
         DefaultStorage();
         Ref<Shader> get_sky_shader() { return sky_shader; }
         Ref<Shader> get_mesh_shader() { return mesh_shader; }
+        Ref<Shader> get_mesh_debug_shader() { return mesh_debug_shader; }
+
         Ref<Shader> get_gui_shader() { return gui_shader; }
         Ref<Shader> get_terrain_shader() { return terrain_shader; }
         VertexDescription *get_terrain_desc() { return &terrain_desc; }

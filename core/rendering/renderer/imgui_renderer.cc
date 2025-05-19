@@ -126,8 +126,8 @@ void ImguiRenderer::process() {
         }
         Window *window = SeedEngine::get_instance()->get_window();
 
-        dp.set_viewport(0, 0, window->get_width(), window->get_height());
-        dp.set_scissor(0, 0, window->get_width(), window->get_height());
+        dp.set_viewport(0, 0, window->get_width(), window->get_height(), 1);
+        dp.set_scissor(0, 0, window->get_width(), window->get_height(), 1);
     }
 }
 void ImguiRenderer::cleanup() {}

@@ -163,30 +163,30 @@ class RenderCommandDispatcher {
         bool start_draw = 0;
         ViewportState viewport;
         std::string scope;
-        RenderCommand prepare_state_cmd();
-        RenderCommand prepare_update_cmd();
+        RenderCommand prepare_state_cmd(f32 depth);
+        RenderCommand prepare_update_cmd(f32 depth);
 
     public:
         u32 gen_sort_key(f32 depth);
         void set_scope(const std::string &scope);
 
-        void clear(StateClearFlag flag);
-        void set_viewport(f32 x, f32 y, f32 width, f32 height);
-        void set_scissor(f32 x, f32 y, f32 width, f32 height);
-        void cancel_scissor();
+        void clear(StateClearFlag flag, f32 depth = 0);
+        void set_viewport(f32 x, f32 y, f32 width, f32 height, f32 depth = 0);
+        void set_scissor(f32 x, f32 y, f32 width, f32 height, f32 depth = 0);
+        void cancel_scissor(f32 depth = 0);
 
         /* Will copy data to a temporary buffer.*/
         void update_buffer(RenderResource &buffer, u32 offset, u32 size,
-                           void *data);
-        void *map_buffer(RenderResource &buffer, u32 offset, u32 size);
+                           void *data, f32 depth = 0);
+        void *map_buffer(RenderResource &buffer, u32 offset, u32 size, f32 depth = 0);
 
         /* Will copy data to a temporary buffer.*/
         void update_texture(RenderResource &texture, u16 x_off, u16 y_off,
-                            u16 w, u16 h, void *data);
+                            u16 w, u16 h, void *data, f32 depth = 0);
         void *map_texture(RenderResource &buffer, u16 x_off, u16 y_off, u16 w,
-                          u16 h);
+                          u16 h, f32 depth = 0);
         void update_cubemap(RenderResource &texture, u8 face, u16 x_off,
-                            u16 y_off, u16 w, u16 h, void *data);
+                            u16 y_off, u16 w, u16 h, void *data, f32 depth = 0);
 
         /* will automatically fill material state and textures */
         RenderDrawDataBuilder generate_render_data(Ref<Material> mat);
