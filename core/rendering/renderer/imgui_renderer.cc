@@ -61,15 +61,15 @@ ImguiRenderer::ImguiData *ImguiRenderer::get_imgui_data() {
                ? (ImguiData *)ImGui::GetIO().BackendRendererUserData
                : nullptr;
 }
-void ImguiRenderer::process() {
+void ImguiRenderer::process(Viewport &viewport) {
     RenderCommandDispatcher dp(layer);
     DEBUG_DISPATCH(dp);
     ImDrawData *draw_data = ImGui::GetDrawData();
     ImguiData *bd = get_imgui_data();
-    int fb_width =
-        (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
-    int fb_height =
-        (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
+    Rect view_rect = viewport.get_actual_dimension();
+    int fb_width = view_rect.w;
+    int fb_height = view_rect.h;
+
     if (fb_width <= 0 || fb_height <= 0) return;
 
     // Will project scissor/clipping rectangles into framebuffer space
@@ -112,7 +112,7 @@ void ImguiRenderer::process() {
                     continue;
                 RenderDrawDataBuilder builder =
                     dp.generate_render_data(this->font_mat);
-                builder.set_viewport(0, 0, fb_width, fb_height);
+                builder.set_viewport(view_rect.x, view_rect.y, fb_width, fb_height);
                 builder.set_scissor(clip_min.x, fb_height - clip_max.y,
                                     clip_max.x - clip_min.x,
                                     clip_max.y - clip_min.y);
@@ -124,10 +124,7 @@ void ImguiRenderer::process() {
                           font_mat->get_pipeline(), 0);
             }
         }
-        Window *window = SeedEngine::get_instance()->get_window();
-
-        dp.set_viewport(0, 0, window->get_width(), window->get_height(), 1);
-        dp.set_scissor(0, 0, window->get_width(), window->get_height(), 1);
+        dp.set_scissor(view_rect.x, view_rect.y, fb_width, fb_height, 1);
     }
 }
 void ImguiRenderer::cleanup() {}

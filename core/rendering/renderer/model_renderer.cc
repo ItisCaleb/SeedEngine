@@ -99,11 +99,9 @@ void ModelRenderer::preprocess() {
     }
 }
 
-void ModelRenderer::process() {
-    Window *window = SeedEngine::get_instance()->get_window();
+void ModelRenderer::process(Viewport &viewport) {
     RenderCommandDispatcher dp(layer);
     DEBUG_DISPATCH(dp);
-    dp.set_viewport(0, 0, window->get_width(), window->get_height());
     auto sky = SeedEngine::get_instance()->get_world()->get_sky();
     RenderDrawDataBuilder sky_builder =
         dp.generate_render_data(ref_cast<Material>(sky->get_material()));

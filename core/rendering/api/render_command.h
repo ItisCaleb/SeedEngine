@@ -90,6 +90,12 @@ struct RenderDrawData {
         u32 operation_cnt = 0;
 };
 
+/*
+ RenderDrawDataBuilder is use to build RenderDrawCommmand
+|------------------------------|-------|-------|
+|  RenderDrawCommmand  |  op1  |  op2  | ..... |
+|------------------------------|-------|-------|
+*/
 class RenderCommandDispatcher;
 class RenderDrawDataBuilder {
         friend RenderCommandDispatcher;

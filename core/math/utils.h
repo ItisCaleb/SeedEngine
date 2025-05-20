@@ -8,6 +8,14 @@ inline static f32 radians(f32 degree) { return degree * PI / 180.0f; }
 
 inline static f32 degree(f32 radians) { return radians * 180.0f / PI; }
 
+inline static i32 clampi(i32 n, i32 low, i32 high) {
+    return (n < low) ? low : (n > high) ? high : n;
+}
+
+inline static f32 clampf(f32 n, f32 low, f32 high) {
+    return (n < low) ? low : (n > high) ? high : n;
+}
+
 inline static u32 roundup_to_pow2(u32 v) {
     v--;
     v |= v >> 1;

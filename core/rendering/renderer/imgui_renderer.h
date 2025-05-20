@@ -18,9 +18,8 @@ class ImguiRenderer : public Renderer {
     public:
         void init() override;
         void preprocess() override;
-        void process() override;
+        void process(Viewport &viewport) override;
         void cleanup() override;
-        ImguiRenderer(u8 layer) : Renderer(layer) {}
 };
 }  // namespace Seed
 

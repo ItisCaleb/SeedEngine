@@ -27,9 +27,8 @@ class ModelRenderer : public Renderer {
         void init_debugging();
         void init() override;
         void preprocess() override;
-        void process() override;
+        void process(Viewport &viewport) override;
         void cleanup() override;
-        ModelRenderer(u8 layer) : Renderer(layer) {}
 };
 }  // namespace Seed
 

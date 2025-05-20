@@ -420,7 +420,7 @@ void RenderDeviceOpenGL::handle_dealloc(AllocCommand &cmd) {
             break;
         }
         case RenderResourceType::PIPELINE: {
-            this->shaders.remove(cmd.handle);
+            this->pipelines.remove(cmd.handle);
             break;
         }
         case RenderResourceType::RENDER_TARGET: {

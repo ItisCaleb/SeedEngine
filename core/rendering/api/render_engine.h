@@ -11,18 +11,24 @@
 #include "core/window.h"
 #include <queue>
 #include <vector>
+#include "core/rendering/viewport.h"
 
 namespace Seed {
 class RenderEngine {
     private:
+        struct Layer {
+                Viewport viewport;
+                Renderer *renderer;
+                Layer(Window *window, Renderer *rd)
+                    : viewport(window), renderer(rd) {}
+        };
         inline static RenderEngine *instance = nullptr;
         RenderDevice *device;
         RenderResource matrices_rc, cam_rc;
         Camera cam;
         LinearAllocator mem_pool;
-        std::vector<Renderer *> renderers;
-        Ref<Texture> default_tex;
-        Ref<Material> default_mat;
+        std::vector<Layer> layers;
+        Window *current_window;
 
     public:
         static RenderEngine *get_instance();
@@ -31,10 +37,9 @@ class RenderEngine {
         LinearAllocator *get_mem_pool();
         RenderDevice *get_device();
         Camera *get_cam();
-        Ref<Texture> get_default_texture() { return default_tex; }
-        Ref<Material> get_default_material() { return default_mat; }
         template <typename T, typename... Args>
-        void register_renderer(const Args &...args);
+        void register_renderer(u32 layer, const Args &...args);
+        void set_layer_viewport(u32 layer, RectF rect);
         RenderEngine(Window *window);
         ~RenderEngine();
 };

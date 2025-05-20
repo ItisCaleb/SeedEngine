@@ -88,6 +88,10 @@ void RenderResource::alloc_pipeline(RenderResource shader,
     RenderEngine::get_instance()->get_device()->alloc_pipeline(
         this, shader, rst_state, depth_state, blend_state);
 }
+void RenderResource::alloc_render_target() {
+    this->type = RenderResourceType::RENDER_TARGET;
+    RenderEngine::get_instance()->get_device()->alloc_render_target(this);
+}
 
 void RenderResource::dealloc() {
     if (this->type == RenderResourceType::UNINITIALIZE) {
