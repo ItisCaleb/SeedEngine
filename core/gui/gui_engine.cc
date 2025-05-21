@@ -8,6 +8,7 @@
 
 namespace Seed {
 GuiEngine::GuiEngine(Window *window) {
+    instance = this;
     if (!window) {
         SPDLOG_ERROR("Can't initialize Gui engine, window is null, exiting.");
         exit(1);
@@ -34,26 +35,10 @@ void GuiEngine::update() {
     ImGui::NewFrame();
     ImGuiIO &io = ImGui::GetIO();
     Input::get_instance()->set_capture_mouse(!io.WantCaptureMouse);
-    bool show_demo_window = true;
-
-    ImGui::ShowDemoWindow(&show_demo_window);
-    {
-        ImGui::Begin("Hello, world!");
-        if (ImGui::Button("Change poly")) {
-            auto mat = SeedEngine::get_instance()
-                           ->get_world()
-                           ->get_terrain()
-                           ->get_material();
-            auto state = mat->get_rasterizer_state();
-            if (state.poly_mode == PolygonMode::FILL) {
-                state.poly_mode = PolygonMode::LINE;
-            } else {
-                state.poly_mode = PolygonMode::FILL;
-            }
-            mat->set_rasterizer_state(state);
-        }
-        ImGui::End();
+    for(auto gui : guis){
+        gui->update();
     }
+    
     ImGui::Render();
 }
 }  // namespace Seed

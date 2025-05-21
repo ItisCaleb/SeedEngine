@@ -5,10 +5,15 @@
 #include <filesystem>
 #include "core/rendering/model_file.h"
 #include <algorithm>
+#include <nfd.h>
+#include "core/resource/resource_loader.h"
+#include "core/resource/model.h"
+#include "core/model_entity.h"
+#include "core/engine.h"
 
 using namespace Seed;
 
-i16 Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
+i16 EditorModel::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
     for (int i = 0; i < mat->GetTextureCount(type); i++) {
         aiString str;
         mat->GetTexture(type, i, &str);
@@ -25,7 +30,7 @@ i16 Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
     return -1;
 }
 
-void Model::calculateAABB() {
+void EditorModel::calculateAABB() {
     f32 x1 = 1e5, x2 = -1e5;
     f32 y1 = 1e5, y2 = -1e5;
     f32 z1 = 1e5, z2 = -1e5;
@@ -45,9 +50,9 @@ void Model::calculateAABB() {
     this->bounding_box = {Vec3{x2 - w, y2 - h, z2 - d}, Vec3{w, h, d}};
 }
 
-void Model::processMesh(aiMesh *mesh, const aiScene *scene) {
+void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
     meshes.push_back({});
-    ::Mesh &m = meshes.back();
+    EditorMesh &m = meshes.back();
     std::vector<Vertex> &vertices = m.vertices;
     std::vector<u32> &indices = m.indices;
     for (int i = 0; i < mesh->mNumVertices; i++) {
@@ -75,7 +80,7 @@ void Model::processMesh(aiMesh *mesh, const aiScene *scene) {
         model_mat.diffuse = loadMaterialTextures(mat, aiTextureType_DIFFUSE);
         model_mat.specular = loadMaterialTextures(mat, aiTextureType_SPECULAR);
         model_mat.normal = loadMaterialTextures(mat, aiTextureType_NORMALS);
-        if(model_mat.normal == -1){
+        if (model_mat.normal == -1) {
             /* we try to load heightmap instead*/
             model_mat.normal = loadMaterialTextures(mat, aiTextureType_HEIGHT);
         }
@@ -93,7 +98,7 @@ void Model::processMesh(aiMesh *mesh, const aiScene *scene) {
     }
 }
 
-void Model::processNode(aiNode *node, const aiScene *scene) {
+void EditorModel::processNode(aiNode *node, const aiScene *scene) {
     for (int i = 0; i < node->mNumMeshes; i++) {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
         processMesh(mesh, scene);
@@ -103,7 +108,7 @@ void Model::processNode(aiNode *node, const aiScene *scene) {
     }
 }
 
-Model::Model(const std::string &path) {
+EditorModel::EditorModel(const std::string &path) {
     Assimp::Importer importer;
     const aiScene *scene = importer.ReadFile(
         path, aiProcess_CalcTangentSpace | aiProcess_Triangulate |
@@ -122,12 +127,12 @@ Model::Model(const std::string &path) {
     directory = dir.parent_path().string();
 }
 
-void Model::dump() {
+void EditorModel::dump() {
     std::string path = fmt::format("{}/test.mdl", this->directory);
     dump(path);
 }
 
-void Model::dump(const std::string &file_path) {
+void EditorModel::dump(const std::string &file_path) {
     Ref<File> f = File::open(file_path, "wb");
     ModelHeader header;
     header.mesh_count = meshes.size();
@@ -185,4 +190,40 @@ void Model::dump(const std::string &file_path) {
     }
 
     fmt::println("Succesfully dumped {}", file_path);
+}
+
+void ModelGUI::update() {
+    ImGui::Begin("Model");
+    if (ImGui::Button("Open model file")) {
+        if (current_model) {
+            delete current_model;
+        }
+        nfdu8char_t *path;
+        nfdopendialogu8args_t args = {0};
+        nfdresult_t r = NFD_OpenDialogU8_With(&path, &args);
+        if (r == NFD_OKAY) {
+            current_model = new EditorModel(path);
+        }
+    }
+
+    if (ImGui::Button("Dump model")) {
+        if (current_model != nullptr) {
+            current_model->dump();
+            std::string path =
+                fmt::format("{}/test.mdl", current_model->directory);
+
+            ResourceLoader *loader = ResourceLoader::get_instance();
+            loader->load_async<Model>(path, [=](Ref<Model> rc) {
+                ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, rc);
+                auto engine = SeedEngine::get_instance();
+                engine->get_world()->add_entity(ent);
+                engine->get_world()->add_model_entity(ent);
+            });
+        }
+    }
+    if (current_model != nullptr) {
+        ImGui::Text("mesh count: %zu", current_model->meshes.size());
+        ImGui::Text("texture count: %zu", current_model->textures.size());
+    }
+    ImGui::End();
 }

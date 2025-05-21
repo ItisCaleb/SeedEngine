@@ -37,9 +37,7 @@ void ModelRenderer::init_color() {
     instance_desc.add_attr(6, VertexAttributeType::FLOAT, 4, 1);
 
     debug_mat.create(DS::get_instance()->get_mesh_debug_shader());
-    RenderRasterizerState rst = {
-        .poly_mode = PolygonMode::LINE
-    };
+    RenderRasterizerState rst = {.poly_mode = PolygonMode::LINE};
     debug_mat->set_rasterizer_state(rst);
 
     RenderResource lights_rc;
@@ -103,12 +101,14 @@ void ModelRenderer::process(Viewport &viewport) {
     RenderCommandDispatcher dp(layer);
     DEBUG_DISPATCH(dp);
     auto sky = SeedEngine::get_instance()->get_world()->get_sky();
-    RenderDrawDataBuilder sky_builder =
-        dp.generate_render_data(ref_cast<Material>(sky->get_material()));
-    sky_builder.bind_vertex_data(sky_vert);
-    sky_builder.bind_description(DS::get_instance()->get_sky_desc());
-    dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
-              sky->get_material()->get_pipeline(), 1);
+    if (sky.is_valid()) {
+        RenderDrawDataBuilder sky_builder =
+            dp.generate_render_data(ref_cast<Material>(sky->get_material()));
+        sky_builder.bind_vertex_data(sky_vert);
+        sky_builder.bind_description(DS::get_instance()->get_sky_desc());
+        dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
+                  sky->get_material()->get_pipeline(), 1);
+    }
 
     for (auto &[model, instances] : model_instances) {
         if (instances.empty()) {
@@ -134,17 +134,16 @@ void ModelRenderer::process(Viewport &viewport) {
 
     Ref<Terrain> terrain =
         SeedEngine::get_instance()->get_world()->get_terrain();
-    if (terrain.is_null()) {
-        return;
+    if (terrain.is_valid()) {
+        RenderDrawDataBuilder builder = dp.generate_render_data(
+            ref_cast<Material>(terrain->get_material()));
+        builder.bind_vertex_data(*terrain->get_vertices(), 0);
+        builder.bind_description(DS::get_instance()->get_terrain_desc());
+
+        dp.render(builder, RenderPrimitiveType::PATCHES,
+                  terrain->get_material()->get_pipeline(), 0.2);
     }
 
-    RenderDrawDataBuilder builder =
-        dp.generate_render_data(ref_cast<Material>(terrain->get_material()));
-    builder.bind_vertex_data(*terrain->get_vertices(), 0);
-    builder.bind_description(DS::get_instance()->get_terrain_desc());
-
-    dp.render(builder, RenderPrimitiveType::PATCHES,
-              terrain->get_material()->get_pipeline(), 0.2);
     /* debugging */
     // RenderDrawData aabb_data =
     //     dp.generate_render_data(aabb_vertices, Ref<Material>());

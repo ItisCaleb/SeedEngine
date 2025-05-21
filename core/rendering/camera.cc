@@ -22,6 +22,13 @@ void Camera::set_front(Vec3 front) {
     this->front = front.norm();
     dirty = true;
 }
+void Camera::set_front(f32 yaw, f32 pitch) {
+    Vec3 dir;
+    dir.x = sin(radians(yaw)) * cos(radians(pitch));
+    dir.y = sin(radians(pitch));
+    dir.z = -cos(radians(yaw)) * cos(radians(pitch));
+    this->set_front(dir);
+}
 Vec3 Camera::get_front() { return this->front; }
 
 void Camera::calculate_frustum() {
@@ -123,6 +130,8 @@ bool Camera::within_frustum(AABB &bounding_box) {
            test_aabb_plane(bounding_box, frustum_plane.near) &&
            test_aabb_plane(bounding_box, frustum_plane.far);
 }
+
+Vec3 Camera::to_world_pos(Vec2 pos) { return {}; }
 
 Camera::Camera(Vec3 pos, Vec3 up, Vec3 front)
     : position(pos), up(up), front(front.norm()) {}

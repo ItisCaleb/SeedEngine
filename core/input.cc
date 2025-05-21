@@ -9,7 +9,7 @@ void Input::reset_input() { key_pressed.clear(); }
 bool Input::is_key_pressed(KeyCode code) { return key_pressed.count(code); }
 
 void Input::on_mouse_move(
-    std::function<void(i32 last_x, i32 last_y, i32 x, i32 y)> cb) {
+    std::function<void(f32 last_x, f32 last_y, f32 x, f32 y)> cb) {
     this->drag_func = cb;
 }
 

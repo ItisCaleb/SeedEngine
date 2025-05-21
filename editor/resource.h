@@ -8,14 +8,15 @@
 #include <string>
 #include <vector>
 #include <map>
+#include "core/gui/gui.h"
 
-struct Mesh {
+struct EditorMesh {
         std::vector<Seed::Vertex> vertices;
         std::vector<u32> indices;
         i16 material_id = -1;
 };
 
-class Model {
+class EditorModel {
     private:
         void processNode(aiNode *node, const aiScene *scene);
         void processMesh(aiMesh *mesh, const aiScene *scene);
@@ -36,7 +37,7 @@ class Model {
                 }
         };
         std::string directory;
-        std::vector<::Mesh> meshes;
+        std::vector<EditorMesh> meshes;
         std::vector<std::string> textures;
         std::vector<Material> materials;
         Seed::AABB bounding_box;
@@ -44,7 +45,14 @@ class Model {
         void dump();
         void dump(const std::string &file_path);
 
-        Model(const std::string &path);
+        EditorModel(const std::string &path);
+};
+
+class ModelGUI : public Seed::GUI {
+    ::EditorModel *current_model = nullptr;
+
+    public:
+        void update() override;
 };
 
 #endif

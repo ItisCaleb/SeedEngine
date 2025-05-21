@@ -44,13 +44,13 @@ CameraEntity::CameraEntity() {
     this->cam->set_position(Vec3{0, 20, 0});
     this->cam->set_perspective(45, 1.33, 0.1, 10000.0);
     Input::get_instance()->on_mouse_move(
-        [=](i32 last_x, i32 last_y, i32 x, i32 y) {
+        [=](f32 last_x, f32 last_y, f32 x, f32 y) {
             if (!Input::get_instance()->is_mouse_clicked(MouseEvent::LEFT)) {
                 return;
             }
             f32 x_off = x - last_x;
             f32 y_off = last_y - y;
-            f32 sensitivity = 0.15f;
+            f32 sensitivity = 100;
             x_off *= sensitivity;
             y_off *= sensitivity;
             yaw += x_off;
@@ -58,11 +58,7 @@ CameraEntity::CameraEntity() {
 
             if (pitch > 89.0f) pitch = 89.0f;
             if (pitch < -89.0f) pitch = -89.0f;
-            Vec3 dir;
-            dir.x = cos(radians(yaw)) * cos(radians(pitch));
-            dir.y = sin(radians(pitch));
-            dir.z = sin(radians(yaw)) * cos(radians(pitch));
-            this->cam->set_front(dir.norm());
+            this->cam->set_front(yaw, pitch);
         });
 }
 }  // namespace Seed

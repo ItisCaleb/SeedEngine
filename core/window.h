@@ -10,7 +10,6 @@ class Window {
         std::string title;
         bool fullscreen;
         void *window;
-        void on_resize(void *window, i32 w, i32 h);
 
     public:
         u32 get_width() { return w; }

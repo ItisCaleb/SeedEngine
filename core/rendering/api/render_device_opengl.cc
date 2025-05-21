@@ -723,8 +723,10 @@ void RenderDeviceOpenGL::handle_state(RenderCommand &cmd) {
         glClear(clear_flag);
     }
     if (flag & RenderStateFlag::VIEWPORT) {
+        /* convert coordinate system */
+        Window *window = RenderEngine::get_instance()->get_current_window();
         ViewportState &vp = state_data->viewport;
-        glViewport(vp.x, vp.y, vp.w, vp.h);
+        glViewport(vp.x, window->get_height() - vp.y - vp.h, vp.w, vp.h);
     }
     if (flag & RenderStateFlag::SCISSOR) {
         ScissorRect &rect = state_data->rect;

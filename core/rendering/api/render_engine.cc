@@ -69,8 +69,13 @@ void RenderEngine::register_renderer(u32 layer, const Args &...args) {
 }
 
 void RenderEngine::set_layer_viewport(u32 layer, RectF rect) {
-    EXPECT_INDEX_INBOUND(layer-1, this->layers.size());
-    this->layers[layer-1].viewport.set_dimension(rect);
+    EXPECT_INDEX_INBOUND(layer - 1, this->layers.size());
+    this->layers[layer - 1].viewport.set_dimension(rect);
+}
+
+Viewport &RenderEngine::get_layer_viewport(u32 layer) {
+    EXPECT_INDEX_INBOUND_THROW(layer - 1, this->layers.size());
+    return this->layers[layer - 1].viewport;
 }
 
 void RenderEngine::process() {

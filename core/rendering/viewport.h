@@ -4,6 +4,7 @@
 #include "core/window.h"
 #include "core/collision/shape.h"
 #include "core/math/utils.h"
+#include "core/math/vec2.h"
 #include <spdlog/spdlog.h>
 
 namespace Seed {
@@ -13,7 +14,9 @@ class Viewport {
         Window *binded_window;
 
     public:
-        Viewport(Window *window, RectF dimension):binded_window(window) { set_dimension(dimension); }
+        Viewport(Window *window, RectF dimension) : binded_window(window) {
+            set_dimension(dimension);
+        }
         Viewport(Window *window, f32 x, f32 y, f32 w, f32 h)
             : Viewport(window, RectF{x, y, w, h}) {}
         Viewport(Window *window) : Viewport(window, 0, 0, 1, 1) {}
@@ -42,6 +45,26 @@ class Viewport {
                         .y = (u32)(actual_h * dimension.y),
                         .w = (u32)(actual_w * dimension.w),
                         .h = (u32)(actual_h * dimension.h)};
+        }
+
+        bool within_viewport(f32 x, f32 y) {
+            return x >= dimension.x && x <= dimension.x + dimension.w && y >= dimension.y &&
+                   y <= dimension.y + dimension.h;
+        }
+
+        bool within_viewport(Vec2 pos) {
+            return within_viewport(pos.x, pos.y);
+        } 
+
+        Vec2 to_viewport_coord(f32 x, f32 y) {
+            return Vec2{
+                (x - dimension.x) / dimension.w,
+                (y - dimension.y) / dimension.h,
+            };
+        }
+
+        Vec2 to_viewport_coord(Vec2 pos) {
+            return to_viewport_coord(pos.x, pos.y);
         }
 };
 }  // namespace Seed

@@ -4,8 +4,10 @@
 #include <spdlog/spdlog.h>
 
 namespace Seed {
-
+static Window *input_window;
 void InputHandler::init(Window *window) {
+    this->window = window;
+    input_window = window;
     spdlog::info("Initializing Input handler");
     if (!window) {
         SPDLOG_ERROR(
@@ -29,9 +31,14 @@ void InputHandler::init(Window *window) {
             if (!input->should_capture_mouse) {
                 return;
             }
+            i32 ww, wh;
+            glfwGetWindowSize(window, &ww, &wh);
+            x /= (f32)ww;
+            y /= (f32)wh;
             if (input->drag_func) {
                 input->drag_func(input->last_x, input->last_y, x, y);
             }
+
             input->last_x = x;
             input->last_y = y;
         });
