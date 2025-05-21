@@ -112,7 +112,8 @@ void ImguiRenderer::process(Viewport &viewport) {
                     continue;
                 RenderDrawDataBuilder builder =
                     dp.generate_render_data(this->font_mat);
-                builder.set_viewport(view_rect.x, view_rect.y, fb_width, fb_height);
+                builder.set_viewport(view_rect.x, view_rect.y, fb_width,
+                                     fb_height);
                 builder.set_scissor(clip_min.x, fb_height - clip_max.y,
                                     clip_max.x - clip_min.x,
                                     clip_max.y - clip_min.y);

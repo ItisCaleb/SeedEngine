@@ -4,9 +4,7 @@
 
 namespace Seed {
 
-static void on_window_resize(GLFWwindow *window, i32 w, i32 h) {
-    
-}
+static void on_window_resize(GLFWwindow *window, i32 w, i32 h) {}
 
 Window::Window(u32 w, u32 h, const std::string &title)
     : w(w), h(h), title(title) {

@@ -27,7 +27,7 @@
 #define EXPECT_INDEX_INBOUND_THROW(num, size)                \
     if ((num) >= (size) || (num) < 0) {                      \
         SPDLOG_ERROR("{} is out of " #size " bound .", num); \
-        throw std::out_of_range("");                             \
+        throw std::out_of_range("");                         \
     } else                                                   \
         (void(0))
 

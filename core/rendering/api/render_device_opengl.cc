@@ -253,7 +253,8 @@ void RenderDeviceOpenGL::handle_alloc(AllocCommand &cmd) {
             break;
         }
         case RenderResourceType::RENDER_TARGET: {
-            HardwareRenderTargetGL *rt = this->render_targets.get_or_null(cmd.handle);
+            HardwareRenderTargetGL *rt =
+                this->render_targets.get_or_null(cmd.handle);
             EXPECT_NOT_NULL_RET(rt);
             glGenFramebuffers(1, &rt->handle);
         }

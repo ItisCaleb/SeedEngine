@@ -22,8 +22,9 @@ void ThreadPool::thread_func(ThreadData *td) {
 }
 
 ThreadPool::ThreadData *ThreadPool::select_worker() {
-    ThreadData *td = this->threads[this->last_worker + 1];
-    this->last_worker = (this->last_worker + 1) % this->threads.size();
+    u32 next_worker = (this->last_worker + 1) % this->threads.size();
+    ThreadData *td = this->threads[next_worker];
+    this->last_worker = next_worker;
     return td;
 }
 

@@ -12,6 +12,10 @@ TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
 void TerrainMaterial::set_height_map(Ref<Texture> height_map) {
     this->set_texture_unit(0, height_map);
 }
+Ref<Texture> TerrainMaterial::get_height_map() {
+    return this->get_texture_unit(0)->get_texture();
+}
+
 Terrain::Terrain(u32 width, u32 depth, Ref<Texture> height_map)
     : width(width), depth(depth) {
     std::vector<TerrainVertex> vertices;

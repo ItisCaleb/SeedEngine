@@ -41,15 +41,9 @@ class Material : public Resource {
         void set_depth_state(RenderDepthStencilState &state);
         void set_blend_state(RenderBlendState &state);
         void set_shader(Ref<Shader> shader);
-        RenderRasterizerState get_rasterizer_state(){
-            return raster_state;
-        }
-        RenderDepthStencilState get_depth_state(){
-            return depth_state;
-        }
-        RenderBlendState get_blend_state(){
-            return blend_state;
-        }
+        RenderRasterizerState get_rasterizer_state() { return raster_state; }
+        RenderDepthStencilState get_depth_state() { return depth_state; }
+        RenderBlendState get_blend_state() { return blend_state; }
 
         RenderResource get_pipeline();
         u16 get_id() { return id; }

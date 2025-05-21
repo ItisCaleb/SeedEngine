@@ -17,6 +17,7 @@ class Texture : public Resource {
 
         u32 get_height() { return h; }
 
+        void update(const u8 *data, u32 w, u32 h);
         void upload_cube_map(const u8 *right, const u8 *left, const u8 *top,
                              const u8 *bottom, const u8 *front, const u8 *back);
 

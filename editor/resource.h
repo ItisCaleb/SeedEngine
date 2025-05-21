@@ -49,7 +49,7 @@ class EditorModel {
 };
 
 class ModelGUI : public Seed::GUI {
-    ::EditorModel *current_model = nullptr;
+        ::EditorModel *current_model = nullptr;
 
     public:
         void update() override;

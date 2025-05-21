@@ -48,13 +48,11 @@ class Viewport {
         }
 
         bool within_viewport(f32 x, f32 y) {
-            return x >= dimension.x && x <= dimension.x + dimension.w && y >= dimension.y &&
-                   y <= dimension.y + dimension.h;
+            return x >= dimension.x && x <= dimension.x + dimension.w &&
+                   y >= dimension.y && y <= dimension.y + dimension.h;
         }
 
-        bool within_viewport(Vec2 pos) {
-            return within_viewport(pos.x, pos.y);
-        } 
+        bool within_viewport(Vec2 pos) { return within_viewport(pos.x, pos.y); }
 
         Vec2 to_viewport_coord(f32 x, f32 y) {
             return Vec2{

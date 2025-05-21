@@ -35,10 +35,10 @@ void GuiEngine::update() {
     ImGui::NewFrame();
     ImGuiIO &io = ImGui::GetIO();
     Input::get_instance()->set_capture_mouse(!io.WantCaptureMouse);
-    for(auto gui : guis){
+    for (auto gui : guis) {
         gui->update();
     }
-    
+
     ImGui::Render();
 }
 }  // namespace Seed

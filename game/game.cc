@@ -83,11 +83,12 @@ int main(void) {
     //  }
     auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
     auto sky = loader->load_async<Sky>("assets/sky.json");
-    auto backpack = loader->load_async<Model>("assets/backpack/test.mdl", [=](Ref<Model> rc){
-        ModelEntity *ent = new ModelEntity(Vec3{0, 20, -5}, rc);
-        engine->get_world()->add_entity(ent);
-        engine->get_world()->add_model_entity(ent);
-    });
+    auto backpack = loader->load_async<Model>(
+        "assets/backpack/test.mdl", [=](Ref<Model> rc) {
+            ModelEntity *ent = new ModelEntity(Vec3{0, 20, -5}, rc);
+            engine->get_world()->add_entity(ent);
+            engine->get_world()->add_model_entity(ent);
+        });
 
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->set_terrain(terrain->wait());

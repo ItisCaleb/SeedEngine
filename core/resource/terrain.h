@@ -15,6 +15,7 @@ class TerrainMaterial : public Material {
     public:
         TerrainMaterial(Ref<Texture> height_map);
         void set_height_map(Ref<Texture> height_map);
+        Ref<Texture> get_height_map();
 };
 class TerrainRenderer;
 class Terrain : public Resource {
@@ -27,12 +28,8 @@ class Terrain : public Resource {
 
     public:
         Terrain(u32 width, u32 depth, Ref<Texture> height_map);
-        Ref<TerrainMaterial> get_material(){
-            return terrain_mat;
-        }
-        VertexData *get_vertices(){
-            return &vertices;
-        }
+        Ref<TerrainMaterial> get_material() { return terrain_mat; }
+        VertexData *get_vertices() { return &vertices; }
         ~Terrain();
 };
 

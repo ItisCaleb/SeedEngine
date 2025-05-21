@@ -11,7 +11,8 @@ DefaultStorage::DefaultStorage() {
     terrain_shader =
         loader->load_shader("assets/terrain.vert", "assets/terrain.frag", "",
                             "assets/terrain.tesc", "assets/terrain.tese");
-    mesh_debug_shader = loader->load_shader("assets/mesh_debug.vert", "assets/mesh_debug.frag");
+    mesh_debug_shader =
+        loader->load_shader("assets/mesh_debug.vert", "assets/mesh_debug.frag");
     const char *vertex_shader =
         "#version 410 core\n"
         "layout (location = 0) in vec2 Position;\n"

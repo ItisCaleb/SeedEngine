@@ -154,10 +154,10 @@ struct RenderUpdateData {
                 } buffer;
 
                 struct {
-                        u16 x_off;
-                        u16 y_off;
-                        u16 w;
-                        u16 h;
+                        u32 x_off;
+                        u32 y_off;
+                        u32 w;
+                        u32 h;
                         u8 face;
                 } texture;
         };
@@ -184,13 +184,14 @@ class RenderCommandDispatcher {
         /* Will copy data to a temporary buffer.*/
         void update_buffer(RenderResource &buffer, u32 offset, u32 size,
                            void *data, f32 depth = 0);
-        void *map_buffer(RenderResource &buffer, u32 offset, u32 size, f32 depth = 0);
+        void *map_buffer(RenderResource &buffer, u32 offset, u32 size,
+                         f32 depth = 0);
 
         /* Will copy data to a temporary buffer.*/
-        void update_texture(RenderResource &texture, u16 x_off, u16 y_off,
-                            u16 w, u16 h, void *data, f32 depth = 0);
-        void *map_texture(RenderResource &buffer, u16 x_off, u16 y_off, u16 w,
-                          u16 h, f32 depth = 0);
+        void update_texture(RenderResource &texture, u32 x_off, u32 y_off,
+                            u32 w, u32 h, void *data, f32 depth = 0);
+        void *map_texture(RenderResource &buffer, u32 x_off, u32 y_off, u32 w,
+                          u32 h, f32 depth = 0);
         void update_cubemap(RenderResource &texture, u8 face, u16 x_off,
                             u16 y_off, u16 w, u16 h, void *data, f32 depth = 0);
 

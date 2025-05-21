@@ -97,9 +97,7 @@ class Input {
         bool is_mouse_clicked(MouseEvent e);
         void mouse_click(MouseEvent e);
         void set_capture_mouse(bool on) { should_capture_mouse = on; }
-        Vec2 get_mouse_pos(){
-            return Vec2{last_x, last_y};
-        }
+        Vec2 get_mouse_pos() { return Vec2{last_x, last_y}; }
         Input();
         ~Input();
 };

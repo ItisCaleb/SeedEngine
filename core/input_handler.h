@@ -6,6 +6,7 @@ class SeedEngine;
 class InputHandler {
         friend SeedEngine;
         Window *window;
+
     private:
         void init(Window *window);
 

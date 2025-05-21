@@ -136,15 +136,16 @@ void RenderCommandDispatcher::clear(StateClearFlag flag, f32 depth) {
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
-void RenderCommandDispatcher::set_viewport(f32 x, f32 y, f32 width,
-                                           f32 height, f32 depth) {
+void RenderCommandDispatcher::set_viewport(f32 x, f32 y, f32 width, f32 height,
+                                           f32 depth) {
     RenderCommand cmd = prepare_state_cmd(depth);
     RenderStateData *state_data = static_cast<RenderStateData *>(cmd.data);
     state_data->flag |= RenderStateFlag::VIEWPORT;
     state_data->viewport = {.x = x, .y = y, .w = width, .h = height};
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
-void RenderCommandDispatcher::set_scissor(f32 x, f32 y, f32 width, f32 height, f32 depth) {
+void RenderCommandDispatcher::set_scissor(f32 x, f32 y, f32 width, f32 height,
+                                          f32 depth) {
     RenderCommand cmd = prepare_state_cmd(depth);
     RenderStateData *state_data = static_cast<RenderStateData *>(cmd.data);
     state_data->flag |= RenderStateFlag::SCISSOR;
@@ -193,8 +194,8 @@ void *RenderCommandDispatcher::map_buffer(RenderResource &buffer, u32 offset,
     return update_data->data;
 }
 
-void RenderCommandDispatcher::update_texture(RenderResource &texture, u16 x_off,
-                                             u16 y_off, u16 w, u16 h,
+void RenderCommandDispatcher::update_texture(RenderResource &texture, u32 x_off,
+                                             u32 y_off, u32 w, u32 h,
                                              void *data, f32 depth) {
     if (texture.type != RenderResourceType::TEXTURE) return;
     RenderCommand cmd = prepare_update_cmd(depth);
@@ -212,8 +213,8 @@ void RenderCommandDispatcher::update_texture(RenderResource &texture, u16 x_off,
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
-void *RenderCommandDispatcher::map_texture(RenderResource &texture, u16 x_off,
-                                           u16 y_off, u16 w, u16 h, f32 depth) {
+void *RenderCommandDispatcher::map_texture(RenderResource &texture, u32 x_off,
+                                           u32 y_off, u32 w, u32 h, f32 depth) {
     if (texture.type != RenderResourceType::TEXTURE) return nullptr;
     RenderCommand cmd = prepare_update_cmd(depth);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);

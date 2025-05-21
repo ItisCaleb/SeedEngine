@@ -27,10 +27,10 @@ int main(int, char **) {
 
     ResourceLoader *loader = ResourceLoader::get_instance();
     auto sky = loader->load_async<Sky>("assets/sky.json");
-    auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
-
+    auto terrain =
+        loader->load_async<Terrain>("assets/iceland_heightmap.png")->wait();
     engine->get_world()->set_sky(sky->wait());
-    engine->get_world()->set_terrain(terrain->wait());
+    engine->get_world()->set_terrain(terrain);
 
     engine->start();
     NFD_Quit();

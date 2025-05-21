@@ -1,5 +1,10 @@
 #ifndef _SEED_RENDER_COMMON_H_
 #define _SEED_RENDER_COMMON_H_
+#include "core/types.h"
+
+struct Color {
+        u8 r, g, b, a;
+};
 
 enum class TextureType {
     TEXTURE_1D,
@@ -9,7 +14,12 @@ enum class TextureType {
     TEXTURE_2D_ARRAY
 };
 
-enum class TextureFormat { FORMAT_R, FORMAT_RG, FORMAT_RGB, FORMAT_RGBA };
+enum class ImageFormat {
+    FORMAT_R = 1,
+    FORMAT_RG = 2,
+    FORMAT_RGB = 3,
+    FORMAT_RGBA = 4
+};
 
 enum class RenderPrimitiveType { LINES, TRIANGLES, POINTS, PATCHES };
 enum class PolygonMode { POINT, LINE, FILL };

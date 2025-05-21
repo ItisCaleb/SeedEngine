@@ -42,7 +42,7 @@ class ThreadPool {
     public:
         static ThreadPool *get_instance();
 
-        WorkId add_work(UserFunc func, void *user_data);
+        WorkId add_work(UserFunc func, void *user_data = nullptr);
         void wait(WorkId id);
         ThreadPool(u32 thread_cnt);
         ~ThreadPool();

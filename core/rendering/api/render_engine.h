@@ -41,9 +41,7 @@ class RenderEngine {
         void register_renderer(u32 layer, const Args &...args);
         void set_layer_viewport(u32 layer, RectF rect);
         Viewport &get_layer_viewport(u32 layer);
-        Window *get_current_window(){
-            return current_window;
-        }
+        Window *get_current_window() { return current_window; }
 
         RenderEngine(Window *window);
         ~RenderEngine();

@@ -4,6 +4,7 @@ target_sources(seed PRIVATE
     resource.cc
     terrain.cc
     texture.cc
+    image.cc
     resource_loader.cc
     default_storage.cc
     )

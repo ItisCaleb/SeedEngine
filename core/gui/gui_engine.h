@@ -8,14 +8,13 @@ namespace Seed {
 class GuiEngine {
     private:
         inline static GuiEngine *instance = nullptr;
-        std::vector<GUI*> guis;
+        std::vector<GUI *> guis;
+
     public:
         void update();
         static GuiEngine *get_instance() { return instance; }
-        void add_gui(GUI *gui){
-            this->guis.push_back(gui);
-        }
-        void remove_gui(GUI *gui){
+        void add_gui(GUI *gui) { this->guis.push_back(gui); }
+        void remove_gui(GUI *gui) {
             auto iter = std::find(guis.begin(), guis.end(), gui);
             guis.erase(iter);
         }

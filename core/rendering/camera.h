@@ -38,7 +38,7 @@ class Camera {
         void set_front(Vec3 front);
         void set_front(f32 yaw, f32 pitch);
         Vec3 get_front();
-        
+
         void set_frustum(f32 left, f32 right, f32 bottom, f32 top, f32 near,
                          f32 far, bool is_ortho);
         void set_perspective(f32 fovy, f32 aspect, f32 near, f32 far);
