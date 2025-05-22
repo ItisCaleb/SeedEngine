@@ -11,6 +11,7 @@ DefaultStorage::DefaultStorage() {
     terrain_shader =
         loader->load_shader("assets/terrain.vert", "assets/terrain.frag", "",
                             "assets/terrain.tesc", "assets/terrain.tese");
+
     mesh_debug_shader =
         loader->load_shader("assets/mesh_debug.vert", "assets/mesh_debug.frag");
     const char *vertex_shader =
@@ -55,7 +56,7 @@ DefaultStorage::DefaultStorage() {
     gui_desc.add_attr(0, VertexAttributeType::FLOAT, 2, 0);
     gui_desc.add_attr(1, VertexAttributeType::FLOAT, 2, 0);
     gui_desc.add_attr(2, VertexAttributeType::UNSIGNED_BYTE, 4, 0, true);
-    // debug_shader = loader->load_shader(
-    //     "assets/debug.vert", "assets/debug.frag", "assets/debug.gs");
+
+
 }
 }  // namespace Seed

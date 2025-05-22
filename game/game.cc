@@ -7,6 +7,7 @@
 #include "core/concurrency/thread_pool.h"
 #include "core/os.h"
 #include "core/resource/sky.h"
+#include "core/debug/debug_drawer.h"
 
 using namespace Seed;
 
@@ -93,7 +94,10 @@ int main(void) {
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->set_terrain(terrain->wait());
     engine->get_world()->set_sky(sky->wait());
-
+    DebugDrawer::get_instance()->draw_line(Vec3{0, 0, 0}, Vec3{0, 30, -20},
+                                           Color{1, 0, 0, 1});
+    DebugDrawer::get_instance()->draw_triangle(Vec3{20, 0, 0}, Vec3{0, 5, -5},Vec3{10, -5, 5},
+                                           Color{1, 0, 0, 1});
     engine->start();
 
     return 0;

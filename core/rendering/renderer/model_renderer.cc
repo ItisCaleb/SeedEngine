@@ -5,6 +5,7 @@
 #include "core/engine.h"
 #include <spdlog/spdlog.h>
 #include <vector>
+#include "core/debug/debug_drawer.h"
 
 namespace Seed {
 
@@ -54,26 +55,9 @@ void ModelRenderer::init_color() {
     auto terrain_model = Mat4::translate_mat({0, 0, 0}).transpose();
     terrain_m.alloc_constant("TerrainMatrices", sizeof(Mat4), &terrain_model);
 }
-void ModelRenderer::init_debugging() {
-    ResourceLoader *loader = ResourceLoader::get_instance();
 
-    // aabb_desc.add_attr(0, VertexAttributeType::FLOAT, 3, 0);
-    // aabb_desc.add_attr(1, VertexAttributeType::FLOAT, 3, 0);
-
-    // RenderRasterizerState rst_state;
-    // RenderDepthStencilState depth_state = {.depth_on = true};
-    // RenderBlendState blend_state;
-
-    // debug_pipeline.create(debug_shader, &aabb_desc,
-    // RenderPrimitiveType::POINTS,
-    //                       rst_state, depth_state, blend_state);
-    // RenderResource aabb_rc;
-    // aabb_rc.alloc_vertex(sizeof(AABB), 0, NULL);
-    // aabb_vertices.bind_vertices(sizeof(AABB), 0, aabb_rc);
-}
 void ModelRenderer::init() {
     init_color();
-    init_debugging();
 
     sky_vert.alloc_vertex(sizeof(Vec3), (sizeof(skyboxVertices) / sizeof(Vec3)),
                           skyboxVertices);
@@ -95,6 +79,14 @@ void ModelRenderer::preprocess() {
         instance.push_back(e->get_transform().transpose());
         entity_aabb.push_back(bounding_box);
     }
+    DebugDrawer *drawer = DebugDrawer::get_instance();
+    debug_line.alloc_vertex(sizeof(DebugDrawer::DebugVertex),
+                            drawer->line_vertices.size(),
+                            drawer->line_vertices.data());
+    debug_triangle.alloc_vertex(sizeof(DebugDrawer::DebugVertex),
+                                drawer->triangle_vertices.size(),
+                                drawer->triangle_vertices.data());
+    debug_triangle.alloc_index(drawer->triangle_indices);
 }
 
 void ModelRenderer::process(Viewport &viewport) {
@@ -127,8 +119,6 @@ void ModelRenderer::process(Viewport &viewport) {
 
             dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
                       mesh->get_material()->get_pipeline(), 0.1);
-            // dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
-            //           debug_mat->get_pipeline(), 0.1);
         }
     }
 
@@ -143,18 +133,17 @@ void ModelRenderer::process(Viewport &viewport) {
         dp.render(builder, RenderPrimitiveType::PATCHES,
                   terrain->get_material()->get_pipeline(), 0.2);
     }
-
-    /* debugging */
-    // RenderDrawData aabb_data =
-    //     dp.generate_render_data(aabb_vertices, Ref<Material>());
-    // u64 sort_key = dp.gen_sort_key(0.1, aabb_data);
-    // dp.update_buffer(aabb_vertices.get_vertices(), 0,
-    //                  sizeof(AABB) * entity_aabb.size(),
-    //                  (void *)entity_aabb.data());
-    // aabb_vertices.bind_vertices(sizeof(AABB), entity_aabb.size(),
-    //                             aabb_vertices.get_vertices());
-
-    // dp.render(&aabb_data, debug_pipeline, 0.2);
+    {
+        DebugDrawer *drawer = DebugDrawer::get_instance();
+        RenderDrawDataBuilder line_builder = dp.generate_render_data(drawer->debug_mat);
+        line_builder.bind_vertex_data(debug_line);
+        line_builder.bind_description(drawer->get_debug_desc());
+        dp.render(line_builder, RenderPrimitiveType::LINES, drawer->debug_mat->get_pipeline(), 0.3);
+        RenderDrawDataBuilder triangle_builder = dp.generate_render_data(drawer->debug_mat);
+        triangle_builder.bind_vertex_data(debug_triangle);
+        triangle_builder.bind_description(drawer->get_debug_desc());
+        dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES, drawer->debug_mat->get_pipeline(), 0.3);
+    }
 }
 void ModelRenderer::cleanup() {
     for (auto &[model, instances] : model_instances) {

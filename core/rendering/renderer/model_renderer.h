@@ -16,6 +16,9 @@ class ModelRenderer : public Renderer {
         Ref<Material> debug_mat;
         VertexData sky_vert;
         RenderResource terrain_m;
+        VertexData debug_line;
+        VertexData debug_triangle;
+
 
         /* for debugging */
 
@@ -24,7 +27,6 @@ class ModelRenderer : public Renderer {
         VertexDescription aabb_desc;
 
         void init_color();
-        void init_debugging();
         void init() override;
         void preprocess() override;
         void process(Viewport &viewport) override;

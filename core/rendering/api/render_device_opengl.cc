@@ -397,6 +397,7 @@ void RenderDeviceOpenGL::handle_dealloc(AllocCommand &cmd) {
             EXPECT_NOT_NULL_RET(buffer);
             glDeleteBuffers(1, &buffer->handle);
             this->buffers.remove(cmd.handle);
+            break;
         }
 
         case RenderResourceType::INDEX: {

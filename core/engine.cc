@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "core/os.h"
+#include "core/debug/debug_drawer.h"
 
 #include <Jolt/Jolt.h>
 #include <Jolt/RegisterTypes.h>
@@ -40,6 +41,7 @@ void SeedEngine::init_systems() {
     GuiEngine *gui = new GuiEngine(this->window);
     RenderEngine *render_engine = new RenderEngine(window);
     DefaultStorage *storage = new DefaultStorage();
+    DebugDrawer *debug_drawer = new DebugDrawer();
     ThreadPool *pool = new ThreadPool(OS::cpu_count());
     render_engine->init();
     this->world = new World;

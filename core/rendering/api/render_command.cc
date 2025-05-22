@@ -258,7 +258,9 @@ void RenderCommandDispatcher::update_cubemap(RenderResource &texture, u8 face,
 RenderDrawDataBuilder RenderCommandDispatcher::generate_render_data(
     Ref<Material> mat) {
     RenderDrawDataBuilder builder;
-    mat->bind_states(builder);
+    if (mat.is_valid()) {
+        mat->bind_states(builder);
+    }
     return builder;
 }
 
