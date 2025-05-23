@@ -4,7 +4,7 @@
 #include "core/container/freelist.h"
 
 namespace Seed {
-typedef u32 Handle;
+typedef i32 Handle;
 
 template <typename T>
 class HandleOwner {
@@ -19,6 +19,14 @@ class HandleOwner {
                 return &datas[h];
             } else {
                 return nullptr;
+            }
+        }
+
+        void get_used(std::vector<T*> &v){
+            for(i32 i = 0;i<datas.range();i++){
+                if(datas.present(i)){
+                    v.push_back(&datas[i]);
+                }
             }
         }
 

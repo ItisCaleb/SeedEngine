@@ -35,7 +35,7 @@ void TerrainGUI::update() {
         auto mat = world->get_terrain()->get_material();
         auto tex = mat->get_height_map();
         Seed::ThreadPool::get_instance()->add_work([=](void *) {
-            Seed::Image image(ImageFormat::FORMAT_RGBA, 2624, 1756);
+            Seed::Image image(PixelFormat::RGBA, 2624, 1756);
             image.fill(Color{0, 64, 0, 0}, 2624, 1756);
             image.upload(tex);
         });

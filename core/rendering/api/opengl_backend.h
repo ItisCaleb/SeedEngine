@@ -1,11 +1,11 @@
-#ifndef _SEED_RENDER_DIVICE_OPENGL_H_
-#define _SEED_RENDER_DIVICE_OPENGL_H_
-#include "render_device.h"
+#ifndef _SEED_OPENGL_BACKEND_H_
+#define _SEED_OPENGL_BACKEND_H_
+#include "render_backend.h"
 #include "core/container/freelist.h"
 #include "core/handle.h"
 #include <glad/glad.h>
 #include <map>
-#include "core/rendering/api/render_common.h"
+#include "core/rendering/render_common.h"
 
 namespace Seed {
 
@@ -47,9 +47,11 @@ struct HardwarePipelineGL {
 
 struct HardwareRenderTargetGL {
         GLuint handle;
+        RenderResource color_attachment[8];
+        RenderResource depth_attachment;
 };
 
-class RenderDeviceOpenGL : public RenderDevice {
+class RenderBackendGL : public RenderBackend {
     private:
         struct AllocCommand {
                 Handle handle;
@@ -64,7 +66,6 @@ class RenderDeviceOpenGL : public RenderDevice {
         HandleOwner<HardwareConstantGL> constants;
         HandleOwner<HardwareTextureGL> textures;
         HandleOwner<HardwareShaderGL> shaders;
-        std::vector<Handle> shader_in_use;
         HandleOwner<HardwarePipelineGL> pipelines;
         HandleOwner<HardwareRenderTargetGL> render_targets;
 
@@ -91,8 +92,8 @@ class RenderDeviceOpenGL : public RenderDevice {
         void use_texture(u32 unit, RenderResource &rc);
 
     public:
-        RenderDeviceOpenGL();
-        ~RenderDeviceOpenGL() = default;
+        RenderBackendGL();
+        ~RenderBackendGL() = default;
 
         /* we defer the allocation to allow multithreading. */
         void alloc_texture(RenderResource *rc, TextureType type, u32 w,

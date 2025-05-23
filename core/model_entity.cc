@@ -7,7 +7,7 @@ namespace Seed {
 
 void ModelEntity::update(f32 dt) {
     f32 speed = 90;
-    // this->rotate(0, speed * dt, 0);
+    this->rotate(0, speed * dt, 0);
 }
 
 void ModelEntity::render() {}

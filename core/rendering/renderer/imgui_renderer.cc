@@ -125,8 +125,10 @@ void ImguiRenderer::process(Viewport &viewport) {
                           font_mat->get_pipeline(), 0);
             }
         }
-        dp.set_scissor(view_rect.x, view_rect.y, fb_width, fb_height, 1);
     }
+    RenderStateDataBuilder builder;
+    builder.set_scissor(view_rect.x, view_rect.y, fb_width, fb_height);
+    dp.set_states(builder, 1);
 }
 void ImguiRenderer::cleanup() {}
 }  // namespace Seed

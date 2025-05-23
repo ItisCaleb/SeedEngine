@@ -30,7 +30,7 @@ class FreeList {
         }
 
         bool present(int n) const {
-            if (n >= data.size()) return false;
+            if (n < 0 || n >= data.size()) return false;
             return data[n].next == -1;
         }
 
@@ -71,14 +71,6 @@ class FreeList {
             }
             return data[n].element;
         }
-
-        struct Iterator {
-                using iterator_category = std::forward_iterator_tag;
-                using difference_type = std::ptrdiff_t;
-                using value_type = T;
-                using pointer = T *;    // or also value_type*
-                using reference = T &;  // or also value_type&
-        };
 
     private:
         struct FreeElement {

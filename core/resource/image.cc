@@ -29,13 +29,13 @@ void Image::fill(Color color, u32 w, u32 h, u32 off_x, u32 off_y) {
         for (i32 j = off_x; j < width && j < w; j++) {
             u32 index = (i * width + j) * static_cast<u32>(format);
             this->data[index] = color.r;
-            if (format >= ImageFormat::FORMAT_RG) {
+            if (format >= PixelFormat::RG) {
                 this->data[index + 1] = color.g;
             }
-            if (format >= ImageFormat::FORMAT_RGB) {
+            if (format >= PixelFormat::RGB) {
                 this->data[index + 2] = color.b;
             }
-            if (format >= ImageFormat::FORMAT_RGBA) {
+            if (format >= PixelFormat::RGBA) {
                 this->data[index + 3] = color.a;
             }
         }
@@ -45,7 +45,7 @@ void Image::fill(Color color, u32 w, u32 h, u32 off_x, u32 off_y) {
 void Image::download(Ref<Texture> texture) {
     EXPECT_NOT_NULL_RET(texture.ptr());
 }
-Image::Image(ImageFormat format, u32 w, u32 h)
+Image::Image(PixelFormat format, u32 w, u32 h)
     : format(format), width(w), height(h) {
     this->data.resize(w * h * static_cast<u32>(format));
 }

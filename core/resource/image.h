@@ -1,6 +1,6 @@
 #ifndef _SEED_IMAGE_H_
 #define _SEED_IMAGE_H_
-#include "core/rendering/api/render_common.h"
+#include "core/rendering/render_common.h"
 #include "core/types.h"
 #include "core/resource/resource.h"
 #include "core/resource/texture.h"
@@ -8,7 +8,7 @@
 
 namespace Seed {
 class Image : public Resource {
-        ImageFormat format;
+        PixelFormat format;
         std::vector<u8> data;
         u32 width, height;
 
@@ -20,7 +20,7 @@ class Image : public Resource {
         void upload(Ref<Texture> texture);
         void download(Ref<Texture> texture);
 
-        Image(ImageFormat format, u32 w, u32 h);
+        Image(PixelFormat format, u32 w, u32 h);
 };
 }  // namespace Seed
 

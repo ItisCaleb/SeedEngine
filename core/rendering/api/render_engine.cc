@@ -6,7 +6,7 @@
 #include <spdlog/spdlog.h>
 #include "core/rendering/light.h"
 #include "core/resource/material.h"
-#include "render_device_opengl.h"
+#include "opengl_backend.h"
 #include "core/rendering/renderer/model_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
 #include "core/macro.h"
@@ -33,7 +33,7 @@ RenderEngine::RenderEngine(Window *window) {
         spdlog::error("Can't initialize GLAD. Exiting");
         exit(1);
     }
-    this->device = new RenderDeviceOpenGL;
+    this->device = new RenderBackendGL;
     this->current_window = window;
     matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
     cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);
@@ -52,7 +52,7 @@ void RenderEngine::init() {
     this->register_renderer<ImguiRenderer>(i++);
 }
 
-RenderDevice *RenderEngine::get_device() { return device; }
+RenderBackend *RenderEngine::get_device() { return device; }
 
 LinearAllocator *RenderEngine::get_mem_pool() { return &this->mem_pool; }
 
@@ -80,8 +80,12 @@ Viewport &RenderEngine::get_layer_viewport(u32 layer) {
 
 void RenderEngine::process() {
     RenderCommandDispatcher dp(0);
-    dp.clear(StateClearFlag::CLEAR_COLOR);
-    dp.clear(StateClearFlag::CLEAR_DEPTH);
+    {
+        RenderStateDataBuilder builder;
+        builder.clear(StateClearFlag::CLEAR_COLOR);
+        builder.clear(StateClearFlag::CLEAR_DEPTH);
+        dp.set_states(builder, 0);
+    }
     Mat4 *matrices = (Mat4 *)dp.map_buffer(matrices_rc, 0, sizeof(Mat4) * 2);
     matrices[0] = cam.perspective().transpose();
     matrices[1] = cam.look_at().transpose();
@@ -91,7 +95,11 @@ void RenderEngine::process() {
     for (Layer &layer : this->layers) {
         RenderCommandDispatcher layer_dp(i++);
         Rect rect = layer.viewport.get_actual_dimension();
-        layer_dp.set_viewport(rect.x, rect.y, rect.w, rect.h);
+        {
+            RenderStateDataBuilder builder;
+            builder.set_viewport(rect.x, rect.y, rect.w, rect.h);
+            layer_dp.set_states(builder, 0);
+        }
         layer.renderer->preprocess();
         layer.renderer->process(layer.viewport);
     }

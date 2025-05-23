@@ -14,12 +14,23 @@ enum class TextureType {
     TEXTURE_2D_ARRAY
 };
 
-enum class ImageFormat {
-    FORMAT_R = 1,
-    FORMAT_RG = 2,
-    FORMAT_RGB = 3,
-    FORMAT_RGBA = 4
-};
+enum class PixelFormat { R, RG, RGB, RGBA, D24S8 };
+
+u32 constexpr static get_pixel_format_size(PixelFormat format) {
+    switch (format) {
+        case PixelFormat::R:
+            return 1;
+        case PixelFormat::RG:
+            return 2;
+        case PixelFormat::RGB:
+            return 3;
+        case PixelFormat::RGBA:
+        case PixelFormat::D24S8:
+            return 4;
+        default:
+            return 1;
+    }
+}
 
 enum class RenderPrimitiveType { LINES, TRIANGLES, POINTS, PATCHES };
 enum class PolygonMode { POINT, LINE, FILL };

@@ -1,19 +1,19 @@
-#ifndef _SEED_RENDER_DIVICE_H_
-#define _SEED_RENDER_DIVICE_H_
+#ifndef _SEED_RENDER_BACKEND_H_
+#define _SEED_RENDER_BACKEND_H_
 #include "render_command.h"
 #include "render_resource.h"
 #include "core/handle.h"
 
 namespace Seed {
 
-class RenderDevice {
+class RenderBackend {
     protected:
         std::deque<RenderCommand> cmd_queue;
         RenderResource current_pipeline;
 
     public:
-        RenderDevice(/* args */) = default;
-        ~RenderDevice() = default;
+        RenderBackend(/* args */) = default;
+        ~RenderBackend() = default;
         virtual void alloc_texture(RenderResource *rc, TextureType type, u32 w,
                                    u32 h) = 0;
         virtual void alloc_vertex(RenderResource *rc, u32 stride,

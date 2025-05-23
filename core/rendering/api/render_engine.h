@@ -3,7 +3,7 @@
 
 #include "core/rendering/camera.h"
 #include "render_command.h"
-#include "render_device.h"
+#include "render_backend.h"
 #include "core/rendering/mesh.h"
 #include "core/resource/model.h"
 #include "core/allocator/linear_allocator.h"
@@ -23,7 +23,7 @@ class RenderEngine {
                     : viewport(window), renderer(rd) {}
         };
         inline static RenderEngine *instance = nullptr;
-        RenderDevice *device;
+        RenderBackend *device;
         RenderResource matrices_rc, cam_rc;
         Camera cam;
         LinearAllocator mem_pool;
@@ -35,7 +35,7 @@ class RenderEngine {
         void init();
         void process();
         LinearAllocator *get_mem_pool();
-        RenderDevice *get_device();
+        RenderBackend *get_device();
         Camera *get_cam();
         template <typename T, typename... Args>
         void register_renderer(u32 layer, const Args &...args);

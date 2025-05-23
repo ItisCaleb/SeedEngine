@@ -4,7 +4,8 @@
 #include "core/rendering/vertex_data.h"
 #include "core/rendering/vertex_desc.h"
 #include "core/resource/material.h"
-#include "core/rendering/api/render_common.h"
+#include "core/rendering/render_common.h"
+#include "core/collision/shape.h"
 #include <queue>
 #include <stack>
 #include <fmt/format.h>
@@ -32,55 +33,37 @@ struct RenderCommand {
         }
 };
 
-struct ViewportState {
-        f32 x, y, w, h;
-};
-struct ScissorRect {
-        f32 x, y, w, h;
-};
-
-enum class DrawOperationType : u8 {
-    BIND_VERTEX,
-    BIND_DESC,
-    BIND_INDEX,
-    BIND_TEXTURE,
-    UPDATE_CONSTANT,
-    VIEWPORT,
-    SCISSOR
-};
-
-struct DrawOperation {
-        DrawOperationType type;
-        union {
-                struct {
-                        RenderResource rc;
-                } vertex;
-                struct {
-                        RenderResource rc;
-                } index;
-                struct {
-                        u32 unit;
-                        RenderResource rc;
-                } texure;
-                struct {
-                        RenderResource rc;
-                        void *data;
-                        u32 offset;
-                        u32 size;
-                } constant;
-                struct {
-                        VertexDescription *desc;
-                } desc;
-                struct {
-                        ViewportState rect;
-                } viewport;
-                struct {
-                        ScissorRect rect;
-                } scissor;
-        };
-};
-
 struct RenderDrawData {
+        enum class OpType : u8 {
+            BIND_VERTEX,
+            BIND_DESC,
+            BIND_INDEX,
+            BIND_TEXTURE,
+            UPDATE_CONSTANT,
+            VIEWPORT,
+            SCISSOR
+        };
+        struct Operation {
+                OpType type;
+                union {
+                        RenderResource vertex_rc;
+                        RenderResource index_rc;
+                        struct {
+                                u32 unit;
+                                RenderResource rc;
+                        } texure;
+                        struct {
+                                RenderResource rc;
+                                void *data;
+                                u32 offset;
+                                u32 size;
+                        } constant;
+                        VertexDescription *vertex_desc;
+                        RectF view_rect;
+                        RectF scissor_rect;
+                };
+        };
+
         u32 instance_cnt = 0;
         u32 vertex_cnt = 0;
         u32 index_offset = 0;
@@ -96,18 +79,40 @@ struct RenderDrawData {
 |  RenderDrawCommmand  |  op1  |  op2  | ..... |
 |------------------------------|-------|-------|
 */
-class RenderCommandDispatcher;
-class RenderDrawDataBuilder {
-        friend RenderCommandDispatcher;
-
-    private:
+template <typename T>
+class DataBuilder {
+    protected:
         std::vector<u8> buffer;
-        DrawOperation *alloc_operation(DrawOperationType type);
-        std::vector<DrawOperation *> op_view;
+        std::vector<T *> op_view;
+        typename T::Operation *alloc_operation(typename T::OpType type) {
+            this->buffer.resize(this->buffer.size() + sizeof(typename T::Operation));
+            typename T::Operation *dst =
+                (typename T::Operation *)(this->buffer.data() +
+                                          this->buffer.size() -
+                                          sizeof(typename T::Operation));
+            dst->type = type;
+            T *data = static_cast<T *>((void*)&this->buffer[0]);
+            data->operation_cnt++;
+
+            /* for debug */
+            op_view.resize(data->operation_cnt);
+            for (i32 i = 0; i < data->operation_cnt; i++) {
+                op_view[i] =
+                    (T *)((u64)data + sizeof(T) + i * sizeof(typename T::Operation));
+            }
+            return dst;
+        }
 
     public:
-        RenderDrawData *get_draw_data();
+        T *get_data() { return static_cast<T *>((void*)&this->buffer[0]); }
+        DataBuilder() { this->buffer.resize(sizeof(T)); }
+};
 
+class RenderCommandDispatcher;
+class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
+        friend RenderCommandDispatcher;
+
+    public:
         void bind_vertex(RenderResource rc);
         void bind_index(RenderResource rc);
         void bind_vertex_data(VertexData &data, u32 offset = 0);
@@ -122,13 +127,6 @@ class RenderDrawDataBuilder {
                              u32 instance_cnt = 0);
         void set_draw_index(u32 index_cnt, u32 index_offset,
                             u32 instance_cnt = 0);
-        RenderDrawDataBuilder();
-};
-
-enum RenderStateFlag : u64 {
-    CLEAR = 1 << 0,
-    VIEWPORT = 1 << 1,
-    SCISSOR = 1 << 2
 };
 
 enum StateClearFlag : u8 {
@@ -138,10 +136,42 @@ enum StateClearFlag : u8 {
 };
 
 struct RenderStateData {
-        u64 flag;
-        u8 clear_flag = 0;
-        ViewportState viewport;
-        ScissorRect rect;
+        enum class OpType : u8 {
+            BIND_FRAME_BUFFER,
+            BIND_RENDER_TARGET,
+            BIND_DEPTH_STENCIL_TARGET,
+            VIEWPORT,
+            SCISSOR,
+            CLEAR
+        };
+        struct Operation {
+                OpType type;
+                union {
+                        RenderResource fbo_rc;
+                        struct {
+                                u32 slot;
+                                u32 face;
+                                RenderResource texture;
+                        } render_target;
+                        RectF view_rect;
+                        RectF scissor_rect;
+                        u8 clear_flag;
+                };
+        };
+        u32 operation_cnt = 0;
+};
+
+class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
+        friend RenderCommandDispatcher;
+
+    public:
+        void bind_framebuffer(RenderResource rc);
+        void bind_render_target(u32 slot, RenderResource texture, u32 face = 0);
+        void bind_depth_stencil_target(u32 slot, RenderResource texture,
+                                       u32 face = 0);
+        void set_viewport(f32 x, f32 y, f32 width, f32 height);
+        void set_scissor(f32 x, f32 y, f32 width, f32 height);
+        void clear(StateClearFlag flag);
 };
 
 struct RenderUpdateData {
@@ -167,20 +197,15 @@ class RenderCommandDispatcher {
     private:
         u8 layer = 0;
         bool start_draw = 0;
-        ViewportState viewport;
+        RectF viewport;
         std::string scope;
-        RenderCommand prepare_state_cmd(f32 depth);
         RenderCommand prepare_update_cmd(f32 depth);
 
     public:
         u32 gen_sort_key(f32 depth);
         void set_scope(const std::string &scope);
 
-        void clear(StateClearFlag flag, f32 depth = 0);
-        void set_viewport(f32 x, f32 y, f32 width, f32 height, f32 depth = 0);
-        void set_scissor(f32 x, f32 y, f32 width, f32 height, f32 depth = 0);
-        void cancel_scissor(f32 depth = 0);
-
+        void set_states(RenderStateDataBuilder &builder, f32 depth);
         /* Will copy data to a temporary buffer.*/
         void update_buffer(RenderResource &buffer, u32 offset, u32 size,
                            void *data, f32 depth = 0);

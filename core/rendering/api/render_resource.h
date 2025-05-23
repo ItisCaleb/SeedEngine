@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 #include <map>
-#include "core/rendering/api/render_common.h"
+#include "core/rendering/render_common.h"
 #include "core/handle.h"
 
 namespace Seed {
