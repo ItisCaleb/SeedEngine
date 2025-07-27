@@ -46,19 +46,17 @@ struct HardwarePipelineGL {
 };
 
 struct HardwareRenderTargetGL {
-        GLuint handle;
-        RenderResource color_attachment[8];
-        RenderResource depth_attachment;
+        GLuint fbo;
 };
 
 class RenderBackendGL : public RenderBackend {
     private:
         struct AllocCommand {
-                Handle handle;
-                RenderResourceType type;
+                RenderResource rc;
                 bool is_alloc;
         };
         GLuint global_vao;
+        GLuint last_fbo = 0;
         std::queue<AllocCommand> alloc_cmds;
 
         HandleOwner<HardwareBufferGL> buffers;
@@ -86,7 +84,7 @@ class RenderBackendGL : public RenderBackend {
         void handle_render(RenderCommand &cmd);
 
         /* binding operations */
-        void use_vertex_desc(VertexDescription *desc);
+        void use_vertex_desc(VertexLayout *desc);
         void bind_buffer(RenderResource &rc);
         void use_shader(RenderResource &rc);
         void use_texture(u32 unit, RenderResource &rc);

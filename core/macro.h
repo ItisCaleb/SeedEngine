@@ -10,6 +10,13 @@
     } else                                          \
         (void(0))
 
+#define EXPECT_NOT_NULL_BREAK(val)                  \
+    if ((val) == nullptr) {                         \
+        SPDLOG_ERROR("Variable " #val " is null."); \
+        break;                                      \
+    } else                                          \
+        (void(0))
+
 #define EXPECT_NOT_NULL_RET_MSG(val, msg)               \
     if ((val) == nullptr) {                             \
         SPDLOG_ERROR("Variable " #val " is null." msg); \

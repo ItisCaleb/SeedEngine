@@ -2,7 +2,7 @@
 #define _SEED_RENDERING_COMMAND_H_
 #include "render_resource.h"
 #include "core/rendering/vertex_data.h"
-#include "core/rendering/vertex_desc.h"
+#include "core/rendering/vertex_layout.h"
 #include "core/resource/material.h"
 #include "core/rendering/render_common.h"
 #include "core/collision/shape.h"
@@ -58,7 +58,7 @@ struct RenderDrawData {
                                 u32 offset;
                                 u32 size;
                         } constant;
-                        VertexDescription *vertex_desc;
+                        VertexLayout *vertex_desc;
                         RectF view_rect;
                         RectF scissor_rect;
                 };
@@ -85,26 +85,27 @@ class DataBuilder {
         std::vector<u8> buffer;
         std::vector<T *> op_view;
         typename T::Operation *alloc_operation(typename T::OpType type) {
-            this->buffer.resize(this->buffer.size() + sizeof(typename T::Operation));
+            this->buffer.resize(this->buffer.size() +
+                                sizeof(typename T::Operation));
             typename T::Operation *dst =
                 (typename T::Operation *)(this->buffer.data() +
                                           this->buffer.size() -
                                           sizeof(typename T::Operation));
             dst->type = type;
-            T *data = static_cast<T *>((void*)&this->buffer[0]);
+            T *data = static_cast<T *>((void *)&this->buffer[0]);
             data->operation_cnt++;
 
             /* for debug */
             op_view.resize(data->operation_cnt);
             for (i32 i = 0; i < data->operation_cnt; i++) {
-                op_view[i] =
-                    (T *)((u64)data + sizeof(T) + i * sizeof(typename T::Operation));
+                op_view[i] = (T *)((u64)data + sizeof(T) +
+                                   i * sizeof(typename T::Operation));
             }
             return dst;
         }
 
     public:
-        T *get_data() { return static_cast<T *>((void*)&this->buffer[0]); }
+        T *get_data() { return static_cast<T *>((void *)&this->buffer[0]); }
         DataBuilder() { this->buffer.resize(sizeof(T)); }
 };
 
@@ -118,7 +119,7 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
         void bind_vertex_data(VertexData &data, u32 offset = 0);
 
         void bind_texture(u32 unit, RenderResource rc);
-        void bind_description(VertexDescription *desc);
+        void bind_description(VertexLayout *desc);
         void update_constant(RenderResource rc, u32 offset, u32 size,
                              void *data);
         void set_viewport(f32 x, f32 y, f32 width, f32 height);
@@ -136,23 +137,11 @@ enum StateClearFlag : u8 {
 };
 
 struct RenderStateData {
-        enum class OpType : u8 {
-            BIND_FRAME_BUFFER,
-            BIND_RENDER_TARGET,
-            BIND_DEPTH_STENCIL_TARGET,
-            VIEWPORT,
-            SCISSOR,
-            CLEAR
-        };
+        enum class OpType : u8 { BIND_RENDER_TARGET, VIEWPORT, SCISSOR, CLEAR };
         struct Operation {
                 OpType type;
                 union {
-                        RenderResource fbo_rc;
-                        struct {
-                                u32 slot;
-                                u32 face;
-                                RenderResource texture;
-                        } render_target;
+                        RenderResource render_target;
                         RectF view_rect;
                         RectF scissor_rect;
                         u8 clear_flag;
@@ -165,10 +154,8 @@ class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
         friend RenderCommandDispatcher;
 
     public:
-        void bind_framebuffer(RenderResource rc);
-        void bind_render_target(u32 slot, RenderResource texture, u32 face = 0);
-        void bind_depth_stencil_target(u32 slot, RenderResource texture,
-                                       u32 face = 0);
+        void bind_render_target(RenderResource target);
+        void bind_window();
         void set_viewport(f32 x, f32 y, f32 width, f32 height);
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
         void clear(StateClearFlag flag);
@@ -190,6 +177,13 @@ struct RenderUpdateData {
                         u32 h;
                         u8 face;
                 } texture;
+
+                /* slot -1 for depth attachment */
+                struct {
+                        u32 face;
+                        RenderResource texture;
+                        i32 slot;
+                } attachment;
         };
 };
 
@@ -219,6 +213,10 @@ class RenderCommandDispatcher {
                           u32 h, f32 depth = 0);
         void update_cubemap(RenderResource &texture, u8 face, u16 x_off,
                             u16 y_off, u16 w, u16 h, void *data, f32 depth = 0);
+        void update_color_attachment(RenderResource &render_target, i32 slot,
+                                     RenderResource tex, u32 face = 0);
+        void update_depth_attachment(RenderResource &render_target,
+                                     RenderResource tex, u32 face = 0);
 
         /* will automatically fill material state and textures */
         RenderDrawDataBuilder generate_render_data(Ref<Material> mat);

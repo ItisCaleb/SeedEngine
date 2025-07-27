@@ -1,30 +1,33 @@
-#ifndef _SEED_MODEL_RENDERER_H_
-#define _SEED_MODEL_RENDERER_H_
+#ifndef _SEED_DEFAULT_RENDERER_H_
+#define _SEED_DEFAULT_RENDERER_H_
 #include "renderer.h"
 #include "core/rendering/api/render_resource.h"
 #include "core/rendering/vertex_data.h"
 #include <unordered_map>
 #include "core/resource/model.h"
+#include "core/rendering/render_target.h"
 
 namespace Seed {
-class ModelRenderer : public Renderer {
+class DefaultRenderer : public Renderer {
         friend RenderEngine;
 
     private:
         std::unordered_map<Model *, std::vector<Mat4>> model_instances;
-        VertexDescription instance_desc;
+        VertexLayout instance_desc;
         Ref<Material> debug_mat;
+        Ref<Material> post_mat;
+        Ref<Texture> scene_tex;
         VertexData sky_vert;
         RenderResource terrain_m;
         VertexData debug_line;
         VertexData debug_triangle;
-
+        MultiRenderTarget color_target;
 
         /* for debugging */
 
         std::vector<AABB> entity_aabb;
         VertexData aabb_vertices;
-        VertexDescription aabb_desc;
+        VertexLayout aabb_desc;
 
         void init_color();
         void init() override;

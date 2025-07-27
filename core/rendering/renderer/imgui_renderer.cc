@@ -13,7 +13,7 @@ void ImguiRenderer::init() {
     io.BackendRendererUserData = (void *)bd;
     io.BackendRendererName = "imgui_impl_seed";
 
-    bd->vertex.alloc_vertex(DS::get_instance()->get_gui_desc()->get_stride(), 0,
+    bd->vertex.alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0,
                             nullptr);
     bd->vertex.alloc_index(std::vector<u16>{});
 
@@ -28,7 +28,7 @@ void ImguiRenderer::init() {
         .func = BlendFunc::create(
             BlendFactor::SRC_ALPHA, BlendFactor::ONE_MINUS_SRC_ALPHA,
             BlendFactor::ONE, BlendFactor::ONE_MINUS_SRC_ALPHA)};
-    font_mat.create(DS::get_instance()->get_gui_shader());
+    font_mat.create(DS::get_instance()->gui_shader);
     font_mat->add_texture_unit(font_tex);
     font_mat->set_blend_state(blend_state);
     /* create pipeline */
@@ -118,7 +118,7 @@ void ImguiRenderer::process(Viewport &viewport) {
                                     clip_max.x - clip_min.x,
                                     clip_max.y - clip_min.y);
                 builder.bind_vertex_data(bd->vertex);
-                builder.bind_description(DS::get_instance()->get_gui_desc());
+                builder.bind_description(&DS::get_instance()->gui_desc);
                 builder.set_draw_index(pcmd->ElemCount,
                                        pcmd->IdxOffset * sizeof(ImDrawIdx));
                 dp.render(builder, RenderPrimitiveType::TRIANGLES,

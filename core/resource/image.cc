@@ -5,7 +5,7 @@
 namespace Seed {
 
 void Image::update(u8 *data, u32 w, u32 h, u32 off_x, u32 off_y) {
-    u32 channel = static_cast<u32>(format);
+    u32 channel = get_pixel_format_size(format);
     u32 offset = (off_x + off_y * width);
     /* resize if overflow */
     if (w * h + offset > width * height) {
@@ -27,7 +27,7 @@ void Image::upload(Ref<Texture> texture) {
 void Image::fill(Color color, u32 w, u32 h, u32 off_x, u32 off_y) {
     for (i32 i = off_y; i < height && i < h; i++) {
         for (i32 j = off_x; j < width && j < w; j++) {
-            u32 index = (i * width + j) * static_cast<u32>(format);
+            u32 index = (i * width + j) * get_pixel_format_size(format);
             this->data[index] = color.r;
             if (format >= PixelFormat::RG) {
                 this->data[index + 1] = color.g;
@@ -47,7 +47,7 @@ void Image::download(Ref<Texture> texture) {
 }
 Image::Image(PixelFormat format, u32 w, u32 h)
     : format(format), width(w), height(h) {
-    this->data.resize(w * h * static_cast<u32>(format));
+    this->data.resize(w * h * get_pixel_format_size(format));
 }
 
 }  // namespace Seed

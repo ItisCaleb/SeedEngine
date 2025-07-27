@@ -6,9 +6,9 @@
 #include <vector>
 
 namespace Seed {
-class ModelRenderer;
+class DefaultRenderer;
 class DebugDrawer {
-        friend ModelRenderer;
+        friend DefaultRenderer;
 
     private:
         struct DebugVertex {
@@ -20,12 +20,12 @@ class DebugDrawer {
         std::vector<DebugVertex> triangle_vertices;
         std::vector<u32> triangle_indices;
         Ref<Material> debug_mat;
-        VertexDescription debug_desc;
+        VertexLayout debug_desc;
 
     public:
         void draw_line(Vec3 from, Vec3 to, Color color);
         void draw_triangle(Vec3 v1, Vec3 v2, Vec3 v3, Color color);
-        VertexDescription *get_debug_desc(){
+        VertexLayout *get_debug_desc(){
             return &debug_desc;
         }
         static DebugDrawer *get_instance() { return instance; }

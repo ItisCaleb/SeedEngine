@@ -48,8 +48,12 @@ RenderEngine::RenderEngine(Window *window) {
 
 void RenderEngine::init() {
     u32 i = 1;
-    this->register_renderer<ModelRenderer>(i++);
-    this->register_renderer<ImguiRenderer>(i++);
+    Ref<WindowRenderTarget> window_rt;
+    Ref<MultiRenderTarget> mrt1;
+    window_rt.create();
+    mrt1.create();
+    this->register_renderer<DefaultRenderer>(i++, ref_cast<RenderTarget>(window_rt));
+    this->register_renderer<ImguiRenderer>(i++, ref_cast<RenderTarget>(window_rt));
 }
 
 RenderBackend *RenderEngine::get_device() { return device; }
@@ -59,23 +63,23 @@ LinearAllocator *RenderEngine::get_mem_pool() { return &this->mem_pool; }
 Camera *RenderEngine::get_cam() { return &cam; }
 
 template <typename T, typename... Args>
-void RenderEngine::register_renderer(u32 layer, const Args &...args) {
+void RenderEngine::register_renderer(u32 layer, Ref<RenderTarget> rt, const Args &...args) {
     static_assert(std::is_base_of<Renderer, T>::value,
                   "T must be a derived class of Renderer.");
     Renderer *renderer = static_cast<Renderer *>(new T(args...));
-    this->layers.push_back(Layer(this->current_window, renderer));
+    this->layers.push_back(Layer(rt, renderer));
     renderer->set_layer(layer);
     renderer->init();
 }
 
 void RenderEngine::set_layer_viewport(u32 layer, RectF rect) {
     EXPECT_INDEX_INBOUND(layer - 1, this->layers.size());
-    this->layers[layer - 1].viewport.set_dimension(rect);
+    this->layers[layer - 1].rt->get_viewport().set_dimension(rect);
 }
 
 Viewport &RenderEngine::get_layer_viewport(u32 layer) {
     EXPECT_INDEX_INBOUND_THROW(layer - 1, this->layers.size());
-    return this->layers[layer - 1].viewport;
+    return this->layers[layer - 1].rt->get_viewport();
 }
 
 void RenderEngine::process() {
@@ -94,14 +98,15 @@ void RenderEngine::process() {
     u32 i = 1;
     for (Layer &layer : this->layers) {
         RenderCommandDispatcher layer_dp(i++);
-        Rect rect = layer.viewport.get_actual_dimension();
+        Rect rect = layer.rt->get_viewport().get_actual_dimension();
         {
             RenderStateDataBuilder builder;
             builder.set_viewport(rect.x, rect.y, rect.w, rect.h);
+            builder.bind_render_target(layer.rt->get_resource());
             layer_dp.set_states(builder, 0);
         }
         layer.renderer->preprocess();
-        layer.renderer->process(layer.viewport);
+        layer.renderer->process(layer.rt->get_viewport());
     }
     this->device->process();
     for (Layer &layer : this->layers) {

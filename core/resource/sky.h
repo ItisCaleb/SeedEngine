@@ -7,7 +7,7 @@ namespace Seed {
 class SkyMaterial : public Material {
     public:
         SkyMaterial(Ref<Texture> cube_map)
-            : Material(DS::get_instance()->get_sky_shader()) {
+            : Material(DS::get_instance()->sky_shader) {
             this->add_texture_unit(cube_map);
             this->depth_state.depth_on = true;
             this->depth_state.depth_compare_op = CompareOP::LESS_OR_EQUAL;

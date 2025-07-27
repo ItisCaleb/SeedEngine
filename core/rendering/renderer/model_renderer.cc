@@ -29,7 +29,7 @@ Vec3 skyboxVertices[] = {
     -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f,
     1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f};
 
-void ModelRenderer::init_color() {
+void DefaultRenderer::init_color() {
     ResourceLoader *loader = ResourceLoader::get_instance();
 
     instance_desc.add_attr(3, VertexAttributeType::FLOAT, 4, 1);
@@ -37,9 +37,17 @@ void ModelRenderer::init_color() {
     instance_desc.add_attr(5, VertexAttributeType::FLOAT, 4, 1);
     instance_desc.add_attr(6, VertexAttributeType::FLOAT, 4, 1);
 
-    debug_mat.create(DS::get_instance()->get_mesh_debug_shader());
+    debug_mat.create(DS::get_instance()->mesh_debug_shader);
     RenderRasterizerState rst = {.poly_mode = PolygonMode::LINE};
     debug_mat->set_rasterizer_state(rst);
+
+    scene_tex.create(TextureType::TEXTURE_2D, 1024,768, nullptr);
+    post_mat.create(DS::get_instance()->post_shader);
+    post_mat->add_texture_unit(scene_tex);
+    AttachmentSurface depth_surf;
+    depth_surf.face = 0;
+    depth_surf.texture = scene_tex;
+    this->color_target.bind_depth(depth_surf);
 
     RenderResource lights_rc;
 
@@ -56,14 +64,14 @@ void ModelRenderer::init_color() {
     terrain_m.alloc_constant("TerrainMatrices", sizeof(Mat4), &terrain_model);
 }
 
-void ModelRenderer::init() {
+void DefaultRenderer::init() {
     init_color();
 
     sky_vert.alloc_vertex(sizeof(Vec3), (sizeof(skyboxVertices) / sizeof(Vec3)),
                           skyboxVertices);
 }
 
-void ModelRenderer::preprocess() {
+void DefaultRenderer::preprocess() {
     std::vector<ModelEntity *> &entities =
         SeedEngine::get_instance()->get_world()->get_model_entities();
     Camera *cam = RenderEngine::get_instance()->get_cam();
@@ -89,15 +97,20 @@ void ModelRenderer::preprocess() {
     debug_triangle.alloc_index(drawer->triangle_indices);
 }
 
-void ModelRenderer::process(Viewport &viewport) {
+void DefaultRenderer::process(Viewport &viewport) {
     RenderCommandDispatcher dp(layer);
     DEBUG_DISPATCH(dp);
+    {
+        // RenderStateDataBuilder sb;
+        // sb.bind_render_target(this->color_target.get_rc());
+        // dp.set_states(sb, 0);
+    }
     auto sky = SeedEngine::get_instance()->get_world()->get_sky();
     if (sky.is_valid()) {
         RenderDrawDataBuilder sky_builder =
             dp.generate_render_data(ref_cast<Material>(sky->get_material()));
         sky_builder.bind_vertex_data(sky_vert);
-        sky_builder.bind_description(DS::get_instance()->get_sky_desc());
+        sky_builder.bind_description(&DS::get_instance()->sky_desc);
         dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
                   sky->get_material()->get_pipeline(), 1);
     }
@@ -113,7 +126,7 @@ void ModelRenderer::process(Viewport &viewport) {
             RenderDrawDataBuilder mesh_builder = dp.generate_render_data(
                 ref_cast<Material>(mesh->get_material()));
             mesh_builder.bind_vertex_data(mesh->vertex_data);
-            mesh_builder.bind_description(DS::get_instance()->get_mesh_desc());
+            mesh_builder.bind_description(&DS::get_instance()->mesh_desc);
             mesh_builder.bind_vertex(model->instance_rc);
             mesh_builder.bind_description(&instance_desc);
 
@@ -128,10 +141,10 @@ void ModelRenderer::process(Viewport &viewport) {
         RenderDrawDataBuilder builder = dp.generate_render_data(
             ref_cast<Material>(terrain->get_material()));
         builder.bind_vertex_data(*terrain->get_vertices(), 0);
-        builder.bind_description(DS::get_instance()->get_terrain_desc());
+        builder.bind_description(&DS::get_instance()->terrain_desc);
 
         dp.render(builder, RenderPrimitiveType::PATCHES,
-                  terrain->get_material()->get_pipeline(), 0.2);
+                  terrain->get_material()->get_pipeline(), 1.0);
     }
     {
         DebugDrawer *drawer = DebugDrawer::get_instance();
@@ -144,8 +157,9 @@ void ModelRenderer::process(Viewport &viewport) {
         triangle_builder.bind_description(drawer->get_debug_desc());
         dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES, drawer->debug_mat->get_pipeline(), 0.3);
     }
+
 }
-void ModelRenderer::cleanup() {
+void DefaultRenderer::cleanup() {
     for (auto &[model, instances] : model_instances) {
         instances.clear();
     }

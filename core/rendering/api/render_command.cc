@@ -36,7 +36,7 @@ void RenderDrawDataBuilder::bind_texture(u32 unit, RenderResource rc) {
     op->texure.rc = rc;
     op->texure.unit = unit;
 };
-void RenderDrawDataBuilder::bind_description(VertexDescription *desc) {
+void RenderDrawDataBuilder::bind_description(VertexLayout *desc) {
     RenderDrawData::Operation *op =
         alloc_operation(RenderDrawData::OpType::BIND_DESC);
     op->vertex_desc = desc;
@@ -76,25 +76,18 @@ void RenderDrawDataBuilder::set_draw_index(u32 index_cnt, u32 index_offset,
     data->index_offset = index_offset;
     data->instance_cnt = instance_cnt;
 }
-void RenderStateDataBuilder::bind_framebuffer(RenderResource rc) {
-    RenderStateData::Operation *op =
-        alloc_operation(RenderStateData::OpType::BIND_FRAME_BUFFER);
-    op->fbo_rc = rc;
-}
-void RenderStateDataBuilder::bind_render_target(u32 slot,
-                                                RenderResource texture,
-                                                u32 face) {
+void RenderStateDataBuilder::bind_render_target(RenderResource target) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::BIND_RENDER_TARGET);
-    op->render_target = {.slot = slot, .face = face, .texture = texture};
+    op->render_target = target;
 }
-void RenderStateDataBuilder::bind_depth_stencil_target(u32 slot,
-                                                       RenderResource texture,
-                                                       u32 face) {
+
+void RenderStateDataBuilder::bind_window() {
     RenderStateData::Operation *op =
-        alloc_operation(RenderStateData::OpType::BIND_DEPTH_STENCIL_TARGET);
-    op->render_target = {.slot = slot, .face = face, .texture = texture};
+        alloc_operation(RenderStateData::OpType::BIND_RENDER_TARGET);
+    op->render_target = {};
 }
+
 void RenderStateDataBuilder::set_viewport(f32 x, f32 y, f32 width, f32 height) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::VIEWPORT);
@@ -131,7 +124,7 @@ RenderCommand RenderCommandDispatcher::prepare_update_cmd(f32 depth) {
     cmd.type = RenderCommandType::UPDATE;
     cmd.data = RenderEngine::get_instance()
                    ->get_mem_pool()
-                   ->alloc_new<RenderUpdateData>();
+                   ->alloc(sizeof(RenderUpdateData));
     return cmd;
 }
 
@@ -233,6 +226,35 @@ void RenderCommandDispatcher::update_cubemap(RenderResource &texture, u8 face,
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
+void RenderCommandDispatcher::update_color_attachment(
+    RenderResource &render_target, i32 slot, RenderResource tex, u32 face) {
+    if (slot < 0) {
+        SPDLOG_ERROR("Can't update attachment with slot smaller than 0");
+        return;
+    }
+    RenderCommand cmd = prepare_update_cmd(0);
+    RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
+    update_data->data = nullptr;
+    update_data->rc = render_target;
+    update_data->attachment.face = face;
+    update_data->attachment.slot = slot;
+    update_data->attachment.texture = tex;
+
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+}
+void RenderCommandDispatcher::update_depth_attachment(
+    RenderResource &render_target, RenderResource tex, u32 face) {
+    RenderCommand cmd = prepare_update_cmd(0);
+    RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
+
+    update_data->data = nullptr;
+    update_data->rc = render_target;
+    update_data->attachment.face = face;
+    update_data->attachment.slot = -1;
+    update_data->attachment.texture = tex;
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+}
+
 RenderDrawDataBuilder RenderCommandDispatcher::generate_render_data(
     Ref<Material> mat) {
     RenderDrawDataBuilder builder;
@@ -242,7 +264,8 @@ RenderDrawDataBuilder RenderCommandDispatcher::generate_render_data(
     return builder;
 }
 
-void RenderCommandDispatcher::set_states(RenderStateDataBuilder &builder, f32 depth) {
+void RenderCommandDispatcher::set_states(RenderStateDataBuilder &builder,
+                                         f32 depth) {
     RenderStateData *state_data =
         (RenderStateData *)RenderEngine::get_instance()
             ->get_mem_pool()

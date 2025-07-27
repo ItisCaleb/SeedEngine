@@ -9,11 +9,11 @@
 namespace Seed {
 
 class RenderEngine;
-class ModelRenderer;
+class DefaultRenderer;
 
 class Model : public Resource {
         friend RenderEngine;
-        friend ModelRenderer;
+        friend DefaultRenderer;
 
     private:
         RenderResource instance_rc;

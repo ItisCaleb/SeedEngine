@@ -1,7 +1,7 @@
-#include "vertex_desc.h"
+#include "vertex_layout.h"
 
 namespace Seed {
-void VertexDescription::add_attr(u8 layout_num, VertexAttributeType type,
+void VertexLayout::add_attr(u8 layout_num, VertexAttributeType type,
                                  u32 size, u32 instance_step,
                                  bool should_normalized) {
     this->attrs.push_back({.layout_num = layout_num,

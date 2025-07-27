@@ -57,7 +57,7 @@ class BaseMaterial : public Material {
     public:
         enum TextureMapType : u8 { DIFFUSE = 0, SPECULAR, NORMAl, MAX };
         f32 shiness;
-        BaseMaterial() : Material(DS::get_instance()->get_mesh_shader()) {
+        BaseMaterial() : Material(DS::get_instance()->mesh_shader) {
             for (i32 i = 0; i < TextureMapType::MAX; i++) {
                 this->add_texture_unit(Ref<Texture>());
             }

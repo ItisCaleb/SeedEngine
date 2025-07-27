@@ -12,15 +12,16 @@
 #include <queue>
 #include <vector>
 #include "core/rendering/viewport.h"
+#include "core/rendering/render_target.h"
 
 namespace Seed {
 class RenderEngine {
     private:
         struct Layer {
-                Viewport viewport;
+                Ref<RenderTarget> rt;
                 Renderer *renderer;
-                Layer(Window *window, Renderer *rd)
-                    : viewport(window), renderer(rd) {}
+                Layer(Ref<RenderTarget> rt, Renderer *rd)
+                    : rt(rt), renderer(rd) {}
         };
         inline static RenderEngine *instance = nullptr;
         RenderBackend *device;
@@ -38,7 +39,7 @@ class RenderEngine {
         RenderBackend *get_device();
         Camera *get_cam();
         template <typename T, typename... Args>
-        void register_renderer(u32 layer, const Args &...args);
+        void register_renderer(u32 layer, Ref<RenderTarget> rt, const Args &...args);
         void set_layer_viewport(u32 layer, RectF rect);
         Viewport &get_layer_viewport(u32 layer);
         Window *get_current_window() { return current_window; }

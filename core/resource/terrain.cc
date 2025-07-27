@@ -4,7 +4,7 @@
 namespace Seed {
 
 TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
-    : Material(DS::get_instance()->get_terrain_shader()) {
+    : Material(DS::get_instance()->terrain_shader) {
     this->add_texture_unit(height_map);
     this->raster_state = {.patch_control_points = 4};
     this->depth_state = {.depth_on = true};

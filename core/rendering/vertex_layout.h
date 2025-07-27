@@ -1,5 +1,5 @@
-#ifndef _SEED_VERTEX_DESC_H_
-#define _SEED_VERTEX_DESC_H_
+#ifndef _SEED_VERTEX_LAYOUT_H_
+#define _SEED_VERTEX_LAYOUT_H_
 #include "core/types.h"
 #include <vector>
 
@@ -14,7 +14,7 @@ struct VertexAttribute {
         bool should_normalized = false;
 };
 
-class VertexDescription {
+class VertexLayout {
     private:
         std::vector<VertexAttribute> attrs;
         u32 stride = 0;
@@ -24,8 +24,8 @@ class VertexDescription {
                       u32 instance_step, bool should_normalized = false);
         std::vector<VertexAttribute> &get_attrs() { return this->attrs; }
         u32 get_stride() { return this->stride; }
-        VertexDescription() = default;
-        ~VertexDescription() = default;
+        VertexLayout() = default;
+        ~VertexLayout() = default;
 };
 
 }  // namespace Seed

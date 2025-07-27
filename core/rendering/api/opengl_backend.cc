@@ -58,27 +58,32 @@ RenderBackendGL::RenderBackendGL() {
 }
 void RenderBackendGL::alloc_texture(RenderResource *rc, TextureType type, u32 w,
                                     u32 h) {
+    if (rc->type != RenderResourceType::TEXTURE) {
+        return;
+    }
     HardwareTextureGL texture;
     texture.w = w;
     texture.h = h;
     texture.type = type;
     rc->handle = this->textures.insert(texture);
-    this->alloc_cmds.push(AllocCommand{.handle = rc->handle,
-                                       .type = RenderResourceType::TEXTURE,
-                                       .is_alloc = true});
+    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 void RenderBackendGL::alloc_vertex(RenderResource *rc, u32 stride,
                                    u32 vertex_cnt) {
+    if (rc->type != RenderResourceType::VERTEX) {
+        return;
+    }
     HardwareBufferGL buffer;
     buffer.size = stride * vertex_cnt;
     rc->handle = this->buffers.insert(buffer);
-    this->alloc_cmds.push(AllocCommand{.handle = rc->handle,
-                                       .type = RenderResourceType::VERTEX,
-                                       .is_alloc = true});
+    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
 void RenderBackendGL::alloc_indices(RenderResource *rc, IndexType type,
                                     u32 element_cnt) {
+    if (rc->type != RenderResourceType::INDEX) {
+        return;
+    }
     GLuint handle;
     u32 type_size = 0;
     switch (type) {
@@ -98,21 +103,20 @@ void RenderBackendGL::alloc_indices(RenderResource *rc, IndexType type,
     index.size = element_cnt * type_size;
     index.type = type;
     rc->handle = this->indices.insert(index);
-    this->alloc_cmds.push(AllocCommand{.handle = rc->handle,
-                                       .type = RenderResourceType::INDEX,
-                                       .is_alloc = true});
+    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
 void RenderBackendGL::alloc_constant(RenderResource *rc,
                                      const std::string &name, u32 size) {
+    if (rc->type != RenderResourceType::CONSTANT) {
+        return;
+    }
     HardwareConstantGL constant;
     constant.size = size;
     constant.name = name;
     rc->handle = this->constants.insert(constant);
     this->constants.get_or_null(rc->handle)->buffer_base = rc->handle;
-    this->alloc_cmds.push(AllocCommand{.handle = rc->handle,
-                                       .type = RenderResourceType::CONSTANT,
-                                       .is_alloc = true});
+    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
 void RenderBackendGL::alloc_shader(RenderResource *rc,
@@ -121,6 +125,9 @@ void RenderBackendGL::alloc_shader(RenderResource *rc,
                                    const std::string &geometry_code,
                                    const std::string &tess_ctrl_code,
                                    const std::string &tess_eval_code) {
+    if (rc->type != RenderResourceType::SHADER) {
+        return;
+    }
     HardwareShaderGL shader;
     shader.vertex_src = vertex_code;
     shader.fragment_src = fragment_code;
@@ -129,15 +136,16 @@ void RenderBackendGL::alloc_shader(RenderResource *rc,
     shader.tess_eval_src = tess_eval_code;
 
     rc->handle = this->shaders.insert(shader);
-    this->alloc_cmds.push(AllocCommand{.handle = rc->handle,
-                                       .type = RenderResourceType::SHADER,
-                                       .is_alloc = true});
+    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
 void RenderBackendGL::alloc_pipeline(RenderResource *rc, RenderResource shader,
                                      const RenderRasterizerState &rst_state,
                                      const RenderDepthStencilState &depth_state,
                                      const RenderBlendState &blend_state) {
+    if (rc->type != RenderResourceType::PIPELINE) {
+        return;
+    }
     HardwarePipelineGL pl = {.shader = shader,
                              .rst_state = rst_state,
                              .depth_state = depth_state,
@@ -145,17 +153,14 @@ void RenderBackendGL::alloc_pipeline(RenderResource *rc, RenderResource shader,
     rc->handle = this->pipelines.insert(pl);
 }
 
-void RenderBackendGL::alloc_render_target(RenderResource *rc) {
+void RenderBackendGL::alloc_render_target(
+    RenderResource *rc) {
     rc->handle = this->render_targets.insert({});
-    this->alloc_cmds.push(
-        AllocCommand{.handle = rc->handle,
-                     .type = RenderResourceType::RENDER_TARGET,
-                     .is_alloc = true});
+    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
-void RenderBackendGL::dealloc(RenderResource *r) {
-    this->alloc_cmds.push(
-        AllocCommand{.handle = r->handle, .type = r->type, .is_alloc = false});
+void RenderBackendGL::dealloc(RenderResource *rc) {
+    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = false});
 }
 void RenderBackendGL::find_samplers(const std::string &src,
                                     std::vector<std::string> &result) {
@@ -183,9 +188,10 @@ void RenderBackendGL::find_samplers(const std::string &src,
 }
 
 void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
-    switch (cmd.type) {
+    RenderResource rc = cmd.rc;
+    switch (rc.type) {
         case RenderResourceType::VERTEX: {
-            HardwareBufferGL *buffer = this->buffers.get_or_null(cmd.handle);
+            HardwareBufferGL *buffer = this->buffers.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(buffer);
             glGenBuffers(1, &buffer->handle);
             glBindBuffer(GL_ARRAY_BUFFER, buffer->handle);
@@ -195,7 +201,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             break;
         }
         case RenderResourceType::INDEX: {
-            HardwareIndexGL *index = this->indices.get_or_null(cmd.handle);
+            HardwareIndexGL *index = this->indices.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(index);
             glGenBuffers(1, &index->handle);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index->handle);
@@ -206,7 +212,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
         }
         case RenderResourceType::CONSTANT: {
             HardwareConstantGL *constant =
-                this->constants.get_or_null(cmd.handle);
+                this->constants.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(constant);
 
             glGenBuffers(1, &constant->handle);
@@ -214,8 +220,8 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             glBufferData(GL_UNIFORM_BUFFER, constant->size, nullptr,
                          GL_DYNAMIC_DRAW);
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
-            glBindBufferBase(GL_UNIFORM_BUFFER, cmd.handle, constant->handle);
-            constant->buffer_base = cmd.handle;
+            glBindBufferBase(GL_UNIFORM_BUFFER, rc.handle, constant->handle);
+            constant->buffer_base = rc.handle;
 
             /* attach uniform buffers */
             std::vector<HardwareShaderGL *> shader_list;
@@ -231,7 +237,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             break;
         }
         case RenderResourceType::TEXTURE: {
-            HardwareTextureGL *tex = this->textures.get_or_null(cmd.handle);
+            HardwareTextureGL *tex = this->textures.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(tex);
 
             GLuint type = convert_texture_type(tex->type);
@@ -255,12 +261,14 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
         }
         case RenderResourceType::RENDER_TARGET: {
             HardwareRenderTargetGL *rt =
-                this->render_targets.get_or_null(cmd.handle);
+                this->render_targets.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(rt);
-            glGenFramebuffers(1, &rt->handle);
+            glGenFramebuffers(1, &rt->fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, rt->fbo);
+            break;
         }
         case RenderResourceType::SHADER: {
-            HardwareShaderGL *shader = this->shaders.get_or_null(cmd.handle);
+            HardwareShaderGL *shader = this->shaders.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(shader);
             u32 vertex, fragment, geometry, tess_ctrl, tess_eval;
             int success;
@@ -406,45 +414,48 @@ GLuint RenderBackendGL::convert_texture_type(TextureType type) {
 }
 
 void RenderBackendGL::handle_dealloc(AllocCommand &cmd) {
-    switch (cmd.type) {
+    RenderResource rc = cmd.rc;
+    switch (rc.type) {
         case RenderResourceType::VERTEX: {
-            HardwareBufferGL *buffer = this->buffers.get_or_null(cmd.handle);
+            HardwareBufferGL *buffer = this->buffers.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(buffer);
             glDeleteBuffers(1, &buffer->handle);
-            this->buffers.remove(cmd.handle);
+            this->buffers.remove(rc.handle);
             break;
         }
 
         case RenderResourceType::INDEX: {
-            HardwareIndexGL *index = this->indices.get_or_null(cmd.handle);
+            HardwareIndexGL *index = this->indices.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(index);
             glDeleteBuffers(1, &index->handle);
-            this->indices.remove(cmd.handle);
+            this->indices.remove(rc.handle);
             break;
         }
         case RenderResourceType::TEXTURE: {
-            HardwareTextureGL *tex = this->textures.get_or_null(cmd.handle);
+            HardwareTextureGL *tex = this->textures.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(tex);
             glDeleteBuffers(1, &tex->handle);
-            this->textures.remove(cmd.handle);
+            this->textures.remove(rc.handle);
             break;
         }
         case RenderResourceType::SHADER: {
-            HardwareShaderGL *shader = this->shaders.get_or_null(cmd.handle);
+            HardwareShaderGL *shader = this->shaders.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(shader);
             glDeleteProgram(shader->handle);
-            this->shaders.remove(cmd.handle);
+            this->shaders.remove(rc.handle);
             break;
         }
         case RenderResourceType::PIPELINE: {
-            this->pipelines.remove(cmd.handle);
+            this->pipelines.remove(rc.handle);
             break;
         }
         case RenderResourceType::RENDER_TARGET: {
             HardwareRenderTargetGL *rt =
-                this->render_targets.get_or_null(cmd.handle);
+                this->render_targets.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(rt);
-            glDeleteFramebuffers(1, &rt->handle);
+            glDeleteFramebuffers(1, &rt->fbo);
+            this->render_targets.remove(rc.handle);
+            break;
         }
         default:
             break;
@@ -453,10 +464,10 @@ void RenderBackendGL::handle_dealloc(AllocCommand &cmd) {
 
 void RenderBackendGL::handle_update(RenderCommand &cmd) {
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
-    RenderResource buffer = update_data->rc;
-    switch (buffer.type) {
+    RenderResource rc = update_data->rc;
+    switch (rc.type) {
         case RenderResourceType::VERTEX: {
-            HardwareBufferGL *hb = this->buffers.get_or_null(buffer.handle);
+            HardwareBufferGL *hb = this->buffers.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(hb);
 
             glBindBuffer(GL_ARRAY_BUFFER, hb->handle);
@@ -471,7 +482,7 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             break;
         }
         case RenderResourceType::TEXTURE: {
-            HardwareTextureGL *tex = this->textures.get_or_null(buffer.handle);
+            HardwareTextureGL *tex = this->textures.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(tex);
             GLuint type = convert_texture_type(tex->type);
             glBindTexture(type, tex->handle);
@@ -492,7 +503,7 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
         }
         case RenderResourceType::CONSTANT: {
             HardwareConstantGL *constant =
-                this->constants.get_or_null(buffer.handle);
+                this->constants.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(constant);
 
             glBindBuffer(GL_UNIFORM_BUFFER, constant->handle);
@@ -508,7 +519,7 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             break;
         }
         case RenderResourceType::INDEX: {
-            HardwareIndexGL *index = this->indices.get_or_null(buffer.handle);
+            HardwareIndexGL *index = this->indices.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(index);
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index->handle);
@@ -524,11 +535,39 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
             break;
         }
+        case RenderResourceType::RENDER_TARGET: {
+            HardwareRenderTargetGL *rt =
+                this->render_targets.get_or_null(rc.handle);
+            EXPECT_NOT_NULL_BREAK(rt);
+            HardwareTextureGL *tex = this->textures.get_or_null(
+                update_data->attachment.texture.handle);
+            EXPECT_NOT_NULL_BREAK(tex);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, rt->fbo);
+            GLuint slot;
+            if (update_data->attachment.slot == -1) {
+                slot = GL_DEPTH_STENCIL_ATTACHMENT;
+            } else {
+                slot = GL_COLOR_ATTACHMENT0 + update_data->attachment.slot;
+            }
+            if (tex->type == TextureType::TEXTURE_CUBEMAP) {
+                glFramebufferTexture2D(GL_FRAMEBUFFER, slot,
+                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X +
+                                           update_data->attachment.face,
+                                       tex->handle, 0);
+            } else {
+                glFramebufferTexture2D(GL_FRAMEBUFFER, slot,
+                                       convert_texture_type(tex->type),
+                                       tex->handle, 0);
+            }
+            glBindFramebuffer(GL_FRAMEBUFFER, last_fbo);
+            break;
+        }
         default:
             break;
     }
 }
-void RenderBackendGL::use_vertex_desc(VertexDescription *desc) {
+void RenderBackendGL::use_vertex_desc(VertexLayout *desc) {
     if (!desc) {
         SPDLOG_ERROR("VertexDescription is null");
         return;
@@ -758,6 +797,20 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                 RectF &rect = op->scissor_rect;
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(rect.x, rect.y, rect.w, rect.h);
+                break;
+            }
+            case RenderStateData::OpType::BIND_RENDER_TARGET: {
+                if (op->render_target.type ==
+                    RenderResourceType::UNINITIALIZE) {
+                    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                    last_fbo = 0;
+                    break;
+                }
+                HardwareRenderTargetGL *render_target =
+                    this->render_targets.get_or_null(op->render_target.handle);
+                EXPECT_NOT_NULL_BREAK(render_target);
+                glBindFramebuffer(GL_FRAMEBUFFER, render_target->fbo);
+                last_fbo = render_target->fbo;
                 break;
             }
             default:

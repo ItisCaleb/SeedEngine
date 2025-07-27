@@ -19,6 +19,7 @@ enum class RenderResourceType : u8 {
     UNINITIALIZE
 };
 
+
 struct RenderResource {
         Handle handle;
         RenderResourceType type = RenderResourceType::UNINITIALIZE;
@@ -55,6 +56,7 @@ struct RenderResource {
         RenderResource() = default;
         ~RenderResource() = default;
 };
+
 }  // namespace Seed
 
 #endif

@@ -1,5 +1,6 @@
 #include "default_storage.h"
 #include "core/resource/resource_loader.h"
+#include "core/math/vec2.h"
 
 namespace Seed {
 DefaultStorage::DefaultStorage() {
@@ -14,6 +15,8 @@ DefaultStorage::DefaultStorage() {
 
     mesh_debug_shader =
         loader->load_shader("assets/mesh_debug.vert", "assets/mesh_debug.frag");
+    post_shader = loader->load_shader("assets/post.vert", "assets/post.frag");
+    
     const char *vertex_shader =
         "#version 410 core\n"
         "layout (location = 0) in vec2 Position;\n"
@@ -57,6 +60,14 @@ DefaultStorage::DefaultStorage() {
     gui_desc.add_attr(1, VertexAttributeType::FLOAT, 2, 0);
     gui_desc.add_attr(2, VertexAttributeType::UNSIGNED_BYTE, 4, 0, true);
 
+    Vec2 tmp_post[] = {-1.0f, 1.0f, 0.0f, 1.0f,  -1.0f, -1.0f,
+                       0.0f,  0.0f, 1.0f, -1.0f, 1.0f,  0.0f,
 
+                       -1.0f, 1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
+                       1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
+    post_data.alloc_vertex((sizeof(Vec2) * 2),
+                           (sizeof(tmp_post) / (sizeof(Vec2) * 2)), tmp_post);
+    post_desc.add_attr(0, VertexAttributeType::FLOAT, 2, 0);
+    post_desc.add_attr(1, VertexAttributeType::FLOAT, 2, 0);
 }
 }  // namespace Seed
