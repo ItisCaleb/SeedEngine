@@ -29,6 +29,7 @@ class RenderEngine {
         Camera cam;
         LinearAllocator mem_pool;
         std::vector<Layer> layers;
+        std::unordered_map<std::string, Ref<RenderTarget>> targets;
         Window *current_window;
 
     public:
@@ -43,6 +44,7 @@ class RenderEngine {
         void set_layer_viewport(u32 layer, RectF rect);
         Viewport &get_layer_viewport(u32 layer);
         Window *get_current_window() { return current_window; }
+        Ref<RenderTarget> get_render_target(const std::string &name);
 
         RenderEngine(Window *window);
         ~RenderEngine();

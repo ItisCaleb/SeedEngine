@@ -15,13 +15,10 @@ class DefaultRenderer : public Renderer {
         std::unordered_map<Model *, std::vector<Mat4>> model_instances;
         VertexLayout instance_desc;
         Ref<Material> debug_mat;
-        Ref<Material> post_mat;
-        Ref<Texture> scene_tex;
         VertexData sky_vert;
         RenderResource terrain_m;
         VertexData debug_line;
         VertexData debug_triangle;
-        MultiRenderTarget color_target;
 
         /* for debugging */
 

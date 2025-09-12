@@ -4,6 +4,7 @@
 #include "core/rendering/api/render_command.h"
 #include "core/rendering/viewport.h"
 #include "core/resource/texture.h"
+#include "core/macro.h"
 namespace Seed {
 struct AttachmentSurface {
         Ref<Texture> texture;
@@ -19,6 +20,7 @@ class RenderTarget : public RefCounted {
     public:
         RenderTarget();
         void bind_depth(AttachmentSurface &surface);
+        AttachmentSurface &get_depth() { return this->depth_surface; };
         Viewport &get_viewport() { return this->viewport; }
         RenderResource &get_resource() { return this->rc; }
         ~RenderTarget();
@@ -30,6 +32,10 @@ class MultiRenderTarget : public RenderTarget {
 
     public:
         void bind_color(u32 slot, AttachmentSurface &surface);
+        AttachmentSurface &get_color(int i){
+            EXPECT_INDEX_INBOUND_THROW(i, 8);
+            return color_surface[i];
+        }
         MultiRenderTarget() = default;
 };
 

@@ -1,4 +1,4 @@
-#include "model_renderer.h"
+#include "default_renderer.h"
 #include "core/rendering/light.h"
 #include "core/rendering/api/render_resource.h"
 #include "core/resource/resource_loader.h"
@@ -41,13 +41,6 @@ void DefaultRenderer::init_color() {
     RenderRasterizerState rst = {.poly_mode = PolygonMode::LINE};
     debug_mat->set_rasterizer_state(rst);
 
-    scene_tex.create(TextureType::TEXTURE_2D, 1024,768, nullptr);
-    post_mat.create(DS::get_instance()->post_shader);
-    post_mat->add_texture_unit(scene_tex);
-    AttachmentSurface depth_surf;
-    depth_surf.face = 0;
-    depth_surf.texture = scene_tex;
-    this->color_target.bind_depth(depth_surf);
 
     RenderResource lights_rc;
 

@@ -1,4 +1,5 @@
 target_sources(seed PRIVATE 
-    model_renderer.cc
+    default_renderer.cc
     imgui_renderer.cc
+    post_renderer.cc
     )

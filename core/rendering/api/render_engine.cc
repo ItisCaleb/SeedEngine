@@ -7,8 +7,9 @@
 #include "core/rendering/light.h"
 #include "core/resource/material.h"
 #include "opengl_backend.h"
-#include "core/rendering/renderer/model_renderer.h"
+#include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
+#include "core/rendering/renderer/post_renderer.h"
 #include "core/macro.h"
 
 #include <spdlog/spdlog.h>
@@ -52,8 +53,20 @@ void RenderEngine::init() {
     Ref<MultiRenderTarget> mrt1;
     window_rt.create();
     mrt1.create();
+    this->targets["default"] = ref_cast<RenderTarget>(mrt1);
+    this->targets["window"] = ref_cast<RenderTarget>(window_rt);
+
+    Ref<Texture> scene_tex(TextureType::TEXTURE_2D, 1024,768, nullptr);
+    AttachmentSurface depth_surf;
+    depth_surf.face = 0;
+    depth_surf.texture = scene_tex;
+    mrt1->bind_depth(depth_surf);
+
+
     this->register_renderer<DefaultRenderer>(i++, ref_cast<RenderTarget>(window_rt));
     this->register_renderer<ImguiRenderer>(i++, ref_cast<RenderTarget>(window_rt));
+    // this->register_renderer<PostRenderer>(i++,
+    //                                       ref_cast<RenderTarget>(window_rt));
 }
 
 RenderBackend *RenderEngine::get_device() { return device; }
@@ -63,7 +76,8 @@ LinearAllocator *RenderEngine::get_mem_pool() { return &this->mem_pool; }
 Camera *RenderEngine::get_cam() { return &cam; }
 
 template <typename T, typename... Args>
-void RenderEngine::register_renderer(u32 layer, Ref<RenderTarget> rt, const Args &...args) {
+void RenderEngine::register_renderer(u32 layer, Ref<RenderTarget> rt,
+                                     const Args &...args) {
     static_assert(std::is_base_of<Renderer, T>::value,
                   "T must be a derived class of Renderer.");
     Renderer *renderer = static_cast<Renderer *>(new T(args...));
@@ -113,6 +127,14 @@ void RenderEngine::process() {
         layer.renderer->cleanup();
     }
     this->mem_pool.free_all();
+}
+
+Ref<RenderTarget> RenderEngine::get_render_target(const std::string &name) {
+    auto iter = this->targets.find(name);
+    if (iter != this->targets.end()) {
+        return iter->second;
+    }
+    return Ref<RenderTarget>();
 }
 
 RenderEngine::~RenderEngine() { instance = nullptr; }
