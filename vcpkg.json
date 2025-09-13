@@ -15,6 +15,12 @@
     "stb",
     "nlohmann-json",
     "nativefiledialog-extended",
-    "joltphysics"
+    {
+      "name": "joltphysics",
+      "features": [
+        "debugrenderer",
+        "rtti"
+      ]
+    }
   ]
 }
