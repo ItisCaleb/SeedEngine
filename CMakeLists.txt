@@ -30,6 +30,7 @@ find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(nfd CONFIG REQUIRED)
 find_package(Jolt CONFIG REQUIRED)
+set_target_properties(Jolt::Jolt PROPERTIES CPP_RTTI_ENABLED ON)
 
 target_link_libraries(seed PUBLIC 
     glad::glad

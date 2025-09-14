@@ -25,6 +25,7 @@ class DebugDrawer {
     public:
         void draw_line(Vec3 from, Vec3 to, Color color);
         void draw_triangle(Vec3 v1, Vec3 v2, Vec3 v3, Color color);
+        void clear();
         VertexLayout *get_debug_desc(){
             return &debug_desc;
         }

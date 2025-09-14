@@ -7,6 +7,7 @@
 #include "core/gui/gui_engine.h"
 #include "core/concurrency/thread_pool.h"
 #include "core/resource/default_storage.h"
+#include "core/physic/physic_engine.h"
 #include "types.h"
 #include <spdlog/spdlog.h>
 #include <stdio.h>
@@ -30,6 +31,7 @@ void SeedEngine::init_systems() {
     DefaultStorage *storage = new DefaultStorage();
     DebugDrawer *debug_drawer = new DebugDrawer();
     ThreadPool *pool = new ThreadPool(OS::cpu_count());
+    PhysicEngine *phys_engine = new PhysicEngine();
     render_engine->init();
     this->world = new World;
 }
@@ -51,6 +53,7 @@ void SeedEngine::start() {
 
         glfwPollEvents();
         GuiEngine::get_instance()->update();
+        PhysicEngine::get_instance()->process();
         world->tick(delta);
 
         render_engine->process();

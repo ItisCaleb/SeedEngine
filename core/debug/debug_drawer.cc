@@ -16,6 +16,12 @@ void DebugDrawer::draw_triangle(Vec3 v1, Vec3 v2, Vec3 v3, Color color) {
     this->triangle_indices.push_back(index + 2);
 }
 
+void DebugDrawer::clear(){
+    this->line_vertices.clear();
+    this->triangle_vertices.clear();
+    this->triangle_indices.clear();
+}
+
 DebugDrawer::DebugDrawer() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
