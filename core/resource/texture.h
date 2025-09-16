@@ -9,6 +9,7 @@ class Texture : public Resource {
     private:
         RenderResource tex_rc;
         TextureType type;
+        PixelFormat format;
         u32 w, h;
 
     public:
@@ -21,7 +22,7 @@ class Texture : public Resource {
         void upload_cube_map(const u8 *right, const u8 *left, const u8 *top,
                              const u8 *bottom, const u8 *front, const u8 *back);
 
-        Texture(TextureType type, u32 w, u32 h, const u8 *image_data);
+        Texture(TextureType type, u32 w, u32 h, PixelFormat format, const u8 *image_data);
         ~Texture();
 };
 }  // namespace Seed

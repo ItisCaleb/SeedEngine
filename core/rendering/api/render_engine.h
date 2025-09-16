@@ -29,7 +29,7 @@ class RenderEngine {
         Camera cam;
         LinearAllocator mem_pool;
         std::vector<Layer> layers;
-        std::unordered_map<std::string, Ref<RenderTarget>> targets;
+        std::unordered_map<std::string, Ref<RenderTarget>> render_targets;
         Window *current_window;
 
     public:

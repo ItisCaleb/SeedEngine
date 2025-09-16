@@ -20,6 +20,7 @@ class RenderTarget : public RefCounted {
     public:
         RenderTarget();
         void bind_depth(AttachmentSurface &surface);
+        void bind_depth(Ref<Texture> tex, u8 face = 0);
         AttachmentSurface &get_depth() { return this->depth_surface; };
         Viewport &get_viewport() { return this->viewport; }
         RenderResource &get_resource() { return this->rc; }
@@ -32,6 +33,8 @@ class MultiRenderTarget : public RenderTarget {
 
     public:
         void bind_color(u32 slot, AttachmentSurface &surface);
+        void bind_color(u32 slot, Ref<Texture> tex, u8 face = 0);
+
         AttachmentSurface &get_color(int i){
             EXPECT_INDEX_INBOUND_THROW(i, 8);
             return color_surface[i];

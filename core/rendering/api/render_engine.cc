@@ -53,22 +53,19 @@ void RenderEngine::init() {
     Ref<MultiRenderTarget> mrt1;
     window_rt.create();
     mrt1.create();
-    this->targets["default"] = ref_cast<RenderTarget>(mrt1);
-    this->targets["window"] = ref_cast<RenderTarget>(window_rt);
+    this->render_targets["default"] = ref_cast<RenderTarget>(mrt1);
+    this->render_targets["window"] = ref_cast<RenderTarget>(window_rt);
 
-    Ref<Texture> color_tex(TextureType::TEXTURE_2D, 1024,768, nullptr);
-    Ref<Texture> depth_tex(TextureType::TEXTURE_2D, 1024,768, nullptr);
-    AttachmentSurface color_surf;
-    color_surf.face = 0;
-    color_surf.texture = color_tex;
-    //mrt1->bind_depth(depth_surf);
-    mrt1->bind_color(0, color_surf);
+    Ref<Texture> color_tex(TextureType::TEXTURE_2D, 1024,768, PixelFormat::RGBA, nullptr);
+    Ref<Texture> depth_tex(TextureType::TEXTURE_2D, 1024,768, PixelFormat::D24S8, nullptr);
+    mrt1->bind_color(0, color_tex);
+    mrt1->bind_depth(depth_tex);
 
 
-    this->register_renderer<DefaultRenderer>(i++, ref_cast<RenderTarget>(window_rt));
-    this->register_renderer<ImguiRenderer>(i++, ref_cast<RenderTarget>(window_rt));
-    // this->register_renderer<PostRenderer>(i++,
-    //                                       ref_cast<RenderTarget>(window_rt));
+    this->register_renderer<DefaultRenderer>(i++, ref_cast<RenderTarget>(mrt1));
+    this->register_renderer<ImguiRenderer>(i++, ref_cast<RenderTarget>(mrt1));
+    this->register_renderer<PostRenderer>(i++,
+                                          ref_cast<RenderTarget>(window_rt));
 }
 
 RenderBackend *RenderEngine::get_device() { return device; }
@@ -100,8 +97,9 @@ Viewport &RenderEngine::get_layer_viewport(u32 layer) {
 
 void RenderEngine::process() {
     RenderCommandDispatcher dp;
-    {
+    for (auto &iter : this->render_targets){
         RenderStateDataBuilder builder;
+        builder.bind_render_target(iter.second->get_resource());
         builder.clear(StateClearFlag::CLEAR_COLOR);
         builder.clear(StateClearFlag::CLEAR_DEPTH);
         dp.set_states(builder, 0);
@@ -124,16 +122,18 @@ void RenderEngine::process() {
         layer.renderer->preprocess();
         layer.renderer->process(layer.rt->get_viewport());
     }
+
     this->device->process();
     for (Layer &layer : this->layers) {
         layer.renderer->cleanup();
     }
+
     this->mem_pool.free_all();
 }
 
 Ref<RenderTarget> RenderEngine::get_render_target(const std::string &name) {
-    auto iter = this->targets.find(name);
-    if (iter != this->targets.end()) {
+    auto iter = this->render_targets.find(name);
+    if (iter != this->render_targets.end()) {
         return iter->second;
     }
     return Ref<RenderTarget>();

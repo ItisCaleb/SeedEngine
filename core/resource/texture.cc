@@ -2,9 +2,9 @@
 #include "core/rendering/api/render_command.h"
 
 namespace Seed {
-Texture::Texture(TextureType type, u32 w, u32 h, const u8 *image_data)
+Texture::Texture(TextureType type, u32 w, u32 h, PixelFormat format, const u8 *image_data)
     : type(type), w(w), h(h) {
-    tex_rc.alloc_texture(type, w, h, image_data);
+    tex_rc.alloc_texture(type, w, h, format, image_data);
 }
 
 void Texture::update(const u8 *data, u32 w, u32 h) {

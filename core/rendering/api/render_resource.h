@@ -24,7 +24,7 @@ struct RenderResource {
         Handle handle = -1;
         RenderResourceType type = RenderResourceType::UNINITIALIZE;
 
-        void alloc_texture(TextureType type, u32 w, u32 h, const void *data);
+        void alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format, const void *data);
         void alloc_vertex(u32 stride, u32 element_cnt, const void *data);
         void alloc_index(const std::vector<u8> &indices);
         void alloc_index(const std::vector<u16> &indices);

@@ -14,6 +14,13 @@ void RenderTarget::bind_depth(AttachmentSurface &surface) {
                                surface.face);
 }
 
+void RenderTarget::bind_depth(Ref<Texture> tex, u8 face){
+    this->depth_surface = AttachmentSurface{tex, face};
+    RenderCommandDispatcher dp;
+    dp.update_depth_attachment(this->rc, tex->get_render_resource(),
+                               face);
+}
+
 RenderTarget::~RenderTarget() { this->rc.dealloc(); }
 
 void MultiRenderTarget::bind_color(u32 slot, AttachmentSurface &surface) {
@@ -23,6 +30,14 @@ void MultiRenderTarget::bind_color(u32 slot, AttachmentSurface &surface) {
 
     dp.update_color_attachment(
         this->rc, 0, surface.texture->get_render_resource(), surface.face);
+}
+
+void MultiRenderTarget::bind_color(u32 slot, Ref<Texture> tex, u8 face){
+    EXPECT_INDEX_INBOUND_THROW(slot, 8);
+    this->color_surface[slot] = AttachmentSurface{tex, face};
+    RenderCommandDispatcher dp;
+    dp.update_color_attachment(this->rc, 0, tex->get_render_resource(),
+                               face);
 }
 
 WindowRenderTarget::WindowRenderTarget() {

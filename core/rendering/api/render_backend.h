@@ -16,7 +16,7 @@ class RenderBackend {
         RenderBackend(/* args */) = default;
         ~RenderBackend() = default;
         virtual void alloc_texture(RenderResource *rc, TextureType type, u32 w,
-                                   u32 h) = 0;
+                                   u32 h, PixelFormat format) = 0;
         virtual void alloc_vertex(RenderResource *rc, u32 stride,
                                   u32 element_cnt) = 0;
 

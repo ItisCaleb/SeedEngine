@@ -27,6 +27,7 @@ struct HardwareTextureGL {
         GLuint handle = GL_INVALID_INDEX;
         u32 w, h;
         TextureType type;
+        PixelFormat format;
 };
 
 struct HardwareShaderGL {
@@ -70,6 +71,7 @@ class RenderBackendGL : public RenderBackend {
         void find_samplers(const std::string &src,
                            std::vector<std::string> &result);
         GLuint convert_texture_type(TextureType type);
+        GLuint convert_pixel_format(PixelFormat format);
 
         /* state setup */
         void setup_rasterizer(const RenderRasterizerState &state);
@@ -95,7 +97,7 @@ class RenderBackendGL : public RenderBackend {
 
         /* we defer the allocation to allow multithreading. */
         void alloc_texture(RenderResource *rc, TextureType type, u32 w,
-                           u32 h) override;
+                           u32 h, PixelFormat format) override;
         void alloc_vertex(RenderResource *rc, u32 stride,
                           u32 element_cnt) override;
         void alloc_indices(RenderResource *rc, IndexType type,

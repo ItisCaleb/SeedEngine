@@ -14,7 +14,7 @@ enum class TextureType {
     TEXTURE_2D_ARRAY
 };
 
-enum class PixelFormat { R, RG, RGB, RGBA, D24S8 };
+enum class PixelFormat: u8 { R, RG, RGB, RGBA, D24S8 };
 
 u32 constexpr static get_pixel_format_size(PixelFormat format) {
     switch (format) {

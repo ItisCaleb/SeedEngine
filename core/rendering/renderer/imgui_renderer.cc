@@ -21,7 +21,7 @@ void ImguiRenderer::init() {
     u8 *pixels;
     int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-    Ref<Texture> font_tex(TextureType::TEXTURE_2D, width, height, pixels);
+    Ref<Texture> font_tex(TextureType::TEXTURE_2D, width, height, PixelFormat::RGBA, pixels);
 
     RenderBlendState blend_state = {
         .blend_on = true,
