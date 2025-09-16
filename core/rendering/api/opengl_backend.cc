@@ -153,8 +153,7 @@ void RenderBackendGL::alloc_pipeline(RenderResource *rc, RenderResource shader,
     rc->handle = this->pipelines.insert(pl);
 }
 
-void RenderBackendGL::alloc_render_target(
-    RenderResource *rc) {
+void RenderBackendGL::alloc_render_target(RenderResource *rc) {
     rc->handle = this->render_targets.insert({});
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
@@ -227,6 +226,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             std::vector<HardwareShaderGL *> shader_list;
             shaders.get_used(shader_list);
             for (HardwareShaderGL *shader : shader_list) {
+                if (shader->handle == GL_INVALID_INDEX) continue;
                 u32 idx = glGetUniformBlockIndex(shader->handle,
                                                  constant->name.c_str());
                 if (idx != GL_INVALID_INDEX) {
@@ -264,7 +264,6 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 this->render_targets.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(rt);
             glGenFramebuffers(1, &rt->fbo);
-            glBindFramebuffer(GL_FRAMEBUFFER, rt->fbo);
             break;
         }
         case RenderResourceType::SHADER: {
@@ -362,7 +361,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             glDeleteShader(vertex);
             glDeleteShader(fragment);
             shader->handle = program;
-
+            glUseProgram(program);
             /* attach samplers */
             for (i32 i = 0; i < samplers.size(); i++) {
                 u32 loc =
@@ -381,6 +380,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                                           constant->buffer_base);
                 }
             }
+            glUseProgram(0);
             break;
         }
 
@@ -748,6 +748,8 @@ inline static u32 get_blend_func(BlendFactor factor) {
             return GL_SRC1_ALPHA;
         case BlendFactor::ONE_MINUS_SRC1_ALPHA:
             return GL_ONE_MINUS_SRC1_ALPHA;
+        default:
+            return GL_ZERO;
     }
 }
 void RenderBackendGL::setup_blend(const RenderBlendState &state) {
@@ -809,8 +811,14 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                 HardwareRenderTargetGL *render_target =
                     this->render_targets.get_or_null(op->render_target.handle);
                 EXPECT_NOT_NULL_BREAK(render_target);
+
                 glBindFramebuffer(GL_FRAMEBUFFER, render_target->fbo);
+
                 last_fbo = render_target->fbo;
+                auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+                if (status != GL_FRAMEBUFFER_COMPLETE) {
+                    SPDLOG_ERROR("Incomplete framebuffer code: {}", status);
+                }
                 break;
             }
             default:
@@ -965,6 +973,13 @@ void RenderBackendGL::process() {
                 break;
             case RenderCommandType::RENDER:
                 handle_render(cmd);
+                break;
+            case RenderCommandType::BEGIN_SCOPE:
+                glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1,
+                                 cmd.scope.c_str());
+                break;
+            case RenderCommandType::END_SCOPE:
+                glPopDebugGroup();
                 break;
             default:
                 break;

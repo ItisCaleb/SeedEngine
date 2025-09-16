@@ -8,16 +8,14 @@ Texture::Texture(TextureType type, u32 w, u32 h, const u8 *image_data)
 }
 
 void Texture::update(const u8 *data, u32 w, u32 h) {
-    RenderCommandDispatcher dp(0);
-    DEBUG_DISPATCH(dp);
+    RenderCommandDispatcher dp;
     dp.update_texture(tex_rc, 0, 0, w, h, (void *)data);
 }
 
 void Texture::upload_cube_map(const u8 *right, const u8 *left, const u8 *top,
                               const u8 *bottom, const u8 *front,
                               const u8 *back) {
-    RenderCommandDispatcher dp(0);
-    DEBUG_DISPATCH(dp);
+    RenderCommandDispatcher dp;
     dp.update_cubemap(tex_rc, 0, 0, 0, w, h, (void *)right);
     dp.update_cubemap(tex_rc, 1, 0, 0, w, h, (void *)left);
     dp.update_cubemap(tex_rc, 2, 0, 0, w, h, (void *)top);

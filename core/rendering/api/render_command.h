@@ -11,17 +11,41 @@
 #include <fmt/format.h>
 
 namespace Seed {
-enum class RenderCommandType : u8 { STATE, UPDATE, RENDER };
-#define DEBUG_DISPATCH(_dp) \
-    _dp.set_scope(fmt::format("DEBUG: {}:{}", __FILE__, __LINE__))
+enum class RenderCommandType : u8 {
+    STATE,
+    UPDATE,
+    RENDER,
+    BEGIN_SCOPE,
+    END_SCOPE
+};
+
+#define KEY_DEPTH_BITS (16)
+#define KEY_DEPTH_MASK ((1 << KEY_DEPTH_BITS) - 1)
+#define KEY_SEQ_BITS (8)
+#define KEY_SEQ_MASK ((1 << 8) - 1)
+#define KEY_LAYER_BITS (6)
+#define KEY_LAYER_MASK ((1 << KEY_LAYER_BITS) - 1)
+
 /*
  sort key structure
-|------------------------------|
-|  unused  |  layer  |  depth  |
-|------------------------------|
-|  9 bits  | 7 bits  | 16 bits |
-|------------------------------|
+
+|  unused  |  layer  |  sequence  |  depth  |
+|----------|---------|------------|---------|
+|  2 bits  | 6 bits  |   8 bits   | 16 bits |
+
 */
+static u32 gen_sort_key(u8 layer, u8 sequence, f32 depth) {
+    u64 sort_key = 0;
+    if (depth < 0.0f) depth = 0.0f;
+    if (depth > 1.0f) depth = 1.0f;
+    u16 depth_value = (u16)((f32)(u16)(-1) * depth);
+    sort_key |= ((u32)layer & KEY_LAYER_MASK)
+                << (KEY_DEPTH_BITS + KEY_SEQ_BITS);
+    sort_key |= ((u32)sequence & KEY_SEQ_MASK)
+                << (KEY_DEPTH_BITS);
+    sort_key |= (u32)depth_value;
+    return sort_key;
+}
 
 struct RenderCommand {
         u32 sort_key;
@@ -189,30 +213,28 @@ struct RenderUpdateData {
 
 class RenderCommandDispatcher {
     private:
-        u8 layer = 0;
-        bool start_draw = 0;
         RectF viewport;
         std::string scope;
-        RenderCommand prepare_update_cmd(f32 depth);
+        RenderCommand prepare_update_cmd(u32 sort_key);
 
     public:
-        u32 gen_sort_key(f32 depth);
-        void set_scope(const std::string &scope);
+        void begin_scope(const std::string &scope, u32 sort_key);
+        void end_scope(u32 sort_key);
 
-        void set_states(RenderStateDataBuilder &builder, f32 depth);
+        void set_states(RenderStateDataBuilder &builder, u32 sort_key);
         /* Will copy data to a temporary buffer.*/
         void update_buffer(RenderResource &buffer, u32 offset, u32 size,
-                           void *data, f32 depth = 0);
+                           void *data, u32 sort_key = 0);
         void *map_buffer(RenderResource &buffer, u32 offset, u32 size,
-                         f32 depth = 0);
+                         u32 sort_key = 0);
 
         /* Will copy data to a temporary buffer.*/
         void update_texture(RenderResource &texture, u32 x_off, u32 y_off,
-                            u32 w, u32 h, void *data, f32 depth = 0);
+                            u32 w, u32 h, void *data, u32 sort_key = 0);
         void *map_texture(RenderResource &buffer, u32 x_off, u32 y_off, u32 w,
-                          u32 h, f32 depth = 0);
+                          u32 h, u32 sort_key = 0);
         void update_cubemap(RenderResource &texture, u8 face, u16 x_off,
-                            u16 y_off, u16 w, u16 h, void *data, f32 depth = 0);
+                            u16 y_off, u16 w, u16 h, void *data, u32 sort_key = 0);
         void update_color_attachment(RenderResource &render_target, i32 slot,
                                      RenderResource tex, u32 face = 0);
         void update_depth_attachment(RenderResource &render_target,
@@ -222,9 +244,9 @@ class RenderCommandDispatcher {
         RenderDrawDataBuilder generate_render_data(Ref<Material> mat);
 
         void render(RenderDrawDataBuilder &builder, RenderPrimitiveType type,
-                    RenderResource pipeline, f32 depth);
+                    RenderResource pipeline, u32 sort_key);
 
-        RenderCommandDispatcher(u8 layer) : layer(layer) {}
+        RenderCommandDispatcher() {}
         ~RenderCommandDispatcher();
 };
 

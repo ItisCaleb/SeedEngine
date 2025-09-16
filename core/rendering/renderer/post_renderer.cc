@@ -12,24 +12,25 @@ void PostRenderer::init() {
         SPDLOG_WARN("Can't get default render target");
         return;
     }
-    post_mat->add_texture_unit(rt->get_depth().texture);
+    post_mat->add_texture_unit(rt->get_color(0).texture);
 }
 
 void PostRenderer::process(Viewport &viewport){
-    RenderCommandDispatcher dp(layer);
-    DEBUG_DISPATCH(dp);
+    RenderCommandDispatcher dp;
+    dp.begin_scope("POST Rendering", current_sort_key());
     auto builder = dp.generate_render_data(post_mat);
     builder.bind_vertex_data(DS::get_instance()->post_data);
     builder.bind_description(&DS::get_instance()->post_desc);
-    dp.render(builder, RenderPrimitiveType::TRIANGLES, post_mat->get_pipeline(), 0);
+    dp.render(builder, RenderPrimitiveType::TRIANGLES, post_mat->get_pipeline(), current_sort_key());
+    dp.end_scope(next_sort_key());
 }
 
 void PostRenderer::preprocess(){
-
+    
 }
 
 void PostRenderer::cleanup(){
-    
+    this->seq = 0;
 }
 
 }  // namespace Seed

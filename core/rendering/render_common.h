@@ -98,7 +98,10 @@ struct BlendFunc {
 
 struct RenderBlendState {
         bool blend_on = false;
-        BlendFunc func;
+        BlendFunc func = {BlendFactor::ONE, BlendFactor::ZERO, BlendFactor::ONE,
+                          BlendFactor::ZERO
+
+        };
 };
 
 #endif

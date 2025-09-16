@@ -41,7 +41,6 @@ void DefaultRenderer::init_color() {
     RenderRasterizerState rst = {.poly_mode = PolygonMode::LINE};
     debug_mat->set_rasterizer_state(rst);
 
-
     RenderResource lights_rc;
 
     Lights lights;
@@ -91,28 +90,14 @@ void DefaultRenderer::preprocess() {
 }
 
 void DefaultRenderer::process(Viewport &viewport) {
-    RenderCommandDispatcher dp(layer);
-    DEBUG_DISPATCH(dp);
-    {
-        // RenderStateDataBuilder sb;
-        // sb.bind_render_target(this->color_target.get_rc());
-        // dp.set_states(sb, 0);
-    }
-    auto sky = SeedEngine::get_instance()->get_world()->get_sky();
-    if (sky.is_valid()) {
-        RenderDrawDataBuilder sky_builder =
-            dp.generate_render_data(ref_cast<Material>(sky->get_material()));
-        sky_builder.bind_vertex_data(sky_vert);
-        sky_builder.bind_description(&DS::get_instance()->sky_desc);
-        dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
-                  sky->get_material()->get_pipeline(), 1);
-    }
+    RenderCommandDispatcher dp;
+    dp.begin_scope("Default Rendering", current_sort_key());
+
 
     for (auto &[model, instances] : model_instances) {
         if (instances.empty()) {
             continue;
         }
-        DEBUG_DISPATCH(dp);
         dp.update_buffer(model->instance_rc, 0, sizeof(Mat4) * instances.size(),
                          (void *)instances.data());
         for (Ref<Mesh> mesh : model->meshes) {
@@ -124,7 +109,8 @@ void DefaultRenderer::process(Viewport &viewport) {
             mesh_builder.bind_description(&instance_desc);
 
             dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
-                      mesh->get_material()->get_pipeline(), 0.1);
+                      mesh->get_material()->get_pipeline(),
+                      current_sort_key(0.1));
         }
     }
 
@@ -137,20 +123,35 @@ void DefaultRenderer::process(Viewport &viewport) {
         builder.bind_description(&DS::get_instance()->terrain_desc);
 
         dp.render(builder, RenderPrimitiveType::PATCHES,
-                  terrain->get_material()->get_pipeline(), 1.0);
-    }
-    {
-        DebugDrawer *drawer = DebugDrawer::get_instance();
-        RenderDrawDataBuilder line_builder = dp.generate_render_data(drawer->debug_mat);
-        line_builder.bind_vertex_data(debug_line);
-        line_builder.bind_description(drawer->get_debug_desc());
-        dp.render(line_builder, RenderPrimitiveType::LINES, drawer->debug_mat->get_pipeline(), 0.3);
-        RenderDrawDataBuilder triangle_builder = dp.generate_render_data(drawer->debug_mat);
-        triangle_builder.bind_vertex_data(debug_triangle);
-        triangle_builder.bind_description(drawer->get_debug_desc());
-        dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES, drawer->debug_mat->get_pipeline(), 0.3);
+                  terrain->get_material()->get_pipeline(), current_sort_key(1));
     }
 
+    auto sky = SeedEngine::get_instance()->get_world()->get_sky();
+    if (sky.is_valid()) {
+        RenderDrawDataBuilder sky_builder =
+            dp.generate_render_data(ref_cast<Material>(sky->get_material()));
+        sky_builder.bind_vertex_data(sky_vert);
+        sky_builder.bind_description(&DS::get_instance()->sky_desc);
+        dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
+                  sky->get_material()->get_pipeline(), current_sort_key(1.0));
+    }
+    dp.end_scope(next_sort_key());
+
+    {
+        DebugDrawer *drawer = DebugDrawer::get_instance();
+        RenderDrawDataBuilder line_builder =
+            dp.generate_render_data(drawer->debug_mat);
+        line_builder.bind_vertex_data(debug_line);
+        line_builder.bind_description(drawer->get_debug_desc());
+        dp.render(line_builder, RenderPrimitiveType::LINES,
+                  drawer->debug_mat->get_pipeline(), current_sort_key(0.3));
+        RenderDrawDataBuilder triangle_builder =
+            dp.generate_render_data(drawer->debug_mat);
+        triangle_builder.bind_vertex_data(debug_triangle);
+        triangle_builder.bind_description(drawer->get_debug_desc());
+        dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES,
+                  drawer->debug_mat->get_pipeline(), current_sort_key(0.3));
+    }
 }
 void DefaultRenderer::cleanup() {
     for (auto &[model, instances] : model_instances) {
@@ -158,6 +159,7 @@ void DefaultRenderer::cleanup() {
     }
 
     entity_aabb.clear();
+    this->seq = 0;
 }
 
 }  // namespace Seed

@@ -146,7 +146,7 @@ Ref<Sky> ResourceLoader::_load(const std::string &path) {
         u32 face = tex_field["face"];
         std::string tex_path = tex_field["path"];
         std::string r_tex_path =
-            std::filesystem::path(path).parent_path().append(tex_path);
+            std::filesystem::path(path).parent_path().append(tex_path).string();
         u8 *data = stbi_load(r_tex_path.c_str(), &w, &h, &comp, 4);
         if (!data) {
             spdlog::warn("Can't load texture from {}", r_tex_path);

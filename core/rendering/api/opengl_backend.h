@@ -10,7 +10,7 @@
 namespace Seed {
 
 struct HardwareBufferGL {
-        GLuint handle;
+        GLuint handle = GL_INVALID_INDEX;
         u64 size;
 };
 
@@ -24,13 +24,13 @@ struct HardwareConstantGL : public HardwareBufferGL {
 };
 
 struct HardwareTextureGL {
-        GLuint handle;
+        GLuint handle = GL_INVALID_INDEX;
         u32 w, h;
         TextureType type;
 };
 
 struct HardwareShaderGL {
-        GLuint handle;
+        GLuint handle = GL_INVALID_INDEX;
         std::string vertex_src;
         std::string geo_src;
         std::string tess_ctrl_src;

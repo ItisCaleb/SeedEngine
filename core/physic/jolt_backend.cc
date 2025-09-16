@@ -1,7 +1,9 @@
 #include "jolt_backend.h"
 #include <thread>
 #include <spdlog/spdlog.h>
+#include <stdarg.h>
 #include "core/debug/debug_drawer.h"
+
 
 namespace Seed {
 
@@ -29,10 +31,10 @@ JoltBackend::JoltBackend() {
     JPH::Factory::sInstance = new JPH::Factory();
     JPH::DebugRenderer::sInstance = new JoltDebugRenderer;
     JPH::RegisterTypes();
-    const uint cMaxBodies = 65536;
-    const uint cNumBodyMutexes = 0;
-    const uint cMaxBodyPairs = 65536;
-    const uint cMaxContactConstraints = 10240;
+    const u32 cMaxBodies = 65536;
+    const u32 cNumBodyMutexes = 0;
+    const u32 cMaxBodyPairs = 65536;
+    const u32 cMaxContactConstraints = 10240;
     this->job_system = new JPH::JobSystemThreadPool(
         JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers,
         std::thread::hardware_concurrency() - 1);

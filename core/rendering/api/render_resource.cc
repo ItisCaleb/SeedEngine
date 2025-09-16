@@ -15,8 +15,7 @@ void RenderResource::alloc_texture(TextureType type, u32 w, u32 h,
             SPDLOG_WARN("Cubemap texture will not updload data at allocation.");
             return;
         }
-        RenderCommandDispatcher dp(0);
-        DEBUG_DISPATCH(dp);
+        RenderCommandDispatcher dp;
         dp.update_texture(*this, 0, 0, w, h, (void *)data);
     }
 }
@@ -26,8 +25,7 @@ void RenderResource::alloc_vertex(u32 stride, u32 vertex_cnt,
     RenderEngine::get_instance()->get_device()->alloc_vertex(this, stride,
                                                              vertex_cnt);
     if (data) {
-        RenderCommandDispatcher dp(0);
-        DEBUG_DISPATCH(dp);
+        RenderCommandDispatcher dp;
         dp.update_buffer(*this, 0, stride * vertex_cnt, (void *)data);
     }
 }
@@ -46,16 +44,14 @@ void RenderResource::alloc_index(const std::vector<u8> &indices) {
     this->type = RenderResourceType::INDEX;
     RenderEngine::get_instance()->get_device()->alloc_indices(
         this, IndexType::UNSIGNED_BYTE, indices.size());
-    RenderCommandDispatcher dp(0);
-    DEBUG_DISPATCH(dp);
+    RenderCommandDispatcher dp;
     dp.update_buffer(*this, 0, indices.size(), (void *)indices.data());
 }
 void RenderResource::alloc_index(const std::vector<u16> &indices) {
     this->type = RenderResourceType::INDEX;
     RenderEngine::get_instance()->get_device()->alloc_indices(
         this, IndexType::UNSIGNED_SHORT, indices.size());
-    RenderCommandDispatcher dp(0);
-    DEBUG_DISPATCH(dp);
+    RenderCommandDispatcher dp;
     dp.update_buffer(*this, 0, indices.size() * sizeof(u16),
                      (void *)indices.data());
 }
@@ -63,8 +59,7 @@ void RenderResource::alloc_index(const std::vector<u32> &indices) {
     this->type = RenderResourceType::INDEX;
     RenderEngine::get_instance()->get_device()->alloc_indices(
         this, IndexType::UNSIGNED_INT, indices.size());
-    RenderCommandDispatcher dp(0);
-    DEBUG_DISPATCH(dp);
+    RenderCommandDispatcher dp;
     dp.update_buffer(*this, 0, indices.size() * sizeof(u32),
                      (void *)indices.data());
 }
@@ -75,8 +70,7 @@ void RenderResource::alloc_constant(const std::string &name, u32 size,
     RenderEngine::get_instance()->get_device()->alloc_constant(this, name,
                                                                size);
     if (data) {
-        RenderCommandDispatcher dp(0);
-        DEBUG_DISPATCH(dp);
+        RenderCommandDispatcher dp;
         dp.update_buffer(*this, 0, size, (void *)data);
     }
 }

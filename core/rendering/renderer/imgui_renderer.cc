@@ -49,10 +49,9 @@ void ImguiRenderer::preprocess() {
         {0.0f, 0.0f, -1.0f, 0.0f},
         {(R + L) / (L - R), (T + B) / (B - T), 0.0f, 1.0f},
     };
-    RenderCommandDispatcher dp(layer);
-    DEBUG_DISPATCH(dp);
+    RenderCommandDispatcher dp;
 
-    void *mat = dp.map_buffer(gui_proj, 0, sizeof(ortho_projection));
+    void *mat = dp.map_buffer(gui_proj, 0, sizeof(ortho_projection), current_sort_key());
     memcpy(mat, ortho_projection, sizeof(ortho_projection));
 }
 
@@ -62,8 +61,8 @@ ImguiRenderer::ImguiData *ImguiRenderer::get_imgui_data() {
                : nullptr;
 }
 void ImguiRenderer::process(Viewport &viewport) {
-    RenderCommandDispatcher dp(layer);
-    DEBUG_DISPATCH(dp);
+    RenderCommandDispatcher dp;
+    dp.begin_scope("Imgui", current_sort_key());
     ImDrawData *draw_data = ImGui::GetDrawData();
     ImguiData *bd = get_imgui_data();
     Rect view_rect = viewport.get_actual_dimension();
@@ -85,10 +84,10 @@ void ImguiRenderer::process(Viewport &viewport) {
         u32 idx_buffer_size =
             draw_list->IdxBuffer.Size * (int)sizeof(ImDrawIdx);
         dp.update_buffer(bd->vertex.get_vertices(), 0, vtx_buffer_size,
-                         draw_list->VtxBuffer.Data);
+                         draw_list->VtxBuffer.Data, current_sort_key());
         bd->vertex.set_vertices_cnt(draw_list->VtxBuffer.Size);
         dp.update_buffer(bd->vertex.get_indices(), 0, idx_buffer_size,
-                         draw_list->IdxBuffer.Data);
+                         draw_list->IdxBuffer.Data, current_sort_key());
         bd->vertex.set_indices_cnt(draw_list->IdxBuffer.Size);
 
         for (int cmd_i = 0; cmd_i < draw_list->CmdBuffer.Size; cmd_i++) {
@@ -122,13 +121,16 @@ void ImguiRenderer::process(Viewport &viewport) {
                 builder.set_draw_index(pcmd->ElemCount,
                                        pcmd->IdxOffset * sizeof(ImDrawIdx));
                 dp.render(builder, RenderPrimitiveType::TRIANGLES,
-                          font_mat->get_pipeline(), 0);
+                          font_mat->get_pipeline(), current_sort_key());
             }
         }
     }
+    dp.end_scope(next_sort_key());
     RenderStateDataBuilder builder;
     builder.set_scissor(view_rect.x, view_rect.y, fb_width, fb_height);
-    dp.set_states(builder, 1);
+    dp.set_states(builder, current_sort_key());
 }
-void ImguiRenderer::cleanup() {}
+void ImguiRenderer::cleanup() {
+    this->seq = 0;
+}
 }  // namespace Seed

@@ -104,23 +104,25 @@ void RenderStateDataBuilder::clear(StateClearFlag flag) {
     op->clear_flag |= flag;
 }
 
-u32 RenderCommandDispatcher::gen_sort_key(f32 depth) {
-    u64 sort_key = 0;
-    if (depth < 0.0f) depth = 0.0f;
-    if (depth > 1.0f) depth = 1.0f;
-    u16 depth_value = (u16)((f32)(u16)(-1) * depth);
-    sort_key |= ((u32)this->layer & 0b1111111u) << 16;
-    sort_key |= (u32)depth_value;
-    return sort_key;
-}
-void RenderCommandDispatcher::set_scope(const std::string &scope) {
+void RenderCommandDispatcher::begin_scope(const std::string &scope, u32 sort_key) {
     this->scope = scope;
-}
-
-RenderCommand RenderCommandDispatcher::prepare_update_cmd(f32 depth) {
     RenderCommand cmd;
     cmd.scope = scope;
-    cmd.sort_key = gen_sort_key(depth);
+    cmd.sort_key = sort_key;
+    cmd.type = RenderCommandType::BEGIN_SCOPE;
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+}
+
+void RenderCommandDispatcher::end_scope(u32 sort_key) {
+    RenderCommand cmd;
+    cmd.sort_key = sort_key;
+    cmd.type = RenderCommandType::END_SCOPE;
+    RenderEngine::get_instance()->get_device()->push_cmd(cmd);
+}
+
+RenderCommand RenderCommandDispatcher::prepare_update_cmd(u32 sort_key) {
+    RenderCommand cmd;
+    cmd.sort_key = sort_key;
     cmd.type = RenderCommandType::UPDATE;
     cmd.data = RenderEngine::get_instance()
                    ->get_mem_pool()
@@ -129,12 +131,12 @@ RenderCommand RenderCommandDispatcher::prepare_update_cmd(f32 depth) {
 }
 
 void RenderCommandDispatcher::update_buffer(RenderResource &buffer, u32 offset,
-                                            u32 size, void *data, f32 depth) {
+                                            u32 size, void *data, u32 sort_key) {
     if (buffer.type != RenderResourceType::VERTEX &&
         buffer.type != RenderResourceType::CONSTANT &&
         buffer.type != RenderResourceType::INDEX)
         return;
-    RenderCommand cmd = prepare_update_cmd(depth);
+    RenderCommand cmd = prepare_update_cmd(sort_key);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
@@ -147,12 +149,12 @@ void RenderCommandDispatcher::update_buffer(RenderResource &buffer, u32 offset,
 }
 
 void *RenderCommandDispatcher::map_buffer(RenderResource &buffer, u32 offset,
-                                          u32 size, f32 depth) {
+                                          u32 size, u32 sort_key) {
     if (buffer.type != RenderResourceType::VERTEX &&
         buffer.type != RenderResourceType::CONSTANT &&
         buffer.type != RenderResourceType::INDEX)
         return nullptr;
-    RenderCommand cmd = prepare_update_cmd(depth);
+    RenderCommand cmd = prepare_update_cmd(sort_key);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
@@ -167,9 +169,9 @@ void *RenderCommandDispatcher::map_buffer(RenderResource &buffer, u32 offset,
 
 void RenderCommandDispatcher::update_texture(RenderResource &texture, u32 x_off,
                                              u32 y_off, u32 w, u32 h,
-                                             void *data, f32 depth) {
+                                             void *data, u32 sort_key) {
     if (texture.type != RenderResourceType::TEXTURE) return;
-    RenderCommand cmd = prepare_update_cmd(depth);
+    RenderCommand cmd = prepare_update_cmd(sort_key);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
@@ -185,9 +187,9 @@ void RenderCommandDispatcher::update_texture(RenderResource &texture, u32 x_off,
 }
 
 void *RenderCommandDispatcher::map_texture(RenderResource &texture, u32 x_off,
-                                           u32 y_off, u32 w, u32 h, f32 depth) {
+                                           u32 y_off, u32 w, u32 h, u32 sort_key) {
     if (texture.type != RenderResourceType::TEXTURE) return nullptr;
-    RenderCommand cmd = prepare_update_cmd(depth);
+    RenderCommand cmd = prepare_update_cmd(sort_key);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
@@ -204,13 +206,13 @@ void *RenderCommandDispatcher::map_texture(RenderResource &texture, u32 x_off,
 
 void RenderCommandDispatcher::update_cubemap(RenderResource &texture, u8 face,
                                              u16 x_off, u16 y_off, u16 w, u16 h,
-                                             void *data, f32 depth) {
+                                             void *data, u32 sort_key) {
     if (texture.type != RenderResourceType::TEXTURE) return;
     if (face >= 6) {
         SPDLOG_ERROR("Face is invalid.");
         return;
     }
-    RenderCommand cmd = prepare_update_cmd(depth);
+    RenderCommand cmd = prepare_update_cmd(sort_key);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data =
@@ -265,14 +267,13 @@ RenderDrawDataBuilder RenderCommandDispatcher::generate_render_data(
 }
 
 void RenderCommandDispatcher::set_states(RenderStateDataBuilder &builder,
-                                         f32 depth) {
+                                         u32 sort_key) {
     RenderStateData *state_data =
         (RenderStateData *)RenderEngine::get_instance()
             ->get_mem_pool()
             ->alloc_data(builder.buffer.size(), builder.buffer.data());
     RenderCommand cmd;
-    cmd.scope = scope;
-    cmd.sort_key = gen_sort_key(depth);
+    cmd.sort_key = sort_key;
     cmd.type = RenderCommandType::STATE;
     cmd.data = state_data;
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
@@ -280,14 +281,13 @@ void RenderCommandDispatcher::set_states(RenderStateDataBuilder &builder,
 
 void RenderCommandDispatcher::render(RenderDrawDataBuilder &builder,
                                      RenderPrimitiveType type,
-                                     RenderResource pipeline, f32 depth) {
+                                     RenderResource pipeline, u32 sort_key) {
     RenderDrawData *draw_data =
         (RenderDrawData *)RenderEngine::get_instance()
             ->get_mem_pool()
             ->alloc_data(builder.buffer.size(), builder.buffer.data());
     RenderCommand cmd;
-    cmd.scope = scope;
-    cmd.sort_key = gen_sort_key(depth);
+    cmd.sort_key = sort_key;
     cmd.type = RenderCommandType::RENDER;
     cmd.data = draw_data;
     draw_data->type = type;
@@ -296,10 +296,7 @@ void RenderCommandDispatcher::render(RenderDrawDataBuilder &builder,
 }
 
 RenderCommandDispatcher::~RenderCommandDispatcher() {
-    if (this->start_draw) {
-        SPDLOG_WARN("Starting a state without ever ending");
-        return;
-    }
+
 }
 
 }  // namespace Seed

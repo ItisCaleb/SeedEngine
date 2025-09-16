@@ -56,11 +56,13 @@ void RenderEngine::init() {
     this->targets["default"] = ref_cast<RenderTarget>(mrt1);
     this->targets["window"] = ref_cast<RenderTarget>(window_rt);
 
-    Ref<Texture> scene_tex(TextureType::TEXTURE_2D, 1024,768, nullptr);
-    AttachmentSurface depth_surf;
-    depth_surf.face = 0;
-    depth_surf.texture = scene_tex;
-    mrt1->bind_depth(depth_surf);
+    Ref<Texture> color_tex(TextureType::TEXTURE_2D, 1024,768, nullptr);
+    Ref<Texture> depth_tex(TextureType::TEXTURE_2D, 1024,768, nullptr);
+    AttachmentSurface color_surf;
+    color_surf.face = 0;
+    color_surf.texture = color_tex;
+    //mrt1->bind_depth(depth_surf);
+    mrt1->bind_color(0, color_surf);
 
 
     this->register_renderer<DefaultRenderer>(i++, ref_cast<RenderTarget>(window_rt));
@@ -97,7 +99,7 @@ Viewport &RenderEngine::get_layer_viewport(u32 layer) {
 }
 
 void RenderEngine::process() {
-    RenderCommandDispatcher dp(0);
+    RenderCommandDispatcher dp;
     {
         RenderStateDataBuilder builder;
         builder.clear(StateClearFlag::CLEAR_COLOR);
@@ -111,13 +113,13 @@ void RenderEngine::process() {
     *cam_pos = this->cam.get_position();
     u32 i = 1;
     for (Layer &layer : this->layers) {
-        RenderCommandDispatcher layer_dp(i++);
+        RenderCommandDispatcher layer_dp;
         Rect rect = layer.rt->get_viewport().get_actual_dimension();
         {
             RenderStateDataBuilder builder;
             builder.set_viewport(rect.x, rect.y, rect.w, rect.h);
             builder.bind_render_target(layer.rt->get_resource());
-            layer_dp.set_states(builder, 0);
+            layer_dp.set_states(builder, layer.renderer->current_sort_key());
         }
         layer.renderer->preprocess();
         layer.renderer->process(layer.rt->get_viewport());
