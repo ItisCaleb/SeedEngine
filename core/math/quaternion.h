@@ -6,18 +6,36 @@
 #include <math.h>
 
 namespace Seed {
+
+/*
+    Stored ad [w, x, y, z]
+*/
 struct Quaternion {
         f32 w, x, y, z;
 
-        Quaternion operator+(Quaternion &b) {
+        Quaternion operator+(const Quaternion &b) {
             return Quaternion{w + b.w, x + b.x, y + b.y, z + b.z};
         }
 
-        Quaternion operator*(Quaternion &b) {
+        void operator+=(const Quaternion &b) {
+            w += b.w;
+            x += b.x;
+            y += b.y;
+            z += b.z;
+        }
+
+        Quaternion operator*(const Quaternion &b) {
             return Quaternion{w * b.w - x * b.x - y * b.y - z * b.z,
                               w * b.x + x * b.w + y * b.z - z * b.y,
                               w * b.y + x * b.z + y * b.w + z * b.x,
                               w * b.z + x * b.y - y * b.x + z * b.w};
+        }
+
+        void operator*=(const Quaternion &b) {
+            w = w * b.w - x * b.x - y * b.y - z * b.z;
+            x = w * b.x + x * b.w + y * b.z - z * b.y;
+            y = w * b.y + x * b.z + y * b.w + z * b.x;
+            z = w * b.z + x * b.y - y * b.x + z * b.w;
         }
 
         Quaternion operator*(f32 s) {
@@ -65,6 +83,8 @@ struct Quaternion {
         static Quaternion from_euler(Vec3 angles) {
             return from_euler(angles.x, angles.y, angles.z);
         }
+
+        inline static Quaternion identity() { return Quaternion{1, 0, 0, 0}; }
 };
 
 }  // namespace Seed

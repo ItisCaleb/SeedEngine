@@ -89,6 +89,8 @@ int main(void) {
             ModelEntity *ent = new ModelEntity(Vec3{0, 20, -5}, rc);
             engine->get_world()->add_entity(ent);
             engine->get_world()->add_model_entity(ent);
+            PhysicBoxShape box({10, 10, 10});
+            ent->create_body(box, PhysicBodyType::DYNAMIC);
         });
 
     engine->get_world()->add_entity<CameraEntity>();

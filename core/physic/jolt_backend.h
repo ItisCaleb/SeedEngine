@@ -16,7 +16,11 @@
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Renderer/DebugRenderer.h>
-#include <core/handle.h>
+#include "core/handle.h"
+#include "core/physic/physic_shape.h"
+#include "core/physic/physic_body.h"
+#include "core/math/vec3.h"
+#include "core/math/quaternion.h"
 
 namespace Seed {
 
@@ -125,13 +129,25 @@ class JoltBackend {
         static void trace(const char *inFMT, ...);
 
     private:
+        HandleOwner<JPH::BodyID> bodys;
         JPH::PhysicsSystem system;
         JPH::JobSystemThreadPool *job_system;
         JPH::TempAllocatorImpl *temp_allocator;
+        BPLayerInterfaceImpl broad_phase_layer_interface;
+        ObjectVsBroadPhaseLayerFilterImpl object_vs_broadphase_layer_filter;
+        ObjectLayerPairFilterImpl object_vs_object_layer_filter;
+        JPH::ShapeRefC create_shape(PhysicShape &shape);
 
     public:
         JoltBackend();
         void process();
+        void create_body(PhysicBody &body, PhysicShape &shape,
+                         PhysicBodyType type, Vec3 &pos,
+                         const Quaternion &quat);
+        void delete_body(PhysicBody &body);
+        inline void query_position(PhysicBody &body, Vec3 &position);
+        inline void query_rotation(PhysicBody &body, Quaternion &quat);
+        void query_physics(PhysicBody &body, Vec3 &position, Quaternion &quat);
 };
 
 }  // namespace Seed

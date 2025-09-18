@@ -3,7 +3,7 @@
 #include "core/math/vec2.h"
 #include "core/math/vec3.h"
 #include "core/math/mat4.h"
-#include "core/collision/plane.h"
+#include "core/collision/shape.h"
 #include "core/collision/aabb.h"
 
 namespace Seed {

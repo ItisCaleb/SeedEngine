@@ -63,9 +63,10 @@ void RenderEngine::init() {
 
 
     this->register_renderer<DefaultRenderer>(i++, ref_cast<RenderTarget>(mrt1));
-    this->register_renderer<ImguiRenderer>(i++, ref_cast<RenderTarget>(mrt1));
     this->register_renderer<PostRenderer>(i++,
                                           ref_cast<RenderTarget>(window_rt));
+    this->register_renderer<ImguiRenderer>(i++, ref_cast<RenderTarget>(window_rt));
+
 }
 
 RenderBackend *RenderEngine::get_device() { return device; }

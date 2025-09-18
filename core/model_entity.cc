@@ -6,8 +6,8 @@
 namespace Seed {
 
 void ModelEntity::update(f32 dt) {
-    f32 speed = 90;
-    this->rotate(0, speed * dt, 0);
+    // f32 speed = 90;
+    // this->rotate(0, speed * dt, 0);
 }
 
 void ModelEntity::render() {}
@@ -18,7 +18,7 @@ AABB ModelEntity::get_model_aabb() {
     AABB result = {};
     if (model.is_null()) return result;
     AABB bounding_box = model->get_bounding_box();
-    Mat4 rot_mat = Mat4::rotate_mat(Quaternion::from_euler(rotation));
+    Mat4 rot_mat = Mat4::rotate_mat(rotation);
     result.center = position;
     result.ext = {0, 0, 0};
     for (int i = 0; i < 3; i++) {

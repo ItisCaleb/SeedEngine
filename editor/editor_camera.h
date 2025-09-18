@@ -35,6 +35,13 @@ class EditorCamera : public Entity {
             if (input->is_key_pressed(KeyCode::A)) {
                 pos -= front.cross(cam->get_up()) * speed;
             }
+            if (input->is_key_pressed(KeyCode::MINUS)){
+                if (pos.y <= 1000) pos.y += speed;
+            }
+            if (input->is_key_pressed(KeyCode::EQUAL)){
+                if (pos.y >= 200) pos.y -= speed;
+            }
+
             cam->set_position(pos);
         }
         void render() {
@@ -42,7 +49,7 @@ class EditorCamera : public Entity {
         };
         EditorCamera() {
             this->cam = RenderEngine::get_instance()->get_cam();
-            this->cam->set_position(Vec3{0, 1500, 1000});
+            this->cam->set_position(Vec3{0, 750, 1000});
             this->cam->set_front(0, -50);
             this->cam->set_perspective(45, 1.33, 0.1, 10000.0);
             Input::get_instance()->on_mouse_move(

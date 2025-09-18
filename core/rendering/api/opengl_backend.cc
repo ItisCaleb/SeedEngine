@@ -245,25 +245,35 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             GLuint format = convert_pixel_format(tex->format);
             glGenTextures(1, &tex->handle);
             glBindTexture(type, tex->handle);
-            glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             if (tex->type == TextureType::TEXTURE_CUBEMAP) {
                 /* we don't allocate for cube map*/
+                glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R,
                                 GL_CLAMP_TO_EDGE);
+            } else if (tex->type == TextureType::TEXTURE_2D_MULTISAMPLE) {
+                // multisample
+                glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, format,
+                                        tex->w, tex->h, GL_TRUE);
             } else {
                 if (format == GL_DEPTH24_STENCIL8) {
+                    // depth stencil texture
                     glTexImage2D(type, 0, format, tex->w, tex->h, 0,
                                  GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8,
                                  nullptr);
                 } else {
+                    // normal texture
+                    glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                    glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                    glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                    glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                     glTexImage2D(type, 0, format, tex->w, tex->h, 0, format,
                                  GL_UNSIGNED_BYTE, nullptr);
+                    glGenerateMipmap(type);
                 }
             }
-            glGenerateMipmap(type);
             glBindTexture(type, 0);
             break;
         }
@@ -414,6 +424,9 @@ GLuint RenderBackendGL::convert_texture_type(TextureType type) {
             break;
         case TextureType::TEXTURE_2D_ARRAY:
             t = GL_TEXTURE_2D_ARRAY;
+            break;
+        case TextureType::TEXTURE_2D_MULTISAMPLE:
+            t = GL_TEXTURE_2D_MULTISAMPLE;
             break;
         default:
             break;

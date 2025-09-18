@@ -21,7 +21,7 @@ enum class RenderResourceType : u8 {
 
 
 struct RenderResource {
-        Handle handle = -1;
+        Handle handle = NULL_HANDLE;
         RenderResourceType type = RenderResourceType::UNINITIALIZE;
 
         void alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format, const void *data);

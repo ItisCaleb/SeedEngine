@@ -11,7 +11,8 @@ enum class TextureType {
     TEXTURE_2D,
     TEXTURE_3D,
     TEXTURE_CUBEMAP,
-    TEXTURE_2D_ARRAY
+    TEXTURE_2D_ARRAY,
+    TEXTURE_2D_MULTISAMPLE
 };
 
 enum class PixelFormat: u8 { R, RG, RGB, RGBA, D24S8 };

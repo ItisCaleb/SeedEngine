@@ -4,6 +4,8 @@
 #include "core/container/freelist.h"
 
 namespace Seed {
+
+#define NULL_HANDLE (-1)
 typedef i32 Handle;
 
 template <typename T>

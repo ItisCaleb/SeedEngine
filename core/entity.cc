@@ -1,9 +1,10 @@
 #include "entity.h"
+#include "core/physic/physic_engine.h"
 
 namespace Seed {
 
 Vec3 Entity::get_position() { return position; }
-Vec3 Entity::get_rotation() { return rotation; }
+Vec3 Entity::get_rotation() { return rotation.to_euler(); }
 Vec3 Entity::get_scale() { return scale; }
 
 void Entity::set_position(Vec3 position) {
@@ -11,7 +12,7 @@ void Entity::set_position(Vec3 position) {
     this->dirty = true;
 }
 void Entity::set_rotation(Vec3 rotation) {
-    this->rotation = rotation;
+    this->rotation = Quaternion::from_euler(rotation);
     this->dirty = true;
 }
 void Entity::set_scale(Vec3 scale) {
@@ -20,16 +21,14 @@ void Entity::set_scale(Vec3 scale) {
 }
 
 void Entity::rotate(f32 x_angle, f32 y_angle, f32 z_angle) {
-    this->rotation.x += x_angle;
-    this->rotation.y += y_angle;
-    this->rotation.z += z_angle;
+    this->rotation *= Quaternion::from_euler(x_angle, y_angle, z_angle);
     this->dirty = true;
 }
 
 void Entity::update_transform() {
     Mat4 transform;
     transform *= Mat4::translate_mat(position);
-    transform *= Mat4::rotate_mat(Quaternion::from_euler(rotation));
+    transform *= Mat4::rotate_mat(rotation);
     transform *= Mat4::scale_mat(scale);
     this->transform = transform;
 }
@@ -42,8 +41,17 @@ Mat4 Entity::get_transform() {
     return this->transform;
 }
 
+void Entity::create_body(PhysicShape &shape, PhysicBodyType type) {
+    PhysicEngine::get_instance()->create_body(
+        this->body, shape, type, this->position,
+        this->rotation);
+}
+void Entity::remove_body() {
+    PhysicEngine::get_instance()->delete_body(this->body);
+}
+
 Entity::Entity(Vec3 position)
-    : position(position), rotation({0, 0, 0}), scale(Vec3{1, 1, 1}) {}
+    : position(position), rotation(Quaternion::identity()), scale(Vec3{1, 1, 1}) {}
 
 Entity::Entity() : Entity(Vec3{0, 0, 0}) {}
 
