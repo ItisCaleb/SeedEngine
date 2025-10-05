@@ -93,7 +93,6 @@ void DefaultRenderer::process(Viewport &viewport) {
     RenderCommandDispatcher dp;
     dp.begin_scope("Default Rendering", current_sort_key());
 
-
     for (auto &[model, instances] : model_instances) {
         if (instances.empty()) {
             continue;
@@ -139,18 +138,22 @@ void DefaultRenderer::process(Viewport &viewport) {
 
     {
         DebugDrawer *drawer = DebugDrawer::get_instance();
-        RenderDrawDataBuilder line_builder =
-            dp.generate_render_data(drawer->debug_mat);
-        line_builder.bind_vertex_data(debug_line);
-        line_builder.bind_description(drawer->get_debug_desc());
-        dp.render(line_builder, RenderPrimitiveType::LINES,
-                  drawer->debug_mat->get_pipeline(), current_sort_key(0.3));
-        RenderDrawDataBuilder triangle_builder =
-            dp.generate_render_data(drawer->debug_mat);
-        triangle_builder.bind_vertex_data(debug_triangle);
-        triangle_builder.bind_description(drawer->get_debug_desc());
-        dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES,
-                  drawer->debug_mat->get_pipeline(), current_sort_key(0.3));
+        if (drawer->try_lock()) {
+            RenderDrawDataBuilder line_builder =
+                dp.generate_render_data(drawer->debug_mat);
+            line_builder.bind_vertex_data(debug_line);
+            line_builder.bind_description(drawer->get_debug_desc());
+            dp.render(line_builder, RenderPrimitiveType::LINES,
+                      drawer->debug_mat->get_pipeline(), current_sort_key(1.0));
+            RenderDrawDataBuilder triangle_builder =
+                dp.generate_render_data(drawer->debug_mat);
+            triangle_builder.bind_vertex_data(debug_triangle);
+            triangle_builder.bind_description(drawer->get_debug_desc());
+            dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES,
+                      drawer->debug_mat->get_pipeline(), current_sort_key(1.0));
+            drawer->clear();
+            drawer->unlock();
+        }
     }
 }
 void DefaultRenderer::cleanup() {

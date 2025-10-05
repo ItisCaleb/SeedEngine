@@ -17,7 +17,7 @@ struct Vec3 {
 
         const f32 &operator[](i32 axis) const { return this->coord[axis]; }
 
-        Vec3 operator+(const Vec3 &b) {
+        Vec3 operator+(const Vec3 &b) const {
             return Vec3{x + b.x, y + b.y, z + b.z};
         }
 
@@ -27,7 +27,7 @@ struct Vec3 {
             z += b.z;
         }
 
-        Vec3 operator-(const Vec3 &b) {
+        Vec3 operator-(const Vec3 &b) const {
             return Vec3{x - b.x, y - b.y, z - b.z};
         }
 
@@ -39,7 +39,7 @@ struct Vec3 {
             z -= b.z;
         }
 
-        Vec3 operator*(const f32 s) { return Vec3{x * s, y * s, z * s}; }
+        Vec3 operator*(const f32 s) const { return Vec3{x * s, y * s, z * s}; }
 
         void operator*=(const f32 s) {
             x *= s;
@@ -47,7 +47,7 @@ struct Vec3 {
             z *= s;
         }
 
-        Vec3 operator/(const f32 s) { return Vec3{x / s, y / s, z / s}; }
+        Vec3 operator/(const f32 s) const { return Vec3{x / s, y / s, z / s}; }
 
         void operator/=(const f32 s) {
             x /= s;
@@ -55,7 +55,7 @@ struct Vec3 {
             z /= s;
         }
 
-        Vec3 operator*(const Vec3 &b) {
+        Vec3 operator*(const Vec3 &b) const {
             return Vec3{x * b.x, y * b.y, z * b.z};
         }
 
@@ -65,23 +65,23 @@ struct Vec3 {
             z *= b.z;
         }
 
-        bool operator==(const Vec3 &b) {
+        bool operator==(const Vec3 &b) const {
             return x == b.x && y == b.y && z == b.z;
         }
 
-        Vec3 cross(const Vec3 &b) {
+        Vec3 cross(const Vec3 &b) const {
             return Vec3{y * b.z - z * b.y, z * b.x - x * b.z,
                         x * b.y - y * b.x};
         }
 
-        f32 length() { return sqrtf(x * x + y * y + z * z); }
+        f32 length() const { return sqrtf(x * x + y * y + z * z); }
 
-        Vec3 norm() {
+        Vec3 norm() const {
             f32 len = length();
             return Vec3{x / len, y / len, z / len};
         }
 
-        f32 dot(const Vec3 &b) { return x * b.x + y * b.y + z * b.z; }
+        f32 dot(const Vec3 &b) const { return x * b.x + y * b.y + z * b.z; }
 
         Vec3 rotateX(f32 rad) {
             f32 c = cosf(rad);

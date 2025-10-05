@@ -5,6 +5,8 @@
 #include "core/debug/debug_drawer.h"
 #include "core/macro.h"
 #include "core/engine.h"
+#include "core/rendering/api/render_engine.h"
+#include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
 
 namespace Seed {
 
@@ -37,6 +39,10 @@ inline static Quaternion from_jolt(const JPH::Quat &from) {
     return Quaternion{from.GetW(), from.GetX(), from.GetY(), from.GetZ()};
 }
 
+inline static AABB from_jolt(const JPH::AABox &from) {
+    return AABB{from_jolt(from.GetCenter()), from_jolt(from.GetExtent())};
+}
+
 JoltBackend::JoltBackend() {
     JPH::RegisterDefaultAllocator();
 
@@ -61,6 +67,8 @@ JoltBackend::JoltBackend() {
 
 void JoltBackend::process() {
     system.Update(1.0f / 60, 1, temp_allocator, job_system);
+    JPH::BodyManager::DrawSettings setting;
+    //system.DrawBodies(setting, JPH::DebugRenderer::sInstance);
 }
 
 void JoltBackend::query_position(PhysicBody &body, Vec3 &position) {}
@@ -85,14 +93,27 @@ JPH::ShapeRefC JoltBackend::create_shape(PhysicShape &shape) {
             JPH::BoxShapeSettings setting(to_jolt(box_shape.half_extent));
             return setting.Create().Get();
         }
-
+        case PhysicShapeType::HEIGHT_MAP: {
+            PhysicHeightmapShape &height_shape =
+                static_cast<PhysicHeightmapShape &>(shape);
+            JPH::HeightFieldShapeSettings setting(
+                height_shape.points, to_jolt(height_shape.offset),
+                to_jolt(height_shape.scale), height_shape.point_cnt);
+            return setting.Create().Get();
+        }
+        case PhysicShapeType::SPHERE: {
+            PhysicSphereShape &sphere_shape =
+                static_cast<PhysicSphereShape &>(shape);
+            JPH::SphereShapeSettings setting(sphere_shape.radius);
+            return setting.Create().Get();
+        }
         default:
             return JPH::ShapeRefC();
     }
 }
 
 void JoltBackend::create_body(PhysicBody &body, PhysicShape &shape,
-                              PhysicBodyType type, Vec3 &pos,
+                              PhysicBodyType type, const Vec3 &pos,
                               const Quaternion &quat) {
     JPH::ShapeRefC shape_ref = this->create_shape(shape);
     if (shape_ref.GetPtr() == nullptr) {
@@ -115,9 +136,9 @@ void JoltBackend::create_body(PhysicBody &body, PhysicShape &shape,
 
     JPH::BodyCreationSettings setting(shape_ref, to_jolt(pos), to_jolt(quat),
                                       m_type, Layers::MOVING);
-    JPH::BodyID id =
-        body_if.CreateAndAddBody(setting, JPH::EActivation::Activate);
-    Handle handle = this->bodys.insert(id);
+    JPH::Body* _body = body_if.CreateBody(setting);
+    body_if.AddBody(_body->GetID(), JPH::EActivation::Activate);
+    Handle handle = this->bodys.insert(_body->GetID());
     body.handle = handle;
 }
 void JoltBackend::delete_body(PhysicBody &body) {
@@ -144,20 +165,65 @@ void JoltDebugRenderer::DrawTriangle(JPH::RVec3Arg inV1, JPH::RVec3Arg inV2,
 
 JPH::DebugRenderer::Batch JoltDebugRenderer::CreateTriangleBatch(
     const Triangle *inTriangles, int inTriangleCount) {
-    return Batch();
+    BatchImpl *batch = new BatchImpl;
+    if (!inTriangles || inTriangleCount == 0) return batch;
+    batch->mTriangles.insert(batch->mTriangles.end(), inTriangles,
+                             inTriangles + inTriangleCount);
+    return batch;
 }
 
 JPH::DebugRenderer::Batch JoltDebugRenderer::CreateTriangleBatch(
     const Vertex *inVertices, int inVertexCount, const uint32_t *inIndices,
     int inIndexCount) {
-    return Batch();
+    BatchImpl *batch = new BatchImpl;
+    if (!inVertices || inVertexCount == 0 || !inIndices || inIndexCount == 0)
+        return batch;
+    batch->mTriangles.reserve(inIndexCount / 3);
+    for (int i = 0; i < batch->mTriangles.size(); i++) {
+        Triangle &t = batch->mTriangles[i];
+        t.mV[0] = inVertices[inIndices[i * 3]];
+        t.mV[1] = inVertices[inIndices[i * 3 + 1]];
+        t.mV[2] = inVertices[inIndices[i * 3 + 2]];
+    }
+
+    return batch;
 }
 
 void JoltDebugRenderer::DrawGeometry(
     JPH::RMat44Arg inModelMatrix, const JPH::AABox &inWorldSpaceBounds,
     float inLODScaleSq, JPH::ColorArg inModelColor,
     const GeometryRef &inGeometry, ECullMode inCullMode,
-    ECastShadow inCastShadow, EDrawMode inDrawMode) {}
+    ECastShadow inCastShadow, EDrawMode inDrawMode) {
+    auto cam = RenderEngine::get_instance()->get_cam();
+    if (inGeometry->mBounds.GetSqDistanceTo(to_jolt(cam->get_position())) >
+            5000 ||
+        !cam->within_frustum(from_jolt(inGeometry->mBounds))) {
+        return;
+    }
+
+    const LOD &lod = inGeometry->GetLOD(to_jolt(cam->get_position()),
+                                        inWorldSpaceBounds, inLODScaleSq);
+    const BatchImpl *batch =
+        static_cast<const BatchImpl *>(lod.mTriangleBatch.GetPtr());
+    for (const Triangle &triangle : batch->mTriangles) {
+        JPH::RVec3 v0 = inModelMatrix * JPH::Vec3(triangle.mV[0].mPosition);
+        JPH::RVec3 v1 = inModelMatrix * JPH::Vec3(triangle.mV[1].mPosition);
+        JPH::RVec3 v2 = inModelMatrix * JPH::Vec3(triangle.mV[2].mPosition);
+        JPH::Color color = inModelColor * triangle.mV[0].mColor;
+
+        switch (inDrawMode) {
+            case EDrawMode::Wireframe:
+                DrawLine(v0, v1, color);
+                DrawLine(v1, v2, color);
+                DrawLine(v2, v0, color);
+                break;
+
+            case EDrawMode::Solid:
+                DrawTriangle(v0, v1, v2, color, inCastShadow);
+                break;
+        }
+    }
+}
 
 void JoltDebugRenderer::DrawText3D(JPH::RVec3Arg inPosition,
                                    const std::string_view &inString,

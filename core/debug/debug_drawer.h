@@ -4,6 +4,7 @@
 #include "core/rendering/render_common.h"
 #include "core/resource/material.h"
 #include <vector>
+#include <mutex>
 
 namespace Seed {
 class DefaultRenderer;
@@ -15,6 +16,7 @@ class DebugDrawer {
                 Vec3 p;
                 Color color;
         };
+        std::mutex mu;
         inline static DebugDrawer *instance = nullptr;
         std::vector<DebugVertex> line_vertices;
         std::vector<DebugVertex> triangle_vertices;
@@ -26,9 +28,10 @@ class DebugDrawer {
         void draw_line(Vec3 from, Vec3 to, Color color);
         void draw_triangle(Vec3 v1, Vec3 v2, Vec3 v3, Color color);
         void clear();
-        VertexLayout *get_debug_desc(){
-            return &debug_desc;
-        }
+        VertexLayout *get_debug_desc() { return &debug_desc; }
+        bool try_lock() { return mu.try_lock(); };
+        void lock() { mu.lock(); }
+        void unlock() { mu.unlock(); }
         static DebugDrawer *get_instance() { return instance; }
         DebugDrawer();
 };

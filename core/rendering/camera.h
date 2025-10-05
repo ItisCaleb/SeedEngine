@@ -25,7 +25,7 @@ class Camera {
         } frustum_plane;
         Mat4 lookat_mat;
         bool dirty = true;
-        bool test_aabb_plane(AABB &aabb, Plane &plane);
+        bool test_aabb_plane(const AABB &aabb, const Plane &plane);
         void calculate_frustum();
         void calculate_lookat();
         void calculate_dirty();
@@ -42,7 +42,7 @@ class Camera {
         void set_frustum(f32 left, f32 right, f32 bottom, f32 top, f32 near,
                          f32 far, bool is_ortho);
         void set_perspective(f32 fovy, f32 aspect, f32 near, f32 far);
-        bool within_frustum(AABB &bounding_box);
+        bool within_frustum(const AABB &bounding_box);
         Mat4 look_at();
         Mat4 perspective();
         Vec3 to_world_pos(Vec2 pos);

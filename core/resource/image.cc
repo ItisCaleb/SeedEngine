@@ -13,11 +13,18 @@ void Image::update(u8 *data, u32 w, u32 h, u32 off_x, u32 off_y) {
         this->width = off_x + w;
         this->height = off_y + h;
     }
-    memcpy((void *)(&this->data[0] + offset * channel), data, w * h);
+    memcpy((void *)(&this->data[0] + offset * channel), data, w * h * channel);
 }
 
 void Image::update(std::vector<u8> &data, u32 w, u32 h, u32 off_x, u32 off_y) {
     this->update(data.data(), w, h, off_x, off_y);
+}
+
+Ref<Texture> Image::create_texture() {
+    Ref<Texture> texture;
+    texture.create(TextureType::TEXTURE_2D, width, height, format,
+                   this->data.data());
+    return texture;
 }
 void Image::upload(Ref<Texture> texture) {
     EXPECT_NOT_NULL_RET(texture.ptr());

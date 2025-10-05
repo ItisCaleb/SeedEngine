@@ -25,7 +25,24 @@ class PhysicBoxShape : public PhysicShape {
 
 class PhysicHeightmapShape : public PhysicShape {
     public:
-        PhysicHeightmapShape();
+        Vec3 offset;
+        Vec3 scale;
+        f32 *points = nullptr;
+        u32 point_cnt;
+        PhysicHeightmapShape(f32 *points, u32 point_cnt, Vec3 offset,
+                             Vec3 scale = Vec3{1, 1, 1})
+            : PhysicShape(PhysicShapeType::HEIGHT_MAP),
+              points(points),
+              point_cnt(point_cnt),
+              offset(offset),
+              scale(scale) {}
+};
+
+class PhysicSphereShape : public PhysicShape {
+    public:
+        f32 radius;
+        PhysicSphereShape(f32 radius)
+            : PhysicShape(PhysicShapeType::SPHERE), radius(radius) {};
 };
 
 class PhysicCylinderShape : public PhysicShape {

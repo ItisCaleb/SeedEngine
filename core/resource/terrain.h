@@ -4,6 +4,8 @@
 #include "core/math/vec2.h"
 #include "core/resource/material.h"
 #include "core/rendering/vertex_data.h"
+#include "core/resource/image.h"
+#include "core/physic/physic_body.h"
 
 namespace Seed {
 
@@ -25,9 +27,9 @@ class Terrain : public Resource {
         u32 width, depth;
         Ref<TerrainMaterial> terrain_mat;
         VertexData vertices;
-
+        PhysicBody body;
     public:
-        Terrain(u32 width, u32 depth, Ref<Texture> height_map);
+        Terrain(u32 width, u32 depth, Ref<Image> height_map);
         Ref<TerrainMaterial> get_material() { return terrain_mat; }
         VertexData *get_vertices() { return &vertices; }
         ~Terrain();

@@ -14,7 +14,7 @@ PhysicEngine::PhysicEngine() {
 };
 
 void PhysicEngine::create_body(PhysicBody &body, PhysicShape &shape,
-                               PhysicBodyType type, Vec3 &pos,
+                               PhysicBodyType type, const Vec3 &pos,
                                const Quaternion &quat) {
     backend->create_body(body, shape, type, pos, quat);
 }

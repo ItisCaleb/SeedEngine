@@ -12,6 +12,7 @@
 #include "core/resource/terrain.h"
 #include "core/resource/texture.h"
 #include "core/resource/sky.h"
+#include "core/resource/image.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -177,9 +178,24 @@ Ref<Texture> ResourceLoader::_load(const std::string &path) {
 }
 
 template <>
+Ref<Image> ResourceLoader::_load(const std::string &path) {
+    Ref<Image> image;
+    int w, h, comp;
+    void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
+    if (!data) {
+        spdlog::warn("Can't load image from {}", path);
+        return image;
+    }
+    image.create(PixelFormat::RGBA, w, h);
+    image->update((u8*)data, w, h);
+    stbi_image_free(data);
+    return image;
+}
+
+template <>
 Ref<Terrain> ResourceLoader::_load(const std::string &path) {
     Ref<Terrain> terrain;
-    Ref<Texture> height_map = _load<Texture>(path);
+    Ref<Image> height_map = _load<Image>(path);
     terrain.create(height_map->get_width(), height_map->get_height(),
                    height_map);
     return terrain;

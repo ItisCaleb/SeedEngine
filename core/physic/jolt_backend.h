@@ -97,7 +97,24 @@ class ObjectLayerPairFilterImpl : public JPH::ObjectLayerPairFilter {
 
 class JoltJobWrapper : public JPH::JobSystem {};
 
+
 class JoltDebugRenderer : public JPH::DebugRenderer {
+    private:
+        class BatchImpl : public JPH::RefTargetVirtual {
+            public:
+                JPH_OVERRIDE_NEW_DELETE
+
+                virtual void AddRef() override { ++mRefCount; }
+                virtual void Release() override {
+                    if (--mRefCount == 0) delete this;
+                }
+
+                std::vector<Triangle> mTriangles;
+
+            private:
+                std::atomic<u32> mRefCount = 0;
+        };
+
     public:
         JPH_OVERRIDE_NEW_DELETE
         void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo,
@@ -142,7 +159,7 @@ class JoltBackend {
         JoltBackend();
         void process();
         void create_body(PhysicBody &body, PhysicShape &shape,
-                         PhysicBodyType type, Vec3 &pos,
+                         PhysicBodyType type, const Vec3 &pos,
                          const Quaternion &quat);
         void delete_body(PhysicBody &body);
         inline void query_position(PhysicBody &body, Vec3 &position);

@@ -8,6 +8,7 @@
 
 namespace Seed {
 class Image : public Resource {
+    private:
         PixelFormat format;
         std::vector<u8> data;
         u32 width, height;
@@ -17,8 +18,12 @@ class Image : public Resource {
                     u32 off_y = 0);
         void update(u8 *data, u32 w, u32 h, u32 off_x = 0, u32 off_y = 0);
         void fill(Color color, u32 w, u32 h, u32 off_x = 0, u32 off_y = 0);
+        Ref<Texture> create_texture();
         void upload(Ref<Texture> texture);
         void download(Ref<Texture> texture);
+        u32 get_width() { return width; }
+        u32 get_height() { return height; }
+        std::vector<u8> &get_data() { return data; }
 
         Image(PixelFormat format, u32 w, u32 h);
 };

@@ -58,7 +58,7 @@ void Camera::calculate_frustum() {
                              .normal = -front};
     }
 }
-bool Camera::test_aabb_plane(AABB &aabb, Plane &plane) {
+bool Camera::test_aabb_plane(const AABB &aabb,const Plane &plane) {
     // Compute the projection interval radius of b onto L(t) = b.c + t * p.n
     float r = aabb.ext.x * std::abs(plane.normal.x) +
               aabb.ext.y * std::abs(plane.normal.y) +
@@ -121,7 +121,7 @@ Mat4 Camera::perspective() {
          Vec4{0, 0, -1, 0}});
 }
 
-bool Camera::within_frustum(AABB &bounding_box) {
+bool Camera::within_frustum(const AABB &bounding_box) {
     this->calculate_dirty();
     return test_aabb_plane(bounding_box, frustum_plane.right) &&
            test_aabb_plane(bounding_box, frustum_plane.left) &&
