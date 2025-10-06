@@ -51,8 +51,11 @@ class Light {
             Camera cam;
             if (type == LightType::DIRECTIONAL) {
                 cam.set_ortho(-100, 100, -100, 100, -100, 100);
-                // set position from
+                // set position from origin
                 cam.set_position(-pos_dir);
+                cam.set_front(pos_dir);
+                cam.set_up(Vec3{0, 1, 0});
+                this->light_mat = cam.projection() * cam.look_at();
             }
             return light_mat;
         }

@@ -7,15 +7,15 @@ DefaultStorage::DefaultStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
     mesh_shader =
-        loader->load_shader("assets/default.vert", "assets/default.frag");
-    sky_shader = loader->load_shader("assets/sky.vert", "assets/sky.frag");
+        loader->load_shader("assets/shader/default.vert", "assets/shader/default.frag");
+    sky_shader = loader->load_shader("assets/shader/sky.vert", "assets/shader/sky.frag");
     terrain_shader =
-        loader->load_shader("assets/terrain.vert", "assets/terrain.frag", "",
-                            "assets/terrain.tesc", "assets/terrain.tese");
+        loader->load_shader("assets/shader/terrain.vert", "assets/shader/terrain.frag", "",
+                            "assets/shader/terrain.tesc", "assets/shader/terrain.tese");
 
     mesh_debug_shader =
-        loader->load_shader("assets/mesh_debug.vert", "assets/mesh_debug.frag");
-    post_shader = loader->load_shader("assets/post.vert", "assets/post.frag");
+        loader->load_shader("assets/shader/mesh_debug.vert", "assets/shader/mesh_debug.frag");
+    post_shader = loader->load_shader("assets/shader/post.vert", "assets/shader/post.frag");
     
     const char *vertex_shader =
         "#version 410 core\n"
