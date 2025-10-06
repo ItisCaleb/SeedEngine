@@ -3,36 +3,70 @@
 
 #include "core/math/vec3.h"
 #include "core/math/vec4.h"
+#include "core/math/mat4.h"
+#include "core/rendering/camera.h"
 
 namespace Seed {
 
-struct Light {
-        /* 0 off */
-        /* -1 position*/
-        /* -2 direction*/
-        /* 1 - 180 spotlight*/
-        alignas(16) Vec4 position;
+
+struct STB140Light {
+        alignas(16) Vec3 position;
         alignas(16) Vec3 diffuse;
         alignas(16) Vec3 specular;
-
-        void set_position(Vec3 pos) {
-            this->position = Vec4{pos.x, pos.y, pos.z, -1};
-        }
-        void set_direction(Vec3 dir) {
-            this->position = Vec4{dir.x, dir.y, dir.z, -2};
-        }
-        void set_spotlight(Vec3 pos, f32 cutoff_angle) {
-            cutoff_angle = cutoff_angle < 1     ? 1
-                           : cutoff_angle > 180 ? 180
-                                                : cutoff_angle;
-            this->position = Vec4{pos.x, pos.y, pos.z, cutoff_angle};
-        }
+        f32 enable;
 };
 
-struct Lights {
-        alignas(16) Vec3 ambient;
-        Light lights[4];
+
+/*
+layout(std140) uniform Lights {
+    vec3 u_light_ambient;
+    Light u_dir_light;
+    Light u__point_lights[8];
 };
+*/
+struct STB140Lights {
+        alignas(16) Vec3 u_light_ambient;
+        STB140Light u_dir_light;
+        STB140Light u_point_lights[8];
+};
+
+enum class LightType : u8 { DIRECTIONAL, POINT, SPOT };
+
+class Light {
+    private:
+        LightType type;
+        bool dirty = true;
+        Vec3 pos_dir;
+        Vec3 diffuse;
+        Vec3 specular;
+        Mat4 light_mat;
+        bool enable;
+
+    public:
+        inline STB140Light get_stb140() {
+            return STB140Light{pos_dir, diffuse, specular, (f32)enable};
+        }
+        inline Mat4 get_light_space_mat() {
+            if (dirty) return light_mat;
+            Camera cam;
+            if (type == LightType::DIRECTIONAL) {
+                cam.set_ortho(-100, 100, -100, 100, -100, 100);
+                // set position from
+                cam.set_position(-pos_dir);
+            }
+            return light_mat;
+        }
+        Vec3 &get_position() {return pos_dir;}
+        inline void set_enable(bool enable) { this->enable = enable; }
+        Light(LightType type, const Vec3 &pos_dir, const Vec3 &diffuse,
+              const Vec3 &specular, bool enable = true)
+            : type(type),
+              pos_dir(pos_dir),
+              diffuse(diffuse),
+              specular(specular),
+              enable(enable) {}
+};
+
 }  // namespace Seed
 
 #endif

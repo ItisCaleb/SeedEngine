@@ -42,9 +42,10 @@ class Camera {
         void set_frustum(f32 left, f32 right, f32 bottom, f32 top, f32 near,
                          f32 far, bool is_ortho);
         void set_perspective(f32 fovy, f32 aspect, f32 near, f32 far);
+        void set_ortho(f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far);
         bool within_frustum(const AABB &bounding_box);
         Mat4 look_at();
-        Mat4 perspective();
+        Mat4 projection();
         Vec3 to_world_pos(Vec2 pos);
 
         Camera(Vec3 pos, Vec3 up, Vec3 front);

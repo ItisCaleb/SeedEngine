@@ -41,17 +41,7 @@ void DefaultRenderer::init_color() {
     RenderRasterizerState rst = {.poly_mode = PolygonMode::LINE};
     debug_mat->set_rasterizer_state(rst);
 
-    RenderResource lights_rc;
-
-    Lights lights;
-    lights.ambient = Vec3{0.3, 0.3, 0.3};
-    lights.lights[0].set_position(Vec3{2, 0, 2});
-    lights.lights[0].diffuse = Vec3{0.9, 0.5, 0.5};
-    lights.lights[0].specular = Vec3{1, 1, 1};
-
-    lights.lights[1].set_direction(Vec3{-0.5, -0.5, 0});
-    lights.lights[1].diffuse = Vec3{0.5, 0.5, 0.5};
-    lights_rc.alloc_constant("Lights", sizeof(Lights), &lights);
+    u_lights.alloc_constant("Lights", sizeof(STB140Lights), nullptr);
     auto terrain_model = Mat4::translate_mat({0, 0, 0}).transpose();
     terrain_m.alloc_constant("TerrainMatrices", sizeof(Mat4), &terrain_model);
 }
@@ -64,8 +54,9 @@ void DefaultRenderer::init() {
 }
 
 void DefaultRenderer::preprocess() {
-    std::vector<ModelEntity *> &entities =
-        SeedEngine::get_instance()->get_world()->get_model_entities();
+    World *world = SeedEngine::get_instance()->get_world();
+
+    std::vector<ModelEntity *> &entities = world->get_model_entities();
     Camera *cam = RenderEngine::get_instance()->get_cam();
     for (ModelEntity *e : entities) {
         Ref<Model> model = e->get_model();
@@ -79,6 +70,7 @@ void DefaultRenderer::preprocess() {
         instance.push_back(e->get_transform().transpose());
         entity_aabb.push_back(bounding_box);
     }
+
     DebugDrawer *drawer = DebugDrawer::get_instance();
     debug_line.alloc_vertex(sizeof(DebugDrawer::DebugVertex),
                             drawer->line_vertices.size(),
@@ -90,8 +82,25 @@ void DefaultRenderer::preprocess() {
 }
 
 void DefaultRenderer::process(Viewport &viewport) {
+    World *world = SeedEngine::get_instance()->get_world();
+
     RenderCommandDispatcher dp;
     dp.begin_scope("Default Rendering", current_sort_key());
+
+    STB140Lights *light_buf = (STB140Lights *)dp.map_buffer(
+        u_lights, 0, sizeof(STB140Lights), current_sort_key());
+    light_buf->u_dir_light = world->get_direction_light().get_stb140();
+    light_buf->u_light_ambient = world->get_ambient_light();
+    for (u32 i = 0;
+         i < (sizeof(light_buf->u_point_lights) / sizeof(STB140Light)); i++) {
+        if (i < world->get_point_lights().size()) {
+            light_buf->u_point_lights[i] =
+                world->get_point_lights()[i].get_stb140();
+
+        } else {
+            light_buf->u_point_lights[i].enable = 0.0f;
+        }
+    }
 
     for (auto &[model, instances] : model_instances) {
         if (instances.empty()) {
@@ -135,6 +144,8 @@ void DefaultRenderer::process(Viewport &viewport) {
                   sky->get_material()->get_pipeline(), current_sort_key(1.0));
     }
     dp.end_scope(next_sort_key());
+
+    // shadow mapping
 
     {
         DebugDrawer *drawer = DebugDrawer::get_instance();

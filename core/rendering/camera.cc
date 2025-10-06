@@ -58,7 +58,7 @@ void Camera::calculate_frustum() {
                              .normal = -front};
     }
 }
-bool Camera::test_aabb_plane(const AABB &aabb,const Plane &plane) {
+bool Camera::test_aabb_plane(const AABB &aabb, const Plane &plane) {
     // Compute the projection interval radius of b onto L(t) = b.c + t * p.n
     float r = aabb.ext.x * std::abs(plane.normal.x) +
               aabb.ext.y * std::abs(plane.normal.y) +
@@ -83,10 +83,16 @@ void Camera::set_frustum(f32 left, f32 right, f32 bottom, f32 top, f32 near,
     frustum.is_ortho = is_ortho;
     dirty = true;
 }
+
 void Camera::set_perspective(f32 fovy, f32 aspect, f32 near, f32 far) {
     f32 h = near * tan(radians(fovy) / 2);
     f32 w = h * aspect;
     set_frustum(-w, w, -h, h, near, far, false);
+}
+
+void Camera::set_ortho(f32 left, f32 right, f32 bottom, f32 top, f32 near,
+                       f32 far) {
+    set_frustum(left, right, bottom, top, near, far, true);
 }
 
 Mat4 Camera::look_at() {
@@ -109,16 +115,22 @@ void Camera::calculate_dirty() {
     }
 }
 
-Mat4 Camera::perspective() {
+Mat4 Camera::projection() {
     f32 w = frustum.right - frustum.left;
+    f32 rl = frustum.right + frustum.left;
     f32 h = frustum.top - frustum.bottom;
+    f32 tb = frustum.top + frustum.bottom;
     f32 d = frustum.far - frustum.near;
-    return Mat4(
-        {Vec4{2 * frustum.near / w, 0, (frustum.right + frustum.left) / w, 0},
-         Vec4{0, 2 * frustum.near / h, (frustum.top + frustum.bottom) / h, 0},
-         Vec4{0, 0, -(frustum.far + frustum.near) / d,
-              -2 * frustum.far * frustum.near / d},
-         Vec4{0, 0, -1, 0}});
+    f32 fn = frustum.far + frustum.near;
+    if (this->frustum.is_ortho) {
+        return Mat4({Vec4{2 / w, 0, 0, -rl / w}, Vec4{0, 2 / h, 0, -tb / h},
+                     Vec4{0, 0, -2 / d, -fn / d}, Vec4{0, 0, 0, 1}});
+    } else {
+        return Mat4({Vec4{2 * frustum.near / w, 0, rl / w, 0},
+                     Vec4{0, 2 * frustum.near / h, tb / h, 0},
+                     Vec4{0, 0, -fn / d, -2 * frustum.far * frustum.near / d},
+                     Vec4{0, 0, -1, 0}});
+    }
 }
 
 bool Camera::within_frustum(const AABB &bounding_box) {

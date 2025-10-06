@@ -20,6 +20,9 @@ class DefaultRenderer : public Renderer {
         VertexData debug_line;
         VertexData debug_triangle;
 
+        /* Lighting */
+        RenderResource u_lights;
+
         /* for debugging */
 
         std::vector<AABB> entity_aabb;

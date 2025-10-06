@@ -8,6 +8,8 @@
 #include "core/os.h"
 #include "core/resource/sky.h"
 #include "core/debug/debug_drawer.h"
+#include "core/gui/gui.h"
+#include "core/gui/gui_engine.h"
 
 using namespace Seed;
 
@@ -52,6 +54,18 @@ static const Vec3 CUBE_NORMAL[] = {0.0f,  0.0f,  -1.0f, 0.0f, 0.0f, 1.0f,
 static const Vec2 CUBE_TEX[] = {0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
                                 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
 
+class DebugGUI : public GUI {
+    public:
+        void update() override {
+            auto world = Seed::SeedEngine::get_instance()->get_world();
+            ImGui::Begin("Debug");
+            ImGui::SliderFloat3(
+                "Direction Light",
+                (float *)(void *)&world->get_direction_light().get_position(), -1.0f, 1.0f);
+            ImGui::End();
+        };
+};
+
 int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
     ResourceLoader *loader = ResourceLoader::get_instance();
@@ -92,6 +106,7 @@ int main(void) {
             PhysicBoxShape box(ent->get_model_aabb().ext);
             ent->create_body(box, PhysicBodyType::DYNAMIC);
         });
+    GuiEngine::get_instance()->add_gui(new DebugGUI);
 
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->set_terrain(terrain->wait());
