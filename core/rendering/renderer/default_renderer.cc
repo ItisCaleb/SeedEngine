@@ -44,13 +44,13 @@ void DefaultRenderer::init_color() {
     RenderResource lights_rc;
 
     Lights lights;
-    lights.ambient = Vec3{0.8, 0.8, 0.8};
+    lights.ambient = Vec3{0.3, 0.3, 0.3};
     lights.lights[0].set_position(Vec3{2, 0, 2});
     lights.lights[0].diffuse = Vec3{0.9, 0.5, 0.5};
     lights.lights[0].specular = Vec3{1, 1, 1};
 
-    lights.lights[1].set_direction(Vec3{2, 3, -1});
-    lights.lights[1].diffuse = Vec3{1, 1, 1};
+    lights.lights[1].set_direction(Vec3{-0.5, -0.5, 0});
+    lights.lights[1].diffuse = Vec3{0.5, 0.5, 0.5};
     lights_rc.alloc_constant("Lights", sizeof(Lights), &lights);
     auto terrain_model = Mat4::translate_mat({0, 0, 0}).transpose();
     terrain_m.alloc_constant("TerrainMatrices", sizeof(Mat4), &terrain_model);

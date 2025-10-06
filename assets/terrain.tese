@@ -19,6 +19,12 @@ in vec2 TextureCoord[];
 
 // send to Fragment Shader for coloring
 out float height;
+out vec3 normal;
+out vec3 fragPos;
+
+float get_height(vec2 tex_coord){
+    return texture(height_map, tex_coord).y * 64.0 - 16.0;
+}
 
 void main()
 {
@@ -37,9 +43,13 @@ void main()
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
     vec2 texCoord = (t1 - t0) * v + t0;
-
+    float offset = 0.0001;
     // lookup texel at patch coordinate for height and scale + shift as desired
-    height = texture(height_map, texCoord).y * 64.0 - 16.0;
+    height = get_height(texCoord);
+    float rh = get_height(texCoord + vec2(-offset, 0));
+    float lh = get_height(texCoord + vec2(offset, 0));
+    float uh = get_height(texCoord + vec2(0, offset));
+    float dh = get_height(texCoord + vec2(0, -offset));
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
@@ -51,7 +61,6 @@ void main()
     // compute patch surface normal
     vec4 uVec = p01 - p00;
     vec4 vVec = p10 - p00;
-    vec4 normal = normalize( vec4(cross(vVec.xyz, uVec.xyz), 0) );
 
     // bilinearly interpolate position coordinate across patch
     vec4 p0 = (p01 - p00) * u + p00;
@@ -59,7 +68,11 @@ void main()
     vec4 p = (p1 - p0) * v + p0;
 
     // displace point along normal
-    p += normal * height;
+    p += vec4(0, height, 0 , 0);
+    
+    //https://stackoverflow.com/questions/49640250/calculate-normals-from-heightmap
+    normal = normalize(vec3(2 * (rh - lh), -4, 2*(dh - uh)));
+    fragPos = vec3(u_model * p);
 
     // ----------------------------------------------------------------------
     // output patch point position in clip space
