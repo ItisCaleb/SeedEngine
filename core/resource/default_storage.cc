@@ -6,17 +6,25 @@ namespace Seed {
 DefaultStorage::DefaultStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
-    mesh_shader =
-        loader->load_shader("assets/shader/default.vert", "assets/shader/default.frag");
-    sky_shader = loader->load_shader("assets/shader/sky.vert", "assets/shader/sky.frag");
-    terrain_shader =
-        loader->load_shader("assets/shader/terrain.vert", "assets/shader/terrain.frag", "",
-                            "assets/shader/terrain.tesc", "assets/shader/terrain.tese");
+    mesh_shader = loader->load_shader("assets/shader/default.vert",
+                                      "assets/shader/default.frag");
+    sky_shader =
+        loader->load_shader("assets/shader/sky.vert", "assets/shader/sky.frag");
+    terrain_shader = loader->load_shader(
+        "assets/shader/terrain.vert", "assets/shader/terrain.frag", "",
+        "assets/shader/terrain.tesc", "assets/shader/terrain.tese");
 
-    mesh_debug_shader =
-        loader->load_shader("assets/shader/mesh_debug.vert", "assets/shader/mesh_debug.frag");
-    post_shader = loader->load_shader("assets/shader/post.vert", "assets/shader/post.frag");
-    
+    mesh_debug_shader = loader->load_shader("assets/shader/mesh_debug.vert",
+                                            "assets/shader/mesh_debug.frag");
+    post_shader = loader->load_shader("assets/shader/post.vert",
+                                      "assets/shader/post.frag");
+    shadow_default_shader = loader->load_shader(
+        "assets/shader/shadow_default.vert", "assets/shader/shadow.frag",
+        "assets/shader/shadow_default.gs");
+    shadow_terrain_shader = loader->load_shader(
+        "assets/shader/shadow_terrain.vert", "assets/shader/shadow.frag",
+        "assets/shader/shadow_default.gs", "assets/shader/terrain.tesc", "assets/shader/shadow_terrain.tese");
+
     const char *vertex_shader =
         "#version 410 core\n"
         "layout (location = 0) in vec2 Position;\n"

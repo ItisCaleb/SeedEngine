@@ -55,7 +55,7 @@ void Material::bind_states(RenderDrawDataBuilder &builder) {
     for (i32 i = 0; i < this->textures.size(); i++) {
         Ref<Texture> tex = textures[i].get_texture();
         if (tex.is_valid()) {
-            builder.bind_texture(i, tex->get_render_resource());
+            builder.bind_texture(i, tex->get_resource());
         }
     }
 }

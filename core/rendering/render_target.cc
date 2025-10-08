@@ -2,22 +2,22 @@
 #include "core/engine.h"
 
 namespace Seed {
-RenderTarget::RenderTarget()
+RenderTarget::RenderTarget(bool depth_only)
     : viewport(SeedEngine::get_instance()->get_window()) {
-    this->rc.alloc_render_target();
+    this->rc.alloc_render_target(depth_only);
 }
 
 void RenderTarget::bind_depth(AttachmentSurface &surface) {
     this->depth_surface = surface;
     RenderCommandDispatcher dp;
-    dp.update_depth_attachment(this->rc, surface.texture->get_render_resource(),
+    dp.update_depth_attachment(this->rc, surface.texture->get_resource(),
                                surface.face);
 }
 
 void RenderTarget::bind_depth(Ref<Texture> tex, u8 face){
     this->depth_surface = AttachmentSurface{tex, face};
     RenderCommandDispatcher dp;
-    dp.update_depth_attachment(this->rc, tex->get_render_resource(),
+    dp.update_depth_attachment(this->rc, tex->get_resource(),
                                face);
 }
 
@@ -29,14 +29,14 @@ void MultiRenderTarget::bind_color(u32 slot, AttachmentSurface &surface) {
     RenderCommandDispatcher dp;
 
     dp.update_color_attachment(
-        this->rc, 0, surface.texture->get_render_resource(), surface.face);
+        this->rc, 0, surface.texture->get_resource(), surface.face);
 }
 
 void MultiRenderTarget::bind_color(u32 slot, Ref<Texture> tex, u8 face){
     EXPECT_INDEX_INBOUND_THROW(slot, 8);
     this->color_surface[slot] = AttachmentSurface{tex, face};
     RenderCommandDispatcher dp;
-    dp.update_color_attachment(this->rc, 0, tex->get_render_resource(),
+    dp.update_color_attachment(this->rc, 0, tex->get_resource(),
                                face);
 }
 

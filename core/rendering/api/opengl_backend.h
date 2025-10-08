@@ -48,6 +48,7 @@ struct HardwarePipelineGL {
 
 struct HardwareRenderTargetGL {
         GLuint fbo;
+        bool depth_only;
 };
 
 class RenderBackendGL : public RenderBackend {
@@ -113,7 +114,7 @@ class RenderBackendGL : public RenderBackend {
                             const RenderRasterizerState &rst_state,
                             const RenderDepthStencilState &depth_state,
                             const RenderBlendState &blend_state) override;
-        void alloc_render_target(RenderResource *rc) override;
+        void alloc_render_target(RenderResource *rc, bool depth_only) override;
         void dealloc(RenderResource *r) override;
 
         void process() override;

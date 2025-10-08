@@ -35,7 +35,7 @@ class RenderBackend {
                                     const RenderDepthStencilState &depth_state,
                                     const RenderBlendState &blend_state) = 0;
         virtual void alloc_render_target(
-            RenderResource *rc) = 0;
+            RenderResource *rc, bool depth_only) = 0;
         virtual void dealloc(RenderResource *r) = 0;
         void push_cmd(RenderCommand &cmd) { this->cmd_queue.push_back(cmd); }
         virtual void process() = 0;

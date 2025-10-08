@@ -41,8 +41,7 @@ static u32 gen_sort_key(u8 layer, u8 sequence, f32 depth) {
     u16 depth_value = (u16)((f32)(u16)(-1) * depth);
     sort_key |= ((u32)layer & KEY_LAYER_MASK)
                 << (KEY_DEPTH_BITS + KEY_SEQ_BITS);
-    sort_key |= ((u32)sequence & KEY_SEQ_MASK)
-                << (KEY_DEPTH_BITS);
+    sort_key |= ((u32)sequence & KEY_SEQ_MASK) << (KEY_DEPTH_BITS);
     sort_key |= (u32)depth_value;
     return sort_key;
 }
@@ -166,7 +165,10 @@ struct RenderStateData {
                 OpType type;
                 union {
                         RenderResource render_target;
-                        RectF view_rect;
+                        struct {
+                                RectF view_rect;
+                                f32 max_height;
+                        } viewport;
                         RectF scissor_rect;
                         u8 clear_flag;
                 };
@@ -180,8 +182,13 @@ class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
     public:
         void bind_render_target(RenderResource target);
         void bind_window();
-        void set_viewport(f32 x, f32 y, f32 width, f32 height);
+        void set_viewport(f32 x, f32 y, f32 width, f32 height,
+                          f32 max_height = 0.0);
+        void set_viewport(const RectF &viewport, f32 max_height = 0.0);
+
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
+        void set_scissor(const RectF &scissor_rect);
+
         void clear(StateClearFlag flag);
 };
 
@@ -234,11 +241,14 @@ class RenderCommandDispatcher {
         void *map_texture(RenderResource &buffer, u32 x_off, u32 y_off, u32 w,
                           u32 h, u32 sort_key = 0);
         void update_cubemap(RenderResource &texture, u8 face, u16 x_off,
-                            u16 y_off, u16 w, u16 h, void *data, u32 sort_key = 0);
+                            u16 y_off, u16 w, u16 h, void *data,
+                            u32 sort_key = 0);
         void update_color_attachment(RenderResource &render_target, i32 slot,
-                                     RenderResource tex, u32 face = 0);
+                                     RenderResource tex, u32 face = 0,
+                                     u32 sort_key = 0);
         void update_depth_attachment(RenderResource &render_target,
-                                     RenderResource tex, u32 face = 0);
+                                     RenderResource tex, u32 face = 0,
+                                     u32 sort_key = 0);
 
         /* will automatically fill material state and textures */
         RenderDrawDataBuilder generate_render_data(Ref<Material> mat);

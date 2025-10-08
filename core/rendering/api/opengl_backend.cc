@@ -154,8 +154,8 @@ void RenderBackendGL::alloc_pipeline(RenderResource *rc, RenderResource shader,
     rc->handle = this->pipelines.insert(pl);
 }
 
-void RenderBackendGL::alloc_render_target(RenderResource *rc) {
-    rc->handle = this->render_targets.insert({});
+void RenderBackendGL::alloc_render_target(RenderResource *rc, bool depth_only) {
+    rc->handle = this->render_targets.insert({.depth_only = depth_only});
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
@@ -258,11 +258,18 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, format,
                                         tex->w, tex->h, GL_TRUE);
             } else {
-                if (format == GL_DEPTH24_STENCIL8) {
+                if (tex->format == PixelFormat::D24S8) {
                     // depth stencil texture
                     glTexImage2D(type, 0, format, tex->w, tex->h, 0,
                                  GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8,
                                  nullptr);
+                } else if (tex->format == PixelFormat::D24) {
+                    glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                    glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                    glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                    glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                    glTexImage2D(type, 0, format, tex->w, tex->h, 0, format,
+                                 GL_UNSIGNED_BYTE, nullptr);
                 } else {
                     // normal texture
                     glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -282,6 +289,12 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 this->render_targets.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(rt);
             glGenFramebuffers(1, &rt->fbo);
+            if (rt->depth_only) {
+                glBindFramebuffer(GL_FRAMEBUFFER, rt->fbo);
+                glDrawBuffer(GL_NONE);
+                glReadBuffer(GL_NONE);
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            }
             break;
         }
         case RenderResourceType::SHADER: {
@@ -309,32 +322,6 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             }
             glAttachShader(program, vertex);
             find_samplers(shader->vertex_src, samplers);
-
-            /* fragment shader */
-            fragment = glCreateShader(GL_FRAGMENT_SHADER);
-            glShaderSource(fragment, 1, &frag_c, NULL);
-            glCompileShader(fragment);
-            glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
-            if (!success) {
-                glGetShaderInfoLog(fragment, 512, NULL, info);
-                throw std::runtime_error(info);
-            }
-            glAttachShader(program, fragment);
-            find_samplers(shader->fragment_src, samplers);
-
-            /* optional geometry shader */
-            if (shader->geo_src.size() > 0) {
-                geometry = glCreateShader(GL_GEOMETRY_SHADER);
-                glShaderSource(geometry, 1, &geo_c, NULL);
-                glCompileShader(geometry);
-                glGetShaderiv(geometry, GL_COMPILE_STATUS, &success);
-                if (!success) {
-                    glGetShaderInfoLog(geometry, 512, NULL, info);
-                    throw std::runtime_error(info);
-                }
-                glAttachShader(program, geometry);
-                find_samplers(shader->geo_src, samplers);
-            }
 
             /* optional tesselation shader */
             if (shader->tess_ctrl_src.size() > 0 &&
@@ -369,6 +356,31 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 throw std::runtime_error(
                     "TCS and TES need to be provide at same time.");
             }
+            /* optional geometry shader */
+            if (shader->geo_src.size() > 0) {
+                geometry = glCreateShader(GL_GEOMETRY_SHADER);
+                glShaderSource(geometry, 1, &geo_c, NULL);
+                glCompileShader(geometry);
+                glGetShaderiv(geometry, GL_COMPILE_STATUS, &success);
+                if (!success) {
+                    glGetShaderInfoLog(geometry, 512, NULL, info);
+                    throw std::runtime_error(info);
+                }
+                glAttachShader(program, geometry);
+                find_samplers(shader->geo_src, samplers);
+            }
+
+            /* fragment shader */
+            fragment = glCreateShader(GL_FRAGMENT_SHADER);
+            glShaderSource(fragment, 1, &frag_c, NULL);
+            glCompileShader(fragment);
+            glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
+            if (!success) {
+                glGetShaderInfoLog(fragment, 512, NULL, info);
+                throw std::runtime_error(info);
+            }
+            glAttachShader(program, fragment);
+            find_samplers(shader->fragment_src, samplers);
 
             glLinkProgram(program);
             glGetProgramiv(program, GL_LINK_STATUS, &success);
@@ -448,6 +460,9 @@ GLuint RenderBackendGL::convert_pixel_format(PixelFormat format) {
             break;
         case PixelFormat::RGBA:
             t = GL_RGBA;
+            break;
+        case PixelFormat::D24:
+            t = GL_DEPTH_COMPONENT;
             break;
         case PixelFormat::D24S8:
             t = GL_DEPTH24_STENCIL8;
@@ -588,11 +603,14 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             HardwareTextureGL *tex = this->textures.get_or_null(
                 update_data->attachment.texture.handle);
             EXPECT_NOT_NULL_BREAK(tex);
-
             glBindFramebuffer(GL_FRAMEBUFFER, rt->fbo);
             GLuint slot;
             if (update_data->attachment.slot == -1) {
-                slot = GL_DEPTH_STENCIL_ATTACHMENT;
+                if (tex->format == PixelFormat::D24) {
+                    slot = GL_DEPTH_ATTACHMENT;
+                } else if (tex->format == PixelFormat::D24S8) {
+                    slot = GL_DEPTH_STENCIL_ATTACHMENT;
+                }
             } else {
                 slot = GL_COLOR_ATTACHMENT0 + update_data->attachment.slot;
             }
@@ -834,11 +852,14 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                 break;
             }
             case RenderStateData::OpType::VIEWPORT: {
-                Window *window =
-                    RenderEngine::get_instance()->get_current_window();
-                RectF &vp = op->view_rect;
-                glViewport(vp.x, window->get_height() - vp.y - vp.h, vp.w,
-                           vp.h);
+                RectF &vp = op->viewport.view_rect;
+                f32 max_height = op->viewport.max_height == 0
+                                     ? RenderEngine::get_instance()
+                                           ->get_current_window()
+                                           ->get_height()
+                                     : op->viewport.max_height;
+                // opengl viewport's origin is bottom left
+                glViewport(vp.x, max_height - vp.y - vp.h, vp.w, vp.h);
                 break;
             }
             case RenderStateData::OpType::SCISSOR: {

@@ -41,7 +41,7 @@ struct RenderResource {
                             const RenderDepthStencilState &depth_state,
                             const RenderBlendState &blend_state);
 
-        void alloc_render_target();
+        void alloc_render_target(bool depth_only);
         void dealloc();
         bool inited();
 

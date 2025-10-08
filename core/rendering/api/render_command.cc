@@ -88,15 +88,30 @@ void RenderStateDataBuilder::bind_window() {
     op->render_target = {};
 }
 
-void RenderStateDataBuilder::set_viewport(f32 x, f32 y, f32 width, f32 height) {
+void RenderStateDataBuilder::set_viewport(f32 x, f32 y, f32 width, f32 height, f32 max_height) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::VIEWPORT);
-    op->view_rect = {x, y, width, height};
+    op->viewport.view_rect = {x, y, width, height};
+    op->viewport.max_height = max_height;
 }
+
+void RenderStateDataBuilder::set_viewport(const RectF &viewport, f32 max_height) {
+    RenderStateData::Operation *op =
+        alloc_operation(RenderStateData::OpType::VIEWPORT);
+    op->viewport.view_rect = viewport;
+    op->viewport.max_height = max_height;
+}
+
 void RenderStateDataBuilder::set_scissor(f32 x, f32 y, f32 width, f32 height) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::SCISSOR);
     op->scissor_rect = {x, y, width, height};
+}
+
+void RenderStateDataBuilder::set_scissor(const RectF &scissor_rect) {
+    RenderStateData::Operation *op =
+        alloc_operation(RenderStateData::OpType::SCISSOR);
+    op->scissor_rect = scissor_rect;
 }
 void RenderStateDataBuilder::clear(StateClearFlag flag) {
     RenderStateData::Operation *op =
@@ -104,7 +119,8 @@ void RenderStateDataBuilder::clear(StateClearFlag flag) {
     op->clear_flag |= flag;
 }
 
-void RenderCommandDispatcher::begin_scope(const std::string &scope, u32 sort_key) {
+void RenderCommandDispatcher::begin_scope(const std::string &scope,
+                                          u32 sort_key) {
     this->scope = scope;
     RenderCommand cmd;
     cmd.scope = scope;
@@ -124,14 +140,14 @@ RenderCommand RenderCommandDispatcher::prepare_update_cmd(u32 sort_key) {
     RenderCommand cmd;
     cmd.sort_key = sort_key;
     cmd.type = RenderCommandType::UPDATE;
-    cmd.data = RenderEngine::get_instance()
-                   ->get_mem_pool()
-                   ->alloc(sizeof(RenderUpdateData));
+    cmd.data = RenderEngine::get_instance()->get_mem_pool()->alloc(
+        sizeof(RenderUpdateData));
     return cmd;
 }
 
 void RenderCommandDispatcher::update_buffer(RenderResource &buffer, u32 offset,
-                                            u32 size, void *data, u32 sort_key) {
+                                            u32 size, void *data,
+                                            u32 sort_key) {
     if (buffer.type != RenderResourceType::VERTEX &&
         buffer.type != RenderResourceType::CONSTANT &&
         buffer.type != RenderResourceType::INDEX)
@@ -187,7 +203,8 @@ void RenderCommandDispatcher::update_texture(RenderResource &texture, u32 x_off,
 }
 
 void *RenderCommandDispatcher::map_texture(RenderResource &texture, u32 x_off,
-                                           u32 y_off, u32 w, u32 h, u32 sort_key) {
+                                           u32 y_off, u32 w, u32 h,
+                                           u32 sort_key) {
     if (texture.type != RenderResourceType::TEXTURE) return nullptr;
     RenderCommand cmd = prepare_update_cmd(sort_key);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
@@ -229,12 +246,13 @@ void RenderCommandDispatcher::update_cubemap(RenderResource &texture, u8 face,
 }
 
 void RenderCommandDispatcher::update_color_attachment(
-    RenderResource &render_target, i32 slot, RenderResource tex, u32 face) {
+    RenderResource &render_target, i32 slot, RenderResource tex, u32 face,
+    u32 sort_key) {
     if (slot < 0) {
         SPDLOG_ERROR("Can't update attachment with slot smaller than 0");
         return;
     }
-    RenderCommand cmd = prepare_update_cmd(0);
+    RenderCommand cmd = prepare_update_cmd(sort_key);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
     update_data->data = nullptr;
     update_data->rc = render_target;
@@ -245,8 +263,8 @@ void RenderCommandDispatcher::update_color_attachment(
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 void RenderCommandDispatcher::update_depth_attachment(
-    RenderResource &render_target, RenderResource tex, u32 face) {
-    RenderCommand cmd = prepare_update_cmd(0);
+    RenderResource &render_target, RenderResource tex, u32 face, u32 sort_key) {
+    RenderCommand cmd = prepare_update_cmd(sort_key);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 
     update_data->data = nullptr;
@@ -295,8 +313,6 @@ void RenderCommandDispatcher::render(RenderDrawDataBuilder &builder,
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
-RenderCommandDispatcher::~RenderCommandDispatcher() {
-
-}
+RenderCommandDispatcher::~RenderCommandDispatcher() {}
 
 }  // namespace Seed

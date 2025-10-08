@@ -37,7 +37,20 @@ void Camera::calculate_frustum() {
     Vec3 u = up.cross(w).norm();
     /* vup */
     Vec3 v = w.cross(u).norm();
-    if (!frustum.is_ortho) {
+    if (frustum.is_ortho) {
+        frustum_plane.right = {.point = position + u * frustum.right,
+                               .normal = -u};
+        frustum_plane.left = {.point = position + u * frustum.left,
+                               .normal = u};
+        frustum_plane.top = {.point = position + v * frustum.top,
+                               .normal = -v};
+        frustum_plane.bottom = {.point = position + v * frustum.bottom,
+                               .normal = v};
+        frustum_plane.near = {.point = position + front * frustum.near,
+                               .normal = front};
+        frustum_plane.far = {.point = position + front * frustum.far,
+                               .normal = -front};
+    } else {
         frustum_plane.right = {
             .point = position,
             .normal = v.cross(front * frustum.near + u * frustum.right).norm()};

@@ -34,17 +34,17 @@ class Viewport {
 
         RectF get_dimension() { return dimension; }
 
-        Rect get_actual_dimension() {
+        RectF get_actual_dimension() {
             if (!binded_window) {
                 SPDLOG_ERROR("This viewport doesn't bind a window.");
                 return {};
             }
             u32 actual_w = binded_window->get_width();
             u32 actual_h = binded_window->get_height();
-            return Rect{.x = (u32)(actual_w * dimension.x),
-                        .y = (u32)(actual_h * dimension.y),
-                        .w = (u32)(actual_w * dimension.w),
-                        .h = (u32)(actual_h * dimension.h)};
+            return RectF{.x = (actual_w * dimension.x),
+                        .y = (actual_h * dimension.y),
+                        .w = (actual_w * dimension.w),
+                        .h = (actual_h * dimension.h)};
         }
 
         bool within_viewport(f32 x, f32 y) {

@@ -82,9 +82,9 @@ void RenderResource::alloc_pipeline(RenderResource shader,
     RenderEngine::get_instance()->get_device()->alloc_pipeline(
         this, shader, rst_state, depth_state, blend_state);
 }
-void RenderResource::alloc_render_target() {
+void RenderResource::alloc_render_target(bool depth_only) {
     this->type = RenderResourceType::RENDER_TARGET;
-    RenderEngine::get_instance()->get_device()->alloc_render_target(this);
+    RenderEngine::get_instance()->get_device()->alloc_render_target(this, depth_only);
 }
 
 void RenderResource::dealloc() {

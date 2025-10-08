@@ -10,6 +10,7 @@
 #include "core/debug/debug_drawer.h"
 #include "core/gui/gui.h"
 #include "core/gui/gui_engine.h"
+#include "core/rendering/shadow_map.h"
 
 using namespace Seed;
 
@@ -59,9 +60,22 @@ class DebugGUI : public GUI {
         void update() override {
             auto world = Seed::SeedEngine::get_instance()->get_world();
             ImGui::Begin("Debug");
-            ImGui::SliderFloat3(
+            if(ImGui::SliderFloat3(
                 "Direction Light",
-                (float *)(void *)&world->get_direction_light().get_position(), -1.0f, 1.0f);
+                (float *)(void *)&world->get_direction_light().get_position(),
+                -1.0f, 1.0f)){
+                    world->get_direction_light().set_dirty();
+                }
+            auto cam = RenderEngine::get_instance()->get_cam();
+            auto cam_pos = cam->get_position();
+            ImGui::Text("%.2f %.2f %.2f",  cam_pos.x, cam_pos.y, cam_pos.z);
+            if(ImGui::Button("ortho")){
+                cam->set_ortho(-10, 10, -10, 10, -100, 100);
+                // set position from origin
+                Vec3 pos_dir =  Vec3{-0.5, -0.5, 0};
+                cam->set_position(-pos_dir);
+                cam->set_front(pos_dir);
+            }
             ImGui::End();
         };
 };
@@ -96,6 +110,7 @@ int main(void) {
     //          engine->get_world()->add_model_entity(ent);
     //      }
     //  }
+
     auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
     auto sky = loader->load_async<Sky>("assets/sky.json");
     auto backpack = loader->load_async<Model>(
@@ -107,7 +122,8 @@ int main(void) {
             ent->create_body(box, PhysicBodyType::DYNAMIC);
         });
     GuiEngine::get_instance()->add_gui(new DebugGUI);
-
+    engine->get_world()->get_point_lights().push_back(
+        Light{LightType::POINT, Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->set_terrain(terrain->wait());
     engine->get_world()->set_sky(sky->wait());

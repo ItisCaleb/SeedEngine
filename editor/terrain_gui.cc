@@ -17,7 +17,7 @@ void TerrainGUI::update() {
     auto dim = vp.get_actual_dimension();
     auto vp_coord = vp.to_viewport_coord(pos);
     ImGui::Text("Mouse position: %f %f", pos.x, pos.y);
-    ImGui::Text("Viewport: %u %u %u %u", dim.x, dim.y, dim.w, dim.h);
+    ImGui::Text("Viewport: %f %f %f %f", dim.x, dim.y, dim.w, dim.h);
     ImGui::Text("Viewport coord: %f %f", vp_coord.x, vp_coord.y);
     if (ImGui::Button("Terrain vertex")) {
         auto mat = terrain->get_material();

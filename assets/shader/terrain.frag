@@ -2,7 +2,8 @@
 
 in float height;
 in vec3 normal;
-in vec3 fragPos;
+in vec4 light_fragPos;
+in vec4 fragPos;
 out vec4 FragColor;
 
 struct Light {
@@ -20,6 +21,33 @@ layout(std140) uniform Lights {
 
 layout(std140) uniform Camera { vec3 u_cam_pos; };
 
+uniform sampler2D shadowMap;
+
+float ShadowCalculation(vec4 fragPosLightSpace)
+{
+    // perform perspective divide
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    // transform to [0,1] range
+    projCoords = projCoords * 0.5 + 0.5;
+    // get closest depth value from light’s perspective (using
+    // [0,1] range fragPosLight as coords)
+    projCoords.x = projCoords.x * 0.5;
+    projCoords.y = projCoords.y * 0.5 + 0.5;
+    //it is outside on the sides
+    if( projCoords.x < 0.0 || projCoords.x > 0.5 ||
+        projCoords.y < 0.5 || projCoords.y > 1.0 )
+		return 0.0;
+
+    float bias = 0.005;
+
+    float closestDepth = texture(shadowMap, projCoords.xy).r;
+    // get depth of current fragment from light’s perspective
+    float currentDepth = projCoords.z;
+    // check whether current frag pos is in shadow
+    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    return shadow;
+}
+
 vec3 calculate_light(vec3 diffuse, vec3 specular, vec3 light_dir, vec3 view_dir,
                      float d, vec3 n) {
     vec3 reflect_dir = reflect(-light_dir, n);
@@ -28,6 +56,7 @@ vec3 calculate_light(vec3 diffuse, vec3 specular, vec3 light_dir, vec3 view_dir,
     float diff = max(dot(n, light_dir), 0.0);
     vec3 diffuse_l = diffuse * diff;
     vec3 specular_l = specular * spec;
+    
     // return specular_l;
     return att * (diffuse_l + specular_l);
 }
@@ -37,21 +66,23 @@ void main() {
     if(h < 0.01){
         discard;
     }
+     float shadow = ShadowCalculation(light_fragPos);
+
     vec3 light_out = u_light_ambient * 0.2;
-    vec3 view_dir = normalize(u_cam_pos - fragPos);
+    vec3 view_dir = normalize(u_cam_pos - fragPos.xyz);
     vec3 n_vec = normal;
 
     // direction
     light_out +=
         calculate_light(u_dir_light.diffuse, u_dir_light.specular,
                                 normalize(vec3(u_dir_light.position)), view_dir,
-                                1,n_vec);
+                                1,n_vec) * (1.0 - shadow);
 
     for (int i = 0; i < 8; i++) {
         Light light = u_point_lights[i];
         if (light.enable == 0)
             continue;
-        vec3 light_dir = vec3(light.position) - fragPos;
+        vec3 light_dir = vec3(light.position) - fragPos.xyz;
         float d = length(light_dir);
         light_dir = normalize(light_dir);
         light_out += calculate_light(light.diffuse, light.specular,

@@ -18,6 +18,8 @@ class DefaultStorage {
         Ref<Shader> mesh_debug_shader;
         Ref<Shader> post_shader;
         Ref<Shader> decal_shader;
+        Ref<Shader> shadow_default_shader;
+        Ref<Shader> shadow_terrain_shader;
         VertexLayout terrain_desc;
         VertexLayout mesh_desc;
         VertexLayout sky_desc;

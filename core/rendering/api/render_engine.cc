@@ -113,7 +113,7 @@ void RenderEngine::process() {
     u32 i = 1;
     for (Layer &layer : this->layers) {
         RenderCommandDispatcher layer_dp;
-        Rect rect = layer.rt->get_viewport().get_actual_dimension();
+        RectF rect = layer.rt->get_viewport().get_actual_dimension();
         {
             RenderStateDataBuilder builder;
             builder.set_viewport(rect.x, rect.y, rect.w, rect.h);

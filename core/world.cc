@@ -32,9 +32,6 @@ World::World()
     : direction_light(LightType::DIRECTIONAL, Vec3{-0.5, -0.5, 0},
                       Vec3{0.5, 0.5, 0.5}, Vec3{0, 0, 0}) {
     this->ambient_light = Vec3{0.3, 0.3, 0.3};
-    // lights.lights[0].set_position(Vec3{2, 0, 2});
-    // lights.lights[0].diffuse = Vec3{0.9, 0.5, 0.5};
-    // lights.lights[0].specular = Vec3{1, 1, 1};
 }
 
 }  // namespace Seed

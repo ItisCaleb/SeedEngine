@@ -65,7 +65,7 @@ void ImguiRenderer::process(Viewport &viewport) {
     dp.begin_scope("Imgui", current_sort_key());
     ImDrawData *draw_data = ImGui::GetDrawData();
     ImguiData *bd = get_imgui_data();
-    Rect view_rect = viewport.get_actual_dimension();
+    RectF view_rect = viewport.get_actual_dimension();
     int fb_width = view_rect.w;
     int fb_height = view_rect.h;
 

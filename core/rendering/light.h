@@ -47,19 +47,21 @@ class Light {
             return STB140Light{pos_dir, diffuse, specular, (f32)enable};
         }
         inline Mat4 get_light_space_mat() {
-            if (dirty) return light_mat;
+            if (!dirty) return light_mat;
             Camera cam;
             if (type == LightType::DIRECTIONAL) {
-                cam.set_ortho(-100, 100, -100, 100, -100, 100);
+                cam.set_ortho(-50, 50, -50, 50, -100, 100);
                 // set position from origin
-                cam.set_position(-pos_dir);
+                cam.set_position(-pos_dir * 20);
                 cam.set_front(pos_dir);
                 cam.set_up(Vec3{0, 1, 0});
                 this->light_mat = cam.projection() * cam.look_at();
+                dirty = false;
             }
             return light_mat;
         }
         Vec3 &get_position() {return pos_dir;}
+        void set_dirty() { dirty = true ;}
         inline void set_enable(bool enable) { this->enable = enable; }
         Light(LightType type, const Vec3 &pos_dir, const Vec3 &diffuse,
               const Vec3 &specular, bool enable = true)
