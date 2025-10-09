@@ -23,7 +23,7 @@ layout(std140) uniform Camera { vec3 u_cam_pos; };
 
 uniform sampler2D shadowMap;
 
-float ShadowCalculation(vec4 fragPosLightSpace)
+float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 light_dir)
 {
     // perform perspective divide
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -38,13 +38,13 @@ float ShadowCalculation(vec4 fragPosLightSpace)
         projCoords.y < 0.5 || projCoords.y > 1.0 )
 		return 0.0;
 
-    float bias = 0.005;
+    float bias = max(0.05 * (1.0- dot(normal, light_dir)), 0.005);
 
     float closestDepth = texture(shadowMap, projCoords.xy).r;
     // get depth of current fragment from light’s perspective
     float currentDepth = projCoords.z;
     // check whether current frag pos is in shadow
-    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    float shadow = currentDepth - bias > closestDepth ? 0.8 : 0.0;
     return shadow;
 }
 
@@ -56,9 +56,9 @@ vec3 calculate_light(vec3 diffuse, vec3 specular, vec3 light_dir, vec3 view_dir,
     float diff = max(dot(n, light_dir), 0.0);
     vec3 diffuse_l = diffuse * diff;
     vec3 specular_l = specular * spec;
-    
+    float shadow = ShadowCalculation(light_fragPos, n, light_dir);
     // return specular_l;
-    return att * (diffuse_l + specular_l);
+    return att * (diffuse_l + specular_l) * (1.0 - shadow);
 }
 
 void main() {
@@ -66,7 +66,6 @@ void main() {
     if(h < 0.01){
         discard;
     }
-     float shadow = ShadowCalculation(light_fragPos);
 
     vec3 light_out = u_light_ambient * 0.2;
     vec3 view_dir = normalize(u_cam_pos - fragPos.xyz);
@@ -76,7 +75,7 @@ void main() {
     light_out +=
         calculate_light(u_dir_light.diffuse, u_dir_light.specular,
                                 normalize(vec3(u_dir_light.position)), view_dir,
-                                1,n_vec) * (1.0 - shadow);
+                                1,n_vec);
 
     for (int i = 0; i < 8; i++) {
         Light light = u_point_lights[i];

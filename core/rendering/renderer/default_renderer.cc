@@ -46,12 +46,13 @@ void DefaultRenderer::init() {
     u_lightspaces.alloc_constant("LightSpaceMatrices", sizeof(Mat4) * 9,
                                  nullptr);
     shadow_map_default_pipeline.alloc_pipeline(
-        DS::get_instance()->shadow_default_shader->get_render_resource(), {},
+        DS::get_instance()->shadow_default_shader->get_render_resource(),
+        RenderRasterizerState{.cull_mode = Cullmode::FRONT},
         RenderDepthStencilState{.depth_on = true}, {});
     shadow_map_terrain_pipeline.alloc_pipeline(
         DS::get_instance()->shadow_terrain_shader->get_render_resource(),
-        {.patch_control_points = 4}, RenderDepthStencilState{.depth_on = true},
-        {});
+        RenderRasterizerState{.cull_mode = Cullmode::FRONT,.patch_control_points = 4},
+        RenderDepthStencilState{.depth_on = true}, {});
     auto terrain_model = Mat4::translate_mat({0, 0, 0}).transpose();
     terrain_m.alloc_constant("TerrainMatrices", sizeof(Mat4), &terrain_model);
 
