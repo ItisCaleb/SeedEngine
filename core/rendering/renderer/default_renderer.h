@@ -6,14 +6,20 @@
 #include "core/resource/model.h"
 #include "core/rendering/render_target.h"
 #include "core/rendering/shadow_map.h"
-#include <unordered_map>
+#include <vector>
 
 namespace Seed {
 class DefaultRenderer : public Renderer {
         friend RenderEngine;
 
     private:
-        std::unordered_map<Model *, std::vector<Mat4>> model_instances;
+        struct MeshInstance{
+            Ref<Mesh> mesh;
+            std::vector<u32> instance_id;
+            std::vector<f32> depth;
+        };
+        std::vector<MeshInstance> opaque_meshes;
+        std::vector<MeshInstance> transparent_meshes;
         VertexLayout instance_desc;
         Ref<Material> debug_mat;
         VertexData sky_vert;
@@ -35,6 +41,8 @@ class DefaultRenderer : public Renderer {
         std::vector<AABB> entity_aabb;
         VertexData aabb_vertices;
         VertexLayout aabb_desc;
+        void shadow_pass();
+        void color_pass(Viewport &viewport);
 
         void init() override;
         void preprocess() override;

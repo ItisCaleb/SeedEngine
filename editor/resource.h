@@ -13,6 +13,7 @@
 struct EditorMesh {
         std::vector<Seed::Vertex> vertices;
         std::vector<u32> indices;
+        Seed::AABB bounding_box;
         i16 material_id = -1;
 };
 
@@ -21,7 +22,7 @@ class EditorModel {
         void processNode(aiNode *node, const aiScene *scene);
         void processMesh(aiMesh *mesh, const aiScene *scene);
         i16 loadMaterialTextures(aiMaterial *mat, aiTextureType type);
-        void calculateAABB();
+        Seed::AABB calculateAABB(const std::vector<Seed::Vertex> &vertices);
 
     public:
         struct Material {
@@ -40,7 +41,6 @@ class EditorModel {
         std::vector<EditorMesh> meshes;
         std::vector<std::string> textures;
         std::vector<Material> materials;
-        Seed::AABB bounding_box;
 
         void dump();
         void dump(const std::string &file_path);

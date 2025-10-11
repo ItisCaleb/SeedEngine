@@ -3,7 +3,6 @@ target_sources(seed PRIVATE
     input.cc
     world.cc
     entity.cc
-    model_entity.cc
     input_handler.cc
     os.cc
     window.cc

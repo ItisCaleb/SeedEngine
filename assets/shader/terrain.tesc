@@ -1,4 +1,4 @@
-#version 410 core
+#version 430 core
 
 layout (vertices=4) out;
 in vec2 texCoord[];

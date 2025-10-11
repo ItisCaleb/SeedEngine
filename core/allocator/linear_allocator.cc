@@ -6,15 +6,17 @@
 
 namespace Seed {
 void *LinearAllocator::alloc(u64 size) {
-    if (this->cur + size > this->cap) {
+    std::lock_guard lg(mu);
+    u64 new_size = this->cur + size;
+    if (new_size > this->cap) {
         /* we need to store data when the capacity is not enough */
         void *buf = malloc(size);
         this->tmp_bufs.push_back(buf);
-        this->overflow_size += (this->cur + size) - this->cap;
+        this->overflow_size += (new_size) - this->cap;
         return buf;
     } else {
-        this->cur += size;
-        return (void *)((u64)this->memory_base + this->cur - size);
+        this->cur = new_size;
+        return (void *)((u64)this->memory_base + new_size - size);
     }
 }
 

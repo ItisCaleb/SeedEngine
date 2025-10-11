@@ -38,12 +38,19 @@ class Ref {
         T *data = nullptr;
 
     public:
-        T *operator*() { return data; }
+        T *operator*() const { return data; }
 
-        T *operator->() { return data; }
+        T *operator->() const { return data; }
 
-        bool operator==(const Ref &other) { return this->data == other.data; }
-        bool operator!=(const Ref &other) { return this->data != other.data; }
+        bool operator==(const Ref &other) const {
+            return this->data == other.data;
+        }
+        bool operator!=(const Ref &other) const {
+            return this->data != other.data;
+        }
+        bool operator<(const Ref &other) const {
+            return this->data < other.data;
+        }
 
         void operator=(T *from) {
             if (from) {

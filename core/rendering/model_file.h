@@ -13,12 +13,12 @@ struct ModelHeader {
         u32 mesh_offset;
         u32 texture_offset;
         u32 material_offset;
-        Seed::AABB bounding_box;
 };
 
 struct MeshHeader {
         u32 vertex_size;
         u32 index_size;
+        Seed::AABB bounding_box;
         i16 material_id;
 };
 

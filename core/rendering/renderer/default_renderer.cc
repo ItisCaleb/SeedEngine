@@ -7,6 +7,7 @@
 #include <spdlog/spdlog.h>
 #include <vector>
 #include "core/debug/debug_drawer.h"
+#include "core/rendering/mesh_storage.h"
 
 namespace Seed {
 
@@ -33,10 +34,7 @@ Vec3 skyboxVertices[] = {
 void DefaultRenderer::init() {
     ResourceLoader *loader = ResourceLoader::get_instance();
 
-    instance_desc.add_attr(3, VertexAttributeType::FLOAT, 4, 1);
-    instance_desc.add_attr(4, VertexAttributeType::FLOAT, 4, 1);
-    instance_desc.add_attr(5, VertexAttributeType::FLOAT, 4, 1);
-    instance_desc.add_attr(6, VertexAttributeType::FLOAT, 4, 1);
+    instance_desc.add_type_attr<u32>(3, 1);
 
     debug_mat.create(DS::get_instance()->mesh_debug_shader);
     RenderRasterizerState rst = {.poly_mode = PolygonMode::LINE};
@@ -51,7 +49,8 @@ void DefaultRenderer::init() {
         RenderDepthStencilState{.depth_on = true}, {});
     shadow_map_terrain_pipeline.alloc_pipeline(
         DS::get_instance()->shadow_terrain_shader->get_render_resource(),
-        RenderRasterizerState{.cull_mode = Cullmode::FRONT,.patch_control_points = 4},
+        RenderRasterizerState{.cull_mode = Cullmode::FRONT,
+                              .patch_control_points = 4},
         RenderDepthStencilState{.depth_on = true}, {});
     auto terrain_model = Mat4::translate_mat({0, 0, 0}).transpose();
     terrain_m.alloc_constant("TerrainMatrices", sizeof(Mat4), &terrain_model);
@@ -65,46 +64,46 @@ void DefaultRenderer::init() {
 }
 
 void DefaultRenderer::preprocess() {
-    World *world = SeedEngine::get_instance()->get_world();
-
-    std::vector<ModelEntity *> &entities = world->get_model_entities();
-    Camera *cam = RenderEngine::get_instance()->get_cam();
-    for (ModelEntity *e : entities) {
-        Ref<Model> model = e->get_model();
-        if (model.is_null()) continue;
-        AABB bounding_box = e->get_model_aabb();
-        /* frustum culling */
-        if (cam && !cam->within_frustum(bounding_box)) {
-            continue;
-        }
-        auto &instance = model_instances[*model];
-        instance.push_back(e->get_transform().transpose());
-        entity_aabb.push_back(bounding_box);
-    }
-
-    DebugDrawer *drawer = DebugDrawer::get_instance();
-    debug_line.alloc_vertex(sizeof(DebugDrawer::DebugVertex),
-                            drawer->line_vertices.size(),
-                            drawer->line_vertices.data());
-    debug_triangle.alloc_vertex(sizeof(DebugDrawer::DebugVertex),
-                                drawer->triangle_vertices.size(),
-                                drawer->triangle_vertices.data());
-    debug_triangle.alloc_index(drawer->triangle_indices);
-}
-
-void DefaultRenderer::process(Viewport &viewport) {
-    World *world = SeedEngine::get_instance()->get_world();
-
     RenderCommandDispatcher dp;
-    Ref<RenderTarget> rt =
-        RenderEngine::get_instance()->get_render_target("default");
-    Ref<Texture> depth_tex = rt->get_depth().texture;
-    Ref<Terrain> terrain =
-        SeedEngine::get_instance()->get_world()->get_terrain();
 
-    dp.begin_scope("Default Rendering", current_sort_key());
+    World *world = SeedEngine::get_instance()->get_world();
 
-    dp.begin_scope("Shadow Pass", current_sort_key());
+    Camera *cam = RenderEngine::get_instance()->get_cam();
+    MeshStorage *mesh_storage = MeshStorage::get_instance();
+    std::set<InstanceData *> uploaded_instance;
+
+    for (auto &[mesh, instance] : mesh_storage->get_meshes()) {
+        AABB bounding_box = mesh->get_bounding_box();
+        if (uploaded_instance.find(instance.ptr()) == uploaded_instance.end()) {
+            uploaded_instance.insert(instance.ptr());
+            instance->upload();
+        }
+        MeshInstance *mesh_inst;
+        if (mesh->get_material()->get_blend_state().blend_on) {
+            this->transparent_meshes.push_back({.mesh = mesh});
+            mesh_inst =
+                &this->transparent_meshes[this->transparent_meshes.size() - 1];
+        } else {
+            this->opaque_meshes.push_back({.mesh = mesh});
+            mesh_inst = &this->opaque_meshes[this->opaque_meshes.size() - 1];
+        }
+        u32 i = -1 + instance->get_start_idx();  // + offset
+        for (Ref<Transform> transform : instance->get_transforms()) {
+            i++;
+            /* frustum culling */
+            if (cam &&
+                !cam->within_frustum(transform->translate_AABB(bounding_box))) {
+                continue;
+            }
+            /* push instance indices */
+            mesh_inst->instance_id.push_back(i);
+            mesh_inst->depth.push_back(
+                cam->calculate_depth(transform->get_position()));
+        }
+        dp.update_buffer(mesh->instance_idx_rc, 0,
+                         sizeof(u32) * mesh_inst->instance_id.size(),
+                         (void *)mesh_inst->instance_id.data());
+    }
 
     /* upload lights uniform*/
     STB140Lights *light_buf = (STB140Lights *)dp.map_buffer(
@@ -130,8 +129,23 @@ void DefaultRenderer::process(Viewport &viewport) {
             world->get_point_lights()[i].get_light_space_mat().transpose();
     }
 
-    /* shadow pass */
+    DebugDrawer *drawer = DebugDrawer::get_instance();
+    debug_line.alloc_vertex(sizeof(DebugDrawer::DebugVertex),
+                            drawer->line_vertices.size(),
+                            drawer->line_vertices.data());
+    debug_triangle.alloc_vertex(sizeof(DebugDrawer::DebugVertex),
+                                drawer->triangle_vertices.size(),
+                                drawer->triangle_vertices.data());
+    debug_triangle.alloc_index(drawer->triangle_indices);
+}
 
+void DefaultRenderer::shadow_pass() {
+    RenderCommandDispatcher dp;
+    Ref<Terrain> terrain =
+        SeedEngine::get_instance()->get_world()->get_terrain();
+    dp.begin_scope("Shadow Pass", current_sort_key());
+
+    /* shadow pass */
     RenderStateDataBuilder shadow_map_state;
 
     shadow_map_state.bind_render_target(shadow_map_rt->get_resource());
@@ -142,23 +156,21 @@ void DefaultRenderer::process(Viewport &viewport) {
     shadow_map_state.set_viewport(
         shadow_map.query_viewport(shadow_map_dir_handle),
         shadow_map.get_resolution());
+    shadow_map_state.bind_bufferbase(
+        InstanceDataPool::get_instance()->get_render_buffer(), 0);
     dp.set_states(shadow_map_state, current_sort_key());
-    for (auto &[model, instances] : model_instances) {
-        if (instances.empty()) {
-            continue;
-        }
-        dp.update_buffer(model->instance_rc, 0, sizeof(Mat4) * instances.size(),
-                         (void *)instances.data());
-        for (Ref<Mesh> mesh : model->meshes) {
-            RenderDrawDataBuilder mesh_builder;
-            mesh_builder.bind_vertex_data(mesh->vertex_data);
-            mesh_builder.bind_description(&DS::get_instance()->mesh_desc);
-            mesh_builder.bind_vertex(model->instance_rc);
-            mesh_builder.bind_description(&instance_desc);
 
-            dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
-                      shadow_map_default_pipeline, current_sort_key(0.1));
-        }
+    for (MeshInstance &mesh : opaque_meshes) {
+        if (mesh.instance_id.empty()) continue;
+        RenderDrawDataBuilder mesh_builder;
+        mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
+        mesh_builder.bind_description(&DS::get_instance()->mesh_desc);
+        mesh_builder.bind_vertex(mesh.mesh->instance_idx_rc);
+        mesh_builder.bind_description(&instance_desc);
+        mesh_builder.set_instance(mesh.instance_id.size());
+
+        dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
+                  shadow_map_default_pipeline, current_sort_key());
     }
 
     if (terrain.is_valid()) {
@@ -172,8 +184,12 @@ void DefaultRenderer::process(Viewport &viewport) {
     }
 
     dp.end_scope(next_sort_key());
+}
 
-    /* color pass */
+void DefaultRenderer::color_pass(Viewport &viewport) {
+    RenderCommandDispatcher dp;
+    Ref<Terrain> terrain =
+        SeedEngine::get_instance()->get_world()->get_terrain();
     dp.begin_scope("Color Pass", current_sort_key());
     RenderStateDataBuilder color_state;
     color_state.bind_render_target(RenderEngine::get_instance()
@@ -181,26 +197,21 @@ void DefaultRenderer::process(Viewport &viewport) {
                                        ->get_resource());
     color_state.set_scissor(viewport.get_actual_dimension());
     color_state.set_viewport(viewport.get_actual_dimension());
+    color_state.bind_bufferbase(
+        InstanceDataPool::get_instance()->get_render_buffer(), 0);
     dp.set_states(color_state, current_sort_key());
-    dp.update_depth_attachment(rt->get_resource(), depth_tex->get_resource(), 0,
-                               current_sort_key());
 
-    for (auto &[model, instances] : model_instances) {
-        if (instances.empty()) {
-            continue;
-        }
-        for (Ref<Mesh> mesh : model->meshes) {
-            RenderDrawDataBuilder mesh_builder = dp.generate_render_data(
-                ref_cast<Material>(mesh->get_material()));
-            mesh_builder.bind_vertex_data(mesh->vertex_data);
-            mesh_builder.bind_description(&DS::get_instance()->mesh_desc);
-            mesh_builder.bind_vertex(model->instance_rc);
-            mesh_builder.bind_description(&instance_desc);
-
-            dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
-                      mesh->get_material()->get_pipeline(),
-                      current_sort_key(0.1));
-        }
+    for (MeshInstance &mesh : opaque_meshes) {
+        if (mesh.instance_id.empty()) continue;
+        RenderDrawDataBuilder mesh_builder = dp.generate_render_data(
+            ref_cast<Material>(mesh.mesh->get_material()));
+        mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
+        mesh_builder.bind_description(&DS::get_instance()->mesh_desc);
+        mesh_builder.bind_vertex(mesh.mesh->instance_idx_rc);
+        mesh_builder.bind_description(&instance_desc);
+        mesh_builder.set_instance(mesh.instance_id.size());
+        dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
+                  mesh.mesh->get_material()->get_pipeline(), current_sort_key());
     }
 
     if (terrain.is_valid()) {
@@ -224,6 +235,15 @@ void DefaultRenderer::process(Viewport &viewport) {
                   sky->get_material()->get_pipeline(), current_sort_key(1.0));
     }
     dp.end_scope(next_sort_key());
+}
+
+void DefaultRenderer::process(Viewport &viewport) {
+    World *world = SeedEngine::get_instance()->get_world();
+
+    RenderCommandDispatcher dp;
+    dp.begin_scope("Default Rendering", current_sort_key());
+    shadow_pass();
+    color_pass(viewport);
     dp.end_scope(current_sort_key());
 
     {
@@ -247,9 +267,8 @@ void DefaultRenderer::process(Viewport &viewport) {
     }
 }
 void DefaultRenderer::cleanup() {
-    for (auto &[model, instances] : model_instances) {
-        instances.clear();
-    }
+    this->transparent_meshes.clear();
+    this->opaque_meshes.clear();
 
     entity_aabb.clear();
     this->seq = 0;

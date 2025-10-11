@@ -35,6 +35,8 @@ RenderEngine::RenderEngine(Window *window) {
         exit(1);
     }
     this->device = new RenderBackendGL;
+    this->mesh_storage = new MeshStorage;
+    this->instance_pool = new InstanceDataPool;
     this->current_window = window;
     matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
     cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);

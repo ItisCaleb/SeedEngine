@@ -24,9 +24,9 @@ void PhysicEngine::process() { backend->process();
     auto entities = SeedEngine::get_instance()->get_world()->get_entities();
     for (auto entity: entities){
         if(entity->body.handle != NULL_HANDLE){
-            backend->query_physics(entity->body, entity->position, entity->rotation);
-
-            entity->dirty = true;
+            Ref<Transform> transform = entity->get_transform();
+            backend->query_physics(entity->body, transform->position, transform->rotation);
+            transform->dirty = true;
         }
     }
 }

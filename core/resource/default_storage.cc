@@ -23,7 +23,8 @@ DefaultStorage::DefaultStorage() {
         "assets/shader/shadow_default.gs");
     shadow_terrain_shader = loader->load_shader(
         "assets/shader/shadow_terrain.vert", "assets/shader/shadow.frag",
-        "assets/shader/shadow_default.gs", "assets/shader/terrain.tesc", "assets/shader/shadow_terrain.tese");
+        "assets/shader/shadow_default.gs", "assets/shader/terrain.tesc",
+        "assets/shader/shadow_terrain.tese");
 
     const char *vertex_shader =
         "#version 410 core\n"
@@ -54,18 +55,17 @@ DefaultStorage::DefaultStorage() {
         "}\n";
 
     gui_shader.create(vertex_shader, fragment_shader);
+    mesh_desc.add_type_attr<Vec3>(0, 0);
+    mesh_desc.add_type_attr<Vec3>(1, 0);
+    mesh_desc.add_type_attr<Vec2>(2, 0);
 
-    mesh_desc.add_attr(0, VertexAttributeType::FLOAT, 3, 0);
-    mesh_desc.add_attr(1, VertexAttributeType::FLOAT, 3, 0);
-    mesh_desc.add_attr(2, VertexAttributeType::FLOAT, 2, 0);
+    sky_desc.add_type_attr<Vec3>(0, 0);
 
-    sky_desc.add_attr(0, VertexAttributeType::FLOAT, 3, 0);
+    terrain_desc.add_type_attr<Vec2>(0, 0);
+    terrain_desc.add_type_attr<Vec2>(1, 0);
 
-    terrain_desc.add_attr(0, VertexAttributeType::FLOAT, 2, 0);
-    terrain_desc.add_attr(1, VertexAttributeType::FLOAT, 2, 0);
-
-    gui_desc.add_attr(0, VertexAttributeType::FLOAT, 2, 0);
-    gui_desc.add_attr(1, VertexAttributeType::FLOAT, 2, 0);
+    gui_desc.add_type_attr<Vec2>(0, 0);
+    gui_desc.add_type_attr<Vec2>(1, 0);
     gui_desc.add_attr(2, VertexAttributeType::UNSIGNED_BYTE, 4, 0, true);
 
     Vec2 tmp_post[] = {-1.0f, 1.0f, 0.0f, 1.0f,  -1.0f, -1.0f,
@@ -75,7 +75,7 @@ DefaultStorage::DefaultStorage() {
                        1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
     post_data.alloc_vertex((sizeof(Vec2) * 2),
                            (sizeof(tmp_post) / (sizeof(Vec2) * 2)), tmp_post);
-    post_desc.add_attr(0, VertexAttributeType::FLOAT, 2, 0);
-    post_desc.add_attr(1, VertexAttributeType::FLOAT, 2, 0);
+    post_desc.add_type_attr<Vec2>(0, 0);
+    post_desc.add_type_attr<Vec2>(1, 0);
 }
 }  // namespace Seed

@@ -13,18 +13,19 @@ enum class RenderResourceType : u8 {
     VERTEX,
     INDEX,
     CONSTANT,
+    BUFFER,
     SHADER,
     PIPELINE,
     RENDER_TARGET,
     UNINITIALIZE
 };
 
-
 struct RenderResource {
         Handle handle = NULL_HANDLE;
         RenderResourceType type = RenderResourceType::UNINITIALIZE;
 
-        void alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format, const void *data);
+        void alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
+                           const void *data);
         void alloc_vertex(u32 stride, u32 element_cnt, const void *data);
         void alloc_index(const std::vector<u8> &indices);
         void alloc_index(const std::vector<u16> &indices);
@@ -42,6 +43,7 @@ struct RenderResource {
                             const RenderBlendState &blend_state);
 
         void alloc_render_target(bool depth_only);
+        void alloc_buffer(u32 size, void *data);
         void dealloc();
         bool inited();
 

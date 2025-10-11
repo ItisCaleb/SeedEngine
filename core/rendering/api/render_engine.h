@@ -13,6 +13,7 @@
 #include <vector>
 #include "core/rendering/viewport.h"
 #include "core/rendering/render_target.h"
+#include "core/rendering/mesh_storage.h"
 
 namespace Seed {
 class RenderEngine {
@@ -25,6 +26,8 @@ class RenderEngine {
         };
         inline static RenderEngine *instance = nullptr;
         RenderBackend *device;
+        MeshStorage *mesh_storage;
+        InstanceDataPool *instance_pool;
         RenderResource matrices_rc, cam_rc;
         Camera cam;
         LinearAllocator mem_pool;

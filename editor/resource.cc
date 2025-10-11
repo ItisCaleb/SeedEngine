@@ -8,8 +8,8 @@
 #include <nfd.h>
 #include "core/resource/resource_loader.h"
 #include "core/resource/model.h"
-#include "core/model_entity.h"
 #include "core/engine.h"
+#include <assimp/aabb.h>
 
 using namespace Seed;
 
@@ -30,24 +30,22 @@ i16 EditorModel::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
     return -1;
 }
 
-void EditorModel::calculateAABB() {
+AABB EditorModel::calculateAABB(const std::vector<Vertex> &vertices) {
     f32 x1 = 1e5, x2 = -1e5;
     f32 y1 = 1e5, y2 = -1e5;
     f32 z1 = 1e5, z2 = -1e5;
-    for (auto &mesh : this->meshes) {
-        for (auto &vertex : mesh.vertices) {
-            x1 = std::min(x1, vertex.position.x);
-            x2 = std::max(x2, vertex.position.x);
-            y1 = std::min(y1, vertex.position.y);
-            y2 = std::max(y2, vertex.position.y);
-            z1 = std::min(z1, vertex.position.z);
-            z2 = std::max(z2, vertex.position.z);
-        }
+    for (auto &vertex : vertices) {
+        x1 = std::min(x1, vertex.position.x);
+        x2 = std::max(x2, vertex.position.x);
+        y1 = std::min(y1, vertex.position.y);
+        y2 = std::max(y2, vertex.position.y);
+        z1 = std::min(z1, vertex.position.z);
+        z2 = std::max(z2, vertex.position.z);
     }
     f32 w = (x2 - x1) / 2;
     f32 h = (y2 - y1) / 2;
     f32 d = (z2 - z1) / 2;
-    this->bounding_box = {Vec3{x2 - w, y2 - h, z2 - d}, Vec3{w, h, d}};
+    return AABB{Vec3{x2 - w, y2 - h, z2 - d}, Vec3{w, h, d}};
 }
 
 void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
@@ -122,7 +120,6 @@ EditorModel::EditorModel(const std::string &path) {
     }
     processNode(scene->mRootNode, scene);
     fmt::println("{}", scene->mNumMeshes);
-    calculateAABB();
     std::filesystem::path dir = path;
     directory = dir.parent_path().string();
 }
@@ -138,7 +135,6 @@ void EditorModel::dump(const std::string &file_path) {
     header.mesh_count = meshes.size();
     header.texture_count = textures.size();
     header.material_count = materials.size();
-    header.bounding_box = this->bounding_box;
     /* calculate offsets */
     header.mesh_offset = strlen(model_file_magic) + sizeof(ModelHeader);
     header.texture_offset =
@@ -163,6 +159,7 @@ void EditorModel::dump(const std::string &file_path) {
         MeshHeader mesh_header;
         mesh_header.vertex_size = mesh.vertices.size();
         mesh_header.index_size = mesh.indices.size();
+        mesh_header.bounding_box = calculateAABB(mesh.vertices);
         mesh_header.material_id = mesh.material_id;
         total_mesh_size += f->write(&mesh_header, sizeof(MeshHeader));
         total_mesh_size += f->write(mesh.vertices.data(),
@@ -214,10 +211,10 @@ void ModelGUI::update() {
 
             ResourceLoader *loader = ResourceLoader::get_instance();
             loader->load_async<Model>(path, [=](Ref<Model> rc) {
-                ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, rc);
-                auto engine = SeedEngine::get_instance();
-                engine->get_world()->add_entity(ent);
-                engine->get_world()->add_model_entity(ent);
+                // ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, rc);
+                // auto engine = SeedEngine::get_instance();
+                // engine->get_world()->add_entity(ent);
+                // engine->get_world()->add_model_entity(ent);
             });
         }
     }

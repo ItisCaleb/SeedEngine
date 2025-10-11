@@ -6,10 +6,11 @@
 
 namespace Seed {
 
-void RenderResource::alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
-                                   const void *data) {
+void RenderResource::alloc_texture(TextureType type, u32 w, u32 h,
+                                   PixelFormat format, const void *data) {
     this->type = RenderResourceType::TEXTURE;
-    RenderEngine::get_instance()->get_device()->alloc_texture(this, type, w, h, format);
+    RenderEngine::get_instance()->get_device()->alloc_texture(this, type, w, h,
+                                                              format);
     if (data) {
         if (type == TextureType::TEXTURE_CUBEMAP) {
             SPDLOG_WARN("Cubemap texture will not updload data at allocation.");
@@ -84,7 +85,17 @@ void RenderResource::alloc_pipeline(RenderResource shader,
 }
 void RenderResource::alloc_render_target(bool depth_only) {
     this->type = RenderResourceType::RENDER_TARGET;
-    RenderEngine::get_instance()->get_device()->alloc_render_target(this, depth_only);
+    RenderEngine::get_instance()->get_device()->alloc_render_target(this,
+                                                                    depth_only);
+}
+
+void RenderResource::alloc_buffer(u32 size, void *data) {
+    this->type = RenderResourceType::BUFFER;
+    RenderEngine::get_instance()->get_device()->alloc_buffer(this, size);
+    if (data) {
+        RenderCommandDispatcher dp;
+        dp.update_buffer(*this, 0, size, (void *)data);
+    }
 }
 
 void RenderResource::dealloc() {

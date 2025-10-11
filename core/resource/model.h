@@ -16,13 +16,13 @@ class Model : public Resource {
         friend DefaultRenderer;
 
     private:
-        RenderResource instance_rc;
         std::vector<Ref<Mesh>> meshes;
-        AABB bounding_box;
 
     public:
-        Model(const std::vector<Ref<Mesh>> &meshes, AABB bounding_box);
-        AABB get_bounding_box();
+        std::vector<Ref<Mesh>> &get_meshes(){
+            return meshes;
+        }
+        Model(const std::vector<Ref<Mesh>> &meshes);
         ~Model();
 };
 }  // namespace Seed

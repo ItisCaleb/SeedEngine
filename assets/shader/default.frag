@@ -1,4 +1,4 @@
-#version 330 core
+#version 430 core
 
 in vec3 normal;
 in vec2 texCoord;
@@ -42,9 +42,9 @@ vec3 calculate_light(vec3 diffuse, vec3 specular, vec3 light_dir, vec3 view_dir,
 void main() {
     vec3 light_out = vec3(texture(u_diffuse, texCoord)) * u_light_ambient * 0.2;
     vec3 view_dir = normalize(u_cam_pos - fragPos);
-    vec3 n_vec = normalize(normal);
-    // vec3 n_vec = texture(u_normal, texCoord).rgb;
-    // n_vec = normalize(n_vec * 2.0 - 1.0);   
+    //vec3 n_vec = normalize(normal);
+    vec3 n_vec = texture(u_normal, texCoord).rgb;
+    n_vec = normalize(n_vec * 2.0 - 1.0);   
 
 
     // direction

@@ -95,7 +95,7 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
         file->read(&mesh_header);
         file->read_vector(vertices, mesh_header.vertex_size);
         file->read_vector(indices, mesh_header.index_size);
-        meshs.push_back(Ref<Mesh>(vertices, indices));
+        meshs.push_back(Ref<Mesh>(vertices, indices, mesh_header.bounding_box));
         mesh_mats.push_back(mesh_header.material_id);
     }
 
@@ -127,7 +127,7 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
     for (int i = 0; i < meshs.size(); i++) {
         meshs[i]->set_material(ref_cast<Material>(materials[mesh_mats[i]]));
     }
-    model.create(meshs, model_header.bounding_box);
+    model.create(meshs);
     return model;
 }
 

@@ -1,4 +1,4 @@
-#version 410 core
+#version 430 core
 
 layout (quads, fractional_odd_spacing, ccw) in;
 

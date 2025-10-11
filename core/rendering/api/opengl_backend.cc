@@ -76,7 +76,7 @@ void RenderBackendGL::alloc_vertex(RenderResource *rc, u32 stride,
     }
     HardwareBufferGL buffer;
     buffer.size = stride * vertex_cnt;
-    rc->handle = this->buffers.insert(buffer);
+    rc->handle = this->vertices.insert(buffer);
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
@@ -159,6 +159,11 @@ void RenderBackendGL::alloc_render_target(RenderResource *rc, bool depth_only) {
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
+void RenderBackendGL::alloc_buffer(RenderResource *rc, u32 size) {
+    rc->handle = this->ssbos.insert({.size = size});
+    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
+}
+
 void RenderBackendGL::dealloc(RenderResource *rc) {
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = false});
 }
@@ -191,7 +196,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
     RenderResource rc = cmd.rc;
     switch (rc.type) {
         case RenderResourceType::VERTEX: {
-            HardwareBufferGL *buffer = this->buffers.get_or_null(rc.handle);
+            HardwareBufferGL *buffer = this->vertices.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(buffer);
             glGenBuffers(1, &buffer->handle);
             glBindBuffer(GL_ARRAY_BUFFER, buffer->handle);
@@ -295,6 +300,17 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 glReadBuffer(GL_NONE);
                 glBindFramebuffer(GL_FRAMEBUFFER, 0);
             }
+            break;
+        }
+        case RenderResourceType::BUFFER: {
+            HardwareBufferGL *ssbo = this->ssbos.get_or_null(rc.handle);
+            EXPECT_NOT_NULL_RET(ssbo);
+            glGenBuffers(1, &ssbo->handle);
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo->handle);
+            glBufferData(GL_SHADER_STORAGE_BUFFER, ssbo->size, nullptr,
+                         GL_DYNAMIC_DRAW);
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
             break;
         }
         case RenderResourceType::SHADER: {
@@ -477,10 +493,10 @@ void RenderBackendGL::handle_dealloc(AllocCommand &cmd) {
     RenderResource rc = cmd.rc;
     switch (rc.type) {
         case RenderResourceType::VERTEX: {
-            HardwareBufferGL *buffer = this->buffers.get_or_null(rc.handle);
+            HardwareBufferGL *buffer = this->vertices.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(buffer);
             glDeleteBuffers(1, &buffer->handle);
-            this->buffers.remove(rc.handle);
+            this->vertices.remove(rc.handle);
             break;
         }
 
@@ -527,18 +543,19 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
     RenderResource rc = update_data->rc;
     switch (rc.type) {
         case RenderResourceType::VERTEX: {
-            HardwareBufferGL *hb = this->buffers.get_or_null(rc.handle);
-            EXPECT_NOT_NULL_RET(hb);
+            HardwareBufferGL *vertex = this->vertices.get_or_null(rc.handle);
+            EXPECT_NOT_NULL_RET(vertex);
 
-            glBindBuffer(GL_ARRAY_BUFFER, hb->handle);
-            if (hb->size < update_data->buffer.size) {
+            glBindBuffer(GL_ARRAY_BUFFER, vertex->handle);
+            if (vertex->size < update_data->buffer.size) {
                 glBufferData(GL_ARRAY_BUFFER, update_data->buffer.size,
                              update_data->data, GL_DYNAMIC_DRAW);
-                hb->size = update_data->buffer.size;
+                vertex->size = update_data->buffer.size;
             } else {
                 glBufferSubData(GL_ARRAY_BUFFER, update_data->buffer.offset,
                                 update_data->buffer.size, update_data->data);
             }
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
             break;
         }
         case RenderResourceType::TEXTURE: {
@@ -627,6 +644,23 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             glBindFramebuffer(GL_FRAMEBUFFER, last_fbo);
             break;
         }
+        case RenderResourceType::BUFFER: {
+            HardwareBufferGL *buffer = this->ssbos.get_or_null(rc.handle);
+            EXPECT_NOT_NULL_BREAK(buffer);
+
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer->handle);
+            if (buffer->size < update_data->buffer.size) {
+                glBufferData(GL_SHADER_STORAGE_BUFFER, update_data->buffer.size,
+                             update_data->data, GL_DYNAMIC_COPY);
+                buffer->size = update_data->buffer.size;
+            } else {
+                glBufferSubData(GL_SHADER_STORAGE_BUFFER,
+                                update_data->buffer.offset,
+                                update_data->buffer.size, update_data->data);
+            }
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+            break;
+        }
         default:
             break;
     }
@@ -660,9 +694,30 @@ void RenderBackendGL::use_vertex_desc(VertexLayout *desc) {
                 break;
         }
         glEnableVertexAttribArray(attr.layout_num);
-        glVertexAttribPointer(attr.layout_num, attr.size, type,
-                              attr.should_normalized, desc->get_stride(),
-                              (void *)(size_t)cnt);
+
+        switch (attr.type) {
+            case VertexAttributeType::UNSIGNED_BYTE:
+            case VertexAttributeType::UNSIGNED:
+            case VertexAttributeType::INT:
+                if (attr.should_normalized) {
+                    glVertexAttribPointer(attr.layout_num, attr.size, type,
+                                          attr.should_normalized,
+                                          desc->get_stride(),
+                                          (void *)(size_t)cnt);
+                } else {
+                    glVertexAttribIPointer(attr.layout_num, attr.size, type,
+                                           desc->get_stride(),
+                                           (void *)(size_t)cnt);
+                }
+                break;
+            case VertexAttributeType::FLOAT:
+            default:
+                glVertexAttribPointer(attr.layout_num, attr.size, type,
+                                      attr.should_normalized,
+                                      desc->get_stride(), (void *)(size_t)cnt);
+                break;
+        }
+
         glVertexAttribDivisor(attr.layout_num, attr.instance_step);
         cnt += attr.size * size;
     }
@@ -672,7 +727,7 @@ void RenderBackendGL::use_vertex_desc(VertexLayout *desc) {
 void RenderBackendGL::bind_buffer(RenderResource &rc) {
     switch (rc.type) {
         case RenderResourceType::VERTEX: {
-            HardwareBufferGL *hb = this->buffers.get_or_null(rc.handle);
+            HardwareBufferGL *hb = this->vertices.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(hb);
             glBindBuffer(GL_ARRAY_BUFFER, hb->handle);
             break;
@@ -887,6 +942,15 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                     SPDLOG_ERROR("Incomplete framebuffer code: {}", status);
                 }
                 break;
+            }
+            case RenderStateData::OpType::BIND_BUFFERBASE: {
+                HardwareBufferGL *buffer =
+                    this->ssbos.get_or_null(op->bufferbase.buffer.handle);
+                EXPECT_NOT_NULL_BREAK(buffer);
+                glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer->handle);
+                glBindBufferBase(GL_SHADER_STORAGE_BUFFER, op->bufferbase.base,
+                                 buffer->handle);
+                glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
             }
             default:
                 break;

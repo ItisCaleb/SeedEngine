@@ -47,6 +47,7 @@ class Camera {
         Mat4 look_at();
         Mat4 projection();
         Vec3 to_world_pos(Vec2 pos);
+        float calculate_depth(const Vec3 &pos);
 
         Camera(Vec3 pos, Vec3 up, Vec3 front);
         Camera();

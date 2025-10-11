@@ -128,6 +128,11 @@ void Camera::calculate_dirty() {
     }
 }
 
+float Camera::calculate_depth(const Vec3 &pos){
+    float dist = (pos - this->position).length();
+    return dist / frustum.far;
+}
+
 Mat4 Camera::projection() {
     f32 w = frustum.right - frustum.left;
     f32 rl = frustum.right + frustum.left;

@@ -39,6 +39,18 @@ inline static u64 roundup_to_pow2(u64 v) {
     return v;
 }
 
+inline static u32 log2(u32 v) {
+    u32 i = 0;
+    while (v >>= 1) i++;
+    return i;
+}
+
+inline static u32 log2(u64 v) {
+    u32 i = 0;
+    while (v >>= 1) i++;
+    return i;
+}
+
 }  // namespace Seed
 
 #endif

@@ -151,6 +151,7 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
                              u32 instance_cnt = 0);
         void set_draw_index(u32 index_cnt, u32 index_offset,
                             u32 instance_cnt = 0);
+        void set_instance(u32 cnt);
 };
 
 enum StateClearFlag : u8 {
@@ -160,7 +161,7 @@ enum StateClearFlag : u8 {
 };
 
 struct RenderStateData {
-        enum class OpType : u8 { BIND_RENDER_TARGET, VIEWPORT, SCISSOR, CLEAR };
+        enum class OpType : u8 { BIND_RENDER_TARGET, VIEWPORT, SCISSOR, CLEAR, BIND_BUFFERBASE };
         struct Operation {
                 OpType type;
                 union {
@@ -171,6 +172,10 @@ struct RenderStateData {
                         } viewport;
                         RectF scissor_rect;
                         u8 clear_flag;
+                        struct {
+                                RenderResource buffer;
+                                u32 base;
+                        } bufferbase;
                 };
         };
         u32 operation_cnt = 0;
@@ -188,6 +193,7 @@ class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
 
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
         void set_scissor(const RectF &scissor_rect);
+        void bind_bufferbase(RenderResource buffer, u32 base);
 
         void clear(StateClearFlag flag);
 };
@@ -230,23 +236,23 @@ class RenderCommandDispatcher {
 
         void set_states(RenderStateDataBuilder &builder, u32 sort_key);
         /* Will copy data to a temporary buffer.*/
-        void update_buffer(RenderResource &buffer, u32 offset, u32 size,
+        void update_buffer(const RenderResource &buffer, u32 offset, u32 size,
                            void *data, u32 sort_key = 0);
-        void *map_buffer(RenderResource &buffer, u32 offset, u32 size,
+        void *map_buffer(const RenderResource &buffer, u32 offset, u32 size,
                          u32 sort_key = 0);
 
         /* Will copy data to a temporary buffer.*/
-        void update_texture(RenderResource &texture, u32 x_off, u32 y_off,
+        void update_texture(const RenderResource &texture, u32 x_off, u32 y_off,
                             u32 w, u32 h, void *data, u32 sort_key = 0);
-        void *map_texture(RenderResource &buffer, u32 x_off, u32 y_off, u32 w,
+        void *map_texture(const RenderResource &buffer, u32 x_off, u32 y_off, u32 w,
                           u32 h, u32 sort_key = 0);
-        void update_cubemap(RenderResource &texture, u8 face, u16 x_off,
+        void update_cubemap(const RenderResource &texture, u8 face, u16 x_off,
                             u16 y_off, u16 w, u16 h, void *data,
                             u32 sort_key = 0);
-        void update_color_attachment(RenderResource &render_target, i32 slot,
+        void update_color_attachment(const RenderResource &render_target, i32 slot,
                                      RenderResource tex, u32 face = 0,
                                      u32 sort_key = 0);
-        void update_depth_attachment(RenderResource &render_target,
+        void update_depth_attachment(const RenderResource &render_target,
                                      RenderResource tex, u32 face = 0,
                                      u32 sort_key = 0);
 

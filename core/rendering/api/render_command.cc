@@ -76,6 +76,11 @@ void RenderDrawDataBuilder::set_draw_index(u32 index_cnt, u32 index_offset,
     data->index_offset = index_offset;
     data->instance_cnt = instance_cnt;
 }
+
+void RenderDrawDataBuilder::set_instance(u32 cnt){
+    this->get_data()->instance_cnt = cnt;
+}
+
 void RenderStateDataBuilder::bind_render_target(RenderResource target) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::BIND_RENDER_TARGET);
@@ -88,14 +93,16 @@ void RenderStateDataBuilder::bind_window() {
     op->render_target = {};
 }
 
-void RenderStateDataBuilder::set_viewport(f32 x, f32 y, f32 width, f32 height, f32 max_height) {
+void RenderStateDataBuilder::set_viewport(f32 x, f32 y, f32 width, f32 height,
+                                          f32 max_height) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::VIEWPORT);
     op->viewport.view_rect = {x, y, width, height};
     op->viewport.max_height = max_height;
 }
 
-void RenderStateDataBuilder::set_viewport(const RectF &viewport, f32 max_height) {
+void RenderStateDataBuilder::set_viewport(const RectF &viewport,
+                                          f32 max_height) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::VIEWPORT);
     op->viewport.view_rect = viewport;
@@ -117,6 +124,17 @@ void RenderStateDataBuilder::clear(StateClearFlag flag) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::CLEAR);
     op->clear_flag |= flag;
+}
+
+void RenderStateDataBuilder::bind_bufferbase(RenderResource buffer, u32 base) {
+    if (buffer.type != RenderResourceType::BUFFER) {
+        SPDLOG_ERROR("Can't bind a buffer which type isn't 'Buffer'.");
+        return;
+    }
+    RenderStateData::Operation *op =
+        alloc_operation(RenderStateData::OpType::BIND_BUFFERBASE);
+    op->bufferbase.buffer = buffer;
+    op->bufferbase.base = base;
 }
 
 void RenderCommandDispatcher::begin_scope(const std::string &scope,
@@ -145,12 +163,13 @@ RenderCommand RenderCommandDispatcher::prepare_update_cmd(u32 sort_key) {
     return cmd;
 }
 
-void RenderCommandDispatcher::update_buffer(RenderResource &buffer, u32 offset,
+void RenderCommandDispatcher::update_buffer(const RenderResource &buffer, u32 offset,
                                             u32 size, void *data,
                                             u32 sort_key) {
     if (buffer.type != RenderResourceType::VERTEX &&
         buffer.type != RenderResourceType::CONSTANT &&
-        buffer.type != RenderResourceType::INDEX)
+        buffer.type != RenderResourceType::INDEX &&
+        buffer.type != RenderResourceType::BUFFER)
         return;
     RenderCommand cmd = prepare_update_cmd(sort_key);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
@@ -164,11 +183,12 @@ void RenderCommandDispatcher::update_buffer(RenderResource &buffer, u32 offset,
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
-void *RenderCommandDispatcher::map_buffer(RenderResource &buffer, u32 offset,
+void *RenderCommandDispatcher::map_buffer(const RenderResource &buffer, u32 offset,
                                           u32 size, u32 sort_key) {
     if (buffer.type != RenderResourceType::VERTEX &&
         buffer.type != RenderResourceType::CONSTANT &&
-        buffer.type != RenderResourceType::INDEX)
+        buffer.type != RenderResourceType::INDEX &&
+        buffer.type != RenderResourceType::BUFFER)
         return nullptr;
     RenderCommand cmd = prepare_update_cmd(sort_key);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
@@ -183,7 +203,7 @@ void *RenderCommandDispatcher::map_buffer(RenderResource &buffer, u32 offset,
     return update_data->data;
 }
 
-void RenderCommandDispatcher::update_texture(RenderResource &texture, u32 x_off,
+void RenderCommandDispatcher::update_texture(const RenderResource &texture, u32 x_off,
                                              u32 y_off, u32 w, u32 h,
                                              void *data, u32 sort_key) {
     if (texture.type != RenderResourceType::TEXTURE) return;
@@ -202,7 +222,7 @@ void RenderCommandDispatcher::update_texture(RenderResource &texture, u32 x_off,
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 
-void *RenderCommandDispatcher::map_texture(RenderResource &texture, u32 x_off,
+void *RenderCommandDispatcher::map_texture(const RenderResource &texture, u32 x_off,
                                            u32 y_off, u32 w, u32 h,
                                            u32 sort_key) {
     if (texture.type != RenderResourceType::TEXTURE) return nullptr;
@@ -221,7 +241,7 @@ void *RenderCommandDispatcher::map_texture(RenderResource &texture, u32 x_off,
     return update_data->data;
 }
 
-void RenderCommandDispatcher::update_cubemap(RenderResource &texture, u8 face,
+void RenderCommandDispatcher::update_cubemap(const RenderResource &texture, u8 face,
                                              u16 x_off, u16 y_off, u16 w, u16 h,
                                              void *data, u32 sort_key) {
     if (texture.type != RenderResourceType::TEXTURE) return;
@@ -246,7 +266,7 @@ void RenderCommandDispatcher::update_cubemap(RenderResource &texture, u8 face,
 }
 
 void RenderCommandDispatcher::update_color_attachment(
-    RenderResource &render_target, i32 slot, RenderResource tex, u32 face,
+    const RenderResource &render_target, i32 slot, RenderResource tex, u32 face,
     u32 sort_key) {
     if (slot < 0) {
         SPDLOG_ERROR("Can't update attachment with slot smaller than 0");
@@ -263,7 +283,7 @@ void RenderCommandDispatcher::update_color_attachment(
     RenderEngine::get_instance()->get_device()->push_cmd(cmd);
 }
 void RenderCommandDispatcher::update_depth_attachment(
-    RenderResource &render_target, RenderResource tex, u32 face, u32 sort_key) {
+    const RenderResource &render_target, RenderResource tex, u32 face, u32 sort_key) {
     RenderCommand cmd = prepare_update_cmd(sort_key);
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
 

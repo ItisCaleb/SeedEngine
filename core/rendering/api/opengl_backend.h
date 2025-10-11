@@ -51,6 +51,7 @@ struct HardwareRenderTargetGL {
         bool depth_only;
 };
 
+
 class RenderBackendGL : public RenderBackend {
     private:
         struct AllocCommand {
@@ -61,13 +62,14 @@ class RenderBackendGL : public RenderBackend {
         GLuint last_fbo = 0;
         std::queue<AllocCommand> alloc_cmds;
 
-        HandleOwner<HardwareBufferGL> buffers;
+        HandleOwner<HardwareBufferGL> vertices;
         HandleOwner<HardwareIndexGL> indices;
         HandleOwner<HardwareConstantGL> constants;
         HandleOwner<HardwareTextureGL> textures;
         HandleOwner<HardwareShaderGL> shaders;
         HandleOwner<HardwarePipelineGL> pipelines;
         HandleOwner<HardwareRenderTargetGL> render_targets;
+        HandleOwner<HardwareBufferGL> ssbos;
 
         void find_samplers(const std::string &src,
                            std::vector<std::string> &result);
@@ -97,8 +99,8 @@ class RenderBackendGL : public RenderBackend {
         ~RenderBackendGL() = default;
 
         /* we defer the allocation to allow multithreading. */
-        void alloc_texture(RenderResource *rc, TextureType type, u32 w,
-                           u32 h, PixelFormat format) override;
+        void alloc_texture(RenderResource *rc, TextureType type, u32 w, u32 h,
+                           PixelFormat format) override;
         void alloc_vertex(RenderResource *rc, u32 stride,
                           u32 element_cnt) override;
         void alloc_indices(RenderResource *rc, IndexType type,
@@ -115,6 +117,7 @@ class RenderBackendGL : public RenderBackend {
                             const RenderDepthStencilState &depth_state,
                             const RenderBlendState &blend_state) override;
         void alloc_render_target(RenderResource *rc, bool depth_only) override;
+        void alloc_buffer(RenderResource *rc, u32 size) override;
         void dealloc(RenderResource *r) override;
 
         void process() override;

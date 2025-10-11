@@ -7,37 +7,30 @@
 #include "core/physic/physic_body.h"
 #include "core/physic/physic_shape.h"
 #include "core/physic/physic_engine.h"
+#include "core/resource/model.h"
+#include "core/transform.h"
 
 namespace Seed {
 class Entity {
     friend PhysicEngine;
     protected:
         u32 id;
-        Vec3 position;
-        Quaternion rotation;
-        Vec3 scale;
-        Mat4 transform;
-        bool dirty = true;
+        Ref<Transform> transform;
         PhysicBody body;
-        void update_transform();
-
+        Ref<Model> model;
     public:
-        Vec3 get_position();
-        void set_position(Vec3 position);
-        Vec3 get_rotation();
-        void set_rotation(Vec3 rotation);
-        void rotate(f32 x_angle, f32 y_angle, f32 z_angle);
-        Vec3 get_scale();
-        void set_scale(Vec3 scale);
-        Mat4 get_transform();
+        Ref<Transform> get_transform(){
+            return transform;
+        }
         void create_body(PhysicShape &shape, PhysicBodyType type);
         void remove_body();
+        void bind_model(Ref<Model> model);
         virtual void update(f32 dt) {}
         virtual void render() {}
 
         Entity(Vec3 position);
         Entity();
-        ~Entity() = default;
+        ~Entity();
 };
 
 }  // namespace Seed

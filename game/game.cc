@@ -2,7 +2,6 @@
 #include "core/resource/resource_loader.h"
 #include "core/rendering/api/render_engine.h"
 #include "camera_entity.h"
-#include "core/model_entity.h"
 #include <spdlog/spdlog.h>
 #include "core/concurrency/thread_pool.h"
 #include "core/os.h"
@@ -60,19 +59,20 @@ class DebugGUI : public GUI {
         void update() override {
             auto world = Seed::SeedEngine::get_instance()->get_world();
             ImGui::Begin("Debug");
-            if(ImGui::SliderFloat3(
-                "Direction Light",
-                (float *)(void *)&world->get_direction_light().get_position(),
-                -1.0f, 1.0f)){
-                    world->get_direction_light().set_dirty();
-                }
+            if (ImGui::SliderFloat3(
+                    "Direction Light",
+                    (float *)(void *)&world->get_direction_light()
+                        .get_position(),
+                    -1.0f, 1.0f)) {
+                world->get_direction_light().set_dirty();
+            }
             auto cam = RenderEngine::get_instance()->get_cam();
             auto cam_pos = cam->get_position();
-            ImGui::Text("%.2f %.2f %.2f",  cam_pos.x, cam_pos.y, cam_pos.z);
-            if(ImGui::Button("ortho")){
+            ImGui::Text("%.2f %.2f %.2f", cam_pos.x, cam_pos.y, cam_pos.z);
+            if (ImGui::Button("ortho")) {
                 cam->set_ortho(-10, 10, -10, 10, -100, 100);
                 // set position from origin
-                Vec3 pos_dir =  Vec3{-0.5, -0.5, 0};
+                Vec3 pos_dir = Vec3{-0.5, -0.5, 0};
                 cam->set_position(-pos_dir);
                 cam->set_front(pos_dir);
             }
@@ -115,11 +115,13 @@ int main(void) {
     auto sky = loader->load_async<Sky>("assets/sky.json");
     auto backpack = loader->load_async<Model>(
         "assets/backpack/test.mdl", [=](Ref<Model> rc) {
-            ModelEntity *ent = new ModelEntity(Vec3{0, 20, -5}, rc);
-            engine->get_world()->add_entity(ent);
-            engine->get_world()->add_model_entity(ent);
-            PhysicBoxShape box(ent->get_model_aabb().ext);
-            ent->create_body(box, PhysicBodyType::DYNAMIC);
+            for (i32 i = 0; i < 50; i++) {
+                Entity *ent = new Entity(Vec3{(f32)i * 5, 20, (f32)-i});
+                ent->bind_model(rc);
+                engine->get_world()->add_entity(ent);
+                PhysicBoxShape box(Vec3{5, 5, 5});
+                ent->create_body(box, PhysicBodyType::DYNAMIC);
+            }
         });
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     engine->get_world()->get_point_lights().push_back(

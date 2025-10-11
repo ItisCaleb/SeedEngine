@@ -2,18 +2,11 @@
 
 namespace Seed {
 std::vector<Entity *> &World::get_entities() { return entities; }
-std::vector<ModelEntity *> &World::get_model_entities() {
-    return model_entities;
-}
 
 Ref<Terrain> World::get_terrain() { return terrain; }
 Ref<Sky> World::get_sky() { return sky; }
 
 void World::add_entity(Entity *entity) { this->entities.push_back(entity); }
-
-void World::add_model_entity(ModelEntity *entity) {
-    this->model_entities.push_back(entity);
-}
 
 void World::set_terrain(Ref<Terrain> terrain) { this->terrain = terrain; }
 
@@ -31,7 +24,7 @@ void World::tick(f32 dt) {
 World::World()
     : direction_light(LightType::DIRECTIONAL, Vec3{-0.5, -0.5, 0},
                       Vec3{0.5, 0.5, 0.5}, Vec3{0, 0, 0}) {
-    this->ambient_light = Vec3{0.3, 0.3, 0.3};
+    this->ambient_light = Vec3{0.6, 0.6, 0.6};
 }
 
 }  // namespace Seed
