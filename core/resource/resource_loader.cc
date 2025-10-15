@@ -3,7 +3,7 @@
 #include "core/io/file.h"
 #include <spdlog/spdlog.h>
 #include <stdexcept>
-#include "core/rendering/model_file.h"
+#include "core/resource/model_file.h"
 #include <filesystem>
 #include <type_traits>
 #include <nlohmann/json.hpp>
@@ -122,6 +122,8 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
                              texture_map[mat_field.specular_map]);
         mat->set_texture_map(BaseMaterial::NORMAl,
                              texture_map[mat_field.normal_map]);
+        RenderBlendState blend_state;
+        blend_state.blend_on = mat_field.opacity != 1.0;
         materials.push_back(mat);
     }
     for (int i = 0; i < meshs.size(); i++) {
@@ -196,8 +198,7 @@ template <>
 Ref<Terrain> ResourceLoader::_load(const std::string &path) {
     Ref<Terrain> terrain;
     Ref<Image> height_map = _load<Image>(path);
-    terrain.create(height_map->get_width(), height_map->get_height(),
-                   height_map);
+    terrain.create(height_map);
     return terrain;
 }
 

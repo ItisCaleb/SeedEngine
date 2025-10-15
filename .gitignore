@@ -2,3 +2,4 @@ build/*
 bin/*
 .vscode/*
 imgui.ini
+.vs

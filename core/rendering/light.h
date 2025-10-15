@@ -40,6 +40,7 @@ class Light {
         Vec3 diffuse;
         Vec3 specular;
         Mat4 light_mat;
+        Camera cam;
         bool enable;
 
     public:

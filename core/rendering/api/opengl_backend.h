@@ -51,7 +51,6 @@ struct HardwareRenderTargetGL {
         bool depth_only;
 };
 
-
 class RenderBackendGL : public RenderBackend {
     private:
         struct AllocCommand {
@@ -60,6 +59,7 @@ class RenderBackendGL : public RenderBackend {
         };
         GLuint global_vao;
         GLuint last_fbo = 0;
+        std::mutex alloc_lock;
         std::queue<AllocCommand> alloc_cmds;
 
         HandleOwner<HardwareBufferGL> vertices;
@@ -82,6 +82,7 @@ class RenderBackendGL : public RenderBackend {
         void setup_blend(const RenderBlendState &state);
 
         /* allocating and drawing commands */
+        /* for multithreading purpose */
         void handle_alloc(AllocCommand &cmd);
         void handle_dealloc(AllocCommand &cmd);
         void handle_update(RenderCommand &cmd);
@@ -119,8 +120,7 @@ class RenderBackendGL : public RenderBackend {
         void alloc_render_target(RenderResource *rc, bool depth_only) override;
         void alloc_buffer(RenderResource *rc, u32 size) override;
         void dealloc(RenderResource *r) override;
-
-        void process() override;
+        void process_commands(std::deque<RenderCommand> &cmd_queue) override;
 };
 
 }  // namespace Seed

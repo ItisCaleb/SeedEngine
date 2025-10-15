@@ -30,7 +30,6 @@ class RenderEngine {
         InstanceDataPool *instance_pool;
         RenderResource matrices_rc, cam_rc;
         Camera cam;
-        LinearAllocator mem_pool;
         std::vector<Layer> layers;
         std::unordered_map<std::string, Ref<RenderTarget>> render_targets;
         Window *current_window;
@@ -39,7 +38,6 @@ class RenderEngine {
         static RenderEngine *get_instance();
         void init();
         void process();
-        LinearAllocator *get_mem_pool();
         RenderBackend *get_device();
         Camera *get_cam();
         template <typename T, typename... Args>

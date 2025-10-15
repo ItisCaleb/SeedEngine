@@ -29,12 +29,14 @@ class EditorModel {
                 i16 diffuse = -1;
                 i16 specular = -1;
                 i16 normal = -1;
+                f32 opacity = 1.0f;
                 bool operator==(Material &other) {
                     return diffuse == other.diffuse &&
-                           specular == other.specular && normal == other.normal;
+                           specular == other.specular &&
+                           normal == other.normal && opacity == other.opacity;
                 }
                 bool is_null() {
-                    return diffuse == -1 && specular == -1 && normal == -1;
+                    return diffuse == -1 && specular == -1 && normal == -1 && opacity == 1.0f;
                 }
         };
         std::string directory;

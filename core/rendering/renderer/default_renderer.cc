@@ -35,6 +35,7 @@ void DefaultRenderer::init() {
     ResourceLoader *loader = ResourceLoader::get_instance();
 
     instance_desc.add_type_attr<u32>(3, 1);
+    instance_idx_rc.alloc_vertex(sizeof(u32), 0, nullptr);
 
     debug_mat.create(DS::get_instance()->mesh_debug_shader);
     RenderRasterizerState rst = {.poly_mode = PolygonMode::LINE};
@@ -87,22 +88,18 @@ void DefaultRenderer::preprocess() {
             this->opaque_meshes.push_back({.mesh = mesh});
             mesh_inst = &this->opaque_meshes[this->opaque_meshes.size() - 1];
         }
-        u32 i = -1 + instance->get_start_idx();  // + offset
+        u32 i = instance->get_start_idx() - 1;
         for (Ref<Transform> transform : instance->get_transforms()) {
+            AABB aabb = transform->translate_AABB(bounding_box);
             i++;
             /* frustum culling */
-            if (cam &&
-                !cam->within_frustum(transform->translate_AABB(bounding_box))) {
-                continue;
+            if (cam && cam->within_frustum(aabb)) {
+                /* push instance indices */
+                mesh_inst->instance_id.push_back(i);
+                mesh_inst->depth.push_back(
+                    cam->calculate_depth(transform->get_position()));
             }
-            /* push instance indices */
-            mesh_inst->instance_id.push_back(i);
-            mesh_inst->depth.push_back(
-                cam->calculate_depth(transform->get_position()));
         }
-        dp.update_buffer(mesh->instance_idx_rc, 0,
-                         sizeof(u32) * mesh_inst->instance_id.size(),
-                         (void *)mesh_inst->instance_id.data());
     }
 
     /* upload lights uniform*/
@@ -162,10 +159,13 @@ void DefaultRenderer::shadow_pass() {
 
     for (MeshInstance &mesh : opaque_meshes) {
         if (mesh.instance_id.empty()) continue;
+        dp.update_buffer(instance_idx_rc, 0,
+                         sizeof(u32) * mesh.instance_id.size(),
+                         (void *)mesh.instance_id.data());
         RenderDrawDataBuilder mesh_builder;
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.bind_description(&DS::get_instance()->mesh_desc);
-        mesh_builder.bind_vertex(mesh.mesh->instance_idx_rc);
+        mesh_builder.bind_vertex(instance_idx_rc);
         mesh_builder.bind_description(&instance_desc);
         mesh_builder.set_instance(mesh.instance_id.size());
 
@@ -173,15 +173,16 @@ void DefaultRenderer::shadow_pass() {
                   shadow_map_default_pipeline, current_sort_key());
     }
 
-    if (terrain.is_valid()) {
-        RenderDrawDataBuilder builder = dp.generate_render_data(
-            ref_cast<Material>(terrain->get_material()));
-        builder.bind_vertex_data(*terrain->get_vertices(), 0);
-        builder.bind_description(&DS::get_instance()->terrain_desc);
-
-        dp.render(builder, RenderPrimitiveType::PATCHES,
-                  shadow_map_terrain_pipeline, current_sort_key(1));
-    }
+    // if (terrain.is_valid() && terrain->is_loaded()) {
+    //     for (TerrainChunk &chunk : terrain->get_chunks()) {
+    //         RenderDrawDataBuilder builder = dp.generate_render_data(
+    //             ref_cast<Material>(terrain->get_material()));
+    //         builder.bind_vertex_data(chunk.vertex_data, 0);
+    //         builder.bind_description(&DS::get_instance()->terrain_desc);
+    //         dp.render(builder, RenderPrimitiveType::PATCHES,
+    //                   shadow_map_terrain_pipeline, current_sort_key(1));
+    //     }
+    // }
 
     dp.end_scope(next_sort_key());
 }
@@ -203,27 +204,40 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
 
     for (MeshInstance &mesh : opaque_meshes) {
         if (mesh.instance_id.empty()) continue;
+        dp.update_buffer(instance_idx_rc, 0,
+                         sizeof(u32) * mesh.instance_id.size(),
+                         (void *)mesh.instance_id.data());
         RenderDrawDataBuilder mesh_builder = dp.generate_render_data(
             ref_cast<Material>(mesh.mesh->get_material()));
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.bind_description(&DS::get_instance()->mesh_desc);
-        mesh_builder.bind_vertex(mesh.mesh->instance_idx_rc);
+        mesh_builder.bind_vertex(instance_idx_rc);
         mesh_builder.bind_description(&instance_desc);
         mesh_builder.set_instance(mesh.instance_id.size());
         dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
-                  mesh.mesh->get_material()->get_pipeline(), current_sort_key());
+                  mesh.mesh->get_material()->get_pipeline(),
+                  current_sort_key());
     }
 
-    if (terrain.is_valid()) {
-        RenderDrawDataBuilder builder = dp.generate_render_data(
-            ref_cast<Material>(terrain->get_material()));
-        builder.bind_texture(1, shadow_map.get_texture()->get_resource());
-        builder.bind_vertex_data(*terrain->get_vertices(), 0);
-        builder.bind_description(&DS::get_instance()->terrain_desc);
-
-        dp.render(builder, RenderPrimitiveType::PATCHES,
-                  terrain->get_material()->get_pipeline(), current_sort_key(1));
-    }
+    // if (terrain.is_valid() && terrain->is_loaded()) {
+    //     for (TerrainChunk &chunk : terrain->get_chunks()) {
+    //         // /* frustum culling */
+    //         // if (cam && cam->within_frustum(aabb)) {
+    //         //     /* push instance indices */
+    //         //     mesh_inst->instance_id.push_back(i);
+    //         //     mesh_inst->depth.push_back(
+    //         //         cam->calculate_depth(transform->get_position()));
+    //         // }
+    //         RenderDrawDataBuilder builder = dp.generate_render_data(
+    //             ref_cast<Material>(terrain->get_material()));
+    //         builder.bind_texture(1, shadow_map.get_texture()->get_resource());
+    //         builder.bind_vertex_data(chunk.vertex_data, 0);
+    //         builder.bind_description(&DS::get_instance()->terrain_desc);
+    //         dp.render(builder, RenderPrimitiveType::PATCHES,
+    //                   terrain->get_material()->get_pipeline(),
+    //                   current_sort_key(1));
+    //     }
+    // }
 
     auto sky = SeedEngine::get_instance()->get_world()->get_sky();
     if (sky.is_valid()) {

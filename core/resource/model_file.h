@@ -32,6 +32,7 @@ struct MaterialField {
         u16 diffuse_map;
         u16 specular_map;
         u16 normal_map;
+        f32 opacity;
 };
 #pragma pack(pop)
 

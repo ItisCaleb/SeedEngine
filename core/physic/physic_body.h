@@ -9,7 +9,7 @@ enum class PhysicBodyType {
     STATIC, DYNAMIC, KINETIC
 };
 
-struct PhysicBody : public RefCounted{
+struct PhysicBody{
         PhysicBodyType type;
         Handle handle = NULL_HANDLE;
 };

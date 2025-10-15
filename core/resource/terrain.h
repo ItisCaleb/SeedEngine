@@ -6,6 +6,9 @@
 #include "core/rendering/vertex_data.h"
 #include "core/resource/image.h"
 #include "core/physic/physic_body.h"
+#include "core/collision/aabb.h"
+#include <vector>
+#include "core/rendering/mesh.h"
 
 namespace Seed {
 
@@ -19,19 +22,37 @@ class TerrainMaterial : public Material {
         void set_height_map(Ref<Texture> height_map);
         Ref<Texture> get_height_map();
 };
-class TerrainRenderer;
-class Terrain : public Resource {
-        friend TerrainRenderer;
+
+class Terrain;
+class DefaultRenderer;
+class TerrainChunk {
+        friend DefaultRenderer;
+        friend Terrain;
 
     private:
-        u32 width, depth;
-        Ref<TerrainMaterial> terrain_mat;
-        VertexData vertices;
+        TerrainVertex vertices[4];
+        Ref<Mesh> mesh;
         PhysicBody body;
+
     public:
-        Terrain(u32 width, u32 depth, Ref<Image> height_map);
+        TerrainChunk(Ref<Image> height_map, i32 left, i32 bottom, u32 half_width,
+                     u32 half_depth, f32 tex_x_stride, f32 tex_y_stride);
+};
+
+class Terrain : public Resource {
+    private:
+        u32 width, depth;
+        Vec3 position;
+        Ref<TerrainMaterial> terrain_mat;
+        std::vector<TerrainChunk> chunks;
+        bool loaded = false;
+
+    public:
+        Terrain(Ref<Image> height_map);
         Ref<TerrainMaterial> get_material() { return terrain_mat; }
-        VertexData *get_vertices() { return &vertices; }
+        std::vector<TerrainChunk> &get_chunks() { return chunks; };
+        bool is_loaded(){return loaded;}
+
         ~Terrain();
 };
 

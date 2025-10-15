@@ -18,7 +18,7 @@ class VertexData {
         bool indexing = false;
 
     public:
-        VertexData() {}
+        VertexData() = default;
         VertexData(u32 stride, u32 vertex_cnt, const void *data);
         VertexData(u32 stride, u32 vertex_cnt, const void *data,
                    const std::vector<u8> &indices);

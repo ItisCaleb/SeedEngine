@@ -111,7 +111,7 @@ int main(void) {
     //      }
     //  }
 
-    auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
+    auto terrain = loader->load<Terrain>("assets/iceland_heightmap.png");
     auto sky = loader->load_async<Sky>("assets/sky.json");
     auto backpack = loader->load_async<Model>(
         "assets/backpack/test.mdl", [=](Ref<Model> rc) {
@@ -127,7 +127,7 @@ int main(void) {
     engine->get_world()->get_point_lights().push_back(
         Light{LightType::POINT, Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
     engine->get_world()->add_entity<CameraEntity>();
-    engine->get_world()->set_terrain(terrain->wait());
+    engine->get_world()->set_terrain(terrain);
     engine->get_world()->set_sky(sky->wait());
     engine->start();
 

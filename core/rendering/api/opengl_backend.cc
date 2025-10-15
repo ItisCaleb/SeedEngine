@@ -67,6 +67,7 @@ void RenderBackendGL::alloc_texture(RenderResource *rc, TextureType type, u32 w,
     texture.type = type;
     texture.format = format;
     rc->handle = this->textures.insert(texture);
+    std::lock_guard lg(alloc_lock);
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 void RenderBackendGL::alloc_vertex(RenderResource *rc, u32 stride,
@@ -77,6 +78,8 @@ void RenderBackendGL::alloc_vertex(RenderResource *rc, u32 stride,
     HardwareBufferGL buffer;
     buffer.size = stride * vertex_cnt;
     rc->handle = this->vertices.insert(buffer);
+    std::lock_guard lg(alloc_lock);
+
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
@@ -104,6 +107,8 @@ void RenderBackendGL::alloc_indices(RenderResource *rc, IndexType type,
     index.size = element_cnt * type_size;
     index.type = type;
     rc->handle = this->indices.insert(index);
+    std::lock_guard lg(alloc_lock);
+
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
@@ -117,6 +122,8 @@ void RenderBackendGL::alloc_constant(RenderResource *rc,
     constant.name = name;
     rc->handle = this->constants.insert(constant);
     this->constants.get_or_null(rc->handle)->buffer_base = rc->handle;
+    std::lock_guard lg(alloc_lock);
+
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
@@ -137,6 +144,8 @@ void RenderBackendGL::alloc_shader(RenderResource *rc,
     shader.tess_eval_src = tess_eval_code;
 
     rc->handle = this->shaders.insert(shader);
+    std::lock_guard lg(alloc_lock);
+
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
@@ -151,20 +160,28 @@ void RenderBackendGL::alloc_pipeline(RenderResource *rc, RenderResource shader,
                              .rst_state = rst_state,
                              .depth_state = depth_state,
                              .blend_state = blend_state};
+    std::lock_guard lg(alloc_lock);
+
     rc->handle = this->pipelines.insert(pl);
 }
 
 void RenderBackendGL::alloc_render_target(RenderResource *rc, bool depth_only) {
     rc->handle = this->render_targets.insert({.depth_only = depth_only});
+    std::lock_guard lg(alloc_lock);
+
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
 void RenderBackendGL::alloc_buffer(RenderResource *rc, u32 size) {
     rc->handle = this->ssbos.insert({.size = size});
+    std::lock_guard lg(alloc_lock);
+
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
 void RenderBackendGL::dealloc(RenderResource *rc) {
+    std::lock_guard lg(alloc_lock);
+
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = false});
 }
 void RenderBackendGL::find_samplers(const std::string &src,
@@ -493,9 +510,9 @@ void RenderBackendGL::handle_dealloc(AllocCommand &cmd) {
     RenderResource rc = cmd.rc;
     switch (rc.type) {
         case RenderResourceType::VERTEX: {
-            HardwareBufferGL *buffer = this->vertices.get_or_null(rc.handle);
-            EXPECT_NOT_NULL_RET(buffer);
-            glDeleteBuffers(1, &buffer->handle);
+            HardwareBufferGL *vertices = this->vertices.get_or_null(rc.handle);
+            EXPECT_NOT_NULL_RET(vertices);
+            glDeleteBuffers(1, &vertices->handle);
             this->vertices.remove(rc.handle);
             break;
         }
@@ -541,19 +558,20 @@ void RenderBackendGL::handle_dealloc(AllocCommand &cmd) {
 void RenderBackendGL::handle_update(RenderCommand &cmd) {
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
     RenderResource rc = update_data->rc;
+    /* data is right after header */
+    void *data = &update_data[1];
     switch (rc.type) {
         case RenderResourceType::VERTEX: {
             HardwareBufferGL *vertex = this->vertices.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(vertex);
-
             glBindBuffer(GL_ARRAY_BUFFER, vertex->handle);
             if (vertex->size < update_data->buffer.size) {
-                glBufferData(GL_ARRAY_BUFFER, update_data->buffer.size,
-                             update_data->data, GL_DYNAMIC_DRAW);
+                glBufferData(GL_ARRAY_BUFFER, update_data->buffer.size, data,
+                             GL_DYNAMIC_DRAW);
                 vertex->size = update_data->buffer.size;
             } else {
                 glBufferSubData(GL_ARRAY_BUFFER, update_data->buffer.offset,
-                                update_data->buffer.size, update_data->data);
+                                update_data->buffer.size, data);
             }
             glBindBuffer(GL_ARRAY_BUFFER, 0);
             break;
@@ -568,12 +586,12 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
                 glTexImage2D(
                     GL_TEXTURE_CUBE_MAP_POSITIVE_X + update_data->texture.face,
                     0, format, update_data->texture.w, update_data->texture.h,
-                    0, format, GL_UNSIGNED_BYTE, update_data->data);
+                    0, format, GL_UNSIGNED_BYTE, data);
             } else {
                 glTexSubImage2D(type, 0, update_data->texture.x_off,
                                 update_data->texture.y_off,
                                 update_data->texture.w, update_data->texture.h,
-                                format, GL_UNSIGNED_BYTE, update_data->data);
+                                format, GL_UNSIGNED_BYTE, data);
             }
 
             glBindTexture(type, 0);
@@ -586,12 +604,12 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
 
             glBindBuffer(GL_UNIFORM_BUFFER, constant->handle);
             if (constant->size < update_data->buffer.size) {
-                glBufferData(GL_UNIFORM_BUFFER, update_data->buffer.size,
-                             update_data->data, GL_DYNAMIC_DRAW);
+                glBufferData(GL_UNIFORM_BUFFER, update_data->buffer.size, data,
+                             GL_DYNAMIC_DRAW);
                 constant->size = update_data->buffer.size;
             } else {
                 glBufferSubData(GL_UNIFORM_BUFFER, update_data->buffer.offset,
-                                update_data->buffer.size, update_data->data);
+                                update_data->buffer.size, data);
             }
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
             break;
@@ -601,15 +619,9 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             EXPECT_NOT_NULL_RET(index);
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index->handle);
-            if (index->size < update_data->buffer.size) {
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, update_data->buffer.size,
-                             update_data->data, GL_DYNAMIC_DRAW);
-                index->size = update_data->buffer.size;
-            } else {
-                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-                                update_data->buffer.offset,
-                                update_data->buffer.size, update_data->data);
-            }
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, update_data->buffer.size,
+                         data, GL_DYNAMIC_DRAW);
+            index->size = update_data->buffer.size;
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
             break;
         }
@@ -651,12 +663,12 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer->handle);
             if (buffer->size < update_data->buffer.size) {
                 glBufferData(GL_SHADER_STORAGE_BUFFER, update_data->buffer.size,
-                             update_data->data, GL_DYNAMIC_COPY);
+                             data, GL_DYNAMIC_COPY);
                 buffer->size = update_data->buffer.size;
             } else {
                 glBufferSubData(GL_SHADER_STORAGE_BUFFER,
                                 update_data->buffer.offset,
-                                update_data->buffer.size, update_data->data);
+                                update_data->buffer.size, data);
             }
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
             break;
@@ -1018,25 +1030,6 @@ void RenderBackendGL::handle_render(RenderCommand &cmd) {
                 glScissor(rect.x, rect.y, rect.w, rect.h);
                 break;
             }
-            case RenderDrawData::OpType::UPDATE_CONSTANT: {
-                HardwareConstantGL *constant =
-                    this->constants.get_or_null(op->constant.rc.handle);
-                if (!constant) {
-                    SPDLOG_ERROR("Constant is null.");
-                    break;
-                }
-                glBindBuffer(GL_UNIFORM_BUFFER, constant->handle);
-                if (constant->size < op->constant.size) {
-                    glBufferData(GL_UNIFORM_BUFFER, op->constant.size,
-                                 op->constant.data, GL_DYNAMIC_DRAW);
-                    constant->size = op->constant.size;
-                } else {
-                    glBufferSubData(GL_UNIFORM_BUFFER, op->constant.offset,
-                                    op->constant.size, op->constant.data);
-                }
-                glBindBuffer(GL_UNIFORM_BUFFER, 0);
-                break;
-            }
             default:
                 break;
         }
@@ -1081,7 +1074,7 @@ void RenderBackendGL::handle_render(RenderCommand &cmd) {
     }
 }
 
-void RenderBackendGL::process() {
+void RenderBackendGL::process_commands(std::deque<RenderCommand> &cmd_queue) {
     /* alloc resources first */
     while (!alloc_cmds.empty()) {
         AllocCommand &cmd = alloc_cmds.front();
@@ -1092,7 +1085,6 @@ void RenderBackendGL::process() {
         }
         alloc_cmds.pop();
     }
-    std::stable_sort(cmd_queue.begin(), cmd_queue.end(), RenderCommand::cmp);
     while (!cmd_queue.empty()) {
         RenderCommand &cmd = cmd_queue.front();
         switch (cmd.type) {
@@ -1107,7 +1099,7 @@ void RenderBackendGL::process() {
                 break;
             case RenderCommandType::BEGIN_SCOPE:
                 glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1,
-                                 cmd.scope.c_str());
+                                 (const GLchar *)cmd.data);
                 break;
             case RenderCommandType::END_SCOPE:
                 glPopDebugGroup();

@@ -3,13 +3,34 @@
 #include "render_command.h"
 #include "render_resource.h"
 #include "core/handle.h"
+#include "core/allocator/linear_allocator.h"
+#include <shared_mutex>
+#include <algorithm>
+#include <deque>
 
 namespace Seed {
+class RenderBackend;
+class RenderCommandQueue {
+        friend RenderBackend;
+
+    private:
+        std::deque<RenderCommand> cmd_queue;
+        LinearAllocator data_pool;
+        std::shared_mutex queue_lock;
+
+    public:
+        void push(RenderCommand &cmd) { this->cmd_queue.push_back(cmd); }
+        void *alloc(u64 size, void *data = nullptr) {
+            return this->data_pool.alloc(size, data);
+        }
+};
 
 class RenderBackend {
     protected:
-        std::deque<RenderCommand> cmd_queue;
+        RenderCommandQueue cmd_queue[2];
         RenderResource current_pipeline;
+        int current_queue = 0;
+        std::shared_mutex queue_lock;
 
     public:
         RenderBackend(/* args */) = default;
@@ -36,11 +57,31 @@ class RenderBackend {
         virtual void alloc_render_target(RenderResource *rc,
                                          bool depth_only) = 0;
 
-        virtual void alloc_buffer(RenderResource *rc,
-                                         u32 size) = 0;
+        virtual void alloc_buffer(RenderResource *rc, u32 size) = 0;
         virtual void dealloc(RenderResource *r) = 0;
-        void push_cmd(RenderCommand &cmd) { this->cmd_queue.push_back(cmd); }
-        virtual void process() = 0;
+        virtual void process_commands(std::deque<RenderCommand> &cmd_queue) = 0;
+
+        void *push_cmd(RenderCommand &cmd, u64 size = 0, void *data = nullptr) {
+            RenderCommandQueue &queue = this->cmd_queue[current_queue];
+            queue.queue_lock.lock_shared();
+            if (size > 0) {
+                cmd.data = queue.data_pool.alloc(size, data);
+            }
+            queue.cmd_queue.push_back(cmd);
+            queue.queue_lock.unlock_shared();
+            return cmd.data;
+        }
+
+        void process() {
+            RenderCommandQueue &queue = this->cmd_queue[current_queue];
+            current_queue = (current_queue + 1) % 2;
+            queue.queue_lock.lock();
+            std::stable_sort(queue.cmd_queue.begin(), queue.cmd_queue.end(),
+                             RenderCommand::cmp);
+            this->process_commands(queue.cmd_queue);
+            queue.data_pool.free_all();
+            queue.queue_lock.unlock();
+        }
 };
 
 }  // namespace Seed

@@ -21,6 +21,8 @@ class DefaultRenderer : public Renderer {
         std::vector<MeshInstance> opaque_meshes;
         std::vector<MeshInstance> transparent_meshes;
         VertexLayout instance_desc;
+        RenderResource instance_idx_rc;
+
         Ref<Material> debug_mat;
         VertexData sky_vert;
         RenderResource terrain_m;

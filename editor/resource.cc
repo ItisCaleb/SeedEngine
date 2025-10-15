@@ -3,13 +3,14 @@
 #include <spdlog/spdlog.h>
 #include "core/io/file.h"
 #include <filesystem>
-#include "core/rendering/model_file.h"
+#include "core/resource/model_file.h"
 #include <algorithm>
 #include <nfd.h>
 #include "core/resource/resource_loader.h"
 #include "core/resource/model.h"
 #include "core/engine.h"
 #include <assimp/aabb.h>
+#include <assimp/material.h>
 
 using namespace Seed;
 
@@ -78,6 +79,8 @@ void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
         model_mat.diffuse = loadMaterialTextures(mat, aiTextureType_DIFFUSE);
         model_mat.specular = loadMaterialTextures(mat, aiTextureType_SPECULAR);
         model_mat.normal = loadMaterialTextures(mat, aiTextureType_NORMALS);
+        mat->Get(AI_MATKEY_OPACITY, &model_mat.opacity, nullptr);
+        
         if (model_mat.normal == -1) {
             /* we try to load heightmap instead*/
             model_mat.normal = loadMaterialTextures(mat, aiTextureType_HEIGHT);
@@ -183,6 +186,7 @@ void EditorModel::dump(const std::string &file_path) {
         field.diffuse_map = mat.diffuse;
         field.specular_map = mat.specular;
         field.normal_map = mat.normal;
+        field.opacity = mat.opacity;
         f->write(&field, sizeof(MaterialField));
     }
 

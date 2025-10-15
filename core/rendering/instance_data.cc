@@ -74,7 +74,7 @@ InstanceDataPool::Block InstanceDataPool::query(Handle handle) {
 
 InstanceDataPool::InstanceDataPool() {
     instance = this;
-    this->max_order = 20;
+    this->max_order = 17;
     this->ssbo_rc.alloc_buffer((1 << max_order) * sizeof(Mat4), nullptr);
     this->free_zones.resize(max_order);
     this->free_zones[this->max_order - 1].push_back(

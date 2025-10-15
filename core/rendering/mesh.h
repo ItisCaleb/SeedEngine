@@ -38,11 +38,11 @@ class Mesh : public RefCounted {
             return AABB{Vec3{x2 - w, y2 - h, z2 - d}, Vec3{w, h, d}};
         }
 
+        AABB bounding_box;
+
     public:
         VertexData vertex_data;
         Ref<Material> material;
-        AABB bounding_box;
-        RenderResource instance_idx_rc;
 
         Mesh(const std::vector<Vertex> &vertices,
              const std::vector<u32> &indices)
@@ -52,25 +52,24 @@ class Mesh : public RefCounted {
              const std::vector<u32> &indices, Ref<Material> material)
             : Mesh(vertices, indices, material, calculate_aabb(vertices)) {}
 
-        Mesh(const std::vector<Vertex> &vertices,
-             const std::vector<u32> &indices, const AABB &bounding_box)
+        template <typename T>
+        Mesh(const std::vector<T> &vertices, const std::vector<u32> &indices,
+             const AABB &bounding_box)
             : Mesh(vertices, indices, Ref<Material>(), bounding_box) {}
 
-        Mesh(const std::vector<Vertex> &vertices,
-             const std::vector<u32> &indices, Ref<Material> material,
-             const AABB &bounding_box)
-            : vertex_data(sizeof(Vertex), vertices.size(), vertices.data(),
-                          indices),
+        template <typename T>
+        Mesh(const std::vector<T> &vertices, const std::vector<u32> &indices,
+             Ref<Material> material, const AABB &bounding_box)
+            : vertex_data(sizeof(T), vertices.size(), vertices.data(), indices),
               material(material),
-              bounding_box(bounding_box) {
-            instance_idx_rc.alloc_vertex(sizeof(u32), 0, nullptr);
-        }
+              bounding_box(bounding_box) {}
 
-        ~Mesh() { instance_idx_rc.dealloc(); }
+        ~Mesh() {}
 
         void set_material(Ref<Material> mat) { this->material = mat; }
         Ref<Material> get_material() { return material; }
         const AABB &get_bounding_box() { return bounding_box; }
+        void set_bounding_box(const AABB &aabb) { this->bounding_box = aabb; }
 };
 
 }  // namespace Seed

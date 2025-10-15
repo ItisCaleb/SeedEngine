@@ -13,8 +13,8 @@ layout (std140) uniform Matrices
 
 layout(std430, binding = 0) buffer InstanceDatas
 {
-    // 2^19
-    mat4 b_models[524288];
+    // 2^16
+    mat4 b_models[65536];
 };
 
 out vec3 normal;

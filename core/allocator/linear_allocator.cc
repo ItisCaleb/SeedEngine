@@ -5,26 +5,24 @@
 #include <spdlog/spdlog.h>
 
 namespace Seed {
-void *LinearAllocator::alloc(u64 size) {
+void *LinearAllocator::alloc(u64 size, void *data) {
     std::lock_guard lg(mu);
     u64 new_size = this->cur + size;
+    void *ptr;
     if (new_size > this->cap) {
         /* we need to store data when the capacity is not enough */
-        void *buf = malloc(size);
-        this->tmp_bufs.push_back(buf);
+        ptr = malloc(size);
+        this->tmp_bufs.push_back(ptr);
         this->overflow_size += (new_size) - this->cap;
-        return buf;
     } else {
         this->cur = new_size;
-        return (void *)((u64)this->memory_base + new_size - size);
+        ptr = (void *)((u64)this->memory_base + new_size - size);
     }
-}
-
-void *LinearAllocator::alloc_data(u64 size, void *data) {
-    void *ptr = this->alloc(size);
-    memcpy(ptr, data, size);
+    if(data) memcpy(ptr, data, size);
     return ptr;
 }
+
+
 void LinearAllocator::free_all() {
     /* free the tmp buffers and realloc */
     if (overflow_size > 0) {

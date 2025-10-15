@@ -15,15 +15,7 @@ class LinearAllocator {
         std::mutex mu;
 
     public:
-        void *alloc(u64 size);
-
-        template <typename T, typename... Args>
-        T *alloc_new(const Args &...args) {
-            void *ptr = alloc(sizeof(T));
-            return new (ptr) T(args...);
-        }
-
-        void *alloc_data(u64 size, void *data);
+        void *alloc(u64 size, void *data = nullptr);
         void free_all();
         LinearAllocator();
         ~LinearAllocator();

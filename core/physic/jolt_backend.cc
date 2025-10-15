@@ -136,7 +136,7 @@ void JoltBackend::create_body(PhysicBody &body, PhysicShape &shape,
 
     JPH::BodyCreationSettings setting(shape_ref, to_jolt(pos), to_jolt(quat),
                                       m_type, Layers::MOVING);
-    JPH::Body* _body = body_if.CreateBody(setting);
+    JPH::Body *_body = body_if.CreateBody(setting);
     body_if.AddBody(_body->GetID(), JPH::EActivation::Activate);
     Handle handle = this->bodys.insert(_body->GetID());
     body.handle = handle;
@@ -195,9 +195,12 @@ void JoltDebugRenderer::DrawGeometry(
     const GeometryRef &inGeometry, ECullMode inCullMode,
     ECastShadow inCastShadow, EDrawMode inDrawMode) {
     auto cam = RenderEngine::get_instance()->get_cam();
-    if (inGeometry->mBounds.GetSqDistanceTo(to_jolt(cam->get_position())) >
-            5000 ||
-        !cam->within_frustum(from_jolt(inGeometry->mBounds))) {
+    auto aabb = inGeometry->mBounds;
+    aabb.mMin = inModelMatrix * aabb.mMin;
+    aabb.mMax = inModelMatrix * aabb.mMax;
+    if (aabb.GetSqDistanceTo(to_jolt(cam->get_position())) >
+            10000 ||
+        !cam->within_frustum(from_jolt(aabb))) {
         return;
     }
 

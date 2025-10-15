@@ -50,7 +50,6 @@ struct RenderCommand {
         u32 sort_key;
         RenderCommandType type;
         void *data;
-        std::string scope;
         static bool cmp(RenderCommand const &a, RenderCommand const &b) {
             return a.sort_key < b.sort_key;
         }
@@ -62,7 +61,6 @@ struct RenderDrawData {
             BIND_DESC,
             BIND_INDEX,
             BIND_TEXTURE,
-            UPDATE_CONSTANT,
             VIEWPORT,
             SCISSOR
         };
@@ -143,8 +141,6 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
 
         void bind_texture(u32 unit, RenderResource rc);
         void bind_description(VertexLayout *desc);
-        void update_constant(RenderResource rc, u32 offset, u32 size,
-                             void *data);
         void set_viewport(f32 x, f32 y, f32 width, f32 height);
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
         void set_draw_vertex(u32 vertex_cnt, u32 vertex_offset,
@@ -161,7 +157,13 @@ enum StateClearFlag : u8 {
 };
 
 struct RenderStateData {
-        enum class OpType : u8 { BIND_RENDER_TARGET, VIEWPORT, SCISSOR, CLEAR, BIND_BUFFERBASE };
+        enum class OpType : u8 {
+            BIND_RENDER_TARGET,
+            VIEWPORT,
+            SCISSOR,
+            CLEAR,
+            BIND_BUFFERBASE
+        };
         struct Operation {
                 OpType type;
                 union {
@@ -199,7 +201,6 @@ class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
 };
 
 struct RenderUpdateData {
-        void *data;
         RenderResource rc;
         union {
                 struct {
@@ -224,11 +225,14 @@ struct RenderUpdateData {
         };
 };
 
+class RenderCommandQueue;
 class RenderCommandDispatcher {
+        friend RenderDrawDataBuilder;
+
     private:
         RectF viewport;
-        std::string scope;
-        RenderCommand prepare_update_cmd(u32 sort_key);
+        RenderUpdateData *prepare_update_cmd(u32 sort_key, u64 size,
+                                             void *data);
 
     public:
         void begin_scope(const std::string &scope, u32 sort_key);
@@ -244,13 +248,13 @@ class RenderCommandDispatcher {
         /* Will copy data to a temporary buffer.*/
         void update_texture(const RenderResource &texture, u32 x_off, u32 y_off,
                             u32 w, u32 h, void *data, u32 sort_key = 0);
-        void *map_texture(const RenderResource &buffer, u32 x_off, u32 y_off, u32 w,
-                          u32 h, u32 sort_key = 0);
+        void *map_texture(const RenderResource &buffer, u32 x_off, u32 y_off,
+                          u32 w, u32 h, u32 sort_key = 0);
         void update_cubemap(const RenderResource &texture, u8 face, u16 x_off,
                             u16 y_off, u16 w, u16 h, void *data,
                             u32 sort_key = 0);
-        void update_color_attachment(const RenderResource &render_target, i32 slot,
-                                     RenderResource tex, u32 face = 0,
+        void update_color_attachment(const RenderResource &render_target,
+                                     i32 slot, RenderResource tex, u32 face = 0,
                                      u32 sort_key = 0);
         void update_depth_attachment(const RenderResource &render_target,
                                      RenderResource tex, u32 face = 0,
@@ -262,7 +266,7 @@ class RenderCommandDispatcher {
         void render(RenderDrawDataBuilder &builder, RenderPrimitiveType type,
                     RenderResource pipeline, u32 sort_key);
 
-        RenderCommandDispatcher() {}
+        RenderCommandDispatcher();
         ~RenderCommandDispatcher();
 };
 

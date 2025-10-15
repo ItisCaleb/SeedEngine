@@ -73,8 +73,6 @@ void RenderEngine::init() {
 
 RenderBackend *RenderEngine::get_device() { return device; }
 
-LinearAllocator *RenderEngine::get_mem_pool() { return &this->mem_pool; }
-
 Camera *RenderEngine::get_cam() { return &cam; }
 
 template <typename T, typename... Args>
@@ -131,7 +129,6 @@ void RenderEngine::process() {
         layer.renderer->cleanup();
     }
 
-    this->mem_pool.free_all();
 }
 
 Ref<RenderTarget> RenderEngine::get_render_target(const std::string &name) {
