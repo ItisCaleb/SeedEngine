@@ -557,6 +557,10 @@ void RenderBackendGL::handle_dealloc(AllocCommand &cmd) {
 
 void RenderBackendGL::handle_update(RenderCommand &cmd) {
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
+    if(!update_data->filled){
+        this->push_cmd(cmd);
+        return;
+    }
     RenderResource rc = update_data->rc;
     /* data is right after header */
     void *data = &update_data[1];
@@ -676,6 +680,7 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
         default:
             break;
     }
+    free(update_data);
 }
 void RenderBackendGL::use_vertex_desc(VertexLayout *desc) {
     if (!desc) {

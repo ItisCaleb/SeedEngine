@@ -12,6 +12,7 @@ class MeshStorage {
 
     public:
         void add_mesh(Ref<Mesh> mesh, Ref<InstanceData> instance);
+        void remove_mesh(Ref<Mesh> mesh);
         Ref<InstanceData> get_mesh_instance(Ref<Mesh> mesh);
         std::map<Ref<Mesh>, Ref<InstanceData>> &get_meshes() { return meshes; }
         MeshStorage();

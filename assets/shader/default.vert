@@ -11,7 +11,7 @@ layout (std140) uniform Matrices
     mat4 u_view;
 };
 
-layout(std430, binding = 0) buffer InstanceDatas
+layout(std430, binding = 0) buffer InstanceTransformDatas
 {
     // 2^16
     mat4 b_models[65536];

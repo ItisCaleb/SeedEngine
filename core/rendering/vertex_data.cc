@@ -1,79 +1,60 @@
 #include "vertex_data.h"
+#include "core/rendering/api/render_command.h"
 
 namespace Seed {
-VertexData::VertexData(u32 stride, u32 vertex_cnt, const void *data) {
-    this->vertices_cnt = vertex_cnt;
-    this->stride = stride;
-    this->vertices.alloc_vertex(stride, vertex_cnt, data);
-}
 
-VertexData::VertexData(u32 stride, u32 vertex_cnt, const void *data,
-                       const std::vector<u8> &indices)
-    : VertexData(stride, vertex_cnt, data) {
-    this->alloc_index(indices);
-}
-
-VertexData::VertexData(u32 stride, u32 vertex_cnt, const void *data,
-                       const std::vector<u16> &indices)
-    : VertexData(stride, vertex_cnt, data) {
-    this->alloc_index(indices);
-}
-
-VertexData::VertexData(u32 stride, u32 vertex_cnt, const void *data,
-                       const std::vector<u32> &indices)
-    : VertexData(stride, vertex_cnt, data) {
-    this->alloc_index(indices);
-}
 
 VertexData::~VertexData() {
     this->vertices.dealloc();
-    this->indices.dealloc();
 }
 
-void VertexData::bind_vertices(u32 stride, u32 vertex_cnt,
-                               RenderResource vertices) {
-    if (this->vertices.inited() && this->vertices.handle != vertices.handle) {
-        this->vertices.dealloc();
-    }
-    this->vertices = vertices;
-    this->stride = stride;
-    this->vertices_cnt = vertex_cnt;
+IndexData::IndexData(const std::vector<u8> &indices) {
+    this->indices.alloc_index(indices);
+    this->type = IndexType::UNSIGNED_BYTE;
+    this->size = indices.size();
+}
+IndexData::IndexData(const std::vector<u16> &indices) {
+    this->indices.alloc_index(indices);
+    this->type = IndexType::UNSIGNED_SHORT;
+    this->size = indices.size();
+}
+IndexData::IndexData(const std::vector<u32> &indices) {
+    this->indices.alloc_index(indices);
+    this->type = IndexType::UNSIGNED_INT;
+    this->size = indices.size();
 }
 
-void VertexData::alloc_vertex(u32 stride, u32 vertex_cnt, const void *data) {
-    if (this->vertices.inited()) {
-        this->vertices.dealloc();
+void IndexData::update(const std::vector<u8> &indices) {
+    if (type != IndexType::UNSIGNED_BYTE) {
+        SPDLOG_ERROR("Index Type doens't match. Provided: u8");
+        return;
     }
-    this->stride = stride;
-    this->vertices_cnt = vertex_cnt;
-    this->vertices.alloc_vertex(stride, vertex_cnt, data);
+    RenderCommandDispatcher dp;
+    dp.update_buffer(this->indices, 0, sizeof(u8) * indices.size(),
+                     (void *)indices.data());
+    this->size = indices.size();
 }
-void VertexData::alloc_index(const std::vector<u8> &indices) {
-    if (this->indices.inited()) {
-        this->indices.dealloc();
+void IndexData::update(const std::vector<u16> &indices) {
+    if (type != IndexType::UNSIGNED_SHORT) {
+        SPDLOG_ERROR("Index Type doens't match. Provided: u16");
+        return;
     }
-    this->index_type = IndexType::UNSIGNED_BYTE;
-    this->indices_cnt = indices.size();
-    this->indices.alloc_index(indices);
-    this->indexing = true;
+    RenderCommandDispatcher dp;
+    dp.update_buffer(this->indices, 0, sizeof(u16) * indices.size(),
+                     (void *)indices.data());
+    this->size = indices.size();
 }
-void VertexData::alloc_index(const std::vector<u16> &indices) {
-    if (this->indices.inited()) {
-        this->indices.dealloc();
+void IndexData::update(const std::vector<u32> &indices) {
+    if (type != IndexType::UNSIGNED_INT) {
+        SPDLOG_ERROR("Index Type doens't match. Provided: u32");
+        return;
     }
-    this->index_type = IndexType::UNSIGNED_SHORT;
-    this->indices_cnt = indices.size();
-    this->indices.alloc_index(indices);
-    this->indexing = true;
+    RenderCommandDispatcher dp;
+    dp.update_buffer(this->indices, 0, sizeof(u32) * indices.size(),
+                     (void *)indices.data());
+    this->size = indices.size();
 }
-void VertexData::alloc_index(const std::vector<u32> &indices) {
-    if (this->indices.inited()) {
-        this->indices.dealloc();
-    }
-    this->index_type = IndexType::UNSIGNED_INT;
 
-    this->indices_cnt = indices.size();
-    this->indices.alloc_index(indices);
-    this->indexing = true;
-}
+IndexData::~IndexData() { this->indices.dealloc(); }
+
 }  // namespace Seed

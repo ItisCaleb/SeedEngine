@@ -115,7 +115,7 @@ int main(void) {
     auto sky = loader->load_async<Sky>("assets/sky.json");
     auto backpack = loader->load_async<Model>(
         "assets/backpack/test.mdl", [=](Ref<Model> rc) {
-            for (i32 i = 0; i < 50; i++) {
+            for (i32 i = 0; i < 10; i++) {
                 Entity *ent = new Entity(Vec3{(f32)i * 5, 20, (f32)-i});
                 ent->bind_model(rc);
                 engine->get_world()->add_entity(ent);

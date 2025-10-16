@@ -3,6 +3,7 @@
 #include "core/ref.h"
 #include "core/transform.h"
 #include "core/rendering/api/render_resource.h"
+#include "core/rendering/camera.h"
 #include <set>
 #include <vector>
 #include <list>
@@ -37,19 +38,35 @@ class InstanceDataPool {
 };
 
 class InstanceData : public RefCounted {
-    private:
-        std::set<Ref<Transform>> transforms;
+    protected:
+        InstanceData() {}
         Handle instance_handle = NULL_HANDLE;
 
     public:
+        virtual void upload() = 0;
+        virtual u32 get_size() = 0;
+        virtual void frustum_culling(Camera *cam, const AABB &bounding_box,
+                                     std::vector<u32> &instance_ids,
+                                     std::vector<f32> &depths) = 0;
+
+        virtual ~InstanceData();
+};
+
+class InstanceTransformData : public InstanceData {
+    private:
+        std::set<Ref<Transform>> transforms;
+
+    public:
+        const std::set<Ref<Transform>> &get_transforms() { return transforms; }
+        u32 get_size() override { return transforms.size(); }
         void insert_transform(Ref<Transform> transform);
         void remove_transform(Ref<Transform> transform);
-        void upload();
-        u32 get_start_idx();
-        u32 get_size() { return transforms.size(); }
-        const std::set<Ref<Transform>> &get_transforms() { return transforms; }
-        InstanceData();
-        ~InstanceData();
+        void upload() override;
+        void frustum_culling(Camera *cam, const AABB &bounding_box,
+                             std::vector<u32> &instance_ids,
+                             std::vector<f32> &depths) override;
+
+        InstanceTransformData();
 };
 }  // namespace Seed
 

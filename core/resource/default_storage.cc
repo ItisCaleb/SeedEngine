@@ -3,6 +3,11 @@
 #include "core/math/vec2.h"
 
 namespace Seed {
+
+struct PostData {
+        Vec2 pos;
+        Vec2 tex;
+};
 DefaultStorage::DefaultStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
@@ -25,6 +30,16 @@ DefaultStorage::DefaultStorage() {
         "assets/shader/shadow_terrain.vert", "assets/shader/shadow.frag",
         "assets/shader/shadow_default.gs", "assets/shader/terrain.tesc",
         "assets/shader/shadow_terrain.tese");
+
+    shadow_map_default_pipeline.alloc_pipeline(
+        shadow_default_shader->get_render_resource(),
+        RenderRasterizerState{.cull_mode = Cullmode::FRONT},
+        RenderDepthStencilState{.depth_on = true}, {});
+    shadow_map_terrain_pipeline.alloc_pipeline(
+        shadow_terrain_shader->get_render_resource(),
+        RenderRasterizerState{.cull_mode = Cullmode::FRONT,
+                              .patch_control_points = 4},
+        RenderDepthStencilState{.depth_on = true}, {});
 
     const char *vertex_shader =
         "#version 410 core\n"
@@ -68,14 +83,15 @@ DefaultStorage::DefaultStorage() {
     gui_desc.add_type_attr<Vec2>(1, 0);
     gui_desc.add_attr(2, VertexAttributeType::UNSIGNED_BYTE, 4, 0, true);
 
-    Vec2 tmp_post[] = {-1.0f, 1.0f, 0.0f, 1.0f,  -1.0f, -1.0f,
-                       0.0f,  0.0f, 1.0f, -1.0f, 1.0f,  0.0f,
+    PostData tmp_post[] = {-1.0f, 1.0f, 0.0f, 1.0f,  -1.0f, -1.0f,
+                  0.0f,  0.0f, 1.0f, -1.0f, 1.0f,  0.0f,
 
-                       -1.0f, 1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
-                       1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
-    post_data.alloc_vertex((sizeof(Vec2) * 2),
-                           (sizeof(tmp_post) / (sizeof(Vec2) * 2)), tmp_post);
+                  -1.0f, 1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
+                  1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
+
     post_desc.add_type_attr<Vec2>(0, 0);
     post_desc.add_type_attr<Vec2>(1, 0);
+    post_data.create(&post_desc, (sizeof(tmp_post) / (sizeof(PostData))),
+                     tmp_post);
 }
 }  // namespace Seed

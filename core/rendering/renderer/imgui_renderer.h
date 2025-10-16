@@ -9,7 +9,8 @@ class ImguiRenderer : public Renderer {
 
     private:
         struct ImguiData {
-                VertexData vertex;
+                RenderResource vertex;
+                RenderResource indices;
         };
         Ref<Material> font_mat;
         RenderResource gui_proj;

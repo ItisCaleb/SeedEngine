@@ -137,16 +137,15 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
     public:
         void bind_vertex(RenderResource rc);
         void bind_index(RenderResource rc);
-        void bind_vertex_data(VertexData &data, u32 offset = 0);
+        void bind_vertex_data(Ref<VertexData> data, u32 offset = 0);
+        void bind_index_data(Ref<IndexData> data, u32 offset = 0);
 
         void bind_texture(u32 unit, RenderResource rc);
         void bind_description(VertexLayout *desc);
         void set_viewport(f32 x, f32 y, f32 width, f32 height);
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
-        void set_draw_vertex(u32 vertex_cnt, u32 vertex_offset,
-                             u32 instance_cnt = 0);
-        void set_draw_index(u32 index_cnt, u32 index_offset,
-                            u32 instance_cnt = 0);
+        void set_draw_vertex(u32 vertex_cnt, u32 vertex_offset);
+        void set_draw_index(u32 index_cnt, u32 index_offset);
         void set_instance(u32 cnt);
 };
 
@@ -202,6 +201,7 @@ class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
 
 struct RenderUpdateData {
         RenderResource rc;
+        bool filled;
         union {
                 struct {
                         u32 offset;
@@ -221,8 +221,13 @@ struct RenderUpdateData {
                         u32 face;
                         RenderResource texture;
                         i32 slot;
-                } attachment;
+                } attachment{};
         };
+        void *get_buffer() {
+            return (void *)((u64)this + sizeof(RenderUpdateData));
+        }
+
+        void set_filled() { this->filled = true; }
 };
 
 class RenderCommandQueue;
@@ -231,8 +236,8 @@ class RenderCommandDispatcher {
 
     private:
         RectF viewport;
-        RenderUpdateData *prepare_update_cmd(u32 sort_key, u64 size,
-                                             void *data);
+        void *push_update_cmd(RenderUpdateData &update_data, u32 sort_key,
+                              u64 size, void *data);
 
     public:
         void begin_scope(const std::string &scope, u32 sort_key);
@@ -242,14 +247,15 @@ class RenderCommandDispatcher {
         /* Will copy data to a temporary buffer.*/
         void update_buffer(const RenderResource &buffer, u32 offset, u32 size,
                            void *data, u32 sort_key = 0);
-        void *map_buffer(const RenderResource &buffer, u32 offset, u32 size,
-                         u32 sort_key = 0);
+        RenderUpdateData *map_buffer(const RenderResource &buffer, u32 offset,
+                                     u32 size, u32 sort_key = 0);
 
         /* Will copy data to a temporary buffer.*/
         void update_texture(const RenderResource &texture, u32 x_off, u32 y_off,
                             u32 w, u32 h, void *data, u32 sort_key = 0);
-        void *map_texture(const RenderResource &buffer, u32 x_off, u32 y_off,
-                          u32 w, u32 h, u32 sort_key = 0);
+        RenderUpdateData *map_texture(const RenderResource &buffer, u32 x_off,
+                                      u32 y_off, u32 w, u32 h,
+                                      u32 sort_key = 0);
         void update_cubemap(const RenderResource &texture, u8 face, u16 x_off,
                             u16 y_off, u16 w, u16 h, void *data,
                             u32 sort_key = 0);

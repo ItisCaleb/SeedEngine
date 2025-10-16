@@ -15,16 +15,13 @@ void Entity::remove_body() {
 
 void Entity::bind_model(Ref<Model> new_model) {
     if (!this->model.is_null() && !this->model->get_meshes().empty()) {
-        MeshStorage::get_instance()
-            ->get_mesh_instance(this->model->get_meshes()[0])
-            ->remove_transform(this->transform);
+        this->model->remove_transform(this->transform);
     }
     this->model = new_model;
     if (new_model.is_null()) return;
     std::vector<Ref<Mesh>> &meshes = new_model->get_meshes();
     if (meshes.empty()) return;
-    MeshStorage::get_instance()->get_mesh_instance(meshes[0])->insert_transform(
-        this->transform);
+    this->model->insert_transform(this->transform);
 }
 
 Entity::Entity(Vec3 position) {
@@ -36,9 +33,7 @@ Entity::Entity() : Entity(Vec3{0, 0, 0}) {}
 
 Entity::~Entity() {
     if (!this->model.is_null() && !this->model->get_meshes().empty()) {
-        MeshStorage::get_instance()
-            ->get_mesh_instance(this->model->get_meshes()[0])
-            ->remove_transform(this->transform);
+        this->model->remove_transform(this->transform);
     }
 }
 

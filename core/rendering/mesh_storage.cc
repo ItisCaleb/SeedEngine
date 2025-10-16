@@ -6,12 +6,16 @@ MeshStorage::MeshStorage() { instance = this; }
 
 void MeshStorage::add_mesh(Ref<Mesh> mesh, Ref<InstanceData> instance) {
     EXPECT_NOT_NULL_RET(*mesh);
-    EXPECT_NOT_NULL_RET(*instance);
     if (this->meshes.find(mesh) == this->meshes.end()) {
         this->meshes[mesh] = instance;
     } else {
         spdlog::error("Mesh already in MeshStorage.");
     }
+}
+
+void MeshStorage::remove_mesh(Ref<Mesh> mesh) {
+    EXPECT_NOT_NULL_RET(*mesh);
+    this->meshes.erase(mesh);
 }
 
 Ref<InstanceData> MeshStorage::get_mesh_instance(Ref<Mesh> mesh) {

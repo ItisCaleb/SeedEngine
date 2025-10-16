@@ -20,7 +20,6 @@ void PostRenderer::process(Viewport &viewport){
     dp.begin_scope("POST Rendering", current_sort_key());
     auto builder = dp.generate_render_data(post_mat);
     builder.bind_vertex_data(DS::get_instance()->post_data);
-    builder.bind_description(&DS::get_instance()->post_desc);
     dp.render(builder, RenderPrimitiveType::TRIANGLES, post_mat->get_pipeline(), current_sort_key());
     dp.end_scope(next_sort_key());
 }

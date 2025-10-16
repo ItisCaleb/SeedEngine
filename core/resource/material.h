@@ -25,6 +25,7 @@ class Material : public Resource {
         u16 id;
         std::vector<TextureState> textures;
         RenderResource pipeline;
+        RenderResource shadow_pipeline;
         bool pipeline_dirty = true;
         Ref<Shader> shader;
         RenderRasterizerState raster_state;
@@ -46,6 +47,9 @@ class Material : public Resource {
         RenderBlendState get_blend_state() { return blend_state; }
 
         RenderResource get_pipeline();
+        RenderResource get_shadow_pipeline(){
+            return shadow_pipeline;
+        }
         u16 get_id() { return id; }
         virtual void bind_states(RenderDrawDataBuilder &builder);
         inline static u16 last_id = 0;
@@ -62,6 +66,7 @@ class BaseMaterial : public Material {
                 this->add_texture_unit(Ref<Texture>());
             }
             depth_state = {.depth_on = true};
+            this->shadow_pipeline = DS::get_instance()->shadow_map_default_pipeline;
         }
         void set_texture_map(TextureMapType type, Ref<Texture> tex) {
             this->set_texture_unit(type, tex);

@@ -81,17 +81,25 @@ InstanceDataPool::InstanceDataPool() {
         Block{0, 1u << (this->max_order - 1)});
 }
 InstanceDataPool::~InstanceDataPool() {}
-void InstanceData::insert_transform(Ref<Transform> transform) {
+
+InstanceData::~InstanceData() {
+    if (this->instance_handle != NULL_HANDLE) {
+        InstanceDataPool *pool = InstanceDataPool::get_instance();
+        pool->free(this->instance_handle);
+        this->instance_handle = NULL_HANDLE;
+    }
+}
+
+void InstanceTransformData::insert_transform(Ref<Transform> transform) {
     EXPECT_NOT_NULL_RET(*transform);
     this->transforms.insert(transform);
 }
-
-void InstanceData::remove_transform(Ref<Transform> transform) {
+void InstanceTransformData::remove_transform(Ref<Transform> transform) {
     EXPECT_NOT_NULL_RET(*transform);
     this->transforms.erase(transform);
 }
 
-void InstanceData::upload() {
+void InstanceTransformData::upload() {
     InstanceDataPool *pool = InstanceDataPool::get_instance();
     if (instance_handle == NULL_HANDLE) {
         instance_handle = pool->alloc(this->transforms.size());
@@ -105,21 +113,35 @@ void InstanceData::upload() {
     /* upload */
     InstanceDataPool::Block block = pool->query(instance_handle);
     RenderCommandDispatcher dp;
-    Mat4 *mats = (Mat4 *)dp.map_buffer(pool->get_render_buffer(),
+    RenderUpdateData* upd = dp.map_buffer(pool->get_render_buffer(),
                                        sizeof(Mat4) * block.idx,
                                        sizeof(Mat4) * this->transforms.size());
+    Mat4 *mats = (Mat4 *)upd->get_buffer();
     u32 i = 0;
     for (Ref<Transform> transform : this->transforms) {
         mats[i] = transform->get_model_matrix().transpose();
         i++;
     }
+    upd->set_filled();
 }
 
-u32 InstanceData::get_start_idx() {
+void InstanceTransformData::frustum_culling(Camera *cam,
+                                            const AABB &bounding_box,
+                                            std::vector<u32> &instance_ids,
+                                            std::vector<f32> &depths) {
     InstanceDataPool *pool = InstanceDataPool::get_instance();
-    return pool->query(instance_handle).idx;
+    u32 i = pool->query(instance_handle).idx;
+    for (Ref<Transform> transform : transforms) {
+        AABB aabb = transform->translate_AABB(bounding_box);
+        /* frustum culling */
+        if (cam && cam->within_frustum(aabb)) {
+            /* push instance indices */
+            instance_ids.push_back(i);
+            depths.push_back(cam->calculate_depth(transform->get_position()));
+        }
+        i++;
+    }
 }
 
-InstanceData::InstanceData() {}
-InstanceData::~InstanceData() {}
+InstanceTransformData::InstanceTransformData() {}
 }  // namespace Seed

@@ -10,6 +10,8 @@
 #include <vector>
 #include <algorithm>
 
+#define LOD_MAX 4
+
 namespace Seed {
 struct Vertex {
         Vec3 position;
@@ -37,37 +39,38 @@ class Mesh : public RefCounted {
             f32 d = (z2 - z1) / 2;
             return AABB{Vec3{x2 - w, y2 - h, z2 - d}, Vec3{w, h, d}};
         }
-
         AABB bounding_box;
+        RenderPrimitiveType type = RenderPrimitiveType::TRIANGLES;
 
     public:
-        VertexData vertex_data;
+        Ref<VertexData> vertex_data;
+        std::vector<Ref<IndexData>> lod_indices;
         Ref<Material> material;
 
-        Mesh(const std::vector<Vertex> &vertices,
-             const std::vector<u32> &indices)
-            : Mesh(vertices, indices, Ref<Material>()) {}
-
-        Mesh(const std::vector<Vertex> &vertices,
-             const std::vector<u32> &indices, Ref<Material> material)
-            : Mesh(vertices, indices, material, calculate_aabb(vertices)) {}
+        template <typename T>
+        Mesh(VertexLayout *layout, const std::vector<T> &vertices,
+             const std::vector<u32> &indices, const AABB &bounding_box)
+            : Mesh(layout, vertices, indices, Ref<Material>(), bounding_box) {
+            this->lod_indices.reserve(LOD_MAX);
+            this->lod_indices.emplace_back(indices);
+        }
 
         template <typename T>
-        Mesh(const std::vector<T> &vertices, const std::vector<u32> &indices,
+        Mesh(VertexLayout *layout, const std::vector<T> &vertices,
+             const std::vector<u32> &indices, Ref<Material> material,
              const AABB &bounding_box)
-            : Mesh(vertices, indices, Ref<Material>(), bounding_box) {}
-
-        template <typename T>
-        Mesh(const std::vector<T> &vertices, const std::vector<u32> &indices,
-             Ref<Material> material, const AABB &bounding_box)
-            : vertex_data(sizeof(T), vertices.size(), vertices.data(), indices),
-              material(material),
-              bounding_box(bounding_box) {}
+            : material(material), bounding_box(bounding_box) {
+            vertex_data.create(layout, vertices);
+            this->lod_indices.reserve(LOD_MAX);
+            this->lod_indices.emplace_back(indices);
+        }
 
         ~Mesh() {}
 
         void set_material(Ref<Material> mat) { this->material = mat; }
         Ref<Material> get_material() { return material; }
+        void set_type(RenderPrimitiveType prim_type) { this->type = prim_type; }
+        RenderPrimitiveType get_type() { return this->type; }
         const AABB &get_bounding_box() { return bounding_box; }
         void set_bounding_box(const AABB &aabb) { this->bounding_box = aabb; }
 };

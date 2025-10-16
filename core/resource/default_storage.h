@@ -25,7 +25,9 @@ class DefaultStorage {
         VertexLayout sky_desc;
         VertexLayout gui_desc;
         VertexLayout post_desc;
-        VertexData post_data;
+        Ref<VertexData> post_data;
+        RenderResource shadow_map_default_pipeline;
+        RenderResource shadow_map_terrain_pipeline;
 
         static DefaultStorage *get_instance() { return instance; }
         DefaultStorage();

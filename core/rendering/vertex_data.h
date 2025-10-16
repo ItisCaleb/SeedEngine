@@ -1,56 +1,93 @@
 #ifndef _SEED_VERTEX_DATA_H_
 #define _SEED_VERTEX_DATA_H_
 #include "core/rendering/api/render_resource.h"
+#include "core/rendering/vertex_layout.h"
+#include "core/ref.h"
+#include <spdlog/spdlog.h>
 
 namespace Seed {
 
-enum class IndexType { UNSIGNED_BYTE, UNSIGNED_SHORT, UNSIGNED_INT };
-class VertexData {
+class VertexData : public RefCounted {
     private:
-        u32 vertices_cnt;
-        u32 stride;
+        u32 count = 0;
         RenderResource vertices;
-
-        IndexType index_type = IndexType::UNSIGNED_INT;
-        u32 indices_cnt;
-        RenderResource indices;
-
-        bool indexing = false;
+        VertexLayout *layout = nullptr;
 
     public:
-        VertexData() = default;
-        VertexData(u32 stride, u32 vertex_cnt, const void *data);
-        VertexData(u32 stride, u32 vertex_cnt, const void *data,
-                   const std::vector<u8> &indices);
-        VertexData(u32 stride, u32 vertex_cnt, const void *data,
-                   const std::vector<u16> &indices);
-        VertexData(u32 stride, u32 vertex_cnt, const void *data,
-                   const std::vector<u32> &indices);
+        VertexData(VertexLayout *layout) {
+            if (!layout) throw std::runtime_error("Layout is null.");
+            this->layout = layout;
+            this->vertices.alloc_vertex(layout->get_stride(), 0, nullptr);
+        }
 
+        template <typename T>
+        VertexData(VertexLayout *layout, u32 count, const T *data) {
+            if (!layout) throw std::runtime_error("Layout is null.");
+            if (layout->get_stride() != sizeof(T)) {
+                SPDLOG_ERROR(
+                    "Vertex layout doesn't match. layout size = {}, vertex "
+                    "size = {}",
+                    layout->get_stride(), sizeof(T));
+                return;
+            }
+            this->layout = layout;
+            this->count = count;
+            this->vertices.alloc_vertex(layout->get_stride(), count,
+                                        (void *)data);
+        }
+
+        template <typename T>
+        VertexData(VertexLayout *layout, const std::vector<T> &data)
+            : VertexData(layout, data.size(), data.data()) {}
         ~VertexData();
 
-        void bind_vertices(u32 stride, u32 vertex_cnt, RenderResource vertices);
-        RenderResource &get_vertices() { return this->vertices; }
+        RenderResource get_resource() { return this->vertices; }
+        VertexLayout *get_layout() { return this->layout; }
 
-        RenderResource &get_indices() { return this->indices; }
+        u32 get_count() { return count; }
 
-        u32 get_vertices_cnt() { return vertices_cnt; }
+        template <typename T>
+        void update(u32 count, const T *data) {
+            if (layout->get_stride() != sizeof(T)) {
+                SPDLOG_ERROR(
+                    "Vertex layout doesn't match. layout size = {}, vertex "
+                    "size = {}",
+                    layout->get_stride(), sizeof(T));
+                return;
+            }
+            this->count = count;
+            RenderCommandDispatcher dp;
+            dp.update_buffer(this->vertices, 0, count * sizeof(T),
+                             (void *)data);
+        }
 
-        u32 get_indices_cnt() { return indices_cnt; }
+        template <typename T>
+        void update(const std::vector<T> &data) {
+            this->update(data.size(), data.data());
+        }
+};
 
-        u32 get_stride() { return stride; }
+enum class IndexType { UNSIGNED_BYTE, UNSIGNED_SHORT, UNSIGNED_INT };
 
-        IndexType get_index_type() { return index_type; }
+class IndexData : public RefCounted {
+    private:
+        IndexType type = IndexType::UNSIGNED_INT;
+        u32 size = 0;
+        RenderResource indices;
 
-        bool use_index() { return indexing; }
+    public:
+        IndexType get_type() { return type; }
+        RenderResource get_resource() { return this->indices; }
 
-        void alloc_vertex(u32 stride, u32 vertex_cnt, const void *data);
-        void alloc_index(const std::vector<u32> &indices);
-        void alloc_index(const std::vector<u16> &indices);
-        void alloc_index(const std::vector<u8> &indices);
+        IndexData(const std::vector<u32> &indices);
+        IndexData(const std::vector<u16> &indices);
+        IndexData(const std::vector<u8> &indices);
 
-        void set_vertices_cnt(u32 cnt) { this->vertices_cnt = cnt; };
-        void set_indices_cnt(u32 cnt) { this->indices_cnt = cnt; };
+        ~IndexData();
+        u32 get_size() { return size; }
+        void update(const std::vector<u32> &indices);
+        void update(const std::vector<u16> &indices);
+        void update(const std::vector<u8> &indices);
 };
 }  // namespace Seed
 

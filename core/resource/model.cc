@@ -4,15 +4,24 @@
 
 namespace Seed {
 
-Model::Model(const std::vector<Ref<Mesh>> &meshes)
-    : meshes(std::move(meshes)) {
-        Ref<InstanceData> instance;
-        instance.create();
-        for(Ref<Mesh> mesh: meshes){
-            MeshStorage::get_instance()->add_mesh(mesh, instance);
-        }
+Model::Model(const std::vector<Ref<Mesh>> &meshes) : meshes(std::move(meshes)) {
+    instances.create();
+    for (Ref<Mesh> mesh : meshes) {
+        MeshStorage::get_instance()->add_mesh(mesh, ref_cast<InstanceData>(instances));
     }
+}
 
-Model::~Model() {}
+void Model::insert_transform(Ref<Transform> transform) {
+    this->instances->insert_transform(transform);
+}
+void Model::remove_transform(Ref<Transform> transform) {
+    this->instances->remove_transform(transform);
+}
+
+Model::~Model() {
+    for (Ref<Mesh> mesh : meshes) {
+        MeshStorage::get_instance()->remove_mesh(mesh);
+    }
+}
 
 }  // namespace Seed

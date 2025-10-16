@@ -95,7 +95,8 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
         file->read(&mesh_header);
         file->read_vector(vertices, mesh_header.vertex_size);
         file->read_vector(indices, mesh_header.index_size);
-        meshs.push_back(Ref<Mesh>(vertices, indices, mesh_header.bounding_box));
+        meshs.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
+                                  indices, mesh_header.bounding_box));
         mesh_mats.push_back(mesh_header.material_id);
     }
 
@@ -173,7 +174,8 @@ Ref<Texture> ResourceLoader::_load(const std::string &path) {
         spdlog::warn("Can't load texture from {}", path);
         return texture;
     }
-    texture.create(TextureType::TEXTURE_2D, w, h, PixelFormat::RGBA, (const u8 *)data);
+    texture.create(TextureType::TEXTURE_2D, w, h, PixelFormat::RGBA,
+                   (const u8 *)data);
 
     stbi_image_free(data);
     return texture;
@@ -189,7 +191,7 @@ Ref<Image> ResourceLoader::_load(const std::string &path) {
         return image;
     }
     image.create(PixelFormat::RGBA, w, h);
-    image->update((u8*)data, w, h);
+    image->update((u8 *)data, w, h);
     stbi_image_free(data);
     return image;
 }

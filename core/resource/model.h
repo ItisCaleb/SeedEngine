@@ -4,6 +4,7 @@
 #include "core/collision/aabb.h"
 #include "core/resource/resource.h"
 #include "core/rendering/mesh.h"
+#include "core/rendering/instance_data.h"
 #include <vector>
 
 namespace Seed {
@@ -17,12 +18,14 @@ class Model : public Resource {
 
     private:
         std::vector<Ref<Mesh>> meshes;
-
+        Ref<InstanceTransformData> instances;
     public:
         std::vector<Ref<Mesh>> &get_meshes(){
             return meshes;
         }
         Model(const std::vector<Ref<Mesh>> &meshes);
+        void insert_transform(Ref<Transform> transform);
+        void remove_transform(Ref<Transform> transform);
         ~Model();
 };
 }  // namespace Seed

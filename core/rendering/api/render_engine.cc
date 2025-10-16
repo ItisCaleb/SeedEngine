@@ -58,17 +58,19 @@ void RenderEngine::init() {
     this->render_targets["default"] = ref_cast<RenderTarget>(post_target);
     this->render_targets["window"] = ref_cast<RenderTarget>(window_rt);
 
-    Ref<Texture> color_tex(TextureType::TEXTURE_2D, 1024,768, PixelFormat::RGBA, nullptr);
-    Ref<Texture> depth_tex(TextureType::TEXTURE_2D, 1024,768, PixelFormat::D24S8, nullptr);
+    Ref<Texture> color_tex(TextureType::TEXTURE_2D, 1024, 768,
+                           PixelFormat::RGBA, nullptr);
+    Ref<Texture> depth_tex(TextureType::TEXTURE_2D, 1024, 768,
+                           PixelFormat::D24S8, nullptr);
     post_target->bind_color(0, color_tex);
     post_target->bind_depth(depth_tex);
 
-
-    this->register_renderer<DefaultRenderer>(i++, ref_cast<RenderTarget>(post_target));
+    this->register_renderer<DefaultRenderer>(
+        i++, ref_cast<RenderTarget>(post_target));
     this->register_renderer<PostRenderer>(i++,
                                           ref_cast<RenderTarget>(window_rt));
-    this->register_renderer<ImguiRenderer>(i++, ref_cast<RenderTarget>(window_rt));
-
+    this->register_renderer<ImguiRenderer>(i++,
+                                           ref_cast<RenderTarget>(window_rt));
 }
 
 RenderBackend *RenderEngine::get_device() { return device; }
@@ -98,18 +100,22 @@ Viewport &RenderEngine::get_layer_viewport(u32 layer) {
 
 void RenderEngine::process() {
     RenderCommandDispatcher dp;
-    for (auto &iter : this->render_targets){
+    for (auto &iter : this->render_targets) {
         RenderStateDataBuilder builder;
         builder.bind_render_target(iter.second->get_resource());
         builder.clear(StateClearFlag::CLEAR_COLOR);
         builder.clear(StateClearFlag::CLEAR_DEPTH);
         dp.set_states(builder, 0);
     }
-    Mat4 *matrices = (Mat4 *)dp.map_buffer(matrices_rc, 0, sizeof(Mat4) * 2);
+    RenderUpdateData *upd = dp.map_buffer(matrices_rc, 0, sizeof(Mat4) * 2);
+    Mat4 *matrices = (Mat4 *)upd->get_buffer();
     matrices[0] = cam.projection().transpose();
     matrices[1] = cam.look_at().transpose();
-    Vec3 *cam_pos = (Vec3 *)dp.map_buffer(cam_rc, 0, sizeof(Vec3));
+    upd->set_filled();
+    upd = dp.map_buffer(cam_rc, 0, sizeof(Vec3));
+    Vec3 *cam_pos = (Vec3 *)upd->get_buffer();
     *cam_pos = this->cam.get_position();
+    upd->set_filled();
     u32 i = 1;
     for (Layer &layer : this->layers) {
         RenderCommandDispatcher layer_dp;
@@ -128,7 +134,6 @@ void RenderEngine::process() {
     for (Layer &layer : this->layers) {
         layer.renderer->cleanup();
     }
-
 }
 
 Ref<RenderTarget> RenderEngine::get_render_target(const std::string &name) {

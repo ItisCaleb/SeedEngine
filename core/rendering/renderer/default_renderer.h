@@ -17,6 +17,7 @@ class DefaultRenderer : public Renderer {
             Ref<Mesh> mesh;
             std::vector<u32> instance_id;
             std::vector<f32> depth;
+            bool instance;
         };
         std::vector<MeshInstance> opaque_meshes;
         std::vector<MeshInstance> transparent_meshes;
@@ -24,24 +25,23 @@ class DefaultRenderer : public Renderer {
         RenderResource instance_idx_rc;
 
         Ref<Material> debug_mat;
-        VertexData sky_vert;
+        Ref<VertexData> sky_vert;
         RenderResource terrain_m;
-        VertexData debug_line;
-        VertexData debug_triangle;
+        Ref<VertexData> debug_line;
+        Ref<VertexData> debug_triangle;
+        Ref<IndexData> debug_triangle_indices;
 
         /* Lighting */
         ShadowMap shadow_map;
         Ref<RenderTarget> shadow_map_rt;
         RenderResource u_lights;
         RenderResource u_lightspaces;
-        RenderResource shadow_map_default_pipeline;
-        RenderResource shadow_map_terrain_pipeline;
         Handle shadow_map_dir_handle;
 
         /* for debugging */
 
         std::vector<AABB> entity_aabb;
-        VertexData aabb_vertices;
+        Ref<VertexData> aabb_vertices;
         VertexLayout aabb_desc;
         void shadow_pass();
         void color_pass(Viewport &viewport);

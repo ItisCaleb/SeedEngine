@@ -12,10 +12,8 @@ void ImguiRenderer::init() {
     ImguiData *bd = IM_NEW(ImguiData)();
     io.BackendRendererUserData = (void *)bd;
     io.BackendRendererName = "imgui_impl_seed";
-
-    bd->vertex.alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0,
-                            nullptr);
-    bd->vertex.alloc_index(std::vector<u16>{});
+    bd->vertex.alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0, nullptr);
+    bd->indices.alloc_index(std::vector<u16>());
 
     // Build texture atlas
     u8 *pixels;
@@ -51,8 +49,9 @@ void ImguiRenderer::preprocess() {
     };
     RenderCommandDispatcher dp;
 
-    void *mat = dp.map_buffer(gui_proj, 0, sizeof(ortho_projection), current_sort_key());
-    memcpy(mat, ortho_projection, sizeof(ortho_projection));
+    RenderUpdateData *upd = dp.map_buffer(gui_proj, 0, sizeof(ortho_projection), current_sort_key());
+    memcpy(upd->get_buffer(), ortho_projection, sizeof(ortho_projection));
+    upd->set_filled();
 }
 
 ImguiRenderer::ImguiData *ImguiRenderer::get_imgui_data() {
@@ -83,12 +82,10 @@ void ImguiRenderer::process(Viewport &viewport) {
             draw_list->VtxBuffer.Size * (int)sizeof(ImDrawVert);
         u32 idx_buffer_size =
             draw_list->IdxBuffer.Size * (int)sizeof(ImDrawIdx);
-        dp.update_buffer(bd->vertex.get_vertices(), 0, vtx_buffer_size,
+        dp.update_buffer(bd->vertex, 0, vtx_buffer_size,
                          draw_list->VtxBuffer.Data, current_sort_key());
-        bd->vertex.set_vertices_cnt(draw_list->VtxBuffer.Size);
-        dp.update_buffer(bd->vertex.get_indices(), 0, idx_buffer_size,
+        dp.update_buffer(bd->indices, 0, idx_buffer_size,
                          draw_list->IdxBuffer.Data, current_sort_key());
-        bd->vertex.set_indices_cnt(draw_list->IdxBuffer.Size);
 
         for (int cmd_i = 0; cmd_i < draw_list->CmdBuffer.Size; cmd_i++) {
             const ImDrawCmd *pcmd = &draw_list->CmdBuffer[cmd_i];
@@ -116,8 +113,10 @@ void ImguiRenderer::process(Viewport &viewport) {
                 builder.set_scissor(clip_min.x, fb_height - clip_max.y,
                                     clip_max.x - clip_min.x,
                                     clip_max.y - clip_min.y);
-                builder.bind_vertex_data(bd->vertex);
+                builder.bind_vertex(bd->vertex);
                 builder.bind_description(&DS::get_instance()->gui_desc);
+                builder.bind_index(bd->indices);
+                builder.set_draw_vertex(draw_list->VtxBuffer.Size, 0);
                 builder.set_draw_index(pcmd->ElemCount,
                                        pcmd->IdxOffset * sizeof(ImDrawIdx));
                 dp.render(builder, RenderPrimitiveType::TRIANGLES,

@@ -29,7 +29,7 @@ class RenderBackend {
     protected:
         RenderCommandQueue cmd_queue[2];
         RenderResource current_pipeline;
-        int current_queue = 0;
+        std::atomic<int> current_queue = 0;
         std::shared_mutex queue_lock;
 
     public:
@@ -62,19 +62,19 @@ class RenderBackend {
         virtual void process_commands(std::deque<RenderCommand> &cmd_queue) = 0;
 
         void *push_cmd(RenderCommand &cmd, u64 size = 0, void *data = nullptr) {
-            RenderCommandQueue &queue = this->cmd_queue[current_queue];
-            queue.queue_lock.lock_shared();
+            RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
+            queue.queue_lock.lock();
             if (size > 0) {
                 cmd.data = queue.data_pool.alloc(size, data);
             }
             queue.cmd_queue.push_back(cmd);
-            queue.queue_lock.unlock_shared();
+            queue.queue_lock.unlock();
             return cmd.data;
         }
 
         void process() {
-            RenderCommandQueue &queue = this->cmd_queue[current_queue];
-            current_queue = (current_queue + 1) % 2;
+            RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
+            current_queue++;
             queue.queue_lock.lock();
             std::stable_sort(queue.cmd_queue.begin(), queue.cmd_queue.end(),
                              RenderCommand::cmp);

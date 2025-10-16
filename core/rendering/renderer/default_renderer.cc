@@ -44,24 +44,21 @@ void DefaultRenderer::init() {
     u_lights.alloc_constant("Lights", sizeof(STB140Lights), nullptr);
     u_lightspaces.alloc_constant("LightSpaceMatrices", sizeof(Mat4) * 9,
                                  nullptr);
-    shadow_map_default_pipeline.alloc_pipeline(
-        DS::get_instance()->shadow_default_shader->get_render_resource(),
-        RenderRasterizerState{.cull_mode = Cullmode::FRONT},
-        RenderDepthStencilState{.depth_on = true}, {});
-    shadow_map_terrain_pipeline.alloc_pipeline(
-        DS::get_instance()->shadow_terrain_shader->get_render_resource(),
-        RenderRasterizerState{.cull_mode = Cullmode::FRONT,
-                              .patch_control_points = 4},
-        RenderDepthStencilState{.depth_on = true}, {});
+
     auto terrain_model = Mat4::translate_mat({0, 0, 0}).transpose();
     terrain_m.alloc_constant("TerrainMatrices", sizeof(Mat4), &terrain_model);
 
-    sky_vert.alloc_vertex(sizeof(Vec3), (sizeof(skyboxVertices) / sizeof(Vec3)),
-                          skyboxVertices);
+    sky_vert.create(&DS::get_instance()->sky_desc,
+                    (sizeof(skyboxVertices) / sizeof(Vec3)), skyboxVertices);
 
     shadow_map_rt.create(true);
     shadow_map_rt->bind_depth(shadow_map.get_texture());
     shadow_map_dir_handle = shadow_map.allocate_2048();
+    DebugDrawer *drawer = DebugDrawer::get_instance();
+
+    debug_line.create(&drawer->debug_desc);
+    debug_triangle.create(&drawer->debug_desc);
+    debug_triangle_indices.create(std::vector<u32>{});
 }
 
 void DefaultRenderer::preprocess() {
@@ -75,10 +72,17 @@ void DefaultRenderer::preprocess() {
 
     for (auto &[mesh, instance] : mesh_storage->get_meshes()) {
         AABB bounding_box = mesh->get_bounding_box();
-        if (uploaded_instance.find(instance.ptr()) == uploaded_instance.end()) {
-            uploaded_instance.insert(instance.ptr());
-            instance->upload();
+
+        /* check instance mesh size > 0 */
+        if (!instance.is_null() && instance->get_size() == 0) {
+            continue;
         }
+
+        /* frustum culling for non-instance mesh */
+        if (instance.is_null()) {
+            if (cam && !cam->within_frustum(bounding_box)) continue;
+        }
+
         MeshInstance *mesh_inst;
         if (mesh->get_material()->get_blend_state().blend_on) {
             this->transparent_meshes.push_back({.mesh = mesh});
@@ -88,23 +92,27 @@ void DefaultRenderer::preprocess() {
             this->opaque_meshes.push_back({.mesh = mesh});
             mesh_inst = &this->opaque_meshes[this->opaque_meshes.size() - 1];
         }
-        u32 i = instance->get_start_idx() - 1;
-        for (Ref<Transform> transform : instance->get_transforms()) {
-            AABB aabb = transform->translate_AABB(bounding_box);
-            i++;
-            /* frustum culling */
-            if (cam && cam->within_frustum(aabb)) {
-                /* push instance indices */
-                mesh_inst->instance_id.push_back(i);
-                mesh_inst->depth.push_back(
-                    cam->calculate_depth(transform->get_position()));
+        if (!instance.is_null()) {
+            /* Use instancing */
+            mesh_inst->instance = true;
+
+            if (uploaded_instance.find(instance.ptr()) ==
+                uploaded_instance.end()) {
+                uploaded_instance.insert(instance.ptr());
+                instance->upload();
             }
+            instance->frustum_culling(cam, bounding_box, mesh_inst->instance_id,
+                                      mesh_inst->depth);
+
+        } else {
+            mesh_inst->instance = false;
         }
     }
 
     /* upload lights uniform*/
-    STB140Lights *light_buf = (STB140Lights *)dp.map_buffer(
-        u_lights, 0, sizeof(STB140Lights), current_sort_key());
+    RenderUpdateData *upd =
+        dp.map_buffer(u_lights, 0, sizeof(STB140Lights), current_sort_key());
+    STB140Lights *light_buf = (STB140Lights *)upd->get_buffer();
     light_buf->u_dir_light = world->get_direction_light().get_stb140();
     light_buf->u_light_ambient = world->get_ambient_light();
     for (u32 i = 0;
@@ -117,6 +125,7 @@ void DefaultRenderer::preprocess() {
             light_buf->u_point_lights[i].enable = 0.0f;
         }
     }
+    upd->set_filled();
     Mat4 *light_mats = (Mat4 *)dp.map_buffer(u_lightspaces, 0, sizeof(Mat4) * 9,
                                              current_sort_key());
     light_mats[0] =
@@ -127,13 +136,9 @@ void DefaultRenderer::preprocess() {
     }
 
     DebugDrawer *drawer = DebugDrawer::get_instance();
-    debug_line.alloc_vertex(sizeof(DebugDrawer::DebugVertex),
-                            drawer->line_vertices.size(),
-                            drawer->line_vertices.data());
-    debug_triangle.alloc_vertex(sizeof(DebugDrawer::DebugVertex),
-                                drawer->triangle_vertices.size(),
-                                drawer->triangle_vertices.data());
-    debug_triangle.alloc_index(drawer->triangle_indices);
+    debug_line->update(drawer->line_vertices);
+    debug_triangle->update(drawer->triangle_vertices);
+    debug_triangle_indices->update(drawer->triangle_indices);
 }
 
 void DefaultRenderer::shadow_pass() {
@@ -164,25 +169,15 @@ void DefaultRenderer::shadow_pass() {
                          (void *)mesh.instance_id.data());
         RenderDrawDataBuilder mesh_builder;
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
-        mesh_builder.bind_description(&DS::get_instance()->mesh_desc);
         mesh_builder.bind_vertex(instance_idx_rc);
         mesh_builder.bind_description(&instance_desc);
+        mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
         mesh_builder.set_instance(mesh.instance_id.size());
 
-        dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
-                  shadow_map_default_pipeline, current_sort_key());
+        dp.render(mesh_builder, mesh.mesh->get_type(),
+                  mesh.mesh->get_material()->get_shadow_pipeline(),
+                  current_sort_key());
     }
-
-    // if (terrain.is_valid() && terrain->is_loaded()) {
-    //     for (TerrainChunk &chunk : terrain->get_chunks()) {
-    //         RenderDrawDataBuilder builder = dp.generate_render_data(
-    //             ref_cast<Material>(terrain->get_material()));
-    //         builder.bind_vertex_data(chunk.vertex_data, 0);
-    //         builder.bind_description(&DS::get_instance()->terrain_desc);
-    //         dp.render(builder, RenderPrimitiveType::PATCHES,
-    //                   shadow_map_terrain_pipeline, current_sort_key(1));
-    //     }
-    // }
 
     dp.end_scope(next_sort_key());
 }
@@ -210,11 +205,11 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
         RenderDrawDataBuilder mesh_builder = dp.generate_render_data(
             ref_cast<Material>(mesh.mesh->get_material()));
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
-        mesh_builder.bind_description(&DS::get_instance()->mesh_desc);
         mesh_builder.bind_vertex(instance_idx_rc);
         mesh_builder.bind_description(&instance_desc);
         mesh_builder.set_instance(mesh.instance_id.size());
-        dp.render(mesh_builder, RenderPrimitiveType::TRIANGLES,
+        mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
+        dp.render(mesh_builder, mesh.mesh->get_type(),
                   mesh.mesh->get_material()->get_pipeline(),
                   current_sort_key());
     }
@@ -230,7 +225,8 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
     //         // }
     //         RenderDrawDataBuilder builder = dp.generate_render_data(
     //             ref_cast<Material>(terrain->get_material()));
-    //         builder.bind_texture(1, shadow_map.get_texture()->get_resource());
+    //         builder.bind_texture(1,
+    //         shadow_map.get_texture()->get_resource());
     //         builder.bind_vertex_data(chunk.vertex_data, 0);
     //         builder.bind_description(&DS::get_instance()->terrain_desc);
     //         dp.render(builder, RenderPrimitiveType::PATCHES,
@@ -244,7 +240,6 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
         RenderDrawDataBuilder sky_builder =
             dp.generate_render_data(ref_cast<Material>(sky->get_material()));
         sky_builder.bind_vertex_data(sky_vert);
-        sky_builder.bind_description(&DS::get_instance()->sky_desc);
         dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
                   sky->get_material()->get_pipeline(), current_sort_key(1.0));
     }
@@ -266,13 +261,12 @@ void DefaultRenderer::process(Viewport &viewport) {
             RenderDrawDataBuilder line_builder =
                 dp.generate_render_data(drawer->debug_mat);
             line_builder.bind_vertex_data(debug_line);
-            line_builder.bind_description(drawer->get_debug_desc());
             dp.render(line_builder, RenderPrimitiveType::LINES,
                       drawer->debug_mat->get_pipeline(), current_sort_key(1.0));
             RenderDrawDataBuilder triangle_builder =
                 dp.generate_render_data(drawer->debug_mat);
             triangle_builder.bind_vertex_data(debug_triangle);
-            triangle_builder.bind_description(drawer->get_debug_desc());
+            triangle_builder.bind_index_data(debug_triangle_indices);
             dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES,
                       drawer->debug_mat->get_pipeline(), current_sort_key(1.0));
             drawer->clear();

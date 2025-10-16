@@ -44,6 +44,7 @@ TerrainChunk::TerrainChunk(Ref<Image> height_map, i32 left, i32 top,
     this->vertices[3] =
         TerrainVertex{Vec2{left_f + CHUNK_SIZE, top_f + CHUNK_SIZE},
                       Vec2{tex_left + tex_x_stride, tex_top + tex_y_stride}};
+    
     for (i32 i = 0; i < 16; i++) {
         for (i32 j = 0; j < 16; j++) {
         }
@@ -85,7 +86,9 @@ TerrainChunk::TerrainChunk(Ref<Image> height_map, i32 left, i32 top,
             Vec3{left_f + CHUNK_SIZE / 2, center_h, top_f + CHUNK_SIZE / 2},
         .ext = Vec3{CHUNK_SIZE / 2, max_height - center_h, CHUNK_SIZE / 2}};
 
-    this->mesh.create(this->vertices, indices, bounding_box);
+    // this->mesh.create(&DS::get_instance()->terrain_desc, this->vertices, indices, bounding_box);
+    // this->mesh->set_type(RenderPrimitiveType::PATCHES);
+
 
     PhysicHeightmapShape shape(
         height_field.data(), CHUNK_SIZE,
@@ -127,7 +130,7 @@ Terrain::Terrain(Ref<Image> height_map) {
                 TerrainChunk &chunk = this->chunks.emplace_back(
                     height_map, l, t, half_width, half_depth, tex_x_stride,
                     tex_y_stride);
-                chunk.mesh->set_material(terrain_mat);
+                //chunk.mesh->set_material(terrain_mat);
             }
         }
         this->loaded = true;
