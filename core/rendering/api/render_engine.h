@@ -27,11 +27,12 @@ class RenderEngine {
         inline static RenderEngine *instance = nullptr;
         RenderBackend *device;
         MeshStorage *mesh_storage;
-        InstanceDataPool *instance_pool;
         RenderResource matrices_rc, cam_rc;
         Camera cam;
         std::vector<Layer> layers;
         std::unordered_map<std::string, Ref<RenderTarget>> render_targets;
+        std::unordered_map<std::string, InstanceDataPool*> instance_pools;
+
         Window *current_window;
 
     public:
@@ -46,6 +47,7 @@ class RenderEngine {
         Viewport &get_layer_viewport(u32 layer);
         Window *get_current_window() { return current_window; }
         Ref<RenderTarget> get_render_target(const std::string &name);
+        InstanceDataPool *get_instance_pool(const std::string &name);
 
         RenderEngine(Window *window);
         ~RenderEngine();

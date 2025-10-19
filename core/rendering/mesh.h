@@ -51,8 +51,6 @@ class Mesh : public RefCounted {
         Mesh(VertexLayout *layout, const std::vector<T> &vertices,
              const std::vector<u32> &indices, const AABB &bounding_box)
             : Mesh(layout, vertices, indices, Ref<Material>(), bounding_box) {
-            this->lod_indices.reserve(LOD_MAX);
-            this->lod_indices.emplace_back(indices);
         }
 
         template <typename T>

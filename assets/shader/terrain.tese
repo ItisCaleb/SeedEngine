@@ -1,5 +1,3 @@
-#version 430 core
-
 layout (quads, fractional_odd_spacing, ccw) in;
 
 uniform sampler2D height_map;  // the texture corresponding to our height map
@@ -7,11 +5,6 @@ layout (std140) uniform Matrices
 {
     mat4 u_projection;
     mat4 u_view;
-};
-
-layout (std140) uniform TerrainMatrices
-{
-    mat4 u_model;
 };
 
 layout (std140) uniform LightSpaceMatrices
@@ -30,7 +23,7 @@ out vec4 light_fragPos;
 out vec4 fragPos;
 
 float get_height(vec2 tex_coord){
-    return texture(height_map, tex_coord).y * 64.0 - 16.0;
+    return texture(height_map, tex_coord).y * 256.0 - 128.0;
 }
 
 void main()
@@ -75,9 +68,9 @@ void main()
     
     //https://stackoverflow.com/questions/49640250/calculate-normals-from-heightmap
     normal = normalize(vec3(2 * (rh - lh), -4, 2*(dh - uh)));
-    fragPos = u_model * p;
-    light_fragPos = u_direction_lightspace * fragPos;
+    fragPos = p;
+    light_fragPos = u_direction_lightspace * p;
     // ----------------------------------------------------------------------
     // output patch point position in clip space
-    gl_Position = u_projection * u_view * fragPos;
+    gl_Position = u_projection * u_view * p;
 }

@@ -9,6 +9,7 @@
 #include "core/collision/aabb.h"
 #include <vector>
 #include "core/rendering/mesh.h"
+#include "core/rendering/instance_data.h"
 
 namespace Seed {
 
@@ -16,6 +17,13 @@ struct TerrainVertex {
         Vec2 pos;
         Vec2 tex_coord;
 };
+
+struct TerrainInstance {
+        Vec2 pos;
+        Vec2 tex_coord;
+        f32 max_height, min_height;
+};
+
 class TerrainMaterial : public Material {
     public:
         TerrainMaterial(Ref<Texture> height_map);
@@ -23,35 +31,39 @@ class TerrainMaterial : public Material {
         Ref<Texture> get_height_map();
 };
 
-class Terrain;
-class DefaultRenderer;
-class TerrainChunk {
-        friend DefaultRenderer;
-        friend Terrain;
-
+class TerrainInstanceData : public InstanceData {
     private:
-        TerrainVertex vertices[4];
-        Ref<Mesh> mesh;
-        PhysicBody body;
+        std::vector<TerrainInstance> instances;
 
     public:
-        TerrainChunk(Ref<Image> height_map, i32 left, i32 bottom, u32 half_width,
-                     u32 half_depth, f32 tex_x_stride, f32 tex_y_stride);
+        void insert_terrain_data(const TerrainInstance &instance);
+        u32 get_size() override { return instances.size(); }
+        void upload() override;
+
+        void frustum_culling(Camera *cam, const AABB &bounding_box,
+                             std::vector<u32> &instance_ids,
+                             std::vector<f32> &depths) override;
+        TerrainInstanceData();
 };
 
 class Terrain : public Resource {
     private:
         u32 width, depth;
+        u32 hmap_width, hmap_height;
         Vec3 position;
+        std::vector<PhysicBody> bodies;
         Ref<TerrainMaterial> terrain_mat;
-        std::vector<TerrainChunk> chunks;
+        Ref<Mesh> mesh;
+        Ref<TerrainInstanceData> instances;
         bool loaded = false;
+        void build_mesh();
+        void create_chunk(Ref<Image> height_map, i32 left, i32 top,
+                          u32 half_width, u32 half_depth);
 
     public:
         Terrain(Ref<Image> height_map);
         Ref<TerrainMaterial> get_material() { return terrain_mat; }
-        std::vector<TerrainChunk> &get_chunks() { return chunks; };
-        bool is_loaded(){return loaded;}
+        bool is_loaded() { return loaded; }
 
         ~Terrain();
 };

@@ -36,8 +36,18 @@ RenderEngine::RenderEngine(Window *window) {
     }
     this->device = new RenderBackendGL;
     this->mesh_storage = new MeshStorage;
-    this->instance_pool = new InstanceDataPool;
     this->current_window = window;
+    this->instance_pools["TransformDataPool"] =
+        new InstanceDataPool(sizeof(Mat4), 65536);
+    this->instance_pools["TerrainDataPool"] =
+        new InstanceDataPool(sizeof(Vec4), 1024);
+    RenderCommandDispatcher dp;
+    u32 i = 0;
+    for (auto &[name, pool] : instance_pools) {
+        RenderStateDataBuilder builder;
+        builder.bind_bufferbase(pool->get_render_buffer(), i++);
+        dp.set_states(builder, 0);
+    }
     matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
     cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);
     // u8 white_tex[4] = {255, 255, 255, 255};
@@ -142,6 +152,14 @@ Ref<RenderTarget> RenderEngine::get_render_target(const std::string &name) {
         return iter->second;
     }
     return Ref<RenderTarget>();
+}
+
+InstanceDataPool *RenderEngine::get_instance_pool(const std::string &name) {
+    auto iter = this->instance_pools.find(name);
+    if (iter != this->instance_pools.end()) {
+        return iter->second;
+    }
+    return nullptr;
 }
 
 RenderEngine::~RenderEngine() { instance = nullptr; }

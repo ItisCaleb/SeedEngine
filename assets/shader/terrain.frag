@@ -1,5 +1,3 @@
-#version 430 core
-
 in float height;
 in vec3 normal;
 in vec4 light_fragPos;
@@ -62,7 +60,7 @@ vec3 calculate_light(vec3 diffuse, vec3 specular, vec3 light_dir, vec3 view_dir,
 }
 
 void main() {
-    float h = (height + 16)/64.0f;
+    float h = (height + 128)/256.0f;
     if(h < 0.01){
         discard;
     }

@@ -19,8 +19,6 @@ DefaultStorage::DefaultStorage() {
         "assets/shader/terrain.vert", "assets/shader/terrain.frag", "",
         "assets/shader/terrain.tesc", "assets/shader/terrain.tese");
 
-    mesh_debug_shader = loader->load_shader("assets/shader/mesh_debug.vert",
-                                            "assets/shader/mesh_debug.frag");
     post_shader = loader->load_shader("assets/shader/post.vert",
                                       "assets/shader/post.frag");
     shadow_default_shader = loader->load_shader(
@@ -42,7 +40,6 @@ DefaultStorage::DefaultStorage() {
         RenderDepthStencilState{.depth_on = true}, {});
 
     const char *vertex_shader =
-        "#version 410 core\n"
         "layout (location = 0) in vec2 Position;\n"
         "layout (location = 1) in vec2 UV;\n"
         "layout (location = 2) in vec4 Color;\n"
@@ -59,7 +56,6 @@ DefaultStorage::DefaultStorage() {
         "}\n";
 
     const char *fragment_shader =
-        "#version 410 core\n"
         "in vec2 Frag_UV;\n"
         "in vec4 Frag_Color;\n"
         "uniform sampler2D u_texture[8];\n"

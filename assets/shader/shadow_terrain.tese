@@ -1,26 +1,12 @@
-#version 430 core
-
 layout (quads, fractional_odd_spacing, ccw) in;
 
 uniform sampler2D height_map;  // the texture corresponding to our height map
 
-layout (std140) uniform TerrainMatrices
-{
-    mat4 u_model;
-};
-
-layout (std140) uniform LightSpaceMatrices
-{
-    mat4 u_direction_lightspace;
-    mat4 u_position_lightspace[8];
-};
-
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 in vec2 TextureCoord[];
 
-
 float get_height(vec2 tex_coord){
-    return texture(height_map, tex_coord).y * 64.0 - 16.0;
+    return texture(height_map, tex_coord).y * 256.0 - 128.0;
 }
 
 void main()
@@ -61,5 +47,5 @@ void main()
     
     // ----------------------------------------------------------------------
     // output patch point position in clip space
-    gl_Position = u_model * p;
+    gl_Position = p;
 }

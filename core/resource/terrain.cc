@@ -2,14 +2,18 @@
 #include "core/resource/default_storage.h"
 #include "core/physic/physic_engine.h"
 #include "core/concurrency/thread_pool.h"
+#include "core/rendering/api/render_engine.h"
 #include <math.h>
 
 namespace Seed {
 
 #define CHUNK_SIZE (256u)
+#define HEIGHT_OFFSET (-128)
+#define HEIGHT_SCALE (1)
 
 TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
     : Material(DS::get_instance()->terrain_shader) {
+    this->shadow_pipeline = DS::get_instance()->shadow_map_terrain_pipeline;
     this->add_texture_unit(height_map);
     this->raster_state = {.patch_control_points = 4};
     this->depth_state = {.depth_on = true};
@@ -21,47 +25,72 @@ Ref<Texture> TerrainMaterial::get_height_map() {
     return this->get_texture_unit(0)->get_texture();
 }
 
-TerrainChunk::TerrainChunk(Ref<Image> height_map, i32 left, i32 top,
-                           u32 half_width, u32 half_depth, f32 tex_x_stride,
-                           f32 tex_y_stride) {
-    f32 tex_left = (left + half_width) / (f32)height_map->get_width();
-    f32 tex_top = (top + half_depth) / (f32)height_map->get_height();
-    f32 left_f = (f32)left;
-    f32 top_f = (f32)top;
-    /* top left */
-    this->vertices[0] =
-        TerrainVertex{Vec2{left_f, top_f}, Vec2{tex_left, tex_top}};
+void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {
+    this->instances.push_back(instance);
+}
 
-    /* top right */
-    this->vertices[1] = TerrainVertex{Vec2{left_f + CHUNK_SIZE, top_f},
-                                      Vec2{tex_left + tex_x_stride, tex_top}};
-
-    /* bottom left */
-    this->vertices[2] = TerrainVertex{Vec2{left_f, top_f + CHUNK_SIZE},
-                                      Vec2{tex_left, tex_top + tex_y_stride}};
-
-    /* bottom right */
-    this->vertices[3] =
-        TerrainVertex{Vec2{left_f + CHUNK_SIZE, top_f + CHUNK_SIZE},
-                      Vec2{tex_left + tex_x_stride, tex_top + tex_y_stride}};
-    
-    for (i32 i = 0; i < 16; i++) {
-        for (i32 j = 0; j < 16; j++) {
+void TerrainInstanceData::upload() {
+    if (instance_handle == NULL_HANDLE) {
+        instance_handle = pool->alloc(this->instances.size());
+    } else {
+        auto block = pool->query(instance_handle);
+        if (block.size < this->instances.size()) {
+            pool->free(instance_handle);
+            instance_handle = pool->alloc(this->instances.size());
         }
     }
-
-    std::vector<u32> indices;
-    for (i32 i = 0; i < 4; i++) {
-        indices.push_back(i);
+    /* upload */
+    InstanceDataPool::Block block = pool->query(instance_handle);
+    RenderCommandDispatcher dp;
+    RenderUpdateData *upd =
+        dp.map_buffer(pool->get_render_buffer(), sizeof(Vec4) * block.idx,
+                      sizeof(Vec4) * this->instances.size());
+    Vec4 *vecs = (Vec4 *)upd->get_buffer();
+    u32 i = 0;
+    for (TerrainInstance &instance : this->instances) {
+        memcpy(&vecs[i], &instance, sizeof(Vec4));
+        i++;
     }
+    upd->set_filled();
+}
+void TerrainInstanceData::frustum_culling(Camera *cam, const AABB &bounding_box,
+                                          std::vector<u32> &instance_ids,
+                                          std::vector<f32> &depths) {
+    u32 i = pool->query(instance_handle).idx;
+    for (TerrainInstance &instance : instances) {
+        AABB aabb = bounding_box;
+        f32 mid_height = (instance.max_height + instance.min_height) / 2.0f;
+        aabb.center.x = instance.pos.x;
+        aabb.center.z = instance.pos.y;
+        aabb.center.y = mid_height;
+        aabb.ext.y = instance.max_height - mid_height;
+        /* frustum culling */
+        if (cam && cam->within_frustum(aabb)) {
+            /* push instance indices */
+            instance_ids.push_back(i);
+            depths.push_back(cam->calculate_depth(aabb.center));
+        }
+        i++;
+    }
+}
+TerrainInstanceData::TerrainInstanceData()
+    : InstanceData(
+          RenderEngine::get_instance()->get_instance_pool("TerrainDataPool")) {}
+
+void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
+                           u32 half_width, u32 half_depth) {
+    f32 left_f = (f32)left;
+    f32 bottom_f = (f32)bottom;
 
     std::vector<f32> height_field;
     height_field.resize(CHUNK_SIZE * CHUNK_SIZE);
     f32 max_height = -FLT_MAX;
     f32 min_height = FLT_MAX;
-    for (i32 i = 0; i < CHUNK_SIZE; i++) {
+
+    /* start from bottom left to make bounding box right*/
+    for (i32 i = CHUNK_SIZE - 1; i >= 0; i--) {
         for (i32 j = 0; j < CHUNK_SIZE; j++) {
-            u32 sample_col = i + top + half_depth;
+            u32 sample_col = i + bottom + half_depth;
             u32 sample_row = j + left + half_width;
             if (sample_col >= height_map->get_height() ||
                 sample_row >= height_map->get_width()) {
@@ -70,71 +99,113 @@ TerrainChunk::TerrainChunk(Ref<Image> height_map, i32 left, i32 top,
                 // get height from y value
                 f32 height =
                     (f32)height_map
-                        ->get_data()[(sample_col * height_map->get_width() +
-                                      sample_row) *
-                                         4 +
-                                     1];
+                            ->get_data()[(sample_col * height_map->get_width() +
+                                          sample_row) *
+                                             4 +
+                                         1] *
+                        HEIGHT_SCALE +
+                    HEIGHT_OFFSET;
                 max_height = std::max(max_height, height);
                 min_height = std::min(min_height, height);
                 height_field[i * CHUNK_SIZE + j] = height;
             }
         }
     }
-    f32 center_h = (max_height + min_height) / 2.0f;
-    AABB bounding_box = AABB{
-        .center =
-            Vec3{left_f + CHUNK_SIZE / 2, center_h, top_f + CHUNK_SIZE / 2},
-        .ext = Vec3{CHUNK_SIZE / 2, max_height - center_h, CHUNK_SIZE / 2}};
 
-    // this->mesh.create(&DS::get_instance()->terrain_desc, this->vertices, indices, bounding_box);
-    // this->mesh->set_type(RenderPrimitiveType::PATCHES);
+    // empty chunk
+    if (max_height == min_height) return;
+    f32 u = (left + half_width) / (f32)hmap_width;
+    f32 v = (bottom + half_depth) / (f32)hmap_height;
 
+    // postion center
+    // uv bottom left
+    this->instances->insert_terrain_data(TerrainInstance{
+        .pos = Vec2{left_f + CHUNK_SIZE / 2, bottom_f + CHUNK_SIZE / 2},
+        .tex_coord = Vec2{u, v},
+        .max_height = max_height,
+        .min_height = min_height});
 
+    PhysicBody &body = this->bodies.emplace_back();
     PhysicHeightmapShape shape(
         height_field.data(), CHUNK_SIZE,
-        Vec3{-(i32)CHUNK_SIZE / 2, -16, -(i32)CHUNK_SIZE / 2},
-        Vec3{1, 0.25f, 1});
+        Vec3{-(i32)CHUNK_SIZE / 2, 0, -(i32)CHUNK_SIZE / 2});
 
     PhysicEngine::get_instance()->create_body(
-        this->body, shape, PhysicBodyType::STATIC,
-        Vec3{left_f + CHUNK_SIZE / 2, 0, top_f + CHUNK_SIZE / 2});
+        body, shape, PhysicBodyType::STATIC,
+        Vec3{left_f + CHUNK_SIZE / 2, 0, bottom_f + CHUNK_SIZE / 2});
+}
+
+void Terrain::build_mesh() {
+    f32 tex_x_stride = (f32)CHUNK_SIZE / hmap_width;
+    f32 tex_y_stride = (f32)CHUNK_SIZE / hmap_height;
+    u32 vertex_row_cnt = 5;
+    u32 chunk_cnt = 4;
+    u32 step = (vertex_row_cnt - 1) / chunk_cnt;
+    std::vector<TerrainVertex> vertices;
+    f32 offset = CHUNK_SIZE / 4;
+    for (i32 i = 0; i < vertex_row_cnt; i++) {
+        for (i32 j = 0; j < vertex_row_cnt; j++) {
+            vertices.push_back(TerrainVertex{
+                Vec2{offset * j - CHUNK_SIZE / 2, offset * i - CHUNK_SIZE / 2},
+                Vec2{(tex_x_stride / (f32)(vertex_row_cnt - 1)) * j,
+                     (tex_y_stride / (f32)(vertex_row_cnt - 1)) * i}});
+        }
+    }
+
+    std::vector<u32> indices;
+    for (i32 i = 0; i < chunk_cnt; i++) {
+        for (i32 j = 0; j < chunk_cnt; j++) {
+            i32 chunk_offset = j * step + i * step * vertex_row_cnt;
+            /* top left */
+            indices.push_back(chunk_offset);
+            /* top right */
+            indices.push_back(chunk_offset + step);
+            /* bottom left */
+            indices.push_back(chunk_offset + vertex_row_cnt * step);
+            /* bottom right */
+            indices.push_back(chunk_offset + vertex_row_cnt * step + step);
+        }
+    }
+
+    this->mesh.create(&DS::get_instance()->terrain_desc, vertices, indices,
+                      AABB{.center = Vec3{0, 0, 0},
+                           .ext = Vec3{CHUNK_SIZE / 2, 0, CHUNK_SIZE / 2}});
+    this->mesh->set_type(RenderPrimitiveType::PATCHES);
 }
 
 Terrain::Terrain(Ref<Image> height_map) {
-    u32 hmap_width = height_map->get_width();
-    u32 hmap_height = height_map->get_height();
+    this->hmap_width = height_map->get_width();
+    this->hmap_height = height_map->get_height();
 
     this->width = ((hmap_width + CHUNK_SIZE - 1) & ~(CHUNK_SIZE - 1));
     this->depth = ((hmap_height + CHUNK_SIZE - 1) & ~(CHUNK_SIZE - 1));
 
     i32 left = -(width / 2);
-    i32 top = -(depth / 2);
+    i32 bottom = -(depth / 2);
     u32 row_size = this->width / CHUNK_SIZE;
     u32 col_size = this->depth / CHUNK_SIZE;
-    f32 tex_x_stride = (f32)CHUNK_SIZE / hmap_width;
-    f32 tex_y_stride = (f32)CHUNK_SIZE / hmap_height;
     u32 half_width = this->width / 2;
     u32 half_depth = this->depth / 2;
 
     Ref<Texture> height_map_tex = height_map->create_texture();
     terrain_mat.create(height_map_tex);
+    this->instances.create();
 
-    ThreadPool *pool = ThreadPool::get_instance();
-    pool->add_work([=](void *) {
-        // start from bottom left
-        this->chunks.reserve(col_size * row_size);
-        for (i32 i = 0; i < col_size; i++) {
-            for (i32 j = 0; j < row_size; j++) {
-                i32 l = left + (i32)CHUNK_SIZE * j;
-                i32 t = top + (i32)CHUNK_SIZE * i;
-                TerrainChunk &chunk = this->chunks.emplace_back(
-                    height_map, l, t, half_width, half_depth, tex_x_stride,
-                    tex_y_stride);
-                //chunk.mesh->set_material(terrain_mat);
-            }
+    build_mesh();
+    this->mesh->set_material(ref_cast<Material>(terrain_mat));
+
+    // start from bottom left
+    for (i32 i = 0; i < col_size; i++) {
+        for (i32 j = 0; j < row_size; j++) {
+            i32 l = left + (i32)CHUNK_SIZE * j;
+            i32 b = bottom + (i32)CHUNK_SIZE * i;
+            create_chunk(height_map, l, b, half_width, half_depth);
         }
-        this->loaded = true;
-    });
+    }
+    this->instances->upload();
+    MeshStorage::get_instance()->add_mesh(
+        this->mesh, ref_cast<InstanceData>(this->instances));
+    this->loaded = true;
 }
 
 Terrain::~Terrain() {}

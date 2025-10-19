@@ -38,6 +38,9 @@ class Material : public Resource {
         void add_texture_unit(Ref<Texture> tex);
         void remove_texture_unit(u32 unit);
         TextureState *get_texture_unit(u32 unit);
+        u32 get_texture_count() {
+            return textures.size();
+        }
         void set_rasterizer_state(RenderRasterizerState &state);
         void set_depth_state(RenderDepthStencilState &state);
         void set_blend_state(RenderBlendState &state);

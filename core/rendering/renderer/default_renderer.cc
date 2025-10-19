@@ -37,16 +37,9 @@ void DefaultRenderer::init() {
     instance_desc.add_type_attr<u32>(3, 1);
     instance_idx_rc.alloc_vertex(sizeof(u32), 0, nullptr);
 
-    debug_mat.create(DS::get_instance()->mesh_debug_shader);
-    RenderRasterizerState rst = {.poly_mode = PolygonMode::LINE};
-    debug_mat->set_rasterizer_state(rst);
-
     u_lights.alloc_constant("Lights", sizeof(STB140Lights), nullptr);
     u_lightspaces.alloc_constant("LightSpaceMatrices", sizeof(Mat4) * 9,
                                  nullptr);
-
-    auto terrain_model = Mat4::translate_mat({0, 0, 0}).transpose();
-    terrain_m.alloc_constant("TerrainMatrices", sizeof(Mat4), &terrain_model);
 
     sky_vert.create(&DS::get_instance()->sky_desc,
                     (sizeof(skyboxVertices) / sizeof(Vec3)), skyboxVertices);
@@ -126,14 +119,15 @@ void DefaultRenderer::preprocess() {
         }
     }
     upd->set_filled();
-    Mat4 *light_mats = (Mat4 *)dp.map_buffer(u_lightspaces, 0, sizeof(Mat4) * 9,
-                                             current_sort_key());
+    upd = dp.map_buffer(u_lightspaces, 0, sizeof(Mat4) * 9, current_sort_key());
+    Mat4 *light_mats = (Mat4 *)upd->get_buffer();
     light_mats[0] =
-        world->get_direction_light().get_light_space_mat().transpose();
+        world->get_direction_light().get_light_space_mat(cam).transpose();
     for (u32 i = 0; i < 8 && i < world->get_point_lights().size(); i++) {
         light_mats[i + 1] =
-            world->get_point_lights()[i].get_light_space_mat().transpose();
+            world->get_point_lights()[i].get_light_space_mat(cam).transpose();
     }
+    upd->set_filled();
 
     DebugDrawer *drawer = DebugDrawer::get_instance();
     debug_line->update(drawer->line_vertices);
@@ -143,8 +137,6 @@ void DefaultRenderer::preprocess() {
 
 void DefaultRenderer::shadow_pass() {
     RenderCommandDispatcher dp;
-    Ref<Terrain> terrain =
-        SeedEngine::get_instance()->get_world()->get_terrain();
     dp.begin_scope("Shadow Pass", current_sort_key());
 
     /* shadow pass */
@@ -158,16 +150,17 @@ void DefaultRenderer::shadow_pass() {
     shadow_map_state.set_viewport(
         shadow_map.query_viewport(shadow_map_dir_handle),
         shadow_map.get_resolution());
-    shadow_map_state.bind_bufferbase(
-        InstanceDataPool::get_instance()->get_render_buffer(), 0);
     dp.set_states(shadow_map_state, current_sort_key());
 
     for (MeshInstance &mesh : opaque_meshes) {
-        if (mesh.instance_id.empty()) continue;
+        if (mesh.instance_id.empty() ||
+            !mesh.mesh->get_material()->get_shadow_pipeline().inited())
+            continue;
         dp.update_buffer(instance_idx_rc, 0,
                          sizeof(u32) * mesh.instance_id.size(),
-                         (void *)mesh.instance_id.data());
-        RenderDrawDataBuilder mesh_builder;
+                         (void *)mesh.instance_id.data(), current_sort_key());
+        RenderDrawDataBuilder mesh_builder =
+            dp.generate_render_data(mesh.mesh->get_material());
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.bind_vertex(instance_idx_rc);
         mesh_builder.bind_description(&instance_desc);
@@ -184,8 +177,6 @@ void DefaultRenderer::shadow_pass() {
 
 void DefaultRenderer::color_pass(Viewport &viewport) {
     RenderCommandDispatcher dp;
-    Ref<Terrain> terrain =
-        SeedEngine::get_instance()->get_world()->get_terrain();
     dp.begin_scope("Color Pass", current_sort_key());
     RenderStateDataBuilder color_state;
     color_state.bind_render_target(RenderEngine::get_instance()
@@ -193,17 +184,17 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
                                        ->get_resource());
     color_state.set_scissor(viewport.get_actual_dimension());
     color_state.set_viewport(viewport.get_actual_dimension());
-    color_state.bind_bufferbase(
-        InstanceDataPool::get_instance()->get_render_buffer(), 0);
     dp.set_states(color_state, current_sort_key());
 
     for (MeshInstance &mesh : opaque_meshes) {
         if (mesh.instance_id.empty()) continue;
         dp.update_buffer(instance_idx_rc, 0,
                          sizeof(u32) * mesh.instance_id.size(),
-                         (void *)mesh.instance_id.data());
+                         (void *)mesh.instance_id.data(), current_sort_key());
         RenderDrawDataBuilder mesh_builder = dp.generate_render_data(
             ref_cast<Material>(mesh.mesh->get_material()));
+        mesh_builder.bind_texture(mesh.mesh->get_material()->get_texture_count(),
+                             shadow_map.get_texture()->get_resource());
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.bind_vertex(instance_idx_rc);
         mesh_builder.bind_description(&instance_desc);
@@ -213,27 +204,6 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
                   mesh.mesh->get_material()->get_pipeline(),
                   current_sort_key());
     }
-
-    // if (terrain.is_valid() && terrain->is_loaded()) {
-    //     for (TerrainChunk &chunk : terrain->get_chunks()) {
-    //         // /* frustum culling */
-    //         // if (cam && cam->within_frustum(aabb)) {
-    //         //     /* push instance indices */
-    //         //     mesh_inst->instance_id.push_back(i);
-    //         //     mesh_inst->depth.push_back(
-    //         //         cam->calculate_depth(transform->get_position()));
-    //         // }
-    //         RenderDrawDataBuilder builder = dp.generate_render_data(
-    //             ref_cast<Material>(terrain->get_material()));
-    //         builder.bind_texture(1,
-    //         shadow_map.get_texture()->get_resource());
-    //         builder.bind_vertex_data(chunk.vertex_data, 0);
-    //         builder.bind_description(&DS::get_instance()->terrain_desc);
-    //         dp.render(builder, RenderPrimitiveType::PATCHES,
-    //                   terrain->get_material()->get_pipeline(),
-    //                   current_sort_key(1));
-    //     }
-    // }
 
     auto sky = SeedEngine::get_instance()->get_world()->get_sky();
     if (sky.is_valid()) {

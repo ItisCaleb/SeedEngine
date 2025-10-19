@@ -18,8 +18,6 @@ class InstanceDataPool {
         };
 
     private:
-        inline static InstanceDataPool *instance;
-
         RenderResource ssbo_rc;
         std::vector<std::list<Block>> free_zones;
         HandleOwner<Block> used_blocks;
@@ -32,14 +30,14 @@ class InstanceDataPool {
         void free(Handle handle);
         Block query(Handle handle);
         RenderResource get_render_buffer() { return ssbo_rc; }
-        static InstanceDataPool *get_instance() { return instance; }
-        InstanceDataPool();
+        InstanceDataPool(u32 data_size, u32 size);
         ~InstanceDataPool();
 };
 
 class InstanceData : public RefCounted {
     protected:
-        InstanceData() {}
+        InstanceData(InstanceDataPool *pool):pool(pool) {}
+        InstanceDataPool *pool = nullptr;
         Handle instance_handle = NULL_HANDLE;
 
     public:
@@ -52,7 +50,7 @@ class InstanceData : public RefCounted {
         virtual ~InstanceData();
 };
 
-class InstanceTransformData : public InstanceData {
+class TransformInstanceData : public InstanceData {
     private:
         std::set<Ref<Transform>> transforms;
 
@@ -66,7 +64,7 @@ class InstanceTransformData : public InstanceData {
                              std::vector<u32> &instance_ids,
                              std::vector<f32> &depths) override;
 
-        InstanceTransformData();
+        TransformInstanceData();
 };
 }  // namespace Seed
 

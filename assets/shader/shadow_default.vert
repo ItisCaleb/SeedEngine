@@ -1,16 +1,7 @@
-#version 430 core
-
 layout (location = 0) in vec3 aPos;
-layout (location = 3) in uint aModelIndex;
-
-layout(std430, binding = 0) buffer layoutName
-{
-    // 2^19
-    mat4 b_models[65536];
-};
-
+layout (location = 3) in uint aInstanceIndex;
 
 void main(){
-    mat4 aModel = b_models[aModelIndex];
+    mat4 aModel = b_transform[aInstanceIndex];
     gl_Position = aModel * vec4(aPos, 1.0);
 }

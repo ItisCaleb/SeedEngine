@@ -47,13 +47,12 @@ class Light {
         inline STB140Light get_stb140() {
             return STB140Light{pos_dir, diffuse, specular, (f32)enable};
         }
-        inline Mat4 get_light_space_mat() {
-            if (!dirty) return light_mat;
+        inline Mat4 get_light_space_mat(Camera *user_cam) {
             Camera cam;
             if (type == LightType::DIRECTIONAL) {
-                cam.set_ortho(-50, 50, -50, 50, -100, 100);
+                cam.set_ortho(-50, 50, -50, 50, -200, 200);
                 // set position from origin
-                cam.set_position(-pos_dir * 20);
+                cam.set_position(user_cam->get_position() - pos_dir);
                 cam.set_front(pos_dir);
                 cam.set_up(Vec3{0, 1, 0});
                 this->light_mat = cam.projection() * cam.look_at();

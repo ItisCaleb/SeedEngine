@@ -2,6 +2,7 @@
 #include "core/macro.h"
 #include "core/math/utils.h"
 #include "core/rendering/api/render_command.h"
+#include "core/rendering/api/render_engine.h"
 
 namespace Seed {
 
@@ -72,10 +73,9 @@ InstanceDataPool::Block InstanceDataPool::query(Handle handle) {
     return *b;
 }
 
-InstanceDataPool::InstanceDataPool() {
-    instance = this;
-    this->max_order = 17;
-    this->ssbo_rc.alloc_buffer((1 << max_order) * sizeof(Mat4), nullptr);
+InstanceDataPool::InstanceDataPool(u32 data_size, u32 size) {
+    this->max_order = log2(roundup_to_pow2(size)) + 1;
+    this->ssbo_rc.alloc_buffer((1 << max_order) * data_size, nullptr);
     this->free_zones.resize(max_order);
     this->free_zones[this->max_order - 1].push_back(
         Block{0, 1u << (this->max_order - 1)});
@@ -84,23 +84,21 @@ InstanceDataPool::~InstanceDataPool() {}
 
 InstanceData::~InstanceData() {
     if (this->instance_handle != NULL_HANDLE) {
-        InstanceDataPool *pool = InstanceDataPool::get_instance();
         pool->free(this->instance_handle);
         this->instance_handle = NULL_HANDLE;
     }
 }
 
-void InstanceTransformData::insert_transform(Ref<Transform> transform) {
+void TransformInstanceData::insert_transform(Ref<Transform> transform) {
     EXPECT_NOT_NULL_RET(*transform);
     this->transforms.insert(transform);
 }
-void InstanceTransformData::remove_transform(Ref<Transform> transform) {
+void TransformInstanceData::remove_transform(Ref<Transform> transform) {
     EXPECT_NOT_NULL_RET(*transform);
     this->transforms.erase(transform);
 }
 
-void InstanceTransformData::upload() {
-    InstanceDataPool *pool = InstanceDataPool::get_instance();
+void TransformInstanceData::upload() {
     if (instance_handle == NULL_HANDLE) {
         instance_handle = pool->alloc(this->transforms.size());
     } else {
@@ -113,9 +111,9 @@ void InstanceTransformData::upload() {
     /* upload */
     InstanceDataPool::Block block = pool->query(instance_handle);
     RenderCommandDispatcher dp;
-    RenderUpdateData* upd = dp.map_buffer(pool->get_render_buffer(),
-                                       sizeof(Mat4) * block.idx,
-                                       sizeof(Mat4) * this->transforms.size());
+    RenderUpdateData *upd =
+        dp.map_buffer(pool->get_render_buffer(), sizeof(Mat4) * block.idx,
+                      sizeof(Mat4) * this->transforms.size());
     Mat4 *mats = (Mat4 *)upd->get_buffer();
     u32 i = 0;
     for (Ref<Transform> transform : this->transforms) {
@@ -125,11 +123,10 @@ void InstanceTransformData::upload() {
     upd->set_filled();
 }
 
-void InstanceTransformData::frustum_culling(Camera *cam,
+void TransformInstanceData::frustum_culling(Camera *cam,
                                             const AABB &bounding_box,
                                             std::vector<u32> &instance_ids,
                                             std::vector<f32> &depths) {
-    InstanceDataPool *pool = InstanceDataPool::get_instance();
     u32 i = pool->query(instance_handle).idx;
     for (Ref<Transform> transform : transforms) {
         AABB aabb = transform->translate_AABB(bounding_box);
@@ -143,5 +140,7 @@ void InstanceTransformData::frustum_culling(Camera *cam,
     }
 }
 
-InstanceTransformData::InstanceTransformData() {}
+TransformInstanceData::TransformInstanceData()
+    : InstanceData(RenderEngine::get_instance()->get_instance_pool(
+          "TransformDataPool")) {}
 }  // namespace Seed

@@ -18,7 +18,7 @@ class Model : public Resource {
 
     private:
         std::vector<Ref<Mesh>> meshes;
-        Ref<InstanceTransformData> instances;
+        Ref<TransformInstanceData> instances;
     public:
         std::vector<Ref<Mesh>> &get_meshes(){
             return meshes;

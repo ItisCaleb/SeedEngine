@@ -15,7 +15,6 @@ class DefaultStorage {
         Ref<Shader> gui_shader;
         Ref<Shader> terrain_shader;
         Ref<Shader> debug_shader;
-        Ref<Shader> mesh_debug_shader;
         Ref<Shader> post_shader;
         Ref<Shader> decal_shader;
         Ref<Shader> shadow_default_shader;
