@@ -3,6 +3,7 @@
 #include "core/resource/shader.h"
 #include "core/rendering/vertex_layout.h"
 #include "core/rendering/vertex_data.h"
+#include "core/resource/texture.h"
 
 namespace Seed {
 #define DS DefaultStorage
@@ -19,6 +20,7 @@ class DefaultStorage {
         Ref<Shader> decal_shader;
         Ref<Shader> shadow_default_shader;
         Ref<Shader> shadow_terrain_shader;
+        Ref<Texture> default_texture;
         VertexLayout terrain_desc;
         VertexLayout mesh_desc;
         VertexLayout sky_desc;

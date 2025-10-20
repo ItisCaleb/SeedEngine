@@ -1,6 +1,6 @@
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in vec2 aTexCoord;
-layout (location = 3) in uint aInstanceIndex;
+layout (location = 8) in uint aInstanceIndex;
 
 out vec2 texCoord;
 

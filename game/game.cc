@@ -95,15 +95,15 @@ int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
     ResourceLoader *loader = ResourceLoader::get_instance();
 
-    std::vector<Vertex> vertices;
+    std::vector<ModelVertex> vertices;
     std::vector<u32> indices;
 
-    for (int i = 0; i < 6; i++) {
-        for (int j = 0; j < 6; j++) {
-            vertices.push_back(
-                Vertex{CUBE[CUBE_INDICE[i][j]], CUBE_NORMAL[i], CUBE_TEX[j]});
-        }
-    }
+    // for (int i = 0; i < 6; i++) {
+    //     for (int j = 0; j < 6; j++) {
+    //         vertices.push_back(
+    //             ModelVertex{CUBE[CUBE_INDICE[i][j]], CUBE_NORMAL[i], CUBE_TEX[j]});
+    //     }
+    // }
 
     for (int i = 0; i < 36; i++) {
         indices.push_back(i);
@@ -122,25 +122,19 @@ int main(void) {
     //      }
     //  }
 
-    //auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
+    auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
     auto sky = loader->load_async<Sky>("assets/sky.json");
-    // auto backpack = loader->load_async<Model>(
-    //     "assets/backpack/test.mdl", [=](Ref<Model> rc) {
-    //         for (i32 i = 0; i < 10; i++) {
-    //             Entity *ent = new Entity(Vec3{(f32)i * 5, 20, (f32)-i});
-    //             ent->bind_model(rc);
-    //             engine->get_world()->add_entity(ent);
-    //             PhysicBoxShape box(Vec3{5, 5, 5});
-    //             ent->create_body(box, PhysicBodyType::DYNAMIC);
-    //         }
-    //     });
-
-    auto sponza =
-        loader->load_async<Model>("assets/sponza/test.mdl", [=](Ref<Model> rc) {
-            Entity *ent = new Entity(Vec3{0,0,0});
-            ent->bind_model(rc);
-            engine->get_world()->add_entity(ent);
+    auto backpack = loader->load_async<Model>(
+        "assets/backpack/test.mdl", [=](Ref<Model> rc) {
+            for (i32 i = 0; i < 10; i++) {
+                Entity *ent = new Entity(Vec3{(f32)i * 5, 20, (f32)-i});
+                ent->bind_model(rc);
+                engine->get_world()->add_entity(ent);
+                PhysicBoxShape box(Vec3{5, 5, 5});
+                ent->create_body(box, PhysicBodyType::DYNAMIC);
+            }
         });
+
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     engine->get_world()->get_point_lights().push_back(
         Light{LightType::POINT, Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});

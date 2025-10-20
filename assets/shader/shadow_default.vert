@@ -1,5 +1,5 @@
 layout (location = 0) in vec3 aPos;
-layout (location = 3) in uint aInstanceIndex;
+layout (location = 8) in uint aInstanceIndex;
 
 void main(){
     mat4 aModel = b_transform[aInstanceIndex];

@@ -13,32 +13,9 @@
 #define LOD_MAX 4
 
 namespace Seed {
-struct Vertex {
-        Vec3 position;
-        Vec3 normal;
-        Vec2 tex_coord;
-};
 
 class Mesh : public RefCounted {
     private:
-        static AABB calculate_aabb(const std::vector<Vertex> &vertices) {
-            f32 x1 = 1e5, x2 = -1e5;
-            f32 y1 = 1e5, y2 = -1e5;
-            f32 z1 = 1e5, z2 = -1e5;
-            for (auto &vertex : vertices) {
-                x1 = std::min(x1, vertex.position.x);
-                x2 = std::max(x2, vertex.position.x);
-                y1 = std::min(y1, vertex.position.y);
-                y2 = std::max(y2, vertex.position.y);
-                z1 = std::min(z1, vertex.position.z);
-                z2 = std::max(z2, vertex.position.z);
-            }
-
-            f32 w = (x2 - x1) / 2;
-            f32 h = (y2 - y1) / 2;
-            f32 d = (z2 - z1) / 2;
-            return AABB{Vec3{x2 - w, y2 - h, z2 - d}, Vec3{w, h, d}};
-        }
         AABB bounding_box;
         RenderPrimitiveType type = RenderPrimitiveType::TRIANGLES;
 

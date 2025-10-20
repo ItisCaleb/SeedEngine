@@ -68,7 +68,8 @@ DefaultStorage::DefaultStorage() {
     gui_shader.create(vertex_shader, fragment_shader);
     mesh_desc.add_type_attr<Vec3>(0, 0);
     mesh_desc.add_type_attr<Vec3>(1, 0);
-    mesh_desc.add_type_attr<Vec2>(2, 0);
+    mesh_desc.add_type_attr<Vec3>(2, 0);
+    mesh_desc.add_type_attr<Vec2>(3, 0);
 
     sky_desc.add_type_attr<Vec3>(0, 0);
 
@@ -80,14 +81,16 @@ DefaultStorage::DefaultStorage() {
     gui_desc.add_attr(2, VertexAttributeType::UNSIGNED_BYTE, 4, 0, true);
 
     PostData tmp_post[] = {-1.0f, 1.0f, 0.0f, 1.0f,  -1.0f, -1.0f,
-                  0.0f,  0.0f, 1.0f, -1.0f, 1.0f,  0.0f,
+                           0.0f,  0.0f, 1.0f, -1.0f, 1.0f,  0.0f,
 
-                  -1.0f, 1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
-                  1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
+                           -1.0f, 1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
+                           1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
 
     post_desc.add_type_attr<Vec2>(0, 0);
     post_desc.add_type_attr<Vec2>(1, 0);
     post_data.create(&post_desc, (sizeof(tmp_post) / (sizeof(PostData))),
                      tmp_post);
+    u8 color[] = {1, 1, 1, 1};
+    default_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA, color);
 }
 }  // namespace Seed

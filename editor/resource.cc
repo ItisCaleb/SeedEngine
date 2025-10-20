@@ -31,7 +31,7 @@ i16 EditorModel::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
     return -1;
 }
 
-AABB EditorModel::calculateAABB(const std::vector<Vertex> &vertices) {
+AABB EditorModel::calculateAABB(const std::vector<ModelVertex> &vertices) {
     f32 x1 = 1e5, x2 = -1e5;
     f32 y1 = 1e5, y2 = -1e5;
     f32 z1 = 1e5, z2 = -1e5;
@@ -52,16 +52,18 @@ AABB EditorModel::calculateAABB(const std::vector<Vertex> &vertices) {
 void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
     meshes.push_back({});
     EditorMesh &m = meshes.back();
-    std::vector<Vertex> &vertices = m.vertices;
+    std::vector<ModelVertex> &vertices = m.vertices;
     std::vector<u32> &indices = m.indices;
     for (int i = 0; i < mesh->mNumVertices; i++) {
         aiVector3D ai_vertex = mesh->mVertices[i];
         aiVector3D *ai_tex_coord = mesh->mTextureCoords[0];
-        Vertex vertex;
+        ModelVertex vertex;
         vertex.position = {ai_vertex.x, ai_vertex.y, ai_vertex.z};
         if (mesh->mNormals) {
             aiVector3D ai_normal = mesh->mNormals[i];
+            aiVector3D ai_tangent = mesh->mTangents[i];
             vertex.normal = {ai_normal.x, ai_normal.y, ai_normal.z};
+            vertex.tangent = {ai_tangent.x, ai_tangent.y, ai_tangent.z};
         }
         if (ai_tex_coord) {
             vertex.tex_coord = {ai_tex_coord[i].x, ai_tex_coord[i].y};
@@ -114,7 +116,7 @@ void EditorModel::processNode(aiNode *node, const aiScene *scene) {
 EditorModel::EditorModel(const std::string &path) {
     Assimp::Importer importer;
     const aiScene *scene = importer.ReadFile(
-        path, aiProcess_CalcTangentSpace | aiProcess_Triangulate |
+        path, aiProcess_CalcTangentSpace | aiProcess_GenNormals  | aiProcess_Triangulate |
                   aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes |
                   aiProcess_JoinIdenticalVertices | aiProcess_SortByPType);
 
@@ -145,7 +147,7 @@ void EditorModel::dump(const std::string &file_path) {
     header.texture_offset =
         header.mesh_offset + header.mesh_count * sizeof(MeshHeader);
     for (auto &mesh : this->meshes) {
-        header.texture_offset += mesh.vertices.size() * sizeof(Vertex);
+        header.texture_offset += mesh.vertices.size() * sizeof(ModelVertex);
         header.texture_offset += mesh.indices.size() * sizeof(u32);
     }
     header.material_offset = header.texture_offset;
@@ -168,7 +170,7 @@ void EditorModel::dump(const std::string &file_path) {
         mesh_header.material_id = mesh.material_id;
         total_mesh_size += f->write(&mesh_header, sizeof(MeshHeader));
         total_mesh_size += f->write(mesh.vertices.data(),
-                                    mesh.vertices.size() * sizeof(Vertex));
+                                    mesh.vertices.size() * sizeof(ModelVertex));
         total_mesh_size +=
             f->write(mesh.indices.data(), mesh.indices.size() * sizeof(u32));
     }

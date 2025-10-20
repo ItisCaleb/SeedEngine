@@ -9,9 +9,12 @@
 #include <vector>
 #include <map>
 #include "core/gui/gui.h"
+#include "core/resource/model.h"
+
+
 
 struct EditorMesh {
-        std::vector<Seed::Vertex> vertices;
+        std::vector<Seed::ModelVertex> vertices;
         std::vector<u32> indices;
         Seed::AABB bounding_box;
         i16 material_id = -1;
@@ -22,7 +25,7 @@ class EditorModel {
         void processNode(aiNode *node, const aiScene *scene);
         void processMesh(aiMesh *mesh, const aiScene *scene);
         i16 loadMaterialTextures(aiMaterial *mat, aiTextureType type);
-        Seed::AABB calculateAABB(const std::vector<Seed::Vertex> &vertices);
+        Seed::AABB calculateAABB(const std::vector<Seed::ModelVertex> &vertices);
 
     public:
         struct Material {

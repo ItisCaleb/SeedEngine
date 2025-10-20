@@ -89,7 +89,7 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
     ModelHeader model_header;
     file->read(&model_header);
     for (int i = 0; i < model_header.mesh_count; i++) {
-        std::vector<Vertex> vertices;
+        std::vector<ModelVertex> vertices;
         std::vector<u32> indices;
         MeshHeader mesh_header;
         file->read(&mesh_header);

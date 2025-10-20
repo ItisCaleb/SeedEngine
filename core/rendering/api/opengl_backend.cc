@@ -294,8 +294,8 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                                  GL_UNSIGNED_BYTE, nullptr);
                 } else {
                     // normal texture
-                    glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                    glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                    glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                    glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_REPEAT);
                     glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                     glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                     glTexImage2D(type, 0, format, tex->w, tex->h, 0, format,

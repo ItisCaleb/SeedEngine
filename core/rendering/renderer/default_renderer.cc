@@ -34,7 +34,7 @@ Vec3 skyboxVertices[] = {
 void DefaultRenderer::init() {
     ResourceLoader *loader = ResourceLoader::get_instance();
 
-    instance_desc.add_type_attr<u32>(3, 1);
+    instance_desc.add_type_attr<u32>(8, 1);
     instance_idx_rc.alloc_vertex(sizeof(u32), 0, nullptr);
 
     u_lights.alloc_constant("Lights", sizeof(STB140Lights), nullptr);

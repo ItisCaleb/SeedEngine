@@ -12,6 +12,13 @@ namespace Seed {
 class RenderEngine;
 class DefaultRenderer;
 
+struct ModelVertex {
+        Vec3 position;
+        Vec3 normal;
+        Vec3 tangent;
+        Vec2 tex_coord;
+};
+
 class Model : public Resource {
         friend RenderEngine;
         friend DefaultRenderer;

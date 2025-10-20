@@ -23,8 +23,8 @@ void World::tick(f32 dt) {
 
 World::World()
     : direction_light(LightType::DIRECTIONAL, Vec3{-0.5, -0.5, 0},
-                      Vec3{0.5, 0.5, 0.5}, Vec3{0, 0, 0}) {
-    this->ambient_light = Vec3{0.6, 0.6, 0.6};
+                      Vec3{0.7, 0.7, 0.7}, Vec3{0.4, 0.4, 0.4}) {
+    this->ambient_light = Vec3{0.25, 0.25, 0.25};
 }
 
 }  // namespace Seed
