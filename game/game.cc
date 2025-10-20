@@ -122,23 +122,29 @@ int main(void) {
     //      }
     //  }
 
-    auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
+    //auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
     auto sky = loader->load_async<Sky>("assets/sky.json");
-    auto backpack = loader->load_async<Model>(
-        "assets/backpack/test.mdl", [=](Ref<Model> rc) {
-            for (i32 i = 0; i < 10; i++) {
-                Entity *ent = new Entity(Vec3{(f32)i * 5, 20, (f32)-i});
-                ent->bind_model(rc);
-                engine->get_world()->add_entity(ent);
-                PhysicBoxShape box(Vec3{5, 5, 5});
-                ent->create_body(box, PhysicBodyType::DYNAMIC);
-            }
+    // auto backpack = loader->load_async<Model>(
+    //     "assets/backpack/test.mdl", [=](Ref<Model> rc) {
+    //         for (i32 i = 0; i < 10; i++) {
+    //             Entity *ent = new Entity(Vec3{(f32)i * 5, 20, (f32)-i});
+    //             ent->bind_model(rc);
+    //             engine->get_world()->add_entity(ent);
+    //             PhysicBoxShape box(Vec3{5, 5, 5});
+    //             ent->create_body(box, PhysicBodyType::DYNAMIC);
+    //         }
+    //     });
+
+    auto sponza =
+        loader->load_async<Model>("assets/sponza/test.mdl", [=](Ref<Model> rc) {
+            Entity *ent = new Entity(Vec3{0,0,0});
+            ent->bind_model(rc);
+            engine->get_world()->add_entity(ent);
         });
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     engine->get_world()->get_point_lights().push_back(
         Light{LightType::POINT, Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
     engine->get_world()->add_entity<CameraEntity>();
-    engine->get_world()->set_terrain(terrain->wait());
     engine->get_world()->set_sky(sky->wait());
     engine->start();
 

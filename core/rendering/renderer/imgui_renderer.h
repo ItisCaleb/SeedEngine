@@ -8,6 +8,7 @@ class ImguiRenderer : public Renderer {
         friend RenderEngine;
 
     private:
+        inline static ImguiRenderer *instance = nullptr;
         struct ImguiData {
                 RenderResource vertex;
                 RenderResource indices;
@@ -15,12 +16,15 @@ class ImguiRenderer : public Renderer {
         Ref<Material> font_mat;
         RenderResource gui_proj;
         ImguiData *get_imgui_data();
+        Ref<Texture> create_font_texture();
 
     public:
         void init() override;
+        void new_frame();
         void preprocess() override;
         void process(Viewport &viewport) override;
         void cleanup() override;
+        static ImguiRenderer *get_instance() { return instance; }
 };
 }  // namespace Seed
 

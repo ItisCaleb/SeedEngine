@@ -5,6 +5,7 @@
 
 namespace Seed {
 void ImguiRenderer::init() {
+    instance = this;
     ImGuiIO &io = ImGui::GetIO();
     IMGUI_CHECKVERSION();
     IM_ASSERT(io.BackendRendererUserData == nullptr &&
@@ -12,14 +13,12 @@ void ImguiRenderer::init() {
     ImguiData *bd = IM_NEW(ImguiData)();
     io.BackendRendererUserData = (void *)bd;
     io.BackendRendererName = "imgui_impl_seed";
-    bd->vertex.alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0, nullptr);
+    bd->vertex.alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0,
+                            nullptr);
     bd->indices.alloc_index(std::vector<u16>());
 
     // Build texture atlas
-    u8 *pixels;
-    int width, height;
-    io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-    Ref<Texture> font_tex(TextureType::TEXTURE_2D, width, height, PixelFormat::RGBA, pixels);
+    Ref<Texture> atlas = create_font_texture();
 
     RenderBlendState blend_state = {
         .blend_on = true,
@@ -27,13 +26,32 @@ void ImguiRenderer::init() {
             BlendFactor::SRC_ALPHA, BlendFactor::ONE_MINUS_SRC_ALPHA,
             BlendFactor::ONE, BlendFactor::ONE_MINUS_SRC_ALPHA)};
     font_mat.create(DS::get_instance()->gui_shader);
-    font_mat->add_texture_unit(font_tex);
+    font_mat->add_texture_unit(atlas);
     font_mat->set_blend_state(blend_state);
     /* create pipeline */
     font_mat->build_pipeline();
     gui_proj.alloc_constant("GUIProjMtx", sizeof(Mat4), nullptr);
+}
 
-}  // namespace Seed
+Ref<Texture> ImguiRenderer::create_font_texture() {
+    ImGuiIO &io = ImGui::GetIO();
+
+    u8 *pixels;
+    int width, height;
+    io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+    Ref<Texture> font_tex(TextureType::TEXTURE_2D, width, height,
+                          PixelFormat::RGBA, pixels);
+    return font_tex;
+}
+
+void ImguiRenderer::new_frame() {
+    ImGuiIO &io = ImGui::GetIO();
+    if (!io.Fonts->IsBuilt()) {
+        Ref<Texture> atlas = create_font_texture();
+        font_mat->set_texture_unit(0, atlas);
+    }
+}
+
 void ImguiRenderer::preprocess() {
     ImDrawData *draw_data = ImGui::GetDrawData();
 
@@ -49,7 +67,8 @@ void ImguiRenderer::preprocess() {
     };
     RenderCommandDispatcher dp;
 
-    RenderUpdateData *upd = dp.map_buffer(gui_proj, 0, sizeof(ortho_projection), current_sort_key());
+    RenderUpdateData *upd = dp.map_buffer(gui_proj, 0, sizeof(ortho_projection),
+                                          current_sort_key());
     memcpy(upd->get_buffer(), ortho_projection, sizeof(ortho_projection));
     upd->set_filled();
 }
@@ -129,7 +148,5 @@ void ImguiRenderer::process(Viewport &viewport) {
     builder.set_scissor(view_rect.x, view_rect.y, fb_width, fb_height);
     dp.set_states(builder, current_sort_key());
 }
-void ImguiRenderer::cleanup() {
-    this->seq = 0;
-}
+void ImguiRenderer::cleanup() { this->seq = 0; }
 }  // namespace Seed

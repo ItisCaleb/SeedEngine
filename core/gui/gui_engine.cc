@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include "core/input.h"
 #include "core/engine.h"
+#include "core/rendering/renderer/imgui_renderer.h"
 
 namespace Seed {
 GuiEngine::GuiEngine(Window *window) {
@@ -32,6 +33,7 @@ GuiEngine::GuiEngine(Window *window) {
 }
 void GuiEngine::update() {
     ImGui_ImplGlfw_NewFrame();
+    ImguiRenderer::get_instance()->new_frame();
     ImGui::NewFrame();
     ImGuiIO &io = ImGui::GetIO();
     Input::get_instance()->set_capture_mouse(!io.WantCaptureMouse);

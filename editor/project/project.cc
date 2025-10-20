@@ -4,6 +4,7 @@
 namespace Seed {
 Project *Project::load(const std::string &path) {
     auto file = File::open(path);
+    if(file.is_null()) return nullptr;
     auto json = file->read_json();
     Project *project = new Project;
     project->name = json["name"];

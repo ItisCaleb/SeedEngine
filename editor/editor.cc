@@ -30,11 +30,11 @@ int main(int, char **) {
     GuiEngine::get_instance()->add_gui(new EditorGUI);
     engine->get_world()->add_entity<EditorCamera>();
 
-    ResourceLoader *loader = ResourceLoader::get_instance();
-    auto sky = loader->load_async<Sky>("assets/sky.json");
-    auto terrain = loader->load<Terrain>("assets/iceland_heightmap.png");
-    engine->get_world()->set_sky(sky->wait());
-    engine->get_world()->set_terrain(terrain);
+    // ResourceLoader *loader = ResourceLoader::get_instance();
+    // auto sky = loader->load_async<Sky>("assets/sky.json");
+    // auto terrain = loader->load<Terrain>("assets/iceland_heightmap.png");
+    // engine->get_world()->set_sky(sky->wait());
+    // engine->get_world()->set_terrain(terrain);
 
     engine->start();
     NFD_Quit();

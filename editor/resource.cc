@@ -56,11 +56,13 @@ void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
     std::vector<u32> &indices = m.indices;
     for (int i = 0; i < mesh->mNumVertices; i++) {
         aiVector3D ai_vertex = mesh->mVertices[i];
-        aiVector3D ai_normal = mesh->mNormals[i];
         aiVector3D *ai_tex_coord = mesh->mTextureCoords[0];
         Vertex vertex;
         vertex.position = {ai_vertex.x, ai_vertex.y, ai_vertex.z};
-        vertex.normal = {ai_normal.x, ai_normal.y, ai_normal.z};
+        if (mesh->mNormals) {
+            aiVector3D ai_normal = mesh->mNormals[i];
+            vertex.normal = {ai_normal.x, ai_normal.y, ai_normal.z};
+        }
         if (ai_tex_coord) {
             vertex.tex_coord = {ai_tex_coord[i].x, ai_tex_coord[i].y};
         } else {
@@ -80,7 +82,7 @@ void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
         model_mat.specular = loadMaterialTextures(mat, aiTextureType_SPECULAR);
         model_mat.normal = loadMaterialTextures(mat, aiTextureType_NORMALS);
         mat->Get(AI_MATKEY_OPACITY, &model_mat.opacity, nullptr);
-        
+
         if (model_mat.normal == -1) {
             /* we try to load heightmap instead*/
             model_mat.normal = loadMaterialTextures(mat, aiTextureType_HEIGHT);
@@ -113,8 +115,8 @@ EditorModel::EditorModel(const std::string &path) {
     Assimp::Importer importer;
     const aiScene *scene = importer.ReadFile(
         path, aiProcess_CalcTangentSpace | aiProcess_Triangulate |
-                  aiProcess_OptimizeMeshes | aiProcess_JoinIdenticalVertices |
-                  aiProcess_SortByPType);
+                  aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes |
+                  aiProcess_JoinIdenticalVertices | aiProcess_SortByPType);
 
     // If the import failed, report it
     if (!scene) {

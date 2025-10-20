@@ -77,7 +77,7 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
     Ref<Model> model;
     Ref<File> file = File::open(path, "rb");
     std::vector<Ref<Mesh>> meshs;
-    std::vector<u32> mesh_mats;
+    std::vector<i32> mesh_mats;
     std::vector<Ref<BaseMaterial>> materials;
     std::map<i32, Ref<Texture>> texture_map;
     std::string magic = file->read_str(strlen(model_file_magic));
@@ -128,7 +128,9 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
         materials.push_back(mat);
     }
     for (int i = 0; i < meshs.size(); i++) {
-        meshs[i]->set_material(ref_cast<Material>(materials[mesh_mats[i]]));
+        i32 id = mesh_mats[i];
+        if(id == -1) id = 2;
+        meshs[i]->set_material(ref_cast<Material>(materials[id]));
     }
     model.create(meshs);
     return model;

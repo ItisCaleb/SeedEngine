@@ -29,9 +29,9 @@ struct TextureField {
 
 struct MaterialField {
         /* texture ids*/
-        u16 diffuse_map;
-        u16 specular_map;
-        u16 normal_map;
+        i16 diffuse_map;
+        i16 specular_map;
+        i16 normal_map;
         f32 opacity;
 };
 #pragma pack(pop)

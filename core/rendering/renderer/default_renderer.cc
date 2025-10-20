@@ -151,7 +151,7 @@ void DefaultRenderer::shadow_pass() {
         shadow_map.query_viewport(shadow_map_dir_handle),
         shadow_map.get_resolution());
     dp.set_states(shadow_map_state, current_sort_key());
-
+    Ref<Material> last_material;
     for (MeshInstance &mesh : opaque_meshes) {
         if (mesh.instance_id.empty() ||
             !mesh.mesh->get_material()->get_shadow_pipeline().inited())
@@ -159,8 +159,11 @@ void DefaultRenderer::shadow_pass() {
         dp.update_buffer(instance_idx_rc, 0,
                          sizeof(u32) * mesh.instance_id.size(),
                          (void *)mesh.instance_id.data(), current_sort_key());
-        RenderDrawDataBuilder mesh_builder =
-            dp.generate_render_data(mesh.mesh->get_material());
+        RenderDrawDataBuilder mesh_builder;
+        if (last_material != mesh.mesh->get_material()) {
+            mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
+            last_material = mesh.mesh->get_material();
+        }
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.bind_vertex(instance_idx_rc);
         mesh_builder.bind_description(&instance_desc);
@@ -182,19 +185,25 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
     color_state.bind_render_target(RenderEngine::get_instance()
                                        ->get_render_target("default")
                                        ->get_resource());
+    RectF v = {0, 0, 2048, 2048};
     color_state.set_scissor(viewport.get_actual_dimension());
     color_state.set_viewport(viewport.get_actual_dimension());
     dp.set_states(color_state, current_sort_key());
 
+    Ref<Material> last_material;
     for (MeshInstance &mesh : opaque_meshes) {
         if (mesh.instance_id.empty()) continue;
         dp.update_buffer(instance_idx_rc, 0,
                          sizeof(u32) * mesh.instance_id.size(),
                          (void *)mesh.instance_id.data(), current_sort_key());
-        RenderDrawDataBuilder mesh_builder = dp.generate_render_data(
-            ref_cast<Material>(mesh.mesh->get_material()));
-        mesh_builder.bind_texture(mesh.mesh->get_material()->get_texture_count(),
-                             shadow_map.get_texture()->get_resource());
+        RenderDrawDataBuilder mesh_builder;
+        if (last_material != mesh.mesh->get_material()) {
+            mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
+            mesh_builder.bind_texture(
+                mesh.mesh->get_material()->get_texture_count(),
+                shadow_map.get_texture()->get_resource());
+            last_material = mesh.mesh->get_material();
+        }
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.bind_vertex(instance_idx_rc);
         mesh_builder.bind_description(&instance_desc);
