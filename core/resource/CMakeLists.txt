@@ -7,4 +7,5 @@ target_sources(seed PRIVATE
     image.cc
     resource_loader.cc
     default_storage.cc
+    shader.cc
     )

@@ -1,3 +1,4 @@
+#version 450 core
 layout (quads, fractional_odd_spacing, ccw) in;
 
 uniform sampler2D height_map;  // the texture corresponding to our height map

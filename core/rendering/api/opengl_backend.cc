@@ -187,7 +187,7 @@ void RenderBackendGL::dealloc(RenderResource *rc) {
 void RenderBackendGL::find_samplers(const std::string &src,
                                     std::vector<std::string> &result) {
     std::regex sampler_regex(
-        R"(\b(?:uniform\s+)?sampler\w*\s+(\w+)(\s*\[\s*(\d+)\s*\])?)");
+        R"(\buniform\s+sampler\w*\s+(\w+)(\s*\[\s*(\d+)\s*\])?)");
     std::smatch match;
 
     std::string::const_iterator search_start(src.cbegin());
@@ -351,6 +351,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
             if (!success) {
                 glGetShaderInfoLog(vertex, 512, NULL, info);
+                spdlog::error("shader source: {}", vertex_c);
                 throw std::runtime_error(info);
             }
             glAttachShader(program, vertex);
@@ -370,11 +371,13 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 glGetShaderiv(tess_ctrl, GL_COMPILE_STATUS, &success);
                 if (!success) {
                     glGetShaderInfoLog(tess_ctrl, 512, NULL, info);
+                    spdlog::error("shader source: {}", tess_ctrl_c);
                     throw std::runtime_error(info);
                 }
                 glGetShaderiv(tess_eval, GL_COMPILE_STATUS, &success);
                 if (!success) {
-                    glGetShaderInfoLog(tess_ctrl, 512, NULL, info);
+                    glGetShaderInfoLog(tess_eval, 512, NULL, info);
+                    spdlog::error("shader source: {}", tess_eval_c);
                     throw std::runtime_error(info);
                 }
                 glAttachShader(program, tess_ctrl);
@@ -397,6 +400,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 glGetShaderiv(geometry, GL_COMPILE_STATUS, &success);
                 if (!success) {
                     glGetShaderInfoLog(geometry, 512, NULL, info);
+                    spdlog::error("shader source: {}", geo_c);
                     throw std::runtime_error(info);
                 }
                 glAttachShader(program, geometry);
@@ -410,6 +414,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
             if (!success) {
                 glGetShaderInfoLog(fragment, 512, NULL, info);
+                spdlog::error("shader source: {}", frag_c);
                 throw std::runtime_error(info);
             }
             glAttachShader(program, fragment);
@@ -557,7 +562,7 @@ void RenderBackendGL::handle_dealloc(AllocCommand &cmd) {
 
 void RenderBackendGL::handle_update(RenderCommand &cmd) {
     RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
-    if(!update_data->filled){
+    if (!update_data->filled) {
         this->push_cmd(cmd);
         return;
     }

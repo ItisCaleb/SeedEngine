@@ -1,19 +1,6 @@
+#version 450 core
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
-
-
-struct Light {
-    vec3 position;
-    vec3 diffuse;
-    vec3 specular;
-    float enable;
-};
-
-layout(std140) uniform Lights {
-    vec3 u_light_ambient;
-    Light u_dir_light;
-    Light u_point_lights[8];
-};
 
 layout (std140) uniform LightSpaceMatrices
 {

@@ -1,26 +1,16 @@
+#version 450 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNormal;
 layout (location = 2) in vec3 aTangent;
 layout (location = 3) in vec2 aTexCoord;
-layout (location = 8) in uint aInstanceIndex;
+
+#include <instance.glsl>
+#include <phong_lighting.glsl>
 
 layout (std140) uniform LightSpaceMatrices
 {
     mat4 u_direction_lightspace;
     mat4 u_position_lightspace[8];
-};
-
-struct Light {
-    vec3 position;
-    vec3 diffuse;
-    vec3 specular;
-    float enable;
-};
-
-layout(std140) uniform Lights {
-    vec3 u_light_ambient;
-    Light u_dir_light;
-    Light u_point_lights[8];
 };
 
 layout (std140) uniform Matrices
