@@ -2,8 +2,7 @@
 #include "core/engine.h"
 
 namespace Seed {
-RenderTarget::RenderTarget(bool depth_only)
-    : viewport(SeedEngine::get_instance()->get_window()) {
+RenderTarget::RenderTarget(bool depth_only) {
     this->rc.alloc_render_target(depth_only);
 }
 
@@ -14,11 +13,10 @@ void RenderTarget::bind_depth(AttachmentSurface &surface) {
                                surface.face);
 }
 
-void RenderTarget::bind_depth(Ref<Texture> tex, u8 face){
+void RenderTarget::bind_depth(Ref<Texture> tex, u8 face) {
     this->depth_surface = AttachmentSurface{tex, face};
     RenderCommandDispatcher dp;
-    dp.update_depth_attachment(this->rc, tex->get_resource(),
-                               face);
+    dp.update_depth_attachment(this->rc, tex->get_resource(), face);
 }
 
 RenderTarget::~RenderTarget() { this->rc.dealloc(); }
@@ -28,16 +26,15 @@ void MultiRenderTarget::bind_color(u32 slot, AttachmentSurface &surface) {
     this->color_surface[slot] = surface;
     RenderCommandDispatcher dp;
 
-    dp.update_color_attachment(
-        this->rc, 0, surface.texture->get_resource(), surface.face);
+    dp.update_color_attachment(this->rc, 0, surface.texture->get_resource(),
+                               surface.face);
 }
 
-void MultiRenderTarget::bind_color(u32 slot, Ref<Texture> tex, u8 face){
+void MultiRenderTarget::bind_color(u32 slot, Ref<Texture> tex, u8 face) {
     EXPECT_INDEX_INBOUND_THROW(slot, 8);
     this->color_surface[slot] = AttachmentSurface{tex, face};
     RenderCommandDispatcher dp;
-    dp.update_color_attachment(this->rc, 0, tex->get_resource(),
-                               face);
+    dp.update_color_attachment(this->rc, 0, tex->get_resource(), face);
 }
 
 WindowRenderTarget::WindowRenderTarget() {

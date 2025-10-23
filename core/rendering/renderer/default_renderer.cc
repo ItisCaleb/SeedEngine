@@ -46,7 +46,9 @@ void DefaultRenderer::init() {
 
     shadow_map_rt.create(true);
     shadow_map_rt->bind_depth(shadow_map.get_texture());
-    shadow_map_dir_handle = shadow_map.allocate_2048();
+    for (u32 i = 0; i < CSM_SPLITS; i++) {
+        shadow_map_dir_handle[i] = shadow_map.allocate_2048();
+    }
     DebugDrawer *drawer = DebugDrawer::get_instance();
 
     debug_line.create(&drawer->debug_desc);
@@ -119,14 +121,21 @@ void DefaultRenderer::preprocess() {
         }
     }
     upd->set_filled();
-    upd = dp.map_buffer(u_lightspaces, 0, sizeof(Mat4) * 9, current_sort_key());
+    upd = dp.map_buffer(u_lightspaces, 0, sizeof(Mat4) * 64 + sizeof(RectF) * 64, current_sort_key());
+    std::vector<Mat4> light_spaces;
+    cam->calculate_csm_lightspace(world->get_direction_light().get_position(),
+                                  CSM_SPLITS, light_spaces);
     Mat4 *light_mats = (Mat4 *)upd->get_buffer();
-    light_mats[0] =
-        world->get_direction_light().get_light_space_mat(cam).transpose();
-    for (u32 i = 0; i < 8 && i < world->get_point_lights().size(); i++) {
-        light_mats[i + 1] =
-            world->get_point_lights()[i].get_light_space_mat(cam).transpose();
+
+    RectF *shadow_uv = (RectF*)(void*)&light_mats[64];
+    for (u32 i = 0; i < CSM_SPLITS; i++) {
+        light_mats[i] = light_spaces[i].transpose();
+        shadow_uv[i] = shadow_map.query_uv(shadow_map_dir_handle[i]);
     }
+    // for (u32 i = 0; i < 8 && i < world->get_point_lights().size(); i++) {
+    //     light_mats[i + 1] =
+    //         world->get_point_lights()[i].get_light_space_mat(cam).transpose();
+    // }
     upd->set_filled();
 
     DebugDrawer *drawer = DebugDrawer::get_instance();
@@ -141,15 +150,20 @@ void DefaultRenderer::shadow_pass() {
 
     /* shadow pass */
     RenderStateDataBuilder shadow_map_state;
-
+    u32 shadow_map_resolution = shadow_map.get_resolution();
     shadow_map_state.bind_render_target(shadow_map_rt->get_resource());
-    shadow_map_state.set_scissor(0, 0, shadow_map.get_resolution(),
-                                 shadow_map.get_resolution());
+    shadow_map_state.set_scissor(0, 0, shadow_map_resolution,
+                                 shadow_map_resolution);
 
     shadow_map_state.clear(StateClearFlag::CLEAR_DEPTH);
-    shadow_map_state.set_viewport(
-        shadow_map.query_viewport(shadow_map_dir_handle),
-        shadow_map.get_resolution());
+    Viewport shadow_map_vp(RectF{0, 0, 1, 1},
+                           Vec2{(f32)shadow_map_resolution, (f32)shadow_map_resolution});
+    std::vector<Viewport> split_vps;
+    for (u32 i = 0; i < CSM_SPLITS; i++) {
+        Viewport &vp = split_vps.emplace_back(shadow_map_vp);
+        vp.set_dimension(shadow_map.query_uv(shadow_map_dir_handle[i]), true);
+    }
+    shadow_map_state.set_viewports(split_vps);
     dp.set_states(shadow_map_state, current_sort_key());
     Ref<Material> last_material;
     for (MeshInstance &mesh : opaque_meshes) {
@@ -178,7 +192,7 @@ void DefaultRenderer::shadow_pass() {
     dp.end_scope(next_sort_key());
 }
 
-void DefaultRenderer::color_pass(Viewport &viewport) {
+void DefaultRenderer::color_pass(WindowViewport &viewport) {
     RenderCommandDispatcher dp;
     dp.begin_scope("Color Pass", current_sort_key());
     RenderStateDataBuilder color_state;
@@ -186,8 +200,8 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
                                        ->get_render_target("default")
                                        ->get_resource());
     RectF v = {0, 0, 2048, 2048};
-    color_state.set_scissor(viewport.get_actual_dimension());
-    color_state.set_viewport(viewport.get_actual_dimension());
+    color_state.set_scissor(viewport.get_actual_dimension(false));
+    color_state.set_viewport(&viewport);
     dp.set_states(color_state, current_sort_key());
 
     Ref<Material> last_material;
@@ -225,7 +239,7 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
     dp.end_scope(next_sort_key());
 }
 
-void DefaultRenderer::process(Viewport &viewport) {
+void DefaultRenderer::process(WindowViewport &viewport) {
     World *world = SeedEngine::get_instance()->get_world();
 
     RenderCommandDispatcher dp;

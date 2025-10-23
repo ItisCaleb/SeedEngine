@@ -31,7 +31,7 @@ struct Vec3 {
             return Vec3{x - b.x, y - b.y, z - b.z};
         }
 
-        Vec3 operator-() { return Vec3{-x, -y, -z}; }
+        Vec3 operator-() const { return Vec3{-x, -y, -z}; }
 
         void operator-=(const Vec3 &b) {
             x -= b.x;

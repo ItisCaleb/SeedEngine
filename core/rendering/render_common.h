@@ -15,13 +15,14 @@ enum class TextureType {
     TEXTURE_2D_MULTISAMPLE
 };
 
-enum class PixelFormat: u8 { R, RG, RGB, RGBA, D24, D24S8 };
+enum class PixelFormat: u8 { R, RG, RGB, RGBA, D24, D24S8, RGBA16F };
 
 u32 constexpr static get_pixel_format_size(PixelFormat format) {
     switch (format) {
         case PixelFormat::R:
             return 1;
         case PixelFormat::RG:
+        case PixelFormat::RGBA16F:
             return 2;
         case PixelFormat::RGB:
         case PixelFormat::D24:

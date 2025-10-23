@@ -1,5 +1,7 @@
 #include "camera.h"
 #include "core/math/utils.h"
+#include <spdlog/spdlog.h>
+#include "core/math/mat3.h"
 
 namespace Seed {
 void Camera::set_position(Vec3 pos) {
@@ -41,15 +43,14 @@ void Camera::calculate_frustum() {
         frustum_plane.right = {.point = position + u * frustum.right,
                                .normal = -u};
         frustum_plane.left = {.point = position + u * frustum.left,
-                               .normal = u};
-        frustum_plane.top = {.point = position + v * frustum.top,
-                               .normal = -v};
+                              .normal = u};
+        frustum_plane.top = {.point = position + v * frustum.top, .normal = -v};
         frustum_plane.bottom = {.point = position + v * frustum.bottom,
-                               .normal = v};
+                                .normal = v};
         frustum_plane.near = {.point = position + front * frustum.near,
-                               .normal = front};
+                              .normal = front};
         frustum_plane.far = {.point = position + front * frustum.far,
-                               .normal = -front};
+                             .normal = -front};
     } else {
         frustum_plane.right = {
             .point = position,
@@ -128,7 +129,7 @@ void Camera::calculate_dirty() {
     }
 }
 
-float Camera::calculate_depth(const Vec3 &pos){
+float Camera::calculate_depth(const Vec3 &pos) {
     float dist = (pos - this->position).length();
     return dist / frustum.far;
 }
@@ -159,6 +160,102 @@ bool Camera::within_frustum(const AABB &bounding_box) {
            test_aabb_plane(bounding_box, frustum_plane.bottom) &&
            test_aabb_plane(bounding_box, frustum_plane.near) &&
            test_aabb_plane(bounding_box, frustum_plane.far);
+}
+
+void Camera::calculate_csm_lightspace(const Vec3 &dir, u8 splits,
+                                      std::vector<Mat4> &lightspaces) {
+    if (this->frustum.is_ortho) {
+        SPDLOG_WARN("Camera must be perspective to calculate CSM.");
+        return;
+    }
+    if (splits > 5) {
+        SPDLOG_WARN("Too many CSM splits.");
+        return;
+    }
+    Vec3 w = -front;
+    /* right */
+    Vec3 u = up.cross(w).norm();
+    /* vup */
+    Vec3 v = w.cross(u).norm();
+    f32 lambda = 0.9;
+    f32 n0 = this->frustum.near;
+    f32 f0 = this->frustum.far;
+    f32 near = n0;
+
+    /* light lookat matrix */
+    Vec3 light_w = -dir.norm();
+    Vec3 light_u = up.cross(light_w).norm();
+    Vec3 light_v = light_w.cross(light_u).norm();
+    Mat4 light_lookat = Mat4::coord_transform_mat(light_u, light_v, light_w);
+    Mat4 light_view = light_lookat * Mat4::translate_mat(-position);
+    /*
+        https://developer.download.nvidia.com/SDK/10.5/opengl/src/cascaded_shadow_maps/doc/cascaded_shadow_maps.pdf
+        zᵢ = λn(f/n)*(i/N) + (1−λ)(n+(i/N)(f−n))
+        zᵢ: current split far
+        f: original far
+        n: original near
+        N: target splits
+        λ: correction factor
+    */
+    std::vector<Vec3> corners;
+    for (u32 i = 1; i <= splits; i++) {
+        f32 far = lambda * n0 * powf((f0 / n0), i / (f32)splits) +
+                  (1 - lambda) * (n0 + (i / (f32)splits) * (f0 - n0));
+        Vec3 n_front = front * near;
+        Vec3 n_right = u * (near / n0 * this->frustum.right);
+        Vec3 n_top = v * (near / n0 * this->frustum.top);
+        Vec3 f_front = front * far;
+        Vec3 f_right = u * (far / n0 * this->frustum.right);
+        Vec3 f_top = v * (far / n0 * this->frustum.top);
+        /* near top right */
+        corners.push_back(n_front + n_right + n_top);
+        /* near bottom right */
+        corners.push_back(n_front + n_right - n_top);
+        /* near top left */
+        corners.push_back(n_front - n_right + n_top);
+        /* near bottom left */
+        corners.push_back(n_front - n_right - n_top);
+
+        /* far top right */
+        corners.push_back(f_front + f_right + f_top);
+        /* far bottom right */
+        corners.push_back(f_front + f_right - f_top);
+        /* far top left */
+        corners.push_back(f_front - f_right + f_top);
+        /* far bottom left */
+        corners.push_back(f_front - f_right - f_top);
+        Vec3 max = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+        Vec3 min = {FLT_MAX, FLT_MAX, FLT_MAX};
+        Vec3 center = {0, 0, 0};
+        for (Vec3 &corner : corners) {
+            center += corner;
+        }
+        center /= corners.size();
+        for (Vec3 &corner : corners) {
+            Vec4 _corner = light_lookat * Mat4::translate_mat(-center) *
+                           Vec4{corner.x, corner.y, corner.z, 1};
+            max.x = std::max(max.x, _corner.x);
+            max.y = std::max(max.y, _corner.y);
+            max.z = std::max(max.z, _corner.z);
+            min.x = std::min(min.x, _corner.x);
+            min.y = std::min(min.y, _corner.y);
+            min.z = std::min(min.z, _corner.z);
+        }
+        f32 w = max.x - min.x;
+        f32 h = max.y - min.y;
+        f32 d = max.z - min.z;
+        f32 rl = max.x + min.x;
+        f32 tb = max.y + min.y;
+        f32 fn = max.z + min.z;
+        Mat4 light_projection =
+            Mat4({Vec4{2 / w, 0, 0, -rl / w}, Vec4{0, 2 / h, 0, -tb / h},
+                  Vec4{0, 0, -2 / d, -fn / d}, Vec4{0, 0, 0, 1}});
+        lightspaces.push_back(light_projection * light_view);
+
+        /* next split */
+        near = far;
+        corners.clear();
+    }
 }
 
 Vec3 Camera::to_world_pos(Vec2 pos) { return {}; }

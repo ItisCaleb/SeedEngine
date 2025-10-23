@@ -13,7 +13,6 @@ struct AttachmentSurface {
 class RenderTarget : public RefCounted {
     protected:
         RenderResource rc;
-        Viewport viewport;
         AttachmentSurface depth_surface;
         bool dirty = true;
 
@@ -22,7 +21,6 @@ class RenderTarget : public RefCounted {
         void bind_depth(AttachmentSurface &surface);
         void bind_depth(Ref<Texture> tex, u8 face = 0);
         AttachmentSurface &get_depth() { return this->depth_surface; };
-        Viewport &get_viewport() { return this->viewport; }
         RenderResource &get_resource() { return this->rc; }
         ~RenderTarget();
 };

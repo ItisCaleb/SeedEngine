@@ -5,6 +5,7 @@
 #include "core/math/mat4.h"
 #include "core/collision/shape.h"
 #include "core/collision/aabb.h"
+#include <vector>
 
 namespace Seed {
 class Camera {
@@ -48,6 +49,7 @@ class Camera {
         Mat4 projection();
         Vec3 to_world_pos(Vec2 pos);
         float calculate_depth(const Vec3 &pos);
+        void calculate_csm_lightspace(const Vec3 &dir, u8 splits, std::vector<Mat4> &lightspaces);
 
         Camera(Vec3 pos, Vec3 up, Vec3 front);
         Camera();

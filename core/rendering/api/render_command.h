@@ -6,6 +6,7 @@
 #include "core/resource/material.h"
 #include "core/rendering/render_common.h"
 #include "core/collision/shape.h"
+#include "core/rendering/viewport.h"
 #include <queue>
 #include <stack>
 #include <fmt/format.h>
@@ -168,9 +169,9 @@ struct RenderStateData {
                 union {
                         RenderResource render_target;
                         struct {
-                                RectF view_rect;
-                                f32 max_height;
-                        } viewport;
+                                RectF *view_rects;
+                                u32 counts;
+                        } viewports;
                         RectF scissor_rect;
                         u8 clear_flag;
                         struct {
@@ -188,9 +189,8 @@ class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
     public:
         void bind_render_target(RenderResource target);
         void bind_window();
-        void set_viewport(f32 x, f32 y, f32 width, f32 height,
-                          f32 max_height = 0.0);
-        void set_viewport(const RectF &viewport, f32 max_height = 0.0);
+        void set_viewport(Viewport *viewport);
+        void set_viewports(std::vector<Viewport> &viewports);
 
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
         void set_scissor(const RectF &scissor_rect);

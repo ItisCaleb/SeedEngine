@@ -69,6 +69,8 @@ class DebugGUI : public GUI {
             auto cam = RenderEngine::get_instance()->get_cam();
             auto cam_pos = cam->get_position();
             ImGui::Text("%.2f %.2f %.2f", cam_pos.x, cam_pos.y, cam_pos.z);
+            ImGui::Text("FPS: %.2f", SeedEngine::get_instance()->get_fps());
+
             if (ImGui::Button("ortho")) {
                 cam->set_ortho(-10, 10, -10, 10, -100, 100);
                 // set position from origin

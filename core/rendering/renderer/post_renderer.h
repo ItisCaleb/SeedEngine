@@ -12,7 +12,7 @@ class PostRenderer : public Renderer {
     public:
         void init() override;
         void preprocess() override;
-        void process(Viewport &viewport) override;
+        void process(WindowViewport &viewport) override;
         void cleanup() override;
 };
 

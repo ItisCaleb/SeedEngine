@@ -1,10 +1,10 @@
 #version 450 core
 in float height;
 in vec3 normal;
-in vec4 light_fragPos;
 in vec4 fragPos;
 out vec4 FragColor;
 
+#include <shadow.glsl>
 #include <phong_lighting.glsl>
 
 
@@ -27,7 +27,7 @@ void main() {
         calculate_light(u_dir_light.diffuse, u_dir_light.specular,
             diffuse_sample, specular_sample,
             normalize(vec3(u_dir_light.position)), view_dir,
-            1, normal, shadowMap, light_fragPos);
+            1, normal) * (1.0 - ShadowCalculation(shadowMap, fragPos, normal, normalize(vec3(u_dir_light.position))));
 
     for (int i = 0; i < 8; i++) {
         Light light = u_point_lights[i];
@@ -38,7 +38,7 @@ void main() {
         light_dir = normalize(light_dir);
         light_out += calculate_light(light.diffuse, light.specular,
             diffuse_sample, specular_sample,
-            light_dir, view_dir, d, normal, shadowMap, light_fragPos);
+            light_dir, view_dir, d, normal);
     }
 
 

@@ -265,6 +265,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
 
             GLuint type = convert_texture_type(tex->type);
             GLuint format = convert_pixel_format(tex->format);
+            GLuint internal = convert_pixel_internal(tex->format);
             glGenTextures(1, &tex->handle);
             glBindTexture(type, tex->handle);
             if (tex->type == TextureType::TEXTURE_CUBEMAP) {
@@ -282,15 +283,15 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             } else {
                 if (tex->format == PixelFormat::D24S8) {
                     // depth stencil texture
-                    glTexImage2D(type, 0, format, tex->w, tex->h, 0,
-                                 GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8,
+                    glTexImage2D(type, 0, internal, tex->w, tex->h, 0,
+                                 format, GL_UNSIGNED_INT_24_8,
                                  nullptr);
                 } else if (tex->format == PixelFormat::D24) {
                     glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_REPEAT);
                     glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_REPEAT);
                     glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                     glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                    glTexImage2D(type, 0, format, tex->w, tex->h, 0, format,
+                    glTexImage2D(type, 0, internal, tex->w, tex->h, 0, format,
                                  GL_UNSIGNED_BYTE, nullptr);
                 } else {
                     // normal texture
@@ -298,7 +299,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                     glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_REPEAT);
                     glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                     glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                    glTexImage2D(type, 0, format, tex->w, tex->h, 0, format,
+                    glTexImage2D(type, 0, internal, tex->w, tex->h, 0, format,
                                  GL_UNSIGNED_BYTE, nullptr);
                     glGenerateMipmap(type);
                 }
@@ -484,8 +485,8 @@ GLuint RenderBackendGL::convert_texture_type(TextureType type) {
     return t;
 }
 
-GLuint RenderBackendGL::convert_pixel_format(PixelFormat format) {
-    GLuint t;
+GLuint RenderBackendGL::convert_pixel_internal(PixelFormat format){
+        GLuint t;
     switch (format) {
         case PixelFormat::R:
             t = GL_R;
@@ -499,11 +500,42 @@ GLuint RenderBackendGL::convert_pixel_format(PixelFormat format) {
         case PixelFormat::RGBA:
             t = GL_RGBA;
             break;
+        case PixelFormat::RGBA16F:
+            t = GL_RGBA16F;
+            break;
+        case PixelFormat::D24:
+            t = GL_DEPTH_COMPONENT24;
+            break;
+        case PixelFormat::D24S8:
+            t = GL_DEPTH24_STENCIL8;
+            break;
+        default:
+            break;
+    }
+    return t;
+}
+
+GLuint RenderBackendGL::convert_pixel_format(PixelFormat format) {
+    GLuint t;
+    switch (format) {
+        case PixelFormat::R:
+            t = GL_R;
+            break;
+        case PixelFormat::RG:
+            t = GL_RG;
+            break;
+        case PixelFormat::RGB:
+            t = GL_RGB;
+            break;
+        case PixelFormat::RGBA16F:
+        case PixelFormat::RGBA:
+            t = GL_RGBA;
+            break;
         case PixelFormat::D24:
             t = GL_DEPTH_COMPONENT;
             break;
         case PixelFormat::D24S8:
-            t = GL_DEPTH24_STENCIL8;
+            t = GL_DEPTH_STENCIL;
             break;
         default:
             break;
@@ -590,12 +622,13 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             EXPECT_NOT_NULL_RET(tex);
             GLuint type = convert_texture_type(tex->type);
             GLuint format = convert_pixel_format(tex->format);
+            GLuint internal = convert_pixel_internal(tex->format);
             glBindTexture(type, tex->handle);
             if (tex->type == TextureType::TEXTURE_CUBEMAP) {
                 glTexImage2D(
                     GL_TEXTURE_CUBE_MAP_POSITIVE_X + update_data->texture.face,
                     0, format, update_data->texture.w, update_data->texture.h,
-                    0, format, GL_UNSIGNED_BYTE, data);
+                    0, internal, GL_UNSIGNED_BYTE, data);
             } else {
                 glTexSubImage2D(type, 0, update_data->texture.x_off,
                                 update_data->texture.y_off,
@@ -929,14 +962,8 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                 break;
             }
             case RenderStateData::OpType::VIEWPORT: {
-                RectF &vp = op->viewport.view_rect;
-                f32 max_height = op->viewport.max_height == 0
-                                     ? RenderEngine::get_instance()
-                                           ->get_current_window()
-                                           ->get_height()
-                                     : op->viewport.max_height;
-                // opengl viewport's origin is bottom left
-                glViewport(vp.x, max_height - vp.y - vp.h, vp.w, vp.h);
+                glViewportArrayv(0, op->viewports.counts, (const GLfloat*)op->viewports.view_rects);
+                free(op->viewports.view_rects);
                 break;
             }
             case RenderStateData::OpType::SCISSOR: {
@@ -973,6 +1000,7 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                 glBindBufferBase(GL_SHADER_STORAGE_BUFFER, op->bufferbase.base,
                                  buffer->handle);
                 glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+                break;
             }
             default:
                 break;

@@ -20,9 +20,10 @@ class RenderEngine {
     private:
         struct Layer {
                 Ref<RenderTarget> rt;
+                WindowViewport vp;
                 Renderer *renderer;
-                Layer(Ref<RenderTarget> rt, Renderer *rd)
-                    : rt(rt), renderer(rd) {}
+                Layer(Ref<RenderTarget> rt, Window *window, Renderer *rd)
+                    : rt(rt), vp(window), renderer(rd) {}
         };
         inline static RenderEngine *instance = nullptr;
         RenderBackend *device;
@@ -31,7 +32,7 @@ class RenderEngine {
         Camera cam;
         std::vector<Layer> layers;
         std::unordered_map<std::string, Ref<RenderTarget>> render_targets;
-        std::unordered_map<std::string, InstanceDataPool*> instance_pools;
+        std::unordered_map<std::string, InstanceDataPool *> instance_pools;
 
         Window *current_window;
 
@@ -42,9 +43,10 @@ class RenderEngine {
         RenderBackend *get_device();
         Camera *get_cam();
         template <typename T, typename... Args>
-        void register_renderer(u32 layer, Ref<RenderTarget> rt, const Args &...args);
+        void register_renderer(u32 layer, Ref<RenderTarget> rt,
+                               const Args &...args);
         void set_layer_viewport(u32 layer, RectF rect);
-        Viewport &get_layer_viewport(u32 layer);
+        Viewport *get_layer_viewport(u32 layer);
         Window *get_current_window() { return current_window; }
         Ref<RenderTarget> get_render_target(const std::string &name);
         InstanceDataPool *get_instance_pool(const std::string &name);

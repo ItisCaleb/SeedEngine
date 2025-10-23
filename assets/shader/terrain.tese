@@ -8,19 +8,13 @@ layout (std140) uniform Matrices
     mat4 u_view;
 };
 
-layout (std140) uniform LightSpaceMatrices
-{
-    mat4 u_direction_lightspace;
-    mat4 u_position_lightspace[8];
-};
-
+#include <shadow.glsl>
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 in vec2 TextureCoord[];
 
 // send to Fragment Shader for coloring
 out float height;
 out vec3 normal;
-out vec4 light_fragPos;
 out vec4 fragPos;
 
 float get_height(vec2 tex_coord){
@@ -70,7 +64,6 @@ void main()
     //https://stackoverflow.com/questions/49640250/calculate-normals-from-heightmap
     normal = normalize(vec3(2 * (rh - lh), -4, 2*(dh - uh)));
     fragPos = p;
-    light_fragPos = u_direction_lightspace * p;
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     gl_Position = u_projection * u_view * p;

@@ -78,13 +78,24 @@ Handle ShadowMap::allocate_2048() {
     SPDLOG_DEBUG("Unable to allocate a 2048 * 2048 shadowmap");
     return NULL_HANDLE;
 }
+
 RectF ShadowMap::query_viewport(Handle handle) {
     u16 *idx = this->used_spaces.get_or_null(handle);
     if (!idx) return RectF{};
+    u32 res = this->min_res * this->spaces[*idx];
     u32 x = min_res * (*idx % width);
     u32 y = min_res * (*idx / width);
-    u32 res = this->min_res * this->spaces[*idx];
     return RectF{(f32)x, (f32)y, (f32)res, (f32)res};
+}
+
+RectF ShadowMap::query_uv(Handle handle) {
+    u16 *idx = this->used_spaces.get_or_null(handle);
+    if (!idx) return RectF{};
+    f32 unit = (f32)min_res / (f32)resolution; 
+    f32 x = unit * (*idx % width);
+    f32 res = unit * this->spaces[*idx];
+    f32 y = 1.0 - unit * (*idx / width) - res;
+    return RectF{x, y, res, res};
 }
 
 ShadowMap::ShadowMap() {

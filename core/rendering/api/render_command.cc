@@ -84,20 +84,23 @@ void RenderStateDataBuilder::bind_window() {
     op->render_target = {};
 }
 
-void RenderStateDataBuilder::set_viewport(f32 x, f32 y, f32 width, f32 height,
-                                          f32 max_height) {
+void RenderStateDataBuilder::set_viewport(Viewport *viewport) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::VIEWPORT);
-    op->viewport.view_rect = {x, y, width, height};
-    op->viewport.max_height = max_height;
+    op->viewports.view_rects = (RectF *)malloc(sizeof(RectF));
+    *op->viewports.view_rects = viewport->get_actual_dimension(true);
+    op->viewports.counts = 1;
 }
 
-void RenderStateDataBuilder::set_viewport(const RectF &viewport,
-                                          f32 max_height) {
+void RenderStateDataBuilder::set_viewports(std::vector<Viewport> &viewports) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::VIEWPORT);
-    op->viewport.view_rect = viewport;
-    op->viewport.max_height = max_height;
+    op->viewports.view_rects =
+        (RectF *)malloc(viewports.size() * sizeof(RectF));
+    for (u32 i = 0; i < viewports.size(); i++) {
+        op->viewports.view_rects[i] = viewports[i].get_actual_dimension(true);
+    }
+    op->viewports.counts = viewports.size();
 }
 
 void RenderStateDataBuilder::set_scissor(f32 x, f32 y, f32 width, f32 height) {

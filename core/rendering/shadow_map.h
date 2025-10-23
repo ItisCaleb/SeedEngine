@@ -28,6 +28,7 @@ namespace Seed{
             Handle allocate_1024();
             Handle allocate_2048();
             RectF query_viewport(Handle handle);
+            RectF query_uv(Handle handle);
             Ref<Texture> get_texture(){
                 return shadow_map;
             }

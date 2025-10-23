@@ -6,6 +6,7 @@ target_sources(seed PRIVATE
     shadow_map.cc
     instance_data.cc
     mesh_storage.cc
+    viewport.cc
     )
 add_subdirectory(api)
 add_subdirectory(renderer)

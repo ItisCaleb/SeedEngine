@@ -60,11 +60,11 @@ void SeedEngine::start() {
         glfwSwapBuffers(glfw_window);
 
         delta = glfwGetTime() - start;
-
         if (delta < frame_limit) {
             OS::delay(frame_limit - delta);
             delta = frame_limit;
         }
+        last_fps = 1 / delta;
     }
 
     glfwDestroyWindow(glfw_window);

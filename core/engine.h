@@ -13,8 +13,9 @@ class SeedEngine {
         InputHandler input_handler;
         f32 frame_limit = 60.0;
         Window *window;
-        void init_systems();
         World *world;
+        f32 last_fps;
+        void init_systems();
 
     public:
         static SeedEngine *get_instance();
@@ -22,6 +23,8 @@ class SeedEngine {
         void start();
         World *get_world() { return world; }
         Window *get_window() { return window; }
+        f32 get_fps() { return last_fps; }
+
         SeedEngine(f32 target_fps = 60.0);
         ~SeedEngine();
 

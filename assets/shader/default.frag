@@ -1,13 +1,13 @@
 #version 450 core
 in vec2 texCoord;
 in vec3 fragPos;
-in vec4 light_fragPos;
 in vec3 view_pos;
 in vec3 tangent_dir_light;
 in vec3 tangent_pos_light[8];
 
 out vec4 FragColor;
 
+#include <shadow.glsl>
 #include <phong_lighting.glsl>
 
 layout(std140) uniform Camera { vec3 u_cam_pos; };
@@ -34,7 +34,8 @@ void main() {
         calculate_light(u_dir_light.diffuse, u_dir_light.specular,
                          diffuse_sample, specular_sample,
                                 normalize(tangent_dir_light), view_dir,
-                                1, normal, shadowMap, light_fragPos);
+                                1, normal) *
+                                (1.0 - ShadowCalculation(shadowMap, vec4(fragPos, 1.0), normal, normalize(tangent_dir_light)));
 
     for (int i = 0; i < 8; i++) {
         Light light = u_point_lights[i];
@@ -45,7 +46,7 @@ void main() {
         light_dir = normalize(light_dir);
         light_out += calculate_light(light.diffuse, light.specular,
             diffuse_sample, specular_sample,
-            light_dir, view_dir, d, normal, shadowMap, light_fragPos);
+            light_dir, view_dir, d, normal);
     }
     
 

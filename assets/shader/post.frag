@@ -7,6 +7,11 @@ uniform sampler2D image;
 
 void main()
 {    
-    //FragColor = vec4(vec3(1.0 - texture(image, texCoord)), 1.0);
-    FragColor = texture(image, texCoord);
+    const float gamma = 1.0;
+    vec3 hdrColor = texture(image, texCoord).rgb;
+    // exposure tone mapping
+    vec3 mapped =  hdrColor / (hdrColor + vec3(1.0));
+    // gamma correction
+    mapped = pow(mapped, vec3(1.0 / gamma));
+    FragColor = vec4(mapped, 1.0);
 }

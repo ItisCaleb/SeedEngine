@@ -74,6 +74,7 @@ class RenderBackendGL : public RenderBackend {
         void find_samplers(const std::string &src,
                            std::vector<std::string> &result);
         GLuint convert_texture_type(TextureType type);
+        GLuint convert_pixel_internal(PixelFormat format);
         GLuint convert_pixel_format(PixelFormat format);
 
         /* state setup */

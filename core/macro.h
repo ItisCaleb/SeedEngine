@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 
+
 #define EXPECT_NOT_NULL_RET(val)                    \
     if ((val) == nullptr) {                         \
         SPDLOG_ERROR("Variable " #val " is null."); \

@@ -50,13 +50,6 @@ RenderEngine::RenderEngine(Window *window) {
     }
     matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
     cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);
-    // u8 white_tex[4] = {255, 255, 255, 255};
-    // default_tex.create(TextureType::TEXTURE_2D, 1, 1, (const u8 *)white_tex);
-    // default_mat.create();
-    // for (u32 i = 0; i < Material::MAX; i++) {
-    //     default_mat->set_texture_map(static_cast<Material::TextureMapType>(i),
-    //                                  default_tex);
-    // }
 }
 
 void RenderEngine::init() {
@@ -69,7 +62,7 @@ void RenderEngine::init() {
     this->render_targets["window"] = ref_cast<RenderTarget>(window_rt);
 
     Ref<Texture> color_tex(TextureType::TEXTURE_2D, 1024, 768,
-                           PixelFormat::RGBA, nullptr);
+                           PixelFormat::RGBA16F, nullptr);
     Ref<Texture> depth_tex(TextureType::TEXTURE_2D, 1024, 768,
                            PixelFormat::D24S8, nullptr);
     post_target->bind_color(0, color_tex);
@@ -93,19 +86,19 @@ void RenderEngine::register_renderer(u32 layer, Ref<RenderTarget> rt,
     static_assert(std::is_base_of<Renderer, T>::value,
                   "T must be a derived class of Renderer.");
     Renderer *renderer = static_cast<Renderer *>(new T(args...));
-    this->layers.push_back(Layer(rt, renderer));
+    this->layers.push_back(Layer(rt, current_window, renderer));
     renderer->set_layer(layer);
     renderer->init();
 }
 
 void RenderEngine::set_layer_viewport(u32 layer, RectF rect) {
     EXPECT_INDEX_INBOUND(layer - 1, this->layers.size());
-    this->layers[layer - 1].rt->get_viewport().set_dimension(rect);
+    this->layers[layer - 1].vp.set_dimension(rect);
 }
 
-Viewport &RenderEngine::get_layer_viewport(u32 layer) {
+Viewport *RenderEngine::get_layer_viewport(u32 layer) {
     EXPECT_INDEX_INBOUND_THROW(layer - 1, this->layers.size());
-    return this->layers[layer - 1].rt->get_viewport();
+    return &this->layers[layer - 1].vp;
 }
 
 void RenderEngine::process() {
@@ -126,18 +119,16 @@ void RenderEngine::process() {
     Vec3 *cam_pos = (Vec3 *)upd->get_buffer();
     *cam_pos = this->cam.get_position();
     upd->set_filled();
-    u32 i = 1;
     for (Layer &layer : this->layers) {
         RenderCommandDispatcher layer_dp;
-        RectF rect = layer.rt->get_viewport().get_actual_dimension();
         {
             RenderStateDataBuilder builder;
-            builder.set_viewport(rect.x, rect.y, rect.w, rect.h);
+            builder.set_viewport(&layer.vp);
             builder.bind_render_target(layer.rt->get_resource());
             layer_dp.set_states(builder, layer.renderer->current_sort_key());
         }
         layer.renderer->preprocess();
-        layer.renderer->process(layer.rt->get_viewport());
+        layer.renderer->process(layer.vp);
     }
 
     this->device->process();

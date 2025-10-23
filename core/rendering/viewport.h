@@ -9,61 +9,45 @@
 
 namespace Seed {
 class Viewport {
-    private:
+    protected:
         RectF dimension;
-        Window *binded_window;
+        Vec2 size;
 
     public:
-        Viewport(Window *window, RectF dimension) : binded_window(window) {
+        Viewport(RectF dimension, Vec2 size) : size(size) {
             set_dimension(dimension);
         }
-        Viewport(Window *window, f32 x, f32 y, f32 w, f32 h)
-            : Viewport(window, RectF{x, y, w, h}) {}
-        Viewport(Window *window) : Viewport(window, 0, 0, 1, 1) {}
 
-        void set_dimension(RectF dim) {
-            dimension.x = clampf(dim.x, 0, 1);
-            dimension.y = clampf(dim.y, 0, 1);
-            dimension.w = clampf(dim.w, 0, 1);
-            dimension.h = clampf(dim.h, 0, 1);
-        }
+        void set_dimension(RectF dim, bool flip_y = false);
 
-        void set_dimension(f32 x, f32 y, f32 w, f32 h) {
-            set_dimension(RectF{x, y, w, h});
-        }
+        void set_dimension(f32 x, f32 y, f32 w, f32 h, bool flip_y = false);
 
-        RectF get_dimension() { return dimension; }
+        RectF get_dimension();
 
-        RectF get_actual_dimension() {
-            if (!binded_window) {
-                SPDLOG_ERROR("This viewport doesn't bind a window.");
-                return {};
-            }
-            u32 actual_w = binded_window->get_width();
-            u32 actual_h = binded_window->get_height();
-            return RectF{.x = (actual_w * dimension.x),
-                        .y = (actual_h * dimension.y),
-                        .w = (actual_w * dimension.w),
-                        .h = (actual_h * dimension.h)};
-        }
+        /* The engine viewport's origin is top left */
+        /* For API like OpenGL, we need to reverse y axis */
+        virtual RectF get_actual_dimension(bool reverse_y = false);
 
-        bool within_viewport(f32 x, f32 y) {
-            return x >= dimension.x && x <= dimension.x + dimension.w &&
-                   y >= dimension.y && y <= dimension.y + dimension.h;
-        }
+        bool within_viewport(f32 x, f32 y);
 
-        bool within_viewport(Vec2 pos) { return within_viewport(pos.x, pos.y); }
+        bool within_viewport(Vec2 pos);
 
-        Vec2 to_viewport_coord(f32 x, f32 y) {
-            return Vec2{
-                (x - dimension.x) / dimension.w,
-                (y - dimension.y) / dimension.h,
-            };
-        }
+        Vec2 to_viewport_coord(f32 x, f32 y);
 
-        Vec2 to_viewport_coord(Vec2 pos) {
-            return to_viewport_coord(pos.x, pos.y);
-        }
+        Vec2 to_viewport_coord(Vec2 pos);
+};
+
+class WindowViewport : public Viewport {
+    private:
+        Window *window;
+
+    public:
+        WindowViewport(Window *window, RectF dimension)
+            : Viewport(dimension, Vec2{0, 0}), window(window) {}
+        WindowViewport(Window *window, f32 x, f32 y, f32 w, f32 h)
+            : WindowViewport(window, RectF{x, y, w, h}) {}
+        WindowViewport(Window *window) : WindowViewport(window, 0, 0, 1, 1) {}
+        RectF get_actual_dimension(bool reverse_y = false) override;
 };
 }  // namespace Seed
 

@@ -8,7 +8,6 @@
 
 namespace Seed {
 
-
 struct STB140Light {
         alignas(16) Vec3 position;
         alignas(16) Vec3 diffuse;
@@ -16,14 +15,6 @@ struct STB140Light {
         f32 enable;
 };
 
-
-/*
-layout(std140) uniform Lights {
-    vec3 u_light_ambient;
-    Light u_dir_light;
-    Light u__point_lights[8];
-};
-*/
 struct STB140Lights {
         alignas(16) Vec3 u_light_ambient;
         STB140Light u_dir_light;
@@ -47,21 +38,8 @@ class Light {
         inline STB140Light get_stb140() {
             return STB140Light{pos_dir, diffuse, specular, (f32)enable};
         }
-        inline Mat4 get_light_space_mat(Camera *user_cam) {
-            Camera cam;
-            if (type == LightType::DIRECTIONAL) {
-                cam.set_ortho(-50, 50, -50, 50, -200, 200);
-                // set position from origin
-                cam.set_position(user_cam->get_position() - pos_dir);
-                cam.set_front(pos_dir);
-                cam.set_up(Vec3{0, 1, 0});
-                this->light_mat = cam.projection() * cam.look_at();
-                dirty = false;
-            }
-            return light_mat;
-        }
-        Vec3 &get_position() {return pos_dir;}
-        void set_dirty() { dirty = true ;}
+        Vec3 &get_position() { return pos_dir; }
+        void set_dirty() { dirty = true; }
         inline void set_enable(bool enable) { this->enable = enable; }
         Light(LightType type, const Vec3 &pos_dir, const Vec3 &diffuse,
               const Vec3 &specular, bool enable = true)
@@ -70,6 +48,10 @@ class Light {
               diffuse(diffuse),
               specular(specular),
               enable(enable) {}
+};
+
+class DirectionalLight {
+
 };
 
 }  // namespace Seed
