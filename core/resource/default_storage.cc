@@ -26,7 +26,7 @@ DefaultStorage::DefaultStorage() {
         "assets/shader/shadow_default.gs");
     shadow_terrain_shader = loader->load_shader(
         "assets/shader/shadow_terrain.vert", "assets/shader/shadow.frag",
-        "assets/shader/shadow_default.gs", "assets/shader/terrain.tesc",
+        "assets/shader/shadow_default.gs", "assets/shader/shadow_terrain.tesc",
         "assets/shader/shadow_terrain.tese");
 
     shadow_map_default_pipeline.alloc_pipeline(

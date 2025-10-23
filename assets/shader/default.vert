@@ -20,6 +20,7 @@ layout(std140) uniform Camera { vec3 u_cam_pos; };
 out vec2 texCoord;
 out vec3 fragPos;
 out vec3 view_pos;
+out float view_depth;
 out vec3 tangent_dir_light;
 out vec3 tangent_pos_light[8];
 
@@ -27,6 +28,7 @@ out vec3 tangent_pos_light[8];
 void main(){
     mat4 aModel = b_transform[aInstanceIndex];
     vec4 worldPos = aModel * vec4(aPos, 1.0);
+    view_depth = (u_view * worldPos).z;
     gl_Position = u_projection * u_view * worldPos;
 
     mat3 TBN_to_world = mat3(1.0);

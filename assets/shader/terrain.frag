@@ -2,6 +2,7 @@
 in float height;
 in vec3 normal;
 in vec4 fragPos;
+in float view_depth;
 out vec4 FragColor;
 
 #include <shadow.glsl>
@@ -27,7 +28,7 @@ void main() {
         calculate_light(u_dir_light.diffuse, u_dir_light.specular,
             diffuse_sample, specular_sample,
             normalize(vec3(u_dir_light.position)), view_dir,
-            1, normal) * (1.0 - ShadowCalculation(shadowMap, fragPos, normal, normalize(vec3(u_dir_light.position))));
+            1, normal) * (1.0 - ShadowCalculation(shadowMap, fragPos, view_depth, normal, normalize(vec3(u_dir_light.position))));
 
     for (int i = 0; i < 8; i++) {
         Light light = u_point_lights[i];

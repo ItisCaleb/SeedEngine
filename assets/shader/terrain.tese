@@ -16,6 +16,7 @@ in vec2 TextureCoord[];
 out float height;
 out vec3 normal;
 out vec4 fragPos;
+out float view_depth;
 
 float get_height(vec2 tex_coord){
     return texture(height_map, tex_coord).y * 256.0 - 128.0;
@@ -64,6 +65,7 @@ void main()
     //https://stackoverflow.com/questions/49640250/calculate-normals-from-heightmap
     normal = normalize(vec3(2 * (rh - lh), -4, 2*(dh - uh)));
     fragPos = p;
+    view_depth = (u_view * p).z;
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     gl_Position = u_projection * u_view * p;

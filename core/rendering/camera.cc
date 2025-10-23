@@ -163,7 +163,7 @@ bool Camera::within_frustum(const AABB &bounding_box) {
 }
 
 void Camera::calculate_csm_lightspace(const Vec3 &dir, u8 splits,
-                                      std::vector<Mat4> &lightspaces) {
+                                      std::vector<Mat4> &lightspaces, std::vector<f32> &fars) {
     if (this->frustum.is_ortho) {
         SPDLOG_WARN("Camera must be perspective to calculate CSM.");
         return;
@@ -177,7 +177,7 @@ void Camera::calculate_csm_lightspace(const Vec3 &dir, u8 splits,
     Vec3 u = up.cross(w).norm();
     /* vup */
     Vec3 v = w.cross(u).norm();
-    f32 lambda = 0.9;
+    f32 lambda = shadow_lamdba;
     f32 n0 = this->frustum.near;
     f32 f0 = this->frustum.far;
     f32 near = n0;
@@ -251,6 +251,7 @@ void Camera::calculate_csm_lightspace(const Vec3 &dir, u8 splits,
             Mat4({Vec4{2 / w, 0, 0, -rl / w}, Vec4{0, 2 / h, 0, -tb / h},
                   Vec4{0, 0, -2 / d, -fn / d}, Vec4{0, 0, 0, 1}});
         lightspaces.push_back(light_projection * light_view);
+        fars.push_back(far);
 
         /* next split */
         near = far;

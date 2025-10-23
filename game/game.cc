@@ -70,7 +70,7 @@ class DebugGUI : public GUI {
             auto cam_pos = cam->get_position();
             ImGui::Text("%.2f %.2f %.2f", cam_pos.x, cam_pos.y, cam_pos.z);
             ImGui::Text("FPS: %.2f", SeedEngine::get_instance()->get_fps());
-
+            ImGui::SliderFloat("CSM Lambda", &Camera::shadow_lamdba, 0, 1.0);
             if (ImGui::Button("ortho")) {
                 cam->set_ortho(-10, 10, -10, 10, -100, 100);
                 // set position from origin
@@ -103,7 +103,8 @@ int main(void) {
     // for (int i = 0; i < 6; i++) {
     //     for (int j = 0; j < 6; j++) {
     //         vertices.push_back(
-    //             ModelVertex{CUBE[CUBE_INDICE[i][j]], CUBE_NORMAL[i], CUBE_TEX[j]});
+    //             ModelVertex{CUBE[CUBE_INDICE[i][j]], CUBE_NORMAL[i],
+    //             CUBE_TEX[j]});
     //     }
     // }
 

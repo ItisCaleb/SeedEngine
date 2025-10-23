@@ -4,6 +4,8 @@ in vec3 fragPos;
 in vec3 view_pos;
 in vec3 tangent_dir_light;
 in vec3 tangent_pos_light[8];
+in float view_depth;
+
 
 out vec4 FragColor;
 
@@ -35,7 +37,7 @@ void main() {
                          diffuse_sample, specular_sample,
                                 normalize(tangent_dir_light), view_dir,
                                 1, normal) *
-                                (1.0 - ShadowCalculation(shadowMap, vec4(fragPos, 1.0), normal, normalize(tangent_dir_light)));
+                                (1.0 - ShadowCalculation(shadowMap, vec4(fragPos, 1.0), view_depth, normal, normalize(tangent_dir_light)));
 
     for (int i = 0; i < 8; i++) {
         Light light = u_point_lights[i];

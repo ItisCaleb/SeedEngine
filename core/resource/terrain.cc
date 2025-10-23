@@ -15,7 +15,8 @@ TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
     : Material(DS::get_instance()->terrain_shader) {
     this->shadow_pipeline = DS::get_instance()->shadow_map_terrain_pipeline;
     this->add_texture_unit(height_map);
-    this->raster_state = {.patch_control_points = 4};
+    this->raster_state = {.cull_mode = Cullmode::FRONT,
+                          .patch_control_points = 4};
     this->depth_state = {.depth_on = true};
 }
 void TerrainMaterial::set_height_map(Ref<Texture> height_map) {

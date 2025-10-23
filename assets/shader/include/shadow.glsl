@@ -2,11 +2,14 @@ layout (std140) uniform LightSpaceMatrices
 {
     mat4 u_lightspaces[64];
     vec4 u_shadow_uv[64];
+    float far[4];
 };
 
-float ShadowCalculation(sampler2D shadow_map, vec4 frag_pos, vec3 normal, vec3 light_dir)
+float ShadowCalculation(sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 normal, vec3 light_dir)
 {
-    for(int i = 0;i < 3;i++){
+    for(int i = 0;i < 4;i++){
+        if(frag_z > far[i]) continue; 
+
         vec4 lightspace_fragpos = u_lightspaces[i] * frag_pos;
         // perform perspective divide
         vec3 projCoords = lightspace_fragpos.xyz / lightspace_fragpos.w;
@@ -27,16 +30,18 @@ float ShadowCalculation(sampler2D shadow_map, vec4 frag_pos, vec3 normal, vec3 l
         float bias = max(0.05 * (1.0- dot(normal, light_dir)), 0.005);
 
         float shadow = 0;
-        float x, y;
-        vec2 tex_scale = (1 / (textureSize(shadow_map, 0) * 0.5));
+
+        vec2 tex_scale = (1 / (textureSize(shadow_map, 0) * u_shadow_uv[i].z));
         float currentDepth = projCoords.z;
-        for(y = -1.5; y <= 1.5; y += 1.0){
-            for (x = -1.5;x <= 1.5; x += 1.0){
+        float o = 0.5 * (3 - i);
+        float x, y;
+        for(y = -1.0 - o; y <= 1.0 + o; y += 1.0){
+            for (x = -1.0 - o;x <= 1.0 + o; x += 1.0){
                float _sample = texture(shadow_map, projCoords.xy + vec2(x,y) * tex_scale).r;
                shadow += currentDepth - bias > _sample ? 1.0 : 0.0;
             }
         }
-        shadow /= 16.0;
+        shadow /= (3.0 + (3-i)) * (3.0 + (3-i));
         return shadow;
     }
     return 0.0;

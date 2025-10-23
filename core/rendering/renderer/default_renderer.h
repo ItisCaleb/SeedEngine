@@ -36,8 +36,10 @@ class DefaultRenderer : public Renderer {
         Ref<RenderTarget> shadow_map_rt;
         RenderResource u_lights;
         RenderResource u_lightspaces;
-        inline static const u32 CSM_SPLITS = 3;
+        inline static const u32 CSM_SPLITS = 4;
         Handle shadow_map_dir_handle[CSM_SPLITS];
+        std::vector<MeshInstance> shadow_meshes[CSM_SPLITS];
+
 
         /* for debugging */
 

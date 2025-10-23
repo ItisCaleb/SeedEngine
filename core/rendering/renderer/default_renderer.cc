@@ -121,21 +121,23 @@ void DefaultRenderer::preprocess() {
         }
     }
     upd->set_filled();
-    upd = dp.map_buffer(u_lightspaces, 0, sizeof(Mat4) * 64 + sizeof(RectF) * 64, current_sort_key());
+    upd = dp.map_buffer(
+        u_lightspaces, 0,
+        sizeof(Mat4) * 64 + sizeof(RectF) * 64 + sizeof(f32) * CSM_SPLITS,
+        current_sort_key());
     std::vector<Mat4> light_spaces;
+    std::vector<f32> fars;
     cam->calculate_csm_lightspace(world->get_direction_light().get_position(),
-                                  CSM_SPLITS, light_spaces);
+                                  CSM_SPLITS, light_spaces, fars);
     Mat4 *light_mats = (Mat4 *)upd->get_buffer();
 
-    RectF *shadow_uv = (RectF*)(void*)&light_mats[64];
+    RectF *shadow_uv = (RectF *)(void *)&light_mats[64];
     for (u32 i = 0; i < CSM_SPLITS; i++) {
         light_mats[i] = light_spaces[i].transpose();
         shadow_uv[i] = shadow_map.query_uv(shadow_map_dir_handle[i]);
     }
-    // for (u32 i = 0; i < 8 && i < world->get_point_lights().size(); i++) {
-    //     light_mats[i + 1] =
-    //         world->get_point_lights()[i].get_light_space_mat(cam).transpose();
-    // }
+
+    memcpy(&shadow_uv[64], fars.data(), CSM_SPLITS);
     upd->set_filled();
 
     DebugDrawer *drawer = DebugDrawer::get_instance();
@@ -156,8 +158,8 @@ void DefaultRenderer::shadow_pass() {
                                  shadow_map_resolution);
 
     shadow_map_state.clear(StateClearFlag::CLEAR_DEPTH);
-    Viewport shadow_map_vp(RectF{0, 0, 1, 1},
-                           Vec2{(f32)shadow_map_resolution, (f32)shadow_map_resolution});
+    Viewport shadow_map_vp(RectF{0, 0, 1, 1}, Vec2{(f32)shadow_map_resolution,
+                                                   (f32)shadow_map_resolution});
     std::vector<Viewport> split_vps;
     for (u32 i = 0; i < CSM_SPLITS; i++) {
         Viewport &vp = split_vps.emplace_back(shadow_map_vp);
@@ -270,6 +272,9 @@ void DefaultRenderer::process(WindowViewport &viewport) {
 void DefaultRenderer::cleanup() {
     this->transparent_meshes.clear();
     this->opaque_meshes.clear();
+    for(auto &ms : this->shadow_meshes){
+        ms.clear();
+    }
 
     entity_aabb.clear();
     this->seq = 0;

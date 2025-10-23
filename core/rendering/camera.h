@@ -32,6 +32,7 @@ class Camera {
         void calculate_dirty();
 
     public:
+        inline static f32 shadow_lamdba = 0.8;
         void set_position(Vec3 pos);
         Vec3 get_position();
         void set_up(Vec3 up);
@@ -43,13 +44,15 @@ class Camera {
         void set_frustum(f32 left, f32 right, f32 bottom, f32 top, f32 near,
                          f32 far, bool is_ortho);
         void set_perspective(f32 fovy, f32 aspect, f32 near, f32 far);
-        void set_ortho(f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far);
+        void set_ortho(f32 left, f32 right, f32 bottom, f32 top, f32 near,
+                       f32 far);
         bool within_frustum(const AABB &bounding_box);
         Mat4 look_at();
         Mat4 projection();
         Vec3 to_world_pos(Vec2 pos);
         float calculate_depth(const Vec3 &pos);
-        void calculate_csm_lightspace(const Vec3 &dir, u8 splits, std::vector<Mat4> &lightspaces);
+        void calculate_csm_lightspace(const Vec3 &dir, u8 splits,
+                                      std::vector<Mat4> &lightspaces, std::vector<f32> &fars);
 
         Camera(Vec3 pos, Vec3 up, Vec3 front);
         Camera();
