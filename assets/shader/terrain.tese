@@ -42,8 +42,8 @@ void main()
     float offset = 0.0001;
     // lookup texel at patch coordinate for height and scale + shift as desired
     height = get_height(texCoord);
-    float rh = get_height(texCoord + vec2(-offset, 0));
-    float lh = get_height(texCoord + vec2(offset, 0));
+    float rh = get_height(texCoord + vec2(offset, 0));
+    float lh = get_height(texCoord + vec2(-offset, 0));
     float uh = get_height(texCoord + vec2(0, offset));
     float dh = get_height(texCoord + vec2(0, -offset));
 
@@ -63,7 +63,7 @@ void main()
     p += vec4(0, height, 0 , 0);
     
     //https://stackoverflow.com/questions/49640250/calculate-normals-from-heightmap
-    normal = normalize(vec3(2 * (rh - lh), -4, 2*(dh - uh)));
+    normal = normalize(vec3(lh - rh, 2, dh - uh));
     fragPos = p;
     view_depth = (u_view * p).z;
     // ----------------------------------------------------------------------

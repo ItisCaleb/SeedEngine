@@ -20,7 +20,6 @@ vec3 calculate_light(vec3 diffuse, vec3 specular, vec3 diffuse_sample, vec3 spec
     float diff = max(dot(n, light_dir), 0.0);
     vec3 diffuse_l = diffuse * diffuse_sample * diff;
     vec3 specular_l = specular * specular_sample * spec;
-    // float shadow = ShadowCalculation(shadow_map, light_fragPos, n, light_dir);
 
-    return att * (diffuse_l + specular_l);// * (1.0 - shadow);;
+    return att * (diffuse_l + specular_l);
 }

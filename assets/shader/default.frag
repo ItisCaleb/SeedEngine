@@ -30,14 +30,14 @@ void main() {
     vec3 view_dir = normalize(view_pos - fragPos);
     vec3 diffuse_sample = vec3(texture(u_diffuse, texCoord));
     vec3 specular_sample = vec3(texture(u_specular, texCoord));
-
+    vec3 dir_light = -normalize(tangent_dir_light);
     // direction
     light_out +=
         calculate_light(u_dir_light.diffuse, u_dir_light.specular,
                          diffuse_sample, specular_sample,
-                                normalize(tangent_dir_light), view_dir,
+                                dir_light, view_dir,
                                 1, normal) *
-                                (1.0 - ShadowCalculation(shadowMap, vec4(fragPos, 1.0), view_depth, normal, normalize(tangent_dir_light)));
+                                (1.0 - ShadowCalculation(shadowMap, vec4(fragPos, 1.0), view_depth, normal, dir_light));
 
     for (int i = 0; i < 8; i++) {
         Light light = u_point_lights[i];

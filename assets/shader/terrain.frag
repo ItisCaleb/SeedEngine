@@ -23,12 +23,12 @@ void main() {
     vec3 view_dir = normalize(u_cam_pos - fragPos.xyz);
     vec3 diffuse_sample = vec3(1,1,1);
     vec3 specular_sample = vec3(1,1,1);
+    vec3 dir_light = -normalize(vec3(u_dir_light.position));
     // direction
     light_out +=
         calculate_light(u_dir_light.diffuse, u_dir_light.specular,
-            diffuse_sample, specular_sample,
-            normalize(vec3(u_dir_light.position)), view_dir,
-            1, normal) * (1.0 - ShadowCalculation(shadowMap, fragPos, view_depth, normal, normalize(vec3(u_dir_light.position))));
+            diffuse_sample, specular_sample, dir_light, view_dir,
+            1, normal) * (1.0 - ShadowCalculation(shadowMap, fragPos, view_depth, normal, dir_light));
 
     for (int i = 0; i < 8; i++) {
         Light light = u_point_lights[i];
