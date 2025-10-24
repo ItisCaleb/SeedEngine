@@ -76,6 +76,8 @@ struct Vec3 {
 
         f32 length() const { return sqrtf(x * x + y * y + z * z); }
 
+        f32 lensq() const { return x * x + y * y + z * z; }
+
         Vec3 norm() const {
             f32 len = length();
             return Vec3{x / len, y / len, z / len};
@@ -99,6 +101,22 @@ struct Vec3 {
             f32 c = cosf(rad);
             f32 s = sinf(rad);
             return Vec3{c * x - s * y, s * x + c * y, z};
+        }
+
+        Vec3 min(const Vec3 &b) const{
+            if(this->lensq() < b.lensq()){
+                return *this;
+            }else{
+                return b;
+            }
+        }
+
+        Vec3 max(const Vec3 &b) const{
+            if(this->lensq() > b.lensq()){
+                return *this;
+            }else{
+                return b;
+            }
         }
 };
 

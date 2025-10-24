@@ -65,7 +65,7 @@ void main()
     //https://stackoverflow.com/questions/49640250/calculate-normals-from-heightmap
     normal = normalize(vec3(lh - rh, 2, dh - uh));
     fragPos = p;
-    view_depth = (u_view * p).z;
+    view_depth = -(u_view * p).z;
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     gl_Position = u_projection * u_view * p;

@@ -28,7 +28,10 @@ out vec3 tangent_pos_light[8];
 void main(){
     mat4 aModel = b_transform[aInstanceIndex];
     vec4 worldPos = aModel * vec4(aPos, 1.0);
-    view_depth = (u_view * worldPos).z;
+    // For right handed system,
+    // after view transformation, the depth is always negative
+    // So we negate it
+    view_depth = -(u_view * worldPos).z;
     gl_Position = u_projection * u_view * worldPos;
 
     mat3 TBN_to_world = mat3(1.0);

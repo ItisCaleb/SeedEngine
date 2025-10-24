@@ -126,6 +126,18 @@ struct Mat4 {
         Mat4 rotate(f32 rad, Vec3 axis) {
             return Mat4::rotate_mat(rad, axis) * (*this);
         }
+
+        inline static Mat4 ortho_mat(f32 r, f32 l, f32 t, f32 b, f32 near,
+                                     f32 far) {
+            f32 w = r - l;
+            f32 rl = r + l;
+            f32 h = t - b;
+            f32 tb = t + b;
+            f32 d = far - near;
+            f32 fn = far + near;
+            return Mat4({Vec4{2 / w, 0, 0, -rl / w}, Vec4{0, 2 / h, 0, -tb / h},
+                         Vec4{0, 0, -2 / d, -fn / d}, Vec4{0, 0, 0, 1}});
+        }
 };
 
 }  // namespace Seed

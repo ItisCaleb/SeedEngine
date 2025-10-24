@@ -32,7 +32,7 @@ class Camera {
         void calculate_dirty();
 
     public:
-        inline static f32 shadow_lamdba = 0.8;
+        static f32 shadow_lamdba;
         void set_position(Vec3 pos);
         Vec3 get_position();
         void set_up(Vec3 up);

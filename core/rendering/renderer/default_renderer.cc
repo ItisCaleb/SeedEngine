@@ -80,12 +80,18 @@ void DefaultRenderer::preprocess() {
 
         MeshInstance *mesh_inst;
         if (mesh->get_material()->get_blend_state().blend_on) {
-            this->transparent_meshes.push_back({.mesh = mesh});
-            mesh_inst =
-                &this->transparent_meshes[this->transparent_meshes.size() - 1];
+            mesh_inst = &this->transparent_meshes.emplace_back(
+                MeshInstance{.mesh = mesh});
         } else {
-            this->opaque_meshes.push_back({.mesh = mesh});
-            mesh_inst = &this->opaque_meshes[this->opaque_meshes.size() - 1];
+            mesh_inst =
+                &this->opaque_meshes.emplace_back(MeshInstance{.mesh = mesh});
+        }
+        for (u32 i = 0; i < CSM_SPLITS; i++) {
+            MeshInstance &s =
+                this->shadow_meshes[i].emplace_back(MeshInstance{.mesh = mesh});
+            for (u32 j = 0; j < instance->get_size(); j++) {
+                s.instance_id.push_back(j);
+            }
         }
         if (!instance.is_null()) {
             /* Use instancing */
@@ -137,7 +143,7 @@ void DefaultRenderer::preprocess() {
         shadow_uv[i] = shadow_map.query_uv(shadow_map_dir_handle[i]);
     }
 
-    memcpy(&shadow_uv[64], fars.data(), CSM_SPLITS);
+    memcpy(&shadow_uv[64], fars.data(), sizeof(f32) * CSM_SPLITS);
     upd->set_filled();
 
     DebugDrawer *drawer = DebugDrawer::get_instance();
@@ -272,7 +278,7 @@ void DefaultRenderer::process(WindowViewport &viewport) {
 void DefaultRenderer::cleanup() {
     this->transparent_meshes.clear();
     this->opaque_meshes.clear();
-    for(auto &ms : this->shadow_meshes){
+    for (auto &ms : this->shadow_meshes) {
         ms.clear();
     }
 
