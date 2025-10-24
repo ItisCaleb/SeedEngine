@@ -2,7 +2,12 @@
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 256) out;
 
-#include <shadow.glsl>
+layout (std140) uniform LightSpaceMatrices
+{
+    mat4 u_lightspaces[64];
+    vec4 u_shadow_uv[64];
+    vec4 u_far;
+};
 
 void main() {
     for (int i = 0;i<4;i++){

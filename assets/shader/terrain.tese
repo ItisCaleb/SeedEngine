@@ -8,7 +8,6 @@ layout (std140) uniform Matrices
     mat4 u_view;
 };
 
-#include <shadow.glsl>
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 in vec2 TextureCoord[];
 

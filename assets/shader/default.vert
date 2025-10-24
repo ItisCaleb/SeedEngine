@@ -6,7 +6,6 @@ layout (location = 3) in vec2 aTexCoord;
 
 #include <instance.glsl>
 #include <phong_lighting.glsl>
-#include <shadow.glsl>
 
 layout (std140) uniform Matrices
 {

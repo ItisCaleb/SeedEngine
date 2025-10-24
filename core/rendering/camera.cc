@@ -163,7 +163,7 @@ bool Camera::within_frustum(const AABB &bounding_box) {
            test_aabb_plane(bounding_box, frustum_plane.far);
 }
 
-f32 Camera::shadow_lamdba = 0.5;
+f32 Camera::shadow_lamdba = 0.8;
 
 void Camera::calculate_csm_lightspace(const Vec3 &dir, u8 splits,
                                       std::vector<Mat4> &lightspaces,
@@ -176,14 +176,14 @@ void Camera::calculate_csm_lightspace(const Vec3 &dir, u8 splits,
         SPDLOG_WARN("Too many CSM splits.");
         return;
     }
-    Vec3 w = -front;
+    Vec3 w = Vec3{0, 0, 1};
     /* right */
     Vec3 u = up.cross(w).norm();
     /* vup */
     Vec3 v = w.cross(u).norm();
     f32 lambda = shadow_lamdba;
     f32 n0 = this->frustum.near;
-    f32 f0 = this->frustum.far;
+    f32 f0 = 300;
     f32 near = n0;
 
     /* light lookat matrix */
@@ -202,49 +202,43 @@ void Camera::calculate_csm_lightspace(const Vec3 &dir, u8 splits,
     */
     std::vector<Vec3> corners;
     for (u32 i = 1; i <= splits; i++) {
+        /* we calculate frusta sphere at local space */
         f32 far = lambda * n0 * powf((f0 / n0), i / (f32)splits) +
                   (1 - lambda) * (n0 + (i / (f32)splits) * (f0 - n0));
         f32 n_r = near / n0 * this->frustum.right;
         f32 n_t = near / n0 * this->frustum.top;
         f32 f_r = far / n0 * this->frustum.right;
         f32 f_t = far / n0 * this->frustum.top;
-        Vec3 n_front = Vec3{near, 0, 0};
+        Vec3 n_front = -w * near;
         Vec3 n_right = u * n_r;
         Vec3 n_top = v * n_t;
-        Vec3 f_front = Vec3{far, 0, 0};
+        Vec3 f_front = -w * far;
         Vec3 f_right = u * f_r;
         Vec3 f_top = v * f_t;
         /* We add camera position to corners to quantitize after */
         /* near top right */
-        corners.push_back(position + n_front + n_right + n_top);
-        /* near bottom right */
-        corners.push_back(position + n_front + n_right - n_top);
-        /* near top left */
-        corners.push_back(position + n_front - n_right + n_top);
+        corners.push_back(n_front + n_right + n_top);
         /* near bottom left */
-        corners.push_back(position + n_front - n_right - n_top);
+        corners.push_back(n_front - n_right - n_top);
 
         /* far top right */
-        corners.push_back(position + f_front + f_right + f_top);
-        /* far bottom right */
-        corners.push_back(position + f_front + f_right - f_top);
-        /* far top left */
-        corners.push_back(position + f_front - f_right + f_top);
+        corners.push_back(f_front + f_right + f_top);
         /* far bottom left */
-        corners.push_back(position + f_front - f_right - f_top);
-        Vec3 center = {0, 0, 0};
-        for (Vec3 &corner : corners) {
-            center += corner;
-        }
-        center /= corners.size();
+        corners.push_back(f_front - f_right - f_top);
 
-        /* TODO: Calculate frusta bound sphere */
-        f32 radius = (far - near / 2);
+        /* Just use Pythagorean theorem to calculate center and radius */
+        /* a^2 + x^2 = r^2 = b^2 + (len - x)^2 */
+        f32 len = far - near;
+        f32 a2 = (corners[0] - corners[1]).lensq();
+        f32 b2 = (corners[2] - corners[3]).lensq();
+        f32 x = len / 2 + (b2 - a2) / (8 * len);
+        f32 radius = sqrtf(a2 / 4 + x * x);
         f32 AABB_size = radius * 2;
         f32 unit = AABB_size / 2048.0f;
         Mat4 light_projection =
-            Mat4::ortho_mat(radius, -radius, radius, -radius, -radius, radius);
-
+        Mat4::ortho_mat(radius, -radius, radius, -radius, -radius, radius);
+        
+        Vec3 center = position + front * (near + x);
         /* transform center to light space */
         Vec4 center_ls = light_lookat * Vec4{center.x, center.y, center.z, 1.0};
         center_ls.x -= fmodf(center_ls.x, unit);
