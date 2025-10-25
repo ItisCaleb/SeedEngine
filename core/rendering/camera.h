@@ -51,7 +51,7 @@ class Camera {
         Mat4 projection();
         Vec3 to_world_pos(Vec2 pos);
         float calculate_depth(const Vec3 &pos);
-        void calculate_csm_lightspace(const Vec3 &dir, u8 splits,
+        void calculate_csm_lightspace(const Vec3 &dir, const std::vector<f32> &resolutions,
                                       std::vector<Mat4> &lightspaces, std::vector<f32> &fars);
 
         Camera(Vec3 pos, Vec3 up, Vec3 front);

@@ -165,17 +165,14 @@ bool Camera::within_frustum(const AABB &bounding_box) {
 
 f32 Camera::shadow_lamdba = 0.8;
 
-void Camera::calculate_csm_lightspace(const Vec3 &dir, u8 splits,
+void Camera::calculate_csm_lightspace(const Vec3 &dir, const std::vector<f32> &resolutions,
                                       std::vector<Mat4> &lightspaces,
                                       std::vector<f32> &fars) {
     if (this->frustum.is_ortho) {
         SPDLOG_WARN("Camera must be perspective to calculate CSM.");
         return;
     }
-    if (splits > 5) {
-        SPDLOG_WARN("Too many CSM splits.");
-        return;
-    }
+    u32 splits = resolutions.size();
     Vec3 w = Vec3{0, 0, 1};
     /* right */
     Vec3 u = up.cross(w).norm();
@@ -234,7 +231,7 @@ void Camera::calculate_csm_lightspace(const Vec3 &dir, u8 splits,
         f32 x = len / 2 + (b2 - a2) / (8 * len);
         f32 radius = sqrtf(a2 / 4 + x * x);
         f32 AABB_size = radius * 2;
-        f32 unit = AABB_size / 2048.0f;
+        f32 unit = AABB_size / resolutions[i - 1];
         Mat4 light_projection =
         Mat4::ortho_mat(radius, -radius, radius, -radius, -radius, radius);
         

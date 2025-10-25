@@ -42,7 +42,7 @@ void CameraEntity::render() {}
 CameraEntity::CameraEntity() {
     this->cam = RenderEngine::get_instance()->get_cam();
     this->cam->set_position(Vec3{0, 20, 0});
-    this->cam->set_perspective(45, 1.33, 0.1, 1000.0);
+    this->cam->set_perspective(45, 1.33, 0.1, 2000.0);
     Input::get_instance()->on_mouse_move(
         [=](f32 last_x, f32 last_y, f32 x, f32 y) {
             if (!Input::get_instance()->is_mouse_clicked(MouseEvent::LEFT)) {

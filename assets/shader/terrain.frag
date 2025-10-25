@@ -41,7 +41,9 @@ void main() {
             diffuse_sample, specular_sample,
             light_dir, view_dir, d, normal);
     }
+    float dist = length(u_cam_pos - fragPos.xyz);
+    float fog_factor = clamp((dist - 700) / 100, 0.0, 1.0);
+    vec3 final_color = mix(light_out, vec3(0.48, 0.80, 0.80), fog_factor);
 
-
-    FragColor = vec4(light_out, 1.0);
+    FragColor = vec4(final_color, 1.0);
 }

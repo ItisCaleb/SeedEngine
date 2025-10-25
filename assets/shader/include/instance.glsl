@@ -9,3 +9,8 @@ layout(std430, binding = 1) buffer TerrainInstanceDatas
 {
     vec4 b_terrain[];
 };
+
+layout(std430, binding = 2) buffer AnimationInstanceDatas
+{
+    mat4 b_bones[];
+};

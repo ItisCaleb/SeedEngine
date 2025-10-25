@@ -29,7 +29,7 @@ float ShadowCalculation(sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 
     for(int i = 0;i < 4;i++){
         if(frag_z >= u_far[i]) continue; 
         vec3 n = normalize(normal);
-        vec4 offset = vec4(shadow_pos_offset(shadow_map, dot(n, light_dir), n, 2), 0.0);
+        vec4 offset = vec4(shadow_pos_offset(shadow_map, dot(n, light_dir), n, i * 1.5), 0.0);
         vec4 lightspace_fragpos = u_lightspaces[i] * (frag_pos + offset);
         // perform perspective divide
         vec3 projCoords = lightspace_fragpos.xyz / lightspace_fragpos.w;
@@ -53,7 +53,7 @@ float ShadowCalculation(sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 
 
         float shadow = 0;
         float currentDepth = projCoords.z - bias;
-        float pcf_count = 2.0;
+        float pcf_count = 3.0;
         float o = (pcf_count - 1) / 2;
         float x, y;
         for(y = -o; y <= o; y += 1.0){

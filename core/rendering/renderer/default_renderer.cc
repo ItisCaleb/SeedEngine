@@ -46,8 +46,9 @@ void DefaultRenderer::init() {
 
     shadow_map_rt.create(true);
     shadow_map_rt->bind_depth(shadow_map.get_texture());
-    for (u32 i = 0; i < CSM_SPLITS; i++) {
-        shadow_map_dir_handle[i] = shadow_map.allocate_2048();
+    shadow_map_dir_handle[0] = shadow_map.allocate_2048();
+    for (u32 i = 1; i < CSM_SPLITS; i++) {
+        shadow_map_dir_handle[i] = shadow_map.allocate_1024();
     }
     DebugDrawer *drawer = DebugDrawer::get_instance();
 
@@ -127,14 +128,20 @@ void DefaultRenderer::preprocess() {
         }
     }
     upd->set_filled();
+
+    /* CSM frustum splits */
     upd = dp.map_buffer(
         u_lightspaces, 0,
         sizeof(Mat4) * 64 + sizeof(RectF) * 64 + sizeof(f32) * CSM_SPLITS,
         current_sort_key());
     std::vector<Mat4> light_spaces;
     std::vector<f32> fars;
+    std::vector<f32> resolutions;
+    for(u32 i = 0; i < CSM_SPLITS;i++){
+        resolutions.push_back(shadow_map.query_viewport(shadow_map_dir_handle[i]).w);
+    }
     cam->calculate_csm_lightspace(world->get_direction_light().get_position(),
-                                  CSM_SPLITS, light_spaces, fars);
+                                  resolutions, light_spaces, fars);
     Mat4 *light_mats = (Mat4 *)upd->get_buffer();
 
     RectF *shadow_uv = (RectF *)(void *)&light_mats[64];
@@ -207,7 +214,6 @@ void DefaultRenderer::color_pass(WindowViewport &viewport) {
     color_state.bind_render_target(RenderEngine::get_instance()
                                        ->get_render_target("default")
                                        ->get_resource());
-    RectF v = {0, 0, 2048, 2048};
     color_state.set_scissor(viewport.get_actual_dimension(false));
     color_state.set_viewport(&viewport);
     dp.set_states(color_state, current_sort_key());
