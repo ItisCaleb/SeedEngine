@@ -38,6 +38,10 @@ void EditorGUI::main_menu() {
             nfdresult_t r = NFD_OpenDialogU8_With(&path, &args);
             if (r == NFD_OKAY) {
                 Editor::instance->current_project = Project::load(path);
+                if (Editor::instance->current_project) {
+                    Editor::instance->set_last_open(
+                        Editor::instance->current_project->path);
+                }
             }
         }
         EndMenu();
@@ -67,6 +71,7 @@ void EditorGUI::create_project() {
             project->path = project_path_input;
             Editor::instance->current_project = project;
             project->save();
+            Editor::instance->set_last_open(project->path);
             create_new_project = false;
         }
     }
@@ -83,19 +88,21 @@ void EditorGUI::create_project() {
 
 void EditorGUI::editor_left_panel() {
     Window *window = SeedEngine::get_instance()->get_window();
-    SetNextWindowSize(ImVec2(window->get_width() * 0.2, window->get_height()), 0);
+    SetNextWindowSize(ImVec2(window->get_width() * 0.2, window->get_height()),
+                      0);
     Begin("World", 0, STATIC_GUI_FLAG | ImGuiWindowFlags_NoScrollbar);
     TextUnformatted(Editor::instance->current_project->name.c_str());
     f32 remain_height = GetWindowHeight() - GetItemRectSize().y;
     Separator();
-    BeginChild("World Entities", ImVec2(GetWindowWidth(), remain_height * 0.6), false);
+    BeginChild("World Entities", ImVec2(GetWindowWidth(), remain_height * 0.6),
+               false);
     for (i32 i = 0; i < 20; i++) {
         Selectable(fmt::format("test{}", i).c_str());
     }
     EndChild();
     Separator();
     BeginChild("Project", ImVec2(GetWindowWidth(), remain_height * 0.3), false);
-    //TreeNode();
+    // TreeNode();
     EndChild();
     End();
 }

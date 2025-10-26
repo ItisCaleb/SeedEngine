@@ -8,7 +8,7 @@ layout (std140) uniform LightSpaceMatrices
 float SHADOW_POS_OFF = 1.0;
 
 vec3 shadow_pos_offset(sampler2D shadow_map, float n_dot_l, vec3 normal, float scale){
-    float offset_scale = clamp(1.0 - n_dot_l, 0.0, 1.0);
+    float offset_scale = clamp(1 - n_dot_l, 0.0, 1.0);
     return offset_scale * scale * normal;
 }
 
@@ -29,7 +29,7 @@ float ShadowCalculation(sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 
     for(int i = 0;i < 4;i++){
         if(frag_z >= u_far[i]) continue; 
         vec3 n = normalize(normal);
-        vec4 offset = vec4(shadow_pos_offset(shadow_map, dot(n, light_dir), n, i * 1.5), 0.0);
+        vec4 offset = vec4(shadow_pos_offset(shadow_map, dot(n, light_dir), n, 1), 0.0);
         vec4 lightspace_fragpos = u_lightspaces[i] * (frag_pos + offset);
         // perform perspective divide
         vec3 projCoords = lightspace_fragpos.xyz / lightspace_fragpos.w;

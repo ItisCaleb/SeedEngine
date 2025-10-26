@@ -77,6 +77,10 @@ class File : public RefCounted {
             return fwrite(data, 1, size, file);
         }
 
+        size_t write_str(const std::string &str) const {
+            return fwrite(str.data(), 1, str.size(), file);
+        }
+
         ~File() {
             if (file) {
                 fclose(file);

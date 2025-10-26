@@ -19,6 +19,7 @@ class Window {
         T *get_window() {
             return static_cast<T *>(window);
         }
+        void resize(u32 width, u32 height);
         Window(u32 w, u32 h, const std::string &title);
         ~Window();
 };

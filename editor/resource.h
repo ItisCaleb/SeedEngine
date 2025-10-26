@@ -16,7 +16,6 @@
 struct EditorMesh {
         std::vector<Seed::ModelVertex> vertices;
         std::vector<u32> indices;
-        Seed::AABB bounding_box;
         i16 material_id = -1;
 };
 

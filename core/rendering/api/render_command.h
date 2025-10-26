@@ -87,6 +87,7 @@ struct RenderDrawData {
         };
 
         u32 instance_cnt = 0;
+        u32 instance_offset = 0;
         u32 vertex_cnt = 0;
         u32 index_offset = 0;
         u32 vertex_offset = 0;
@@ -147,7 +148,7 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
         void set_draw_vertex(u32 vertex_cnt, u32 vertex_offset);
         void set_draw_index(u32 index_cnt, u32 index_offset);
-        void set_instance(u32 cnt);
+        void set_instance(u32 cnt, u32 instance_offset = 0);
 };
 
 enum StateClearFlag : u8 {

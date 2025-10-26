@@ -68,8 +68,10 @@ void RenderDrawDataBuilder::set_draw_index(u32 index_cnt, u32 index_offset) {
     data->index_offset = index_offset;
 }
 
-void RenderDrawDataBuilder::set_instance(u32 cnt) {
-    this->get_data()->instance_cnt = cnt;
+void RenderDrawDataBuilder::set_instance(u32 instance_cnt, u32 instance_offset) {
+    RenderDrawData *data = this->get_data();
+    data->instance_cnt = instance_cnt;
+    data->instance_offset = instance_offset;    
 }
 
 void RenderStateDataBuilder::bind_render_target(RenderResource target) {

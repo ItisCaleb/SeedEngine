@@ -116,9 +116,10 @@ void EditorModel::processNode(aiNode *node, const aiScene *scene) {
 EditorModel::EditorModel(const std::string &path) {
     Assimp::Importer importer;
     const aiScene *scene = importer.ReadFile(
-        path, aiProcess_CalcTangentSpace | aiProcess_GenNormals  | aiProcess_Triangulate |
-                  aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes |
-                  aiProcess_JoinIdenticalVertices | aiProcess_SortByPType);
+        path, aiProcess_CalcTangentSpace | aiProcess_GenNormals |
+                  aiProcess_Triangulate | aiProcess_OptimizeGraph |
+                  aiProcess_OptimizeMeshes | aiProcess_JoinIdenticalVertices |
+                  aiProcess_SortByPType);
 
     // If the import failed, report it
     if (!scene) {
@@ -136,65 +137,120 @@ void EditorModel::dump() {
     dump(path);
 }
 
+template <typename json_type>
+inline void to_json(json_type &j, const EditorModel::Material &m) {
+    j = json_type{{"diffuse", m.diffuse},
+                       {"specular", m.specular},
+                       {"normal", m.normal},
+                       {"opacity", m.opacity}};
+}
+
+namespace Seed {
+
+template <typename json_type>
+inline void to_json(json_type &j, const Seed::Vec3 &v) {
+    j = json_type{v.x, v.y, v.z};
+}
+
+template <typename json_type>
+inline void to_json(json_type &j, const Seed::AABB &aabb) {
+    j = json_type{{"center", aabb.center}, {"ext", aabb.ext}};
+}
+
+}  // namespace Seed
 void EditorModel::dump(const std::string &file_path) {
-    Ref<File> f = File::open(file_path, "wb");
-    ModelHeader header;
-    header.mesh_count = meshes.size();
-    header.texture_count = textures.size();
-    header.material_count = materials.size();
-    /* calculate offsets */
-    header.mesh_offset = strlen(model_file_magic) + sizeof(ModelHeader);
-    header.texture_offset =
-        header.mesh_offset + header.mesh_count * sizeof(MeshHeader);
+    Ref<File> f = File::open(file_path + ".json", "wb");
+    Ref<File> bin_f = File::open(file_path + ".bin", "wb");
+
+    nlohmann::ordered_json j;
+    j["name"] = file_path;
+    j["type"] = "model";
+    j["textures"] = this->textures;
+    j["materials"] = this->materials;
+    j["meshes"] = nlohmann::json::array();
+    j["bin_file"] = file_path + ".bin";
+
+    u64 offset = 0;
     for (auto &mesh : this->meshes) {
-        header.texture_offset += mesh.vertices.size() * sizeof(ModelVertex);
-        header.texture_offset += mesh.indices.size() * sizeof(u32);
-    }
-    header.material_offset = header.texture_offset;
-    for (auto &texture_path : this->textures) {
-        header.material_offset += sizeof(TextureField);
-        header.material_offset += texture_path.length();
-    }
-    fmt::println("mesh offset at: {:#x}", header.mesh_offset);
-    fmt::println("texture offset at: {:#x}", header.texture_offset);
-    fmt::println("material offset at: {:#x}", header.material_offset);
-    f->write((void *)model_file_magic, strlen(model_file_magic));
-    f->write(&header, sizeof(ModelHeader));
+        nlohmann::ordered_json mesh_j;
+        mesh_j["vertex_count"] = mesh.vertices.size();
+        mesh_j["index_count"] = mesh.indices.size();
+        mesh_j["material_id"] = mesh.material_id;
+        mesh_j["bounding_box"] = calculateAABB(mesh.vertices);
+        mesh_j["bin_offset"] = offset;
 
-    u32 total_mesh_size = 0;
-    for (auto &mesh : this->meshes) {
-        MeshHeader mesh_header;
-        mesh_header.vertex_size = mesh.vertices.size();
-        mesh_header.index_size = mesh.indices.size();
-        mesh_header.bounding_box = calculateAABB(mesh.vertices);
-        mesh_header.material_id = mesh.material_id;
-        total_mesh_size += f->write(&mesh_header, sizeof(MeshHeader));
-        total_mesh_size += f->write(mesh.vertices.data(),
-                                    mesh.vertices.size() * sizeof(ModelVertex));
-        total_mesh_size +=
-            f->write(mesh.indices.data(), mesh.indices.size() * sizeof(u32));
+        u64 bytes_size = mesh.vertices.size() * sizeof(ModelVertex) +
+                         mesh.indices.size() * sizeof(u32);
+        mesh_j["bin_size"] = bytes_size;
+        bin_f->write(mesh.vertices.data(),
+                     mesh.vertices.size() * sizeof(ModelVertex));
+        bin_f->write(mesh.indices.data(),
+                     mesh.indices.size() * sizeof(u32));
+        j["meshes"].push_back(mesh_j);
+        offset += bytes_size;
     }
-    fmt::println("write mesh data, size: {}", total_mesh_size);
-
-    for (auto &texture : this->textures) {
-        TextureField field;
-        field.path_length = texture.length();
-        f->write(&field, sizeof(TextureField));
-        f->write((void *)texture.data(), field.path_length);
-        fmt::println("write texture path: {}, length: {}", texture,
-                     field.path_length);
-    }
-
-    for (auto &mat : this->materials) {
-        MaterialField field;
-        field.diffuse_map = mat.diffuse;
-        field.specular_map = mat.specular;
-        field.normal_map = mat.normal;
-        field.opacity = mat.opacity;
-        f->write(&field, sizeof(MaterialField));
-    }
+    f->write_str(j.dump(2));
 
     fmt::println("Succesfully dumped {}", file_path);
+
+    // ModelHeader header;
+    // header.mesh_count = meshes.size();
+    // header.texture_count = textures.size();
+    // header.material_count = materials.size();
+    // /* calculate offsets */
+    // header.mesh_offset = strlen(model_file_magic) + sizeof(ModelHeader);
+    // header.texture_offset =
+    //     header.mesh_offset + header.mesh_count * sizeof(MeshHeader);
+    // for (auto &mesh : this->meshes) {
+    //     header.texture_offset += mesh.vertices.size() * sizeof(ModelVertex);
+    //     header.texture_offset += mesh.indices.size() * sizeof(u32);
+    // }
+    // header.material_offset = header.texture_offset;
+    // for (auto &texture_path : this->textures) {
+    //     header.material_offset += sizeof(TextureField);
+    //     header.material_offset += texture_path.length();
+    // }
+    // fmt::println("mesh offset at: {:#x}", header.mesh_offset);
+    // fmt::println("texture offset at: {:#x}", header.texture_offset);
+    // fmt::println("material offset at: {:#x}", header.material_offset);
+    // f->write((void *)model_file_magic, strlen(model_file_magic));
+    // f->write(&header, sizeof(ModelHeader));
+
+    // u32 total_mesh_size = 0;
+    // for (auto &mesh : this->meshes) {
+    //     MeshHeader mesh_header;
+    //     mesh_header.vertex_size = mesh.vertices.size();
+    //     mesh_header.index_size = mesh.indices.size();
+    //     mesh_header.bounding_box = calculateAABB(mesh.vertices);
+    //     mesh_header.material_id = mesh.material_id;
+    //     total_mesh_size += f->write(&mesh_header, sizeof(MeshHeader));
+    //     total_mesh_size += f->write(mesh.vertices.data(),
+    //                                 mesh.vertices.size() *
+    //                                 sizeof(ModelVertex));
+    //     total_mesh_size +=
+    //         f->write(mesh.indices.data(), mesh.indices.size() * sizeof(u32));
+    // }
+    // fmt::println("write mesh data, size: {}", total_mesh_size);
+
+    // for (auto &texture : this->textures) {
+    //     TextureField field;
+    //     field.path_length = texture.length();
+    //     f->write(&field, sizeof(TextureField));
+    //     f->write((void *)texture.data(), field.path_length);
+    //     fmt::println("write texture path: {}, length: {}", texture,
+    //                  field.path_length);
+    // }
+
+    // for (auto &mat : this->materials) {
+    //     MaterialField field;
+    //     field.diffuse_map = mat.diffuse;
+    //     field.specular_map = mat.specular;
+    //     field.normal_map = mat.normal;
+    //     field.opacity = mat.opacity;
+    //     f->write(&field, sizeof(MaterialField));
+    // }
+
+    // fmt::println("Succesfully dumped {}", file_path);
 }
 
 void ModelGUI::update() {

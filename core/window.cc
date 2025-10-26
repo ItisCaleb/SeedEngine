@@ -23,5 +23,10 @@ Window::Window(u32 w, u32 h, const std::string &title)
         });
 }
 
+void Window::resize(u32 width, u32 height) {
+    this->w = width;
+    this->h = height;
+}
+
 Window::~Window() { glfwDestroyWindow(get_window<GLFWwindow>()); }
 }  // namespace Seed

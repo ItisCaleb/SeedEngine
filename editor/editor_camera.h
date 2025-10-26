@@ -58,9 +58,9 @@ class EditorCamera : public Entity {
                             MouseEvent::RIGHT)) {
                         return;
                     }
-                    auto &vp = Seed::RenderEngine::get_instance()->get_layer_viewport(1);
-                    auto coord1 = vp.to_viewport_coord(x, y);
-                    auto coord2 = vp.to_viewport_coord(last_x, last_y);
+                    auto vp = Seed::RenderEngine::get_instance()->get_layer_viewport(1);
+                    auto coord1 = vp->to_viewport_coord(x, y);
+                    auto coord2 = vp->to_viewport_coord(last_x, last_y);
 
                     f32 x_off = coord1.x - coord2.x;
                     f32 y_off = coord2.y - coord1.y;

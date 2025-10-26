@@ -137,8 +137,9 @@ void DefaultRenderer::preprocess() {
     std::vector<Mat4> light_spaces;
     std::vector<f32> fars;
     std::vector<f32> resolutions;
-    for(u32 i = 0; i < CSM_SPLITS;i++){
-        resolutions.push_back(shadow_map.query_viewport(shadow_map_dir_handle[i]).w);
+    for (u32 i = 0; i < CSM_SPLITS; i++) {
+        resolutions.push_back(
+            shadow_map.query_viewport(shadow_map_dir_handle[i]).w);
     }
     cam->calculate_csm_lightspace(world->get_direction_light().get_position(),
                                   resolutions, light_spaces, fars);
@@ -240,6 +241,31 @@ void DefaultRenderer::color_pass(WindowViewport &viewport) {
         dp.render(mesh_builder, mesh.mesh->get_type(),
                   mesh.mesh->get_material()->get_pipeline(),
                   current_sort_key());
+    }
+
+    for (MeshInstance &mesh : transparent_meshes) {
+        if (mesh.instance_id.empty()) continue;
+        dp.update_buffer(instance_idx_rc, 0,
+                         sizeof(u32) * mesh.instance_id.size(),
+                         (void *)mesh.instance_id.data(), current_sort_key());
+        RenderDrawDataBuilder mesh_builder;
+        if (last_material != mesh.mesh->get_material()) {
+            mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
+            mesh_builder.bind_texture(
+                mesh.mesh->get_material()->get_texture_count(),
+                shadow_map.get_texture()->get_resource());
+            last_material = mesh.mesh->get_material();
+        }
+        mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
+        mesh_builder.bind_vertex(instance_idx_rc);
+        mesh_builder.bind_description(&instance_desc);
+        mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
+        for (u32 i = 0; i < mesh.instance_id.size(); i++) {
+            mesh_builder.set_instance(1, i);
+            dp.render(mesh_builder, mesh.mesh->get_type(),
+                      mesh.mesh->get_material()->get_pipeline(),
+                      current_sort_key(mesh.depth[i]));
+        }
     }
 
     auto sky = SeedEngine::get_instance()->get_world()->get_sky();

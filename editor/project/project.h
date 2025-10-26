@@ -4,17 +4,20 @@
 #include <map>
 #include "core/world.h"
 
-namespace Seed{
-    class EditorGUI;
-    class Project{
+namespace Seed {
+class EditorGUI;
+class Project {
         friend EditorGUI;
-        private:
-            std::string name;
-            std::string path;
 
-            static Project* load(const std::string &path);
-            void save();
-    };
-}
+    private:
+        std::string name;
+        std::string path;
+
+        void save();
+
+    public:
+        static Project *load(const std::string &path);
+};
+}  // namespace Seed
 
 #endif

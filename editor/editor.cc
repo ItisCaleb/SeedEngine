@@ -13,7 +13,22 @@
 
 using namespace Seed;
 
-Editor::Editor() { instance = this; }
+Editor::Editor() {
+    instance = this;
+    Ref<File> cache = File::open(".seed_cache", "rb");
+    if (cache.is_valid()) {
+        project_cache = cache->read_json();
+        if (project_cache.contains("last_open")) {
+            this->current_project = Project::load(project_cache["last_open"]);
+        }
+    }
+}
+
+void Editor::set_last_open(std::string &path) {
+    Ref<File> cache = File::open(".seed_cache", "wb");
+    project_cache["last_open"] = path;
+    cache->write_str(project_cache.dump());
+}
 // Main code
 int main(int, char **) {
     NFD_Init();
@@ -28,6 +43,7 @@ int main(int, char **) {
     GuiEngine::get_instance()->add_gui(new ModelGUI);
     GuiEngine::get_instance()->add_gui(new TerrainGUI);
     GuiEngine::get_instance()->add_gui(new EditorGUI);
+
     engine->get_world()->add_entity<EditorCamera>();
 
     // ResourceLoader *loader = ResourceLoader::get_instance();

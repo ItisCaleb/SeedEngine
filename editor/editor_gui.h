@@ -1,6 +1,7 @@
 #ifndef _SEED_EDITOR_GUI_H_
 #define _SEED_EDITOR_GUI_H_
 #include "core/gui/gui.h"
+#include "core/io/file.h"
 
 namespace Seed {
 

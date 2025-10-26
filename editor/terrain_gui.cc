@@ -11,11 +11,11 @@ void TerrainGUI::update() {
     auto world = Seed::SeedEngine::get_instance()->get_world();
     auto terrain = world->get_terrain();
 
-    auto &vp = Seed::RenderEngine::get_instance()->get_layer_viewport(1);
+    auto vp = Seed::RenderEngine::get_instance()->get_layer_viewport(1);
     auto input = Seed::Input::get_instance();
     auto pos = input->get_mouse_pos();
-    auto dim = vp.get_actual_dimension();
-    auto vp_coord = vp.to_viewport_coord(pos);
+    auto dim = vp->get_actual_dimension();
+    auto vp_coord = vp->to_viewport_coord(pos);
     ImGui::Text("Mouse position: %f %f", pos.x, pos.y);
     ImGui::Text("Viewport: %f %f %f %f", dim.x, dim.y, dim.w, dim.h);
     ImGui::Text("Viewport coord: %f %f", vp_coord.x, vp_coord.y);
@@ -40,6 +40,6 @@ void TerrainGUI::update() {
             image.upload(tex);
         });
     }
-    ImGui::Text("Within viewport: %d", vp.within_viewport(pos.x, pos.y));
+    ImGui::Text("Within viewport: %d", vp->within_viewport(pos.x, pos.y));
     ImGui::End();
 }
