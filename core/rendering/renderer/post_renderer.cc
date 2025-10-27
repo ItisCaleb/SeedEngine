@@ -15,7 +15,7 @@ void PostRenderer::init() {
     post_mat->add_texture_unit(rt->get_color(0).texture);
 }
 
-void PostRenderer::process(WindowViewport &viewport){
+void PostRenderer::process(Viewport &viewport){
     RenderCommandDispatcher dp;
     dp.begin_scope("POST Rendering", current_sort_key());
     auto builder = dp.generate_render_data(post_mat);

@@ -90,7 +90,7 @@ DefaultStorage::DefaultStorage() {
     post_desc.add_type_attr<Vec2>(1, 0);
     post_data.create(&post_desc, (sizeof(tmp_post) / (sizeof(PostData))),
                      tmp_post);
-    u8 color[] = {1, 1, 1, 1};
+    u8 color[] = {255, 255, 255, 255};
     default_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA, color);
 }
 }  // namespace Seed

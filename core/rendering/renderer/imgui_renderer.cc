@@ -78,7 +78,7 @@ ImguiRenderer::ImguiData *ImguiRenderer::get_imgui_data() {
                ? (ImguiData *)ImGui::GetIO().BackendRendererUserData
                : nullptr;
 }
-void ImguiRenderer::process(WindowViewport &viewport) {
+void ImguiRenderer::process(Viewport &viewport) {
     RenderCommandDispatcher dp;
     dp.begin_scope("Imgui", current_sort_key());
     ImDrawData *draw_data = ImGui::GetDrawData();

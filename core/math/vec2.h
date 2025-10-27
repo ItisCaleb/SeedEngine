@@ -52,6 +52,9 @@ struct Vec2 {
 
         f32 length() { return sqrtf(x * x + y * y); }
 
+        f32 length_sqr() { return x * x + y * y; }
+
+
         f32 dot(const Vec2 &b) { return x * b.x + y * b.y; }
 
         Vec2 norm(const Vec2 &b) {

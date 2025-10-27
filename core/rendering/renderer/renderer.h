@@ -22,7 +22,7 @@ class Renderer {
     private:
         virtual void init() = 0;
         virtual void preprocess() = 0;
-        virtual void process(WindowViewport &viewport) = 0;
+        virtual void process(Viewport &viewport) = 0;
         virtual void cleanup() = 0;
 
     public:

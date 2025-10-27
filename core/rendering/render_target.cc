@@ -2,7 +2,7 @@
 #include "core/engine.h"
 
 namespace Seed {
-RenderTarget::RenderTarget(bool depth_only) {
+RenderTarget::RenderTarget(const Viewport &vp, bool depth_only) : vp(vp) {
     this->rc.alloc_render_target(depth_only);
 }
 
@@ -37,8 +37,5 @@ void MultiRenderTarget::bind_color(u32 slot, Ref<Texture> tex, u8 face) {
     dp.update_color_attachment(this->rc, 0, tex->get_resource(), face);
 }
 
-WindowRenderTarget::WindowRenderTarget() {
-    /* We don't allocate a framebuffer for window */
-    this->rc.dealloc();
-}
+WindowRenderTarget::WindowRenderTarget(Window *window) : wvp(window) {}
 }  // namespace Seed

@@ -3,6 +3,7 @@ in float height;
 in vec3 normal;
 in vec4 fragPos;
 in float view_depth;
+in vec2 texCoord;
 out vec4 FragColor;
 
 #include <shadow.glsl>
@@ -11,7 +12,27 @@ out vec4 FragColor;
 
 layout(std140) uniform Camera { vec3 u_cam_pos; };
 
+uniform sampler2D terrain_shadowMap;
+
 uniform sampler2D shadowMap;
+
+float terrain_shadowmapping(vec2 uv, float angle){
+    float shadow = 0;
+    float offset = 0.0001;
+    // lookup texel at patch coordinate for height and scale + shift as desired
+    float slope = texture(terrain_shadowMap, uv).r;
+    float rh = texture(terrain_shadowMap, uv + vec2(offset, 0)).r;
+    float lh = texture(terrain_shadowMap, uv + vec2(-offset, 0)).r;
+    float uh = texture(terrain_shadowMap, uv + vec2(0, offset)).r;
+    float dh = texture(terrain_shadowMap, uv + vec2(0, -offset)).r;
+    shadow += angle > slope ? 1.0 : 0.0;
+    shadow += angle > rh ? 1.0 : 0.0;
+    shadow += angle > lh ? 1.0 : 0.0;
+    shadow += angle > uh ? 1.0 : 0.0;
+    shadow += angle > dh ? 1.0 : 0.0;
+
+    return shadow / 5;
+}
 
 void main() {
     float h = (height + 128)/256.0f;
@@ -24,12 +45,13 @@ void main() {
     vec3 diffuse_sample = vec3(1,1,1);
     vec3 specular_sample = vec3(1,1,1);
     vec3 dir_light = -normalize(vec3(u_dir_light.position));
+    float c = dir_light.y;
     // direction
     light_out +=
         calculate_light(u_dir_light.diffuse, u_dir_light.specular,
             diffuse_sample, specular_sample, dir_light, view_dir,
-            1, normal) * (1.0 - ShadowCalculation(shadowMap, fragPos, view_depth, normal, dir_light));
-
+            1, normal) * (1.0 - ShadowCalculation(shadowMap, fragPos, view_depth, normal, dir_light))
+    * (1.0 - terrain_shadowmapping(texCoord, c));
     for (int i = 0; i < 8; i++) {
         Light light = u_point_lights[i];
         if (light.enable == 0)

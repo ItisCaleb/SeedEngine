@@ -489,7 +489,7 @@ GLuint RenderBackendGL::convert_pixel_internal(PixelFormat format){
         GLuint t;
     switch (format) {
         case PixelFormat::R:
-            t = GL_R;
+            t = GL_R8;
             break;
         case PixelFormat::RG:
             t = GL_RG;
@@ -519,7 +519,7 @@ GLuint RenderBackendGL::convert_pixel_format(PixelFormat format) {
     GLuint t;
     switch (format) {
         case PixelFormat::R:
-            t = GL_R;
+            t = GL_RED;
             break;
         case PixelFormat::RG:
             t = GL_RG;

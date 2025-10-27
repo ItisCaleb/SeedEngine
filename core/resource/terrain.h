@@ -28,6 +28,7 @@ class TerrainMaterial : public Material {
     public:
         TerrainMaterial(Ref<Texture> height_map);
         void set_height_map(Ref<Texture> height_map);
+        void set_light_map(Ref<Texture> light_map);
         Ref<Texture> get_height_map();
 };
 
@@ -54,11 +55,13 @@ class Terrain : public Resource {
         std::vector<PhysicBody> bodies;
         Ref<TerrainMaterial> terrain_mat;
         Ref<Mesh> mesh;
+
         Ref<TerrainInstanceData> instances;
         bool loaded = false;
         void build_mesh();
         void create_chunk(Ref<Image> height_map, i32 left, i32 top,
                           u32 half_width, u32 half_depth);
+        void gen_lightmap(Ref<Image> height_map);
 
     public:
         Terrain(Ref<Image> height_map);

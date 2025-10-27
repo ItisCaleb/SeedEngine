@@ -2,14 +2,15 @@
 #include "core/rendering/api/render_command.h"
 
 namespace Seed {
-Texture::Texture(TextureType type, u32 w, u32 h, PixelFormat format, const u8 *image_data)
-    : type(type), w(w), h(h) {
+Texture::Texture(TextureType type, u32 w, u32 h, PixelFormat format,
+                 const u8 *image_data)
+    : type(type), w(w), h(h), format(format) {
     tex_rc.alloc_texture(type, w, h, format, image_data);
 }
 
 void Texture::update(const u8 *data, u32 w, u32 h) {
     RenderCommandDispatcher dp;
-    dp.update_texture(tex_rc, 0, 0, w, h, (void *)data);
+    dp.update_texture(tex_rc, format, 0, 0, w, h, (void *)data);
 }
 
 void Texture::upload_cube_map(const u8 *right, const u8 *left, const u8 *top,

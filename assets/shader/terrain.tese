@@ -15,11 +15,13 @@ in vec2 TextureCoord[];
 out float height;
 out vec3 normal;
 out vec4 fragPos;
+out vec2 texCoord;
 out float view_depth;
 
 float get_height(vec2 tex_coord){
     return texture(height_map, tex_coord).y * 256.0 - 128.0;
 }
+
 
 void main()
 {
@@ -37,7 +39,7 @@ void main()
     // bilinearly interpolate texture coordinate across patch
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
-    vec2 texCoord = (t1 - t0) * v + t0;
+    texCoord = (t1 - t0) * v + t0;
     float offset = 0.0001;
     // lookup texel at patch coordinate for height and scale + shift as desired
     height = get_height(texCoord);
@@ -65,6 +67,7 @@ void main()
     normal = normalize(vec3(lh - rh, 2, dh - uh));
     fragPos = p;
     view_depth = -(u_view * p).z;
+    
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     gl_Position = u_projection * u_view * p;

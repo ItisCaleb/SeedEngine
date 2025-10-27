@@ -38,13 +38,15 @@ void DefaultRenderer::init() {
     instance_idx_rc.alloc_vertex(sizeof(u32), 0, nullptr);
 
     u_lights.alloc_constant("Lights", sizeof(STB140Lights), nullptr);
-    u_lightspaces.alloc_constant("LightSpaceMatrices", sizeof(Mat4) * 9,
-                                 nullptr);
+    u_csm.alloc_constant("CSMShadow", sizeof(CSMShadow), nullptr);
 
     sky_vert.create(&DS::get_instance()->sky_desc,
                     (sizeof(skyboxVertices) / sizeof(Vec3)), skyboxVertices);
+    u32 shadow_map_resolution = shadow_map.get_resolution();
 
-    shadow_map_rt.create(true);
+    Viewport shadow_map_vp(
+        Vec2{(f32)shadow_map_resolution, (f32)shadow_map_resolution});
+    shadow_map_rt.create(shadow_map_vp, true);
     shadow_map_rt->bind_depth(shadow_map.get_texture());
     shadow_map_dir_handle[0] = shadow_map.allocate_2048();
     for (u32 i = 1; i < CSM_SPLITS; i++) {
@@ -130,28 +132,21 @@ void DefaultRenderer::preprocess() {
     upd->set_filled();
 
     /* CSM frustum splits */
-    upd = dp.map_buffer(
-        u_lightspaces, 0,
-        sizeof(Mat4) * 64 + sizeof(RectF) * 64 + sizeof(f32) * CSM_SPLITS,
-        current_sort_key());
-    std::vector<Mat4> light_spaces;
-    std::vector<f32> fars;
+    upd = dp.map_buffer(u_csm, 0, sizeof(CSMShadow), current_sort_key());
+    CSMShadow *csm_data = (CSMShadow *)upd->get_buffer();
     std::vector<f32> resolutions;
     for (u32 i = 0; i < CSM_SPLITS; i++) {
         resolutions.push_back(
             shadow_map.query_viewport(shadow_map_dir_handle[i]).w);
     }
     cam->calculate_csm_lightspace(world->get_direction_light().get_position(),
-                                  resolutions, light_spaces, fars);
+                                  resolutions, *csm_data);
     Mat4 *light_mats = (Mat4 *)upd->get_buffer();
 
-    RectF *shadow_uv = (RectF *)(void *)&light_mats[64];
     for (u32 i = 0; i < CSM_SPLITS; i++) {
-        light_mats[i] = light_spaces[i].transpose();
-        shadow_uv[i] = shadow_map.query_uv(shadow_map_dir_handle[i]);
+        csm_data->shadow_uv[i] = shadow_map.query_uv(shadow_map_dir_handle[i]);
     }
 
-    memcpy(&shadow_uv[64], fars.data(), sizeof(f32) * CSM_SPLITS);
     upd->set_filled();
 
     DebugDrawer *drawer = DebugDrawer::get_instance();
@@ -172,11 +167,10 @@ void DefaultRenderer::shadow_pass() {
                                  shadow_map_resolution);
 
     shadow_map_state.clear(StateClearFlag::CLEAR_DEPTH);
-    Viewport shadow_map_vp(RectF{0, 0, 1, 1}, Vec2{(f32)shadow_map_resolution,
-                                                   (f32)shadow_map_resolution});
+
     std::vector<Viewport> split_vps;
     for (u32 i = 0; i < CSM_SPLITS; i++) {
-        Viewport &vp = split_vps.emplace_back(shadow_map_vp);
+        Viewport &vp = split_vps.emplace_back(*shadow_map_rt->get_viewport());
         vp.set_dimension(shadow_map.query_uv(shadow_map_dir_handle[i]), true);
     }
     shadow_map_state.set_viewports(split_vps);
@@ -208,7 +202,7 @@ void DefaultRenderer::shadow_pass() {
     dp.end_scope(next_sort_key());
 }
 
-void DefaultRenderer::color_pass(WindowViewport &viewport) {
+void DefaultRenderer::color_pass(Viewport &viewport) {
     RenderCommandDispatcher dp;
     dp.begin_scope("Color Pass", current_sort_key());
     RenderStateDataBuilder color_state;
@@ -279,7 +273,7 @@ void DefaultRenderer::color_pass(WindowViewport &viewport) {
     dp.end_scope(next_sort_key());
 }
 
-void DefaultRenderer::process(WindowViewport &viewport) {
+void DefaultRenderer::process(Viewport &viewport) {
     World *world = SeedEngine::get_instance()->get_world();
 
     RenderCommandDispatcher dp;

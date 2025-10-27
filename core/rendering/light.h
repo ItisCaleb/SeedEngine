@@ -8,6 +8,13 @@
 
 namespace Seed {
 
+struct CSMShadow{
+    Mat4 light_space_mat[4];
+    RectF shadow_uv[4];
+    f32 fars[4];
+    f32 units[4];
+};
+
 struct STB140Light {
         alignas(16) Vec3 position;
         alignas(16) Vec3 diffuse;
@@ -31,7 +38,6 @@ class Light {
         Vec3 diffuse;
         Vec3 specular;
         Mat4 light_mat;
-        Camera cam;
         bool enable;
 
     public:

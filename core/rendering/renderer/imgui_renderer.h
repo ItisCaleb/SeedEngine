@@ -22,7 +22,7 @@ class ImguiRenderer : public Renderer {
         void init() override;
         void new_frame();
         void preprocess() override;
-        void process(WindowViewport &viewport) override;
+        void process(Viewport &viewport) override;
         void cleanup() override;
         static ImguiRenderer *get_instance() { return instance; }
 };

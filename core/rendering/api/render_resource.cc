@@ -17,7 +17,7 @@ void RenderResource::alloc_texture(TextureType type, u32 w, u32 h,
             return;
         }
         RenderCommandDispatcher dp;
-        dp.update_texture(*this, 0, 0, w, h, (void *)data);
+        dp.update_texture(*this, format, 0, 0, w, h, (void *)data);
     }
 }
 void RenderResource::alloc_vertex(u32 stride, u32 vertex_cnt,

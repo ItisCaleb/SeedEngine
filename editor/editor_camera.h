@@ -58,7 +58,7 @@ class EditorCamera : public Entity {
                             MouseEvent::RIGHT)) {
                         return;
                     }
-                    auto vp = Seed::RenderEngine::get_instance()->get_layer_viewport(1);
+                    auto vp = Seed::RenderEngine::get_instance()->get_render_target("default")->get_viewport();
                     auto coord1 = vp->to_viewport_coord(x, y);
                     auto coord2 = vp->to_viewport_coord(last_x, last_y);
 

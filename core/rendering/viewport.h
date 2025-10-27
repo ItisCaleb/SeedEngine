@@ -18,6 +18,8 @@ class Viewport {
             set_dimension(dimension);
         }
 
+        Viewport(Vec2 size) : size(size) { set_dimension(RectF{0, 0, 1, 1}); }
+
         void set_dimension(RectF dim, bool flip_y = false);
 
         void set_dimension(f32 x, f32 y, f32 w, f32 h, bool flip_y = false);

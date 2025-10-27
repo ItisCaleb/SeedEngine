@@ -195,6 +195,7 @@ class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
 
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
         void set_scissor(const RectF &scissor_rect);
+        void set_scissor(Viewport *viewport);
         void bind_bufferbase(RenderResource buffer, u32 base);
 
         void clear(StateClearFlag flag);
@@ -252,9 +253,9 @@ class RenderCommandDispatcher {
                                      u32 size, u32 sort_key = 0);
 
         /* Will copy data to a temporary buffer.*/
-        void update_texture(const RenderResource &texture, u32 x_off, u32 y_off,
+        void update_texture(const RenderResource &texture, PixelFormat format, u32 x_off, u32 y_off,
                             u32 w, u32 h, void *data, u32 sort_key = 0);
-        RenderUpdateData *map_texture(const RenderResource &buffer, u32 x_off,
+        RenderUpdateData *map_texture(const RenderResource &buffer, PixelFormat format, u32 x_off,
                                       u32 y_off, u32 w, u32 h,
                                       u32 sort_key = 0);
         void update_cubemap(const RenderResource &texture, u8 face, u16 x_off,

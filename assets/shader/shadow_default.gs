@@ -2,11 +2,12 @@
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 256) out;
 
-layout (std140) uniform LightSpaceMatrices
+layout (std140) uniform CSMShadow
 {
-    mat4 u_lightspaces[64];
-    vec4 u_shadow_uv[64];
+    mat4 u_lightspaces[4];
+    vec4 u_shadow_uv[4];
     vec4 u_far;
+    vec4 u_shadow_unit;
 };
 
 void main() {

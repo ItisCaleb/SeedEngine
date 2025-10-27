@@ -14,13 +14,16 @@ class RenderTarget : public RefCounted {
     protected:
         RenderResource rc;
         AttachmentSurface depth_surface;
+        Viewport vp;
         bool dirty = true;
+        RenderTarget() : vp(Vec2{0, 0}) {}
 
     public:
-        RenderTarget(bool depth_only = false);
+        RenderTarget(const Viewport &vp, bool depth_only = false);
         void bind_depth(AttachmentSurface &surface);
         void bind_depth(Ref<Texture> tex, u8 face = 0);
         AttachmentSurface &get_depth() { return this->depth_surface; };
+        virtual Viewport *get_viewport() { return &vp; }
         RenderResource &get_resource() { return this->rc; }
         ~RenderTarget();
 };
@@ -33,16 +36,20 @@ class MultiRenderTarget : public RenderTarget {
         void bind_color(u32 slot, AttachmentSurface &surface);
         void bind_color(u32 slot, Ref<Texture> tex, u8 face = 0);
 
-        AttachmentSurface &get_color(int i){
+        AttachmentSurface &get_color(int i) {
             EXPECT_INDEX_INBOUND_THROW(i, 8);
             return color_surface[i];
         }
-        MultiRenderTarget() = default;
+        MultiRenderTarget(const Viewport &vp):RenderTarget(vp){}
 };
 
 class WindowRenderTarget : public RenderTarget {
+    private:
+        WindowViewport wvp;
+
     public:
-        WindowRenderTarget();
+        WindowRenderTarget(Window *window);
+        Viewport *get_viewport() override{ return &wvp; }
 };
 
 }  // namespace Seed

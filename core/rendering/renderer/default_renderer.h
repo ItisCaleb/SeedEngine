@@ -35,7 +35,7 @@ class DefaultRenderer : public Renderer {
         ShadowMap shadow_map;
         Ref<RenderTarget> shadow_map_rt;
         RenderResource u_lights;
-        RenderResource u_lightspaces;
+        RenderResource u_csm;
         inline static const u32 CSM_SPLITS = 4;
         Handle shadow_map_dir_handle[CSM_SPLITS];
         std::vector<MeshInstance> shadow_meshes[CSM_SPLITS];
@@ -47,11 +47,11 @@ class DefaultRenderer : public Renderer {
         Ref<VertexData> aabb_vertices;
         VertexLayout aabb_desc;
         void shadow_pass();
-        void color_pass(WindowViewport &viewport);
+        void color_pass(Viewport &viewport);
 
         void init() override;
         void preprocess() override;
-        void process(WindowViewport &viewport) override;
+        void process(Viewport &viewport) override;
         void cleanup() override;
 };
 }  // namespace Seed

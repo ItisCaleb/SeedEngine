@@ -56,17 +56,21 @@ void RenderEngine::init() {
     u32 i = 1;
     Ref<WindowRenderTarget> window_rt;
     Ref<MultiRenderTarget> post_target;
-    window_rt.create();
-    post_target.create();
-    this->render_targets["default"] = ref_cast<RenderTarget>(post_target);
-    this->render_targets["window"] = ref_cast<RenderTarget>(window_rt);
 
-    Ref<Texture> color_tex(TextureType::TEXTURE_2D, 1024, 768,
+    u32 res_w = current_window->get_width() * 2;
+    u32 res_h = current_window->get_height() * 2;
+
+    Ref<Texture> color_tex(TextureType::TEXTURE_2D, res_w, res_h,
                            PixelFormat::RGBA16F, nullptr);
-    Ref<Texture> depth_tex(TextureType::TEXTURE_2D, 1024, 768,
+    Ref<Texture> depth_tex(TextureType::TEXTURE_2D, res_w, res_h,
                            PixelFormat::D24S8, nullptr);
+
+    window_rt.create(current_window);
+    post_target.create(Viewport(Vec2{(f32)res_w, (f32)res_h}));
     post_target->bind_color(0, color_tex);
     post_target->bind_depth(depth_tex);
+    this->render_targets["default"] = ref_cast<RenderTarget>(post_target);
+    this->render_targets["window"] = ref_cast<RenderTarget>(window_rt);
 
     this->register_renderer<DefaultRenderer>(
         i++, ref_cast<RenderTarget>(post_target));
@@ -86,19 +90,9 @@ void RenderEngine::register_renderer(u32 layer, Ref<RenderTarget> rt,
     static_assert(std::is_base_of<Renderer, T>::value,
                   "T must be a derived class of Renderer.");
     Renderer *renderer = static_cast<Renderer *>(new T(args...));
-    this->layers.push_back(Layer(rt, current_window, renderer));
+    this->layers.push_back(Layer(rt, renderer));
     renderer->set_layer(layer);
     renderer->init();
-}
-
-void RenderEngine::set_layer_viewport(u32 layer, RectF rect) {
-    EXPECT_INDEX_INBOUND(layer - 1, this->layers.size());
-    this->layers[layer - 1].vp.set_dimension(rect);
-}
-
-Viewport *RenderEngine::get_layer_viewport(u32 layer) {
-    EXPECT_INDEX_INBOUND_THROW(layer - 1, this->layers.size());
-    return &this->layers[layer - 1].vp;
 }
 
 void RenderEngine::process() {
@@ -106,6 +100,8 @@ void RenderEngine::process() {
     for (auto &iter : this->render_targets) {
         RenderStateDataBuilder builder;
         builder.bind_render_target(iter.second->get_resource());
+        builder.set_scissor(iter.second->get_viewport());
+        builder.set_viewport(iter.second->get_viewport());
         builder.clear(StateClearFlag::CLEAR_COLOR);
         builder.clear(StateClearFlag::CLEAR_DEPTH);
         dp.set_states(builder, 0);
@@ -123,12 +119,12 @@ void RenderEngine::process() {
         RenderCommandDispatcher layer_dp;
         {
             RenderStateDataBuilder builder;
-            builder.set_viewport(&layer.vp);
+            builder.set_viewport(layer.rt->get_viewport());
             builder.bind_render_target(layer.rt->get_resource());
             layer_dp.set_states(builder, layer.renderer->current_sort_key());
         }
         layer.renderer->preprocess();
-        layer.renderer->process(layer.vp);
+        layer.renderer->process(*layer.rt->get_viewport());
     }
 
     this->device->process();

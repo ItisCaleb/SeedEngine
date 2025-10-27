@@ -116,6 +116,13 @@ void RenderStateDataBuilder::set_scissor(const RectF &scissor_rect) {
         alloc_operation(RenderStateData::OpType::SCISSOR);
     op->scissor_rect = scissor_rect;
 }
+
+void RenderStateDataBuilder::set_scissor(Viewport *viewport) {
+    RenderStateData::Operation *op =
+        alloc_operation(RenderStateData::OpType::SCISSOR);
+    op->scissor_rect = viewport->get_actual_dimension();
+}
+
 void RenderStateDataBuilder::clear(StateClearFlag flag) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::CLEAR);
@@ -204,7 +211,7 @@ RenderUpdateData *RenderCommandDispatcher::map_buffer(
     return (RenderUpdateData *)push_update_cmd(update_data, sort_key, size);
 }
 
-void RenderCommandDispatcher::update_texture(const RenderResource &texture,
+void RenderCommandDispatcher::update_texture(const RenderResource &texture, PixelFormat format,
                                              u32 x_off, u32 y_off, u32 w, u32 h,
                                              void *data, u32 sort_key) {
     if (texture.type != RenderResourceType::TEXTURE) return;
@@ -215,11 +222,11 @@ void RenderCommandDispatcher::update_texture(const RenderResource &texture,
     update_data.texture.y_off = y_off;
     update_data.texture.w = w;
     update_data.texture.h = h;
-    push_update_cmd(update_data, sort_key, w * h * 4, data);
+    push_update_cmd(update_data, sort_key, w * h * get_pixel_format_size(format), data);
 }
 
 RenderUpdateData *RenderCommandDispatcher::map_texture(
-    const RenderResource &texture, u32 x_off, u32 y_off, u32 w, u32 h,
+    const RenderResource &texture, PixelFormat format, u32 x_off, u32 y_off, u32 w, u32 h,
     u32 sort_key) {
     if (texture.type != RenderResourceType::TEXTURE) return nullptr;
     if (w == 0 || h == 0) return nullptr;
@@ -231,7 +238,7 @@ RenderUpdateData *RenderCommandDispatcher::map_texture(
     update_data.texture.w = w;
     update_data.texture.h = h;
     return (RenderUpdateData *)push_update_cmd(update_data, sort_key,
-                                               w * h * 4);
+                                               w * h * get_pixel_format_size(format));
 }
 
 void RenderCommandDispatcher::update_cubemap(const RenderResource &texture,

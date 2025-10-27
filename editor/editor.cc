@@ -38,8 +38,6 @@ int main(int, char **) {
     bool show_demo_window = true;
 
     // ImGui::ShowDemoWindow(&show_demo_window);
-    RenderEngine::get_instance()->set_layer_viewport(
-        1, {.x = 0.2, .y = 0, .w = 0.6, .h = 0.8});
     GuiEngine::get_instance()->add_gui(new ModelGUI);
     GuiEngine::get_instance()->add_gui(new TerrainGUI);
     GuiEngine::get_instance()->add_gui(new EditorGUI);

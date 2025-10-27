@@ -1,9 +1,11 @@
-layout (std140) uniform LightSpaceMatrices
+layout (std140) uniform CSMShadow
 {
-    mat4 u_lightspaces[64];
-    vec4 u_shadow_uv[64];
+    mat4 u_lightspaces[4];
+    vec4 u_shadow_uv[4];
     vec4 u_far;
+    vec4 u_shadow_unit;
 };
+
 
 float SHADOW_POS_OFF = 1.0;
 
@@ -24,15 +26,28 @@ float shadow_bilinear(sampler2D shadow_map, vec2 uv, vec2 tex_scale, float sampl
     return (l + r + t + b) * 0.25;
 }
 
+vec2 recieve_plane_bias_uv(vec3 projCoords){
+    vec3 pc_dx = dFdxFine(projCoords);
+    vec3 pc_dy = dFdyFine(projCoords);
+    vec2 depth_duv;
+    depth_duv.x = pc_dy.y * pc_dx.z - pc_dx.y * pc_dy.z;
+    depth_duv.y = pc_dx.x * pc_dy.z - pc_dy.x * pc_dx.z;
+    float inv_det = 1.0 / ((pc_dx.x * pc_dy.y) - (pc_dx.y * pc_dy.x));
+    depth_duv *= inv_det;
+    return depth_duv;
+}
+
 float ShadowCalculation(sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 normal, vec3 light_dir)
 {
     for(int i = 0;i < 4;i++){
         if(frag_z >= u_far[i]) continue; 
         vec3 n = normalize(normal);
-        vec4 offset = vec4(shadow_pos_offset(shadow_map, dot(n, light_dir), n, 1), 0.0);
+        vec4 offset = u_shadow_unit[i] * vec4(shadow_pos_offset(shadow_map, dot(n, light_dir), n, 2), 0.0);
         vec4 lightspace_fragpos = u_lightspaces[i] * (frag_pos + offset);
         // perform perspective divide
         vec3 projCoords = lightspace_fragpos.xyz / lightspace_fragpos.w;
+        vec2 depth_duv = recieve_plane_bias_uv(projCoords);
+
         // transform to [0,1] range
         projCoords = projCoords * 0.5 + 0.5;
         
@@ -49,8 +64,8 @@ float ShadowCalculation(sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 
 
         vec2 tex_scale = (1.0 / vec2(textureSize(shadow_map, 0)));
 
-        float bias = 0.005;
-
+        vec4 normal_bias = vec4(0.05, 0.1, 0.08, 0.05);
+        float bias = normal_bias[i] * dot(normal, light_dir);
         float shadow = 0;
         float currentDepth = projCoords.z - bias;
         float pcf_count = 3.0;
