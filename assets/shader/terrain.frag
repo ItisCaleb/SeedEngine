@@ -18,20 +18,12 @@ uniform sampler2D shadowMap;
 
 float terrain_shadowmapping(vec2 uv, float angle){
     float shadow = 0;
-    float offset = 0.0001;
+    float offset = 1 / textureSize(terrain_shadowMap,0).r;
     // lookup texel at patch coordinate for height and scale + shift as desired
     float slope = texture(terrain_shadowMap, uv).r;
-    float rh = texture(terrain_shadowMap, uv + vec2(offset, 0)).r;
-    float lh = texture(terrain_shadowMap, uv + vec2(-offset, 0)).r;
-    float uh = texture(terrain_shadowMap, uv + vec2(0, offset)).r;
-    float dh = texture(terrain_shadowMap, uv + vec2(0, -offset)).r;
-    shadow += angle > slope ? 1.0 : 0.0;
-    shadow += angle > rh ? 1.0 : 0.0;
-    shadow += angle > lh ? 1.0 : 0.0;
-    shadow += angle > uh ? 1.0 : 0.0;
-    shadow += angle > dh ? 1.0 : 0.0;
+    shadow += slope > angle ? 1.0 : 0.0;
 
-    return shadow / 5;
+    return shadow;
 }
 
 void main() {
@@ -40,7 +32,7 @@ void main() {
         discard;
     }
 
-    vec3 light_out = u_light_ambient  * vec3(h, h, h);
+    vec3 light_out = u_light_ambient;
     vec3 view_dir = normalize(u_cam_pos - fragPos.xyz);
     vec3 diffuse_sample = vec3(1,1,1);
     vec3 specular_sample = vec3(1,1,1);
@@ -63,6 +55,7 @@ void main() {
             diffuse_sample, specular_sample,
             light_dir, view_dir, d, normal);
     }
+    light_out *= vec3(h, h, h);
     float dist = length(u_cam_pos - fragPos.xyz);
     float fog_factor = clamp((dist - 700) / 100, 0.0, 0.95);
     vec3 final_color = mix(light_out, vec3(0.48, 0.80, 0.80), fog_factor);

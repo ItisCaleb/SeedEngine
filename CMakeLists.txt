@@ -45,6 +45,12 @@ target_link_libraries(seed PUBLIC
 )
 add_subdirectory(core)
 
+set_source_files_properties(
+    "core/resource/image.cc"
+    PROPERTIES
+    COMPILE_OPTIONS "-mavx2;-mavx512vl;-mavx512bw"
+)
+
 
 # The game code
 add_executable(app)

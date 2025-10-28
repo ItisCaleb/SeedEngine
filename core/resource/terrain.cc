@@ -6,9 +6,6 @@
 #include <math.h>
 #include <deque>
 #include "core/math/fast_gaussian_blur.h"
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-
-#include <stb_image_write.h>
 
 namespace Seed {
 
@@ -20,7 +17,7 @@ TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
     : Material(DS::get_instance()->terrain_shader) {
     this->shadow_pipeline = DS::get_instance()->shadow_map_terrain_pipeline;
     this->add_texture_unit(height_map);
-    this->add_texture_unit(DS::get_instance()->default_texture);
+    this->add_texture_unit(DS::get_instance()->black_texture);
     this->raster_state = {.cull_mode = Cullmode::FRONT,
                           .patch_control_points = 4};
     this->depth_state = {.depth_on = true};
@@ -187,52 +184,44 @@ void Terrain::build_mesh() {
 void Terrain::gen_lightmap(Ref<Image> height_map) {
     Ref<Image> terrain_shadow_map(PixelFormat::R, this->hmap_width,
                                   this->hmap_height);
-    auto &sm_data = terrain_shadow_map->get_data();
 
     Vec3 light_dir = Vec3{-0.5, -0.5, 0}.norm();
     std::vector<Vec2> starts;
-    // 光線在地面投影
 
     if (light_dir.x > 0) {
-        // 從左邊界
         for (int z = 0; z < this->hmap_height; ++z)
             starts.push_back({0.0f, (float)z});
     } else if (light_dir.x < 0) {
-        // 從右邊界
         for (int z = 0; z < this->hmap_height; ++z)
             starts.push_back({(float)(hmap_width - 1), (float)z});
     }
 
     if (light_dir.z > 0) {
-        // 從上邊界
         for (int x = 0; x < this->hmap_width; ++x)
             starts.push_back({(float)x, 0.0f});
     } else if (light_dir.z < 0) {
-        // 從下邊界
         for (int x = 0; x < this->hmap_width; ++x)
             starts.push_back({(float)x, (float)(this->hmap_height - 1)});
     }
     for (Vec2 &sp : starts) {
-        f32 col = sp.y;
-        f32 row = sp.x;
-        row += light_dir.x;
-        col -= light_dir.z;
-        i32 icol = col;
+        f32 row = sp.y;
+        f32 col = sp.x;
+        row -= light_dir.z;
+        col += light_dir.x;
         i32 irow = row;
-        u32 index = icol * this->hmap_width + irow;
+        i32 icol = col;
         std::deque<Vec2> hull;
 
         auto get_height = [&](Vec2 p) {
-            return height_map->get_data()[((i32)p.y * this->hmap_width + (i32)p.x) * 4 + 1];
+            return height_map->pixel(p.x, p.y)[0];
         };
 
         auto angle = [&](Vec2 p, Vec2 q) {
             f32 dist_sqr = (q - p).length_sqr();
-            f32 dist = sqrt(dist_sqr);
             f32 ph = get_height(p);
             f32 qh = get_height(q);
             f32 dh = qh - ph;
-            f32 angle = dist / sqrt(dh * dh + dist_sqr);
+            f32 angle = dh / sqrt(dh * dh + dist_sqr);
             return angle;
         };
 
@@ -245,19 +234,19 @@ void Terrain::gen_lightmap(Ref<Image> height_map) {
             return slope;
         };
 
-        while (icol >= 0 && icol < this->hmap_height && irow >= 0 &&
-               irow < this->hmap_width) {
-            Vec2 cur = Vec2{row, col};
+        while (icol >= 0 && icol < this->hmap_width && irow >= 0 &&
+               irow < this->hmap_height) {
+            Vec2 cur = Vec2{col, row};
             while (hull.size() >= 2 &&
                    slope(cur, hull[0]) < slope(cur, hull[1])) {
                 hull.pop_front();
             }
             if (hull.empty())
-                sm_data[icol * hmap_width + irow] = 255;
+                terrain_shadow_map->pixel(icol, irow)[0] = 0;
             else {
                 f32 s = slope(cur, hull[0]);
-                sm_data[icol * hmap_width + irow] =
-                    s > 0 ? 255 * angle(cur, hull[0]) : 255;
+                terrain_shadow_map->pixel(icol, irow)[0] =
+                    s > 0 ? 255 * angle(cur, hull[0]) : 0;
             }
 
             while (!hull.empty() && get_height(cur) > get_height(hull[0])) {
@@ -265,22 +254,16 @@ void Terrain::gen_lightmap(Ref<Image> height_map) {
             }
             hull.push_front(cur);
 
-            row += light_dir.x;
-            col -= light_dir.z;
+            col += light_dir.x;
+            row -= light_dir.z;
             icol = col;
             irow = row;
         }
     }
 
-    // std::vector<u8> low_freq_height_map;
-    // low_freq_height_map.resize(sm_data.size());
-    // u8 *src = sm_data.data();
-    // u8 *dst = low_freq_height_map.data();
-    // fast_gaussian_blur(src, dst, (i32)hmap_width, (i32)hmap_height, 1, 2.0f);
-    // stbi_write_jpg("low_freq.jpg", this->hmap_width, this->hmap_height, 1, dst, 0);
     Ref<Texture> shadow_map(TextureType::TEXTURE_2D, this->hmap_width,
-                            this->hmap_height, PixelFormat::R, sm_data.data());
-    //terrain_shadow_map->upload(shadow_map);
+                            this->hmap_height, PixelFormat::R, nullptr);
+    terrain_shadow_map->median_filter(7)->upload(shadow_map);
     terrain_mat->set_light_map(shadow_map);
 }
 

@@ -9,7 +9,8 @@ namespace Seed {
 #define DS DefaultStorage
 
 class DefaultStorage {
-    inline static DefaultStorage *instance = nullptr;
+        inline static DefaultStorage *instance = nullptr;
+
     public:
         Ref<Shader> sky_shader;
         Ref<Shader> mesh_shader;
@@ -20,7 +21,9 @@ class DefaultStorage {
         Ref<Shader> decal_shader;
         Ref<Shader> shadow_default_shader;
         Ref<Shader> shadow_terrain_shader;
-        Ref<Texture> default_texture;
+        Ref<Texture> white_texture;
+        Ref<Texture> black_texture;
+
         VertexLayout terrain_desc;
         VertexLayout mesh_desc;
         VertexLayout sky_desc;
@@ -32,7 +35,6 @@ class DefaultStorage {
 
         static DefaultStorage *get_instance() { return instance; }
         DefaultStorage();
-
 };
 
 }  // namespace Seed

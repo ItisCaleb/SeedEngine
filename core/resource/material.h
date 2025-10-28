@@ -66,7 +66,7 @@ class BaseMaterial : public Material {
         f32 shiness;
         BaseMaterial() : Material(DS::get_instance()->mesh_shader) {
             for (i32 i = 0; i < TextureMapType::MAX; i++) {
-                this->add_texture_unit(DS::get_instance()->default_texture);
+                this->add_texture_unit(DS::get_instance()->white_texture);
             }
             depth_state = {.depth_on = true};
             this->shadow_pipeline = DS::get_instance()->shadow_map_default_pipeline;

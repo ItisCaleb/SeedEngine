@@ -23,7 +23,12 @@ class Image : public Resource {
         void download(Ref<Texture> texture);
         u32 get_width() { return width; }
         u32 get_height() { return height; }
+        u8 *pixel(u32 x, u32 y);
+        u8 *pixel_repeat(i32 x, i32 y);
+
         std::vector<u8> &get_data() { return data; }
+
+        Ref<Image> median_filter(u32 kernel_size);
 
         Image(PixelFormat format, u32 w, u32 h);
 };
