@@ -34,11 +34,18 @@ void RenderDrawDataBuilder::bind_index_data(Ref<IndexData> data, u32 offset) {
     draw_data->index_offset = offset;
 }
 
+void RenderDrawDataBuilder::push_constant(u32 size, void *data) {
+    RenderDrawData::Operation *op =
+        alloc_operation(RenderDrawData::OpType::PUSH_CONSTANT);
+    op->constant.data = RD->alloc(size, data);
+    op->constant.size = size;
+}
+
 void RenderDrawDataBuilder::bind_texture(u32 unit, RenderResource rc) {
     RenderDrawData::Operation *op =
         alloc_operation(RenderDrawData::OpType::BIND_TEXTURE);
-    op->texure.rc = rc;
-    op->texure.unit = unit;
+    op->texture.rc = rc;
+    op->texture.unit = unit;
 };
 void RenderDrawDataBuilder::bind_description(VertexLayout *desc) {
     RenderDrawData::Operation *op =
@@ -68,10 +75,11 @@ void RenderDrawDataBuilder::set_draw_index(u32 index_cnt, u32 index_offset) {
     data->index_offset = index_offset;
 }
 
-void RenderDrawDataBuilder::set_instance(u32 instance_cnt, u32 instance_offset) {
+void RenderDrawDataBuilder::set_instance(u32 instance_cnt,
+                                         u32 instance_offset) {
     RenderDrawData *data = this->get_data();
     data->instance_cnt = instance_cnt;
-    data->instance_offset = instance_offset;    
+    data->instance_offset = instance_offset;
 }
 
 void RenderStateDataBuilder::bind_render_target(RenderResource target) {
@@ -89,16 +97,17 @@ void RenderStateDataBuilder::bind_window() {
 void RenderStateDataBuilder::set_viewport(Viewport *viewport, bool flip_y) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::VIEWPORT);
-    op->viewports.view_rects = (RectF *)malloc(sizeof(RectF));
+    op->viewports.view_rects = (RectF *)RD->alloc(sizeof(RectF));
     *op->viewports.view_rects = viewport->get_actual_dimension(flip_y);
     op->viewports.counts = 1;
 }
 
-void RenderStateDataBuilder::set_viewports(std::vector<Viewport> &viewports, bool flip_y) {
+void RenderStateDataBuilder::set_viewports(std::vector<Viewport> &viewports,
+                                           bool flip_y) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::VIEWPORT);
     op->viewports.view_rects =
-        (RectF *)malloc(viewports.size() * sizeof(RectF));
+        (RectF *)RD->alloc(viewports.size() * sizeof(RectF));
     for (u32 i = 0; i < viewports.size(); i++) {
         op->viewports.view_rects[i] = viewports[i].get_actual_dimension(flip_y);
     }
@@ -161,6 +170,9 @@ void *RenderCommandDispatcher::push_update_cmd(RenderUpdateData &update_data,
     RenderCommand cmd;
     cmd.sort_key = sort_key;
     cmd.type = RenderCommandType::UPDATE;
+
+    /* since updata data may not be filled immediately */
+    /* we use malloc to ensure it will not be erased at end of frame */
     cmd.data = malloc(sizeof(RenderUpdateData) + size);
     RenderUpdateData *upd = (RenderUpdateData *)cmd.data;
     *upd = update_data;
@@ -211,8 +223,9 @@ RenderUpdateData *RenderCommandDispatcher::map_buffer(
     return (RenderUpdateData *)push_update_cmd(update_data, sort_key, size);
 }
 
-void RenderCommandDispatcher::update_texture(const RenderResource &texture, PixelFormat format,
-                                             u32 x_off, u32 y_off, u32 w, u32 h,
+void RenderCommandDispatcher::update_texture(const RenderResource &texture,
+                                             PixelFormat format, u32 x_off,
+                                             u32 y_off, u32 w, u32 h,
                                              void *data, u32 sort_key) {
     if (texture.type != RenderResourceType::TEXTURE) return;
     if (w == 0 || h == 0) return;
@@ -222,12 +235,13 @@ void RenderCommandDispatcher::update_texture(const RenderResource &texture, Pixe
     update_data.texture.y_off = y_off;
     update_data.texture.w = w;
     update_data.texture.h = h;
-    push_update_cmd(update_data, sort_key, w * h * get_pixel_format_size(format), data);
+    push_update_cmd(update_data, sort_key,
+                    w * h * get_pixel_format_size(format), data);
 }
 
 RenderUpdateData *RenderCommandDispatcher::map_texture(
-    const RenderResource &texture, PixelFormat format, u32 x_off, u32 y_off, u32 w, u32 h,
-    u32 sort_key) {
+    const RenderResource &texture, PixelFormat format, u32 x_off, u32 y_off,
+    u32 w, u32 h, u32 sort_key) {
     if (texture.type != RenderResourceType::TEXTURE) return nullptr;
     if (w == 0 || h == 0) return nullptr;
 
@@ -237,8 +251,8 @@ RenderUpdateData *RenderCommandDispatcher::map_texture(
     update_data.texture.y_off = y_off;
     update_data.texture.w = w;
     update_data.texture.h = h;
-    return (RenderUpdateData *)push_update_cmd(update_data, sort_key,
-                                               w * h * get_pixel_format_size(format));
+    return (RenderUpdateData *)push_update_cmd(
+        update_data, sort_key, w * h * get_pixel_format_size(format));
 }
 
 void RenderCommandDispatcher::update_cubemap(const RenderResource &texture,

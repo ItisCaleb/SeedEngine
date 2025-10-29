@@ -59,6 +59,8 @@ class RenderBackendGL : public RenderBackend {
         };
         GLuint global_vao;
         GLuint last_fbo = 0;
+        RenderResource push_constant;
+
         std::mutex alloc_lock;
         std::queue<AllocCommand> alloc_cmds;
 

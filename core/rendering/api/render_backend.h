@@ -61,6 +61,14 @@ class RenderBackend {
         virtual void dealloc(RenderResource *r) = 0;
         virtual void process_commands(std::deque<RenderCommand> &cmd_queue) = 0;
 
+        void *alloc(u64 size = 0, void *data = nullptr) {
+            RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
+            queue.queue_lock.lock();
+            void* _data = queue.data_pool.alloc(size, data);
+            queue.queue_lock.unlock();
+            return _data;
+        }
+
         void *push_cmd(RenderCommand &cmd, u64 size = 0, void *data = nullptr) {
             RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
             queue.queue_lock.lock();

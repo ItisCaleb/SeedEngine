@@ -62,6 +62,7 @@ struct RenderDrawData {
             BIND_DESC,
             BIND_INDEX,
             BIND_TEXTURE,
+            PUSH_CONSTANT,
             VIEWPORT,
             SCISSOR
         };
@@ -73,11 +74,9 @@ struct RenderDrawData {
                         struct {
                                 u32 unit;
                                 RenderResource rc;
-                        } texure;
+                        } texture;
                         struct {
-                                RenderResource rc;
                                 void *data;
-                                u32 offset;
                                 u32 size;
                         } constant;
                         VertexLayout *vertex_desc;
@@ -129,6 +128,13 @@ class DataBuilder {
 
     public:
         T *get_data() { return static_cast<T *>((void *)&this->buffer[0]); }
+        void rollback() {
+            T *data = static_cast<T *>((void *)&this->buffer[0]);
+            if(data->operation_cnt == 0) return;
+            data->operation_cnt--;
+            this->buffer.resize(this->buffer.size() -
+                                sizeof(typename T::Operation));
+        }
         void reset() {
             this->buffer.clear();
             this->buffer.resize(sizeof(T));
@@ -149,6 +155,7 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
 
         void bind_texture(u32 unit, RenderResource rc);
         void bind_description(VertexLayout *desc);
+        void push_constant(u32 size, void *data);
         void set_viewport(f32 x, f32 y, f32 width, f32 height);
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
         void set_draw_vertex(u32 vertex_cnt, u32 vertex_offset);

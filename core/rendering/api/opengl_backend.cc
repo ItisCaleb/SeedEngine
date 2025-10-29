@@ -55,6 +55,8 @@ RenderBackendGL::RenderBackendGL() {
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0,
                               nullptr, GL_TRUE);
     }
+    push_constant.type = RenderResourceType::CONSTANT;
+    this->alloc_constant(&push_constant, "PushConstant", 0);
 }
 void RenderBackendGL::alloc_texture(RenderResource *rc, TextureType type, u32 w,
                                     u32 h, PixelFormat format) {
@@ -283,9 +285,8 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             } else {
                 if (tex->format == PixelFormat::D24S8) {
                     // depth stencil texture
-                    glTexImage2D(type, 0, internal, tex->w, tex->h, 0,
-                                 format, GL_UNSIGNED_INT_24_8,
-                                 nullptr);
+                    glTexImage2D(type, 0, internal, tex->w, tex->h, 0, format,
+                                 GL_UNSIGNED_INT_24_8, nullptr);
                 } else if (tex->format == PixelFormat::D24) {
                     glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_REPEAT);
                     glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -485,8 +486,8 @@ GLuint RenderBackendGL::convert_texture_type(TextureType type) {
     return t;
 }
 
-GLuint RenderBackendGL::convert_pixel_internal(PixelFormat format){
-        GLuint t;
+GLuint RenderBackendGL::convert_pixel_internal(PixelFormat format) {
+    GLuint t;
     switch (format) {
         case PixelFormat::R:
             t = GL_R8;
@@ -962,8 +963,8 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                 break;
             }
             case RenderStateData::OpType::VIEWPORT: {
-                glViewportArrayv(0, op->viewports.counts, (const GLfloat*)op->viewports.view_rects);
-                free(op->viewports.view_rects);
+                glViewportArrayv(0, op->viewports.counts,
+                                 (const GLfloat *)op->viewports.view_rects);
                 break;
             }
             case RenderStateData::OpType::SCISSOR: {
@@ -1055,7 +1056,7 @@ void RenderBackendGL::handle_render(RenderCommand &cmd) {
                 use_vertex_desc(op->vertex_desc);
                 break;
             case RenderDrawData::OpType::BIND_TEXTURE:
-                use_texture(op->texure.unit, op->texure.rc);
+                use_texture(op->texture.unit, op->texture.rc);
                 break;
             case RenderDrawData::OpType::VIEWPORT: {
                 RectF &vp = op->view_rect;
@@ -1066,6 +1067,14 @@ void RenderBackendGL::handle_render(RenderCommand &cmd) {
                 RectF &rect = op->scissor_rect;
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(rect.x, rect.y, rect.w, rect.h);
+                break;
+            }
+            case RenderDrawData::OpType::PUSH_CONSTANT: {
+                HardwareConstantGL *pc = constants.get_or_null(push_constant.handle); 
+                glBindBuffer(GL_UNIFORM_BUFFER, pc->handle);
+                glBufferData(GL_UNIFORM_BUFFER, op->constant.size, op->constant.data,
+                             GL_DYNAMIC_DRAW);
+                glBindBuffer(GL_UNIFORM_BUFFER, 0);
                 break;
             }
             default:

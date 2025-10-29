@@ -11,7 +11,12 @@ layout (std140) uniform CSMShadow
     vec4 u_shadow_unit;
 };
 
+layout (std140) uniform PushConstant
+{
+    int split;
+};
+
 void main(){
     mat4 aModel = b_transform[aInstanceIndex];
-    gl_Position = u_lightspaces[0] * aModel * vec4(aPos, 1.0);
+    gl_Position = u_lightspaces[split] * aModel * vec4(aPos, 1.0);
 }

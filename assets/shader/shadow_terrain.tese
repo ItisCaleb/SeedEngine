@@ -18,6 +18,11 @@ layout (std140) uniform CSMShadow
     vec4 u_shadow_unit;
 };
 
+layout (std140) uniform PushConstant
+{
+    int split;
+};
+
 void main()
 {
     // get patch coordinate
@@ -56,5 +61,5 @@ void main()
     
     // ----------------------------------------------------------------------
     // output patch point position in clip space
-    gl_Position = u_lightspaces[0] * p;
+    gl_Position = u_lightspaces[split] * p;
 }
