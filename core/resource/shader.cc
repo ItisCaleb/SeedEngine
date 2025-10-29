@@ -17,6 +17,10 @@ std::string Shader::preprocess(const std::string &shader) {
     static int depth = 0;
     const int MAX_DEPTH = 50;
 
+    if(shader.size() == 0){
+        return "";
+    }
+
     if (++depth > MAX_DEPTH) {
         --depth;
         SPDLOG_ERROR("Shader include path too deep.");
@@ -77,12 +81,9 @@ Shader::Shader(const std::string &vertex, const std::string &frag,
                const std::string &tese) {
     std::string _vertex = preprocess(vertex);
     std::string _frag = preprocess(frag);
-    std::string _geom = geom;
-    std::string _tesc = tesc;
-    std::string _tese = tese;
-    if (!geom.empty()) _geom = preprocess(geom);
-    if (!tesc.empty()) _tesc = preprocess(tesc);
-    if (!tese.empty()) _tese = preprocess(tese);
+    std::string _geom = preprocess(geom);
+    std::string _tesc = preprocess(tesc);
+    std::string _tese = preprocess(tese);
 
     shader.alloc_shader(_vertex, _frag, _geom, _tesc, _tese);
 }

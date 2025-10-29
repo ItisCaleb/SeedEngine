@@ -53,24 +53,23 @@ static const Vec3 CUBE_NORMAL[] = {0.0f,  0.0f,  -1.0f, 0.0f, 0.0f, 1.0f,
 
 static const Vec2 CUBE_TEX[] = {0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
                                 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+static Vec3 light_dir;
 
 class DebugGUI : public GUI {
     public:
         void update() override {
             auto world = Seed::SeedEngine::get_instance()->get_world();
             ImGui::Begin("Debug");
-            if (ImGui::SliderFloat3(
-                    "Direction Light",
-                    (float *)(void *)&world->get_direction_light()
-                        .get_position(),
-                    -1.0f, 1.0f)) {
-                world->get_direction_light().set_dirty();
+            light_dir = world->get_direction_light().get_direction();
+            if (ImGui::SliderFloat3("Direction Light",
+                                    (float *)(void *)&light_dir, -1.0f, 1.0f)) {
+                world->get_direction_light().set_direction(light_dir);
             }
             auto cam = RenderEngine::get_instance()->get_cam();
             auto cam_pos = cam->get_position();
             ImGui::Text("%.2f %.2f %.2f", cam_pos.x, cam_pos.y, cam_pos.z);
             ImGui::Text("FPS: %.2f", SeedEngine::get_instance()->get_fps());
-            ImGui::SliderFloat("CSM Lambda", &Camera::shadow_lamdba, 0, 1.0);
+            // ImGui::SliderFloat("CSM Lambda", &Camera::shadow_lamdba, 0, 1.0);
             if (ImGui::Button("ortho")) {
                 cam->set_ortho(-10, 10, -10, 10, -100, 100);
                 // set position from origin
@@ -140,7 +139,7 @@ int main(void) {
 
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     engine->get_world()->get_point_lights().push_back(
-        Light{LightType::POINT, Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
+        PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
     engine->get_world()->add_entity<CameraEntity>();
     engine->get_world()->set_sky(sky->wait());
     engine->start();

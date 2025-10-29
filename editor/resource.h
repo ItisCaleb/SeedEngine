@@ -4,7 +4,7 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
-#include "core/collision/aabb.h"
+#include "core/collision/shape.h"
 #include <string>
 #include <vector>
 #include <map>

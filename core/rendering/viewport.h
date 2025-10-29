@@ -28,7 +28,7 @@ class Viewport {
 
         /* The engine viewport's origin is top left */
         /* For API like OpenGL, we need to reverse y axis */
-        virtual RectF get_actual_dimension(bool reverse_y = false);
+        virtual RectF get_actual_dimension(bool flip_y = false);
 
         bool within_viewport(f32 x, f32 y);
 
@@ -49,7 +49,7 @@ class WindowViewport : public Viewport {
         WindowViewport(Window *window, f32 x, f32 y, f32 w, f32 h)
             : WindowViewport(window, RectF{x, y, w, h}) {}
         WindowViewport(Window *window) : WindowViewport(window, 0, 0, 1, 1) {}
-        RectF get_actual_dimension(bool reverse_y = false) override;
+        RectF get_actual_dimension(bool flip = false) override;
 };
 }  // namespace Seed
 

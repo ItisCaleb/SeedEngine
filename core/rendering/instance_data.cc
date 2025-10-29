@@ -123,7 +123,7 @@ void TransformInstanceData::upload() {
     upd->set_filled();
 }
 
-void TransformInstanceData::frustum_culling(Camera *cam,
+void TransformInstanceData::frustum_culling(const Frustum &frustum,
                                             const AABB &bounding_box,
                                             std::vector<u32> &instance_ids,
                                             std::vector<f32> &depths) {
@@ -131,10 +131,10 @@ void TransformInstanceData::frustum_culling(Camera *cam,
     for (Ref<Transform> transform : transforms) {
         AABB aabb = transform->translate_AABB(bounding_box);
         /* frustum culling */
-        if (cam && cam->within_frustum(aabb)) {
+        if (frustum.within_frustum(aabb)) {
             /* push instance indices */
             instance_ids.push_back(i);
-            depths.push_back(cam->calculate_depth(transform->get_position()));
+            depths.push_back(frustum.calculate_depth(transform->get_position()));
         }
         i++;
     }

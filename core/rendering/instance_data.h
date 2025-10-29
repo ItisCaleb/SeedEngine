@@ -43,7 +43,7 @@ class InstanceData : public RefCounted {
     public:
         virtual void upload() = 0;
         virtual u32 get_size() = 0;
-        virtual void frustum_culling(Camera *cam, const AABB &bounding_box,
+        virtual void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
                                      std::vector<u32> &instance_ids,
                                      std::vector<f32> &depths) = 0;
 
@@ -60,7 +60,7 @@ class TransformInstanceData : public InstanceData {
         void insert_transform(Ref<Transform> transform);
         void remove_transform(Ref<Transform> transform);
         void upload() override;
-        void frustum_culling(Camera *cam, const AABB &bounding_box,
+        void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
                              std::vector<u32> &instance_ids,
                              std::vector<f32> &depths) override;
 

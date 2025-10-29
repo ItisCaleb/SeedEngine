@@ -5,7 +5,6 @@
 #include "core/rendering/api/render_engine.h"
 #include <math.h>
 #include <deque>
-#include "core/math/fast_gaussian_blur.h"
 
 namespace Seed {
 
@@ -61,7 +60,7 @@ void TerrainInstanceData::upload() {
     }
     upd->set_filled();
 }
-void TerrainInstanceData::frustum_culling(Camera *cam, const AABB &bounding_box,
+void TerrainInstanceData::frustum_culling(const Frustum &frustum, const AABB &bounding_box,
                                           std::vector<u32> &instance_ids,
                                           std::vector<f32> &depths) {
     u32 i = pool->query(instance_handle).idx;
@@ -73,10 +72,10 @@ void TerrainInstanceData::frustum_culling(Camera *cam, const AABB &bounding_box,
         aabb.center.y = mid_height;
         aabb.ext.y = instance.max_height - mid_height;
         /* frustum culling */
-        if (cam && cam->within_frustum(aabb)) {
+        if (frustum.within_frustum(aabb)) {
             /* push instance indices */
             instance_ids.push_back(i);
-            depths.push_back(cam->calculate_depth(aabb.center));
+            depths.push_back(frustum.calculate_depth(aabb.center));
         }
         i++;
     }

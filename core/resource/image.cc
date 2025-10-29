@@ -97,13 +97,17 @@ Ref<Image> Image::median_filter(u32 kernel_size) {
         }
     };
 
-    auto minus_kernel = [&](i32 col) {
-        if (col < 0) col = 0;
-        if (col >= this->width) col = this->width - 1;
+    auto update_kernel = [&](i32 to_add, i32 to_sub) {
+        if (to_add < 0) to_add = 0;
+        if (to_add >= this->width) to_add = this->width - 1;
+        if (to_sub < 0) to_sub = 0;
+        if (to_sub >= this->width) to_sub = this->width - 1;
         for (i32 i = 0; i < 256; i += 32) {
             __m256i kernel = _mm256_loadu_epi8(&kernel_hg[i]);
-            __m256i column = _mm256_loadu_epi8(&column_hgs[col * 256 + i]);
-            __m256i result = _mm256_sub_epi8(kernel, column);
+            __m256i add_col = _mm256_loadu_epi8(&column_hgs[to_add * 256 + i]);
+            __m256i sub_col = _mm256_loadu_epi8(&column_hgs[to_sub * 256 + i]);
+            __m256i result = _mm256_add_epi8(kernel, add_col);
+            result = _mm256_sub_epi8(result, sub_col);
             _mm256_storeu_epi8(&kernel_hg[i], result);
         }
     };
@@ -117,7 +121,6 @@ Ref<Image> Image::median_filter(u32 kernel_size) {
 
     for (i32 row = 0; row < this->height; row++) {
         std::fill(kernel_hg.begin(), kernel_hg.end(), 0);
-        auto s1 = std::chrono::steady_clock::now();
         for (i32 col = 0; col < this->width; col++) {
             column_hgs[col * 256 + pixel_repeat(col, row - r - 1)[0]]--;
             column_hgs[col * 256 + pixel_repeat(col, row + r)[0]]++;
@@ -126,8 +129,7 @@ Ref<Image> Image::median_filter(u32 kernel_size) {
             add_kernel(col);
         }
         for (i32 col = 0; col < this->width; col++) {
-            add_kernel(col + r);
-            minus_kernel(col - r - 1);
+            update_kernel(col + r, col - r - 1);
             output->pixel(col, row)[0] = find_median();
         }
     }

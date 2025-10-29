@@ -200,7 +200,7 @@ void JoltDebugRenderer::DrawGeometry(
     aabb.mMax = inModelMatrix * aabb.mMax;
     if (aabb.GetSqDistanceTo(to_jolt(cam->get_position())) >
             10000 ||
-        !cam->within_frustum(from_jolt(aabb))) {
+        !cam->get_frustum().within_frustum(from_jolt(aabb))) {
         return;
     }
 

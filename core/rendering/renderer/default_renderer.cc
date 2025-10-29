@@ -59,71 +59,23 @@ void DefaultRenderer::init() {
     debug_triangle_indices.create(std::vector<u32>{});
 }
 
-void DefaultRenderer::preprocess() {
+void DefaultRenderer::prepare_lights() {
     RenderCommandDispatcher dp;
-
     World *world = SeedEngine::get_instance()->get_world();
-
+    DirectionalLight &dir_light = world->get_direction_light();
     Camera *cam = RenderEngine::get_instance()->get_cam();
-    MeshStorage *mesh_storage = MeshStorage::get_instance();
-    std::set<InstanceData *> uploaded_instance;
-
-    for (auto &[mesh, instance] : mesh_storage->get_meshes()) {
-        AABB bounding_box = mesh->get_bounding_box();
-
-        /* check instance mesh size > 0 */
-        if (!instance.is_null() && instance->get_size() == 0) {
-            continue;
-        }
-
-        /* frustum culling for non-instance mesh */
-        if (instance.is_null()) {
-            if (cam && !cam->within_frustum(bounding_box)) continue;
-        }
-
-        MeshInstance *mesh_inst;
-        if (mesh->get_material()->get_blend_state().blend_on) {
-            mesh_inst = &this->transparent_meshes.emplace_back(
-                MeshInstance{.mesh = mesh});
-        } else {
-            mesh_inst =
-                &this->opaque_meshes.emplace_back(MeshInstance{.mesh = mesh});
-        }
-        for (u32 i = 0; i < CSM_SPLITS; i++) {
-            MeshInstance &s =
-                this->shadow_meshes[i].emplace_back(MeshInstance{.mesh = mesh});
-            for (u32 j = 0; j < instance->get_size(); j++) {
-                s.instance_id.push_back(j);
-            }
-        }
-        if (!instance.is_null()) {
-            /* Use instancing */
-            mesh_inst->instance = true;
-
-            if (uploaded_instance.find(instance.ptr()) ==
-                uploaded_instance.end()) {
-                uploaded_instance.insert(instance.ptr());
-                instance->upload();
-            }
-            instance->frustum_culling(cam, bounding_box, mesh_inst->instance_id,
-                                      mesh_inst->depth);
-
-        } else {
-            mesh_inst->instance = false;
-        }
-    }
 
     /* upload lights uniform*/
     RenderUpdateData *upd =
         dp.map_buffer(u_lights, 0, sizeof(STB140Lights), current_sort_key());
     STB140Lights *light_buf = (STB140Lights *)upd->get_buffer();
-    light_buf->u_dir_light = world->get_direction_light().get_stb140();
+    dir_light.get_stb140(&light_buf->u_dir_light);
     light_buf->u_light_ambient = world->get_ambient_light();
     for (u32 i = 0;
          i < (sizeof(light_buf->u_point_lights) / sizeof(STB140Light)); i++) {
         if (i < world->get_point_lights().size()) {
-            light_buf->u_point_lights[i] =
-                world->get_point_lights()[i].get_stb140();
+            world->get_point_lights()[i].get_stb140(
+                &light_buf->u_point_lights[i]);
 
         } else {
             light_buf->u_point_lights[i].enable = 0.0f;
@@ -137,10 +89,11 @@ void DefaultRenderer::preprocess() {
     std::vector<f32> resolutions;
     for (u32 i = 0; i < CSM_SPLITS; i++) {
         resolutions.push_back(
-            shadow_map.query_viewport(shadow_map_dir_handle[i]).w);
+            shadow_map.query_viewport(shadow_map_dir_handle[i])
+                .get_actual_dimension()
+                .h);
     }
-    cam->calculate_csm_lightspace(world->get_direction_light().get_position(),
-                                  resolutions, *csm_data);
+    dir_light.calculate_csm_lightspace(cam, resolutions, *csm_data);
     Mat4 *light_mats = (Mat4 *)upd->get_buffer();
 
     for (u32 i = 0; i < CSM_SPLITS; i++) {
@@ -148,6 +101,71 @@ void DefaultRenderer::preprocess() {
     }
 
     upd->set_filled();
+}
+
+void DefaultRenderer::prepare_meshes() {
+    RenderCommandDispatcher dp;
+
+    World *world = SeedEngine::get_instance()->get_world();
+
+    Camera *cam = RenderEngine::get_instance()->get_cam();
+    DirectionalLight &dir_light = world->get_direction_light();
+
+    MeshStorage *mesh_storage = MeshStorage::get_instance();
+    std::set<InstanceData *> uploaded_instance;
+
+    for (auto &[mesh, instance] : mesh_storage->get_meshes()) {
+        AABB bounding_box = mesh->get_bounding_box();
+
+        /* check instance mesh size > 0 */
+        if (!instance.is_null() && instance->get_size() == 0) {
+            continue;
+        }
+
+        MeshInstance *color_mesh;
+        if (mesh->get_material()->get_blend_state().blend_on) {
+            color_mesh = &this->transparent_meshes.emplace_back(
+                MeshInstance{.mesh = mesh});
+        } else {
+            color_mesh =
+                &this->opaque_meshes.emplace_back(MeshInstance{.mesh = mesh});
+        }
+        ShadowMeshInstance &shadow_mesh =
+            this->shadow_meshes.emplace_back(ShadowMeshInstance{.mesh = mesh});
+
+        const Frustum &cam_frustum = cam->get_frustum();
+        if (!instance.is_null()) {
+            /* Use instancing */
+            color_mesh->instance = true;
+
+            if (uploaded_instance.find(instance.ptr()) ==
+                uploaded_instance.end()) {
+                uploaded_instance.insert(instance.ptr());
+                instance->upload();
+            }
+            instance->frustum_culling(cam_frustum, bounding_box,
+                                      color_mesh->instance_id,
+                                      color_mesh->depth);
+
+            u32 last_size = 0;
+            for (u32 i = 0; i < CSM_SPLITS; i++) {
+                instance->frustum_culling(dir_light.get_frustum(i),
+                                          bounding_box, shadow_mesh.instance_id,
+                                          shadow_mesh.depth);
+                u32 size = shadow_mesh.instance_id.size() - last_size;
+                shadow_mesh.instance_ranges.push_back(size);
+                last_size = shadow_mesh.instance_id.size();
+            }
+
+        } else {
+            color_mesh->instance = false;
+        }
+    }
+}
+
+void DefaultRenderer::preprocess() {
+    prepare_lights();
+    prepare_meshes();
 
     DebugDrawer *drawer = DebugDrawer::get_instance();
     debug_line->update(drawer->line_vertices);
@@ -163,23 +181,28 @@ void DefaultRenderer::shadow_pass() {
     RenderStateDataBuilder shadow_map_state;
     u32 shadow_map_resolution = shadow_map.get_resolution();
     shadow_map_state.bind_render_target(shadow_map_rt->get_resource());
-    shadow_map_state.set_scissor(0, 0, shadow_map_resolution,
-                                 shadow_map_resolution);
-
-    shadow_map_state.clear(StateClearFlag::CLEAR_DEPTH);
-
-    std::vector<Viewport> split_vps;
-    for (u32 i = 0; i < CSM_SPLITS; i++) {
-        Viewport &vp = split_vps.emplace_back(*shadow_map_rt->get_viewport());
-        vp.set_dimension(shadow_map.query_uv(shadow_map_dir_handle[i]), true);
-    }
-    shadow_map_state.set_viewports(split_vps);
     dp.set_states(shadow_map_state, current_sort_key());
+    shadow_map_state.reset();
+    std::vector<Viewport> shadow_map_vps;
+    for (u32 i = 0; i < CSM_SPLITS; i++) {
+        Viewport *vp = &shadow_map_vps.emplace_back(
+            shadow_map.query_viewport(shadow_map_dir_handle[i]));
+        shadow_map_state.set_scissor(vp, true);
+        shadow_map_state.clear(StateClearFlag::CLEAR_DEPTH);
+        dp.set_states(shadow_map_state, current_sort_key());
+        shadow_map_state.reset();
+    }
+    shadow_map_state.reset();
+    shadow_map_state.set_scissor(shadow_map_rt->get_viewport());
+    dp.set_states(shadow_map_state, current_sort_key());
+    shadow_map_state.reset();
+
     Ref<Material> last_material;
-    for (MeshInstance &mesh : opaque_meshes) {
+    for (ShadowMeshInstance &mesh : shadow_meshes) {
         if (mesh.instance_id.empty() ||
             !mesh.mesh->get_material()->get_shadow_pipeline().inited())
             continue;
+
         dp.update_buffer(instance_idx_rc, 0,
                          sizeof(u32) * mesh.instance_id.size(),
                          (void *)mesh.instance_id.data(), current_sort_key());
@@ -192,11 +215,18 @@ void DefaultRenderer::shadow_pass() {
         mesh_builder.bind_vertex(instance_idx_rc);
         mesh_builder.bind_description(&instance_desc);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
-        mesh_builder.set_instance(mesh.instance_id.size());
 
-        dp.render(mesh_builder, mesh.mesh->get_type(),
-                  mesh.mesh->get_material()->get_shadow_pipeline(),
-                  current_sort_key());
+        u32 last_size = 0;
+        for (u32 i = 0; i < 1; i++) {
+            shadow_map_state.set_viewport(&shadow_map_vps[i], true);
+            dp.set_states(shadow_map_state, current_sort_key());
+            mesh_builder.set_instance(mesh.instance_ranges[i], last_size);
+            last_size += mesh.instance_ranges[i];
+            dp.render(mesh_builder, mesh.mesh->get_type(),
+                      mesh.mesh->get_material()->get_shadow_pipeline(),
+                      current_sort_key());
+            shadow_map_state.reset();
+        }
     }
 
     dp.end_scope(next_sort_key());
@@ -304,9 +334,7 @@ void DefaultRenderer::process(Viewport &viewport) {
 void DefaultRenderer::cleanup() {
     this->transparent_meshes.clear();
     this->opaque_meshes.clear();
-    for (auto &ms : this->shadow_meshes) {
-        ms.clear();
-    }
+    this->shadow_meshes.clear();
 
     entity_aabb.clear();
     this->seq = 0;

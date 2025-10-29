@@ -14,16 +14,16 @@ class World {
         Ref<Terrain> terrain;
         Ref<Sky> sky;
         Vec3 ambient_light;
-        Light direction_light;
-        std::vector<Light> point_lights;
+        DirectionalLight direction_light;
+        std::vector<PointLight> point_lights;
 
     public:
         std::vector<Entity *> &get_entities();
         Ref<Terrain> get_terrain();
         Ref<Sky> get_sky();
         Vec3 get_ambient_light() { return ambient_light; }
-        Light &get_direction_light() { return direction_light; }
-        std::vector<Light> &get_point_lights() { return point_lights; }
+        DirectionalLight &get_direction_light() { return direction_light; }
+        std::vector<PointLight> &get_point_lights() { return point_lights; }
 
         void tick(f32 dt);
         void add_entity(Entity *entity);

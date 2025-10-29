@@ -10,6 +10,14 @@ float get_height(vec2 tex_coord){
     return texture(height_map, tex_coord).y * 256.0 - 128.0;
 }
 
+layout (std140) uniform CSMShadow
+{
+    mat4 u_lightspaces[4];
+    vec4 u_shadow_uv[4];
+    vec4 u_far;
+    vec4 u_shadow_unit;
+};
+
 void main()
 {
     // get patch coordinate
@@ -48,5 +56,5 @@ void main()
     
     // ----------------------------------------------------------------------
     // output patch point position in clip space
-    gl_Position = p;
+    gl_Position = u_lightspaces[0] * p;
 }

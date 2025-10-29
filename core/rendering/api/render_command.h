@@ -129,6 +129,11 @@ class DataBuilder {
 
     public:
         T *get_data() { return static_cast<T *>((void *)&this->buffer[0]); }
+        void reset() {
+            this->buffer.clear();
+            this->buffer.resize(sizeof(T));
+            op_view.clear();
+        }
         DataBuilder() { this->buffer.resize(sizeof(T)); }
 };
 
@@ -190,12 +195,13 @@ class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
     public:
         void bind_render_target(RenderResource target);
         void bind_window();
-        void set_viewport(Viewport *viewport);
-        void set_viewports(std::vector<Viewport> &viewports);
+        void set_viewport(Viewport *viewport, bool flip_y = false);
+        void set_viewports(std::vector<Viewport> &viewports,
+                           bool flip_y = false);
 
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
         void set_scissor(const RectF &scissor_rect);
-        void set_scissor(Viewport *viewport);
+        void set_scissor(Viewport *viewport, bool flip_y = false);
         void bind_bufferbase(RenderResource buffer, u32 base);
 
         void clear(StateClearFlag flag);
@@ -253,11 +259,12 @@ class RenderCommandDispatcher {
                                      u32 size, u32 sort_key = 0);
 
         /* Will copy data to a temporary buffer.*/
-        void update_texture(const RenderResource &texture, PixelFormat format, u32 x_off, u32 y_off,
-                            u32 w, u32 h, void *data, u32 sort_key = 0);
-        RenderUpdateData *map_texture(const RenderResource &buffer, PixelFormat format, u32 x_off,
-                                      u32 y_off, u32 w, u32 h,
-                                      u32 sort_key = 0);
+        void update_texture(const RenderResource &texture, PixelFormat format,
+                            u32 x_off, u32 y_off, u32 w, u32 h, void *data,
+                            u32 sort_key = 0);
+        RenderUpdateData *map_texture(const RenderResource &buffer,
+                                      PixelFormat format, u32 x_off, u32 y_off,
+                                      u32 w, u32 h, u32 sort_key = 0);
         void update_cubemap(const RenderResource &texture, u8 face, u16 x_off,
                             u16 y_off, u16 w, u16 h, void *data,
                             u32 sort_key = 0);

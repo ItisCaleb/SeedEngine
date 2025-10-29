@@ -27,21 +27,21 @@
 
 #define EXPECT_INDEX_INBOUND(num, size)                      \
     if ((num) >= (size) || (num) < 0) {                      \
-        SPDLOG_ERROR("{} is out of " #size " bound .", num); \
+        SPDLOG_ERROR("{} is out of range, size is " #size " .", num); \
         return;                                              \
     } else                                                   \
         (void(0))
 
 #define EXPECT_INDEX_INBOUND_THROW(num, size)                \
     if ((num) >= (size) || (num) < 0) {                      \
-        SPDLOG_ERROR("{} is out of " #size " bound .", num); \
+        SPDLOG_ERROR("{} is out of range, size is " #size " .", num); \
         throw std::out_of_range("");                         \
     } else                                                   \
         (void(0))
 
 #define EXPECT_INDEX_INBOUND_RET(num, size, ret)             \
     if ((num) >= (size) || (num) < 0) {                      \
-        SPDLOG_ERROR("{} is out of " #size " bound .", num); \
+        SPDLOG_ERROR("{} is out of range, size is " #size " .", num); \
         return ret;                                          \
     } else                                                   \
         (void(0))

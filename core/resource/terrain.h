@@ -6,7 +6,7 @@
 #include "core/rendering/vertex_data.h"
 #include "core/resource/image.h"
 #include "core/physic/physic_body.h"
-#include "core/collision/aabb.h"
+#include "core/collision/shape.h"
 #include <vector>
 #include "core/rendering/mesh.h"
 #include "core/rendering/instance_data.h"
@@ -41,7 +41,7 @@ class TerrainInstanceData : public InstanceData {
         u32 get_size() override { return instances.size(); }
         void upload() override;
 
-        void frustum_culling(Camera *cam, const AABB &bounding_box,
+        void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
                              std::vector<u32> &instance_ids,
                              std::vector<f32> &depths) override;
         TerrainInstanceData();

@@ -1,7 +1,7 @@
 #ifndef _SEED_MODEL_FILE_H_
 #define _SEED_MODEL_FILE_H_
 #include "core/types.h"
-#include "core/collision/aabb.h"
+#include "core/collision/shape.h"
 inline const static char *model_file_magic = "SEEDMDL0";
 
 #pragma pack(push, 1)

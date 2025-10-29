@@ -3,7 +3,7 @@
 #include "core/ref.h"
 #include "core/math/vec3.h"
 #include "core/math/mat4.h"
-#include "core/collision/aabb.h"
+#include "core/collision/shape.h"
 class PhysicEngine;
 
 namespace Seed {

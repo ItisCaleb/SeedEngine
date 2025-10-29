@@ -13,11 +13,21 @@ class DefaultRenderer : public Renderer {
         friend RenderEngine;
 
     private:
-        struct MeshInstance{
-            Ref<Mesh> mesh;
-            std::vector<u32> instance_id;
-            std::vector<f32> depth;
-            bool instance;
+        inline static const u32 CSM_SPLITS = 4;
+
+        struct MeshInstance {
+                Ref<Mesh> mesh;
+                std::vector<u32> instance_id;
+                std::vector<f32> depth;
+                bool instance;
+        };
+
+
+        struct ShadowMeshInstance {
+                Ref<Mesh> mesh;
+                std::vector<u32> instance_id;
+                std::vector<f32> depth;
+                std::vector<u32> instance_ranges;
         };
         std::vector<MeshInstance> opaque_meshes;
         std::vector<MeshInstance> transparent_meshes;
@@ -36,16 +46,16 @@ class DefaultRenderer : public Renderer {
         Ref<RenderTarget> shadow_map_rt;
         RenderResource u_lights;
         RenderResource u_csm;
-        inline static const u32 CSM_SPLITS = 4;
         Handle shadow_map_dir_handle[CSM_SPLITS];
-        std::vector<MeshInstance> shadow_meshes[CSM_SPLITS];
-
+        std::vector<ShadowMeshInstance> shadow_meshes;
 
         /* for debugging */
 
         std::vector<AABB> entity_aabb;
         Ref<VertexData> aabb_vertices;
         VertexLayout aabb_desc;
+        void prepare_lights();
+        void prepare_meshes();
         void shadow_pass();
         void color_pass(Viewport &viewport);
 

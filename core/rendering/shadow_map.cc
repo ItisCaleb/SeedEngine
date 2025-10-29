@@ -79,19 +79,24 @@ Handle ShadowMap::allocate_2048() {
     return NULL_HANDLE;
 }
 
-RectF ShadowMap::query_viewport(Handle handle) {
+Viewport ShadowMap::query_viewport(Handle handle) {
     u16 *idx = this->used_spaces.get_or_null(handle);
-    if (!idx) return RectF{};
-    u32 res = this->min_res * this->spaces[*idx];
-    u32 x = min_res * (*idx % width);
-    u32 y = min_res * (*idx / width);
-    return RectF{(f32)x, (f32)y, (f32)res, (f32)res};
+    if (!idx) {
+        SPDLOG_ERROR("Illegal handle in shadowmap.");
+        return Viewport(Vec2{(f32)resolution, (f32)resolution});
+    }
+    f32 unit = this->min_res / (f32)resolution;
+    f32 res = unit * this->spaces[*idx];
+    f32 x = unit * (*idx % width);
+    f32 y = unit * (*idx / width);
+    return Viewport(RectF{x, y, res, res},
+                    Vec2{(f32)resolution, (f32)resolution});
 }
 
 RectF ShadowMap::query_uv(Handle handle) {
     u16 *idx = this->used_spaces.get_or_null(handle);
     if (!idx) return RectF{};
-    f32 unit = (f32)min_res / (f32)resolution; 
+    f32 unit = (f32)min_res / (f32)resolution;
     f32 x = unit * (*idx % width);
     f32 res = unit * this->spaces[*idx];
     f32 y = 1.0 - unit * (*idx / width) - res;

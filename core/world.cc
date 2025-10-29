@@ -22,8 +22,8 @@ void World::tick(f32 dt) {
 }
 
 World::World()
-    : direction_light(LightType::DIRECTIONAL, Vec3{-0.5, -0.5, 0},
-                      Vec3{0.8, 0.8, 0.8}, Vec3{0.4, 0.4, 0.4}) {
+    : direction_light(Vec3{-0.5, -0.5, 0}, Vec3{0.8, 0.8, 0.8},
+                      Vec3{0.4, 0.4, 0.4}) {
     this->ambient_light = Vec3{0.25, 0.25, 0.25};
 }
 

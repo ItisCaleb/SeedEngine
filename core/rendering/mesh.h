@@ -6,7 +6,7 @@
 #include "core/rendering/api/render_resource.h"
 #include "core/resource/material.h"
 #include "core/rendering/vertex_data.h"
-#include "core/collision/aabb.h"
+#include "core/collision/shape.h"
 #include <vector>
 #include <algorithm>
 

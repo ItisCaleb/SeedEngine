@@ -4,6 +4,7 @@
 #include "core/handle.h"
 #include "core/collision/shape.h"
 #include "core/resource/texture.h"
+#include "core/rendering/viewport.h"
 #include <vector>
 
 namespace Seed{
@@ -27,7 +28,7 @@ namespace Seed{
             Handle allocate_512();
             Handle allocate_1024();
             Handle allocate_2048();
-            RectF query_viewport(Handle handle);
+            Viewport query_viewport(Handle handle);
             RectF query_uv(Handle handle);
             Ref<Texture> get_texture(){
                 return shadow_map;

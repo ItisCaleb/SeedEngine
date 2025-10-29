@@ -4,7 +4,7 @@
 #include <vector>
 #include <set>
 
-#include "aabb.h"
+#include "shape.h"
 #include "core/entity.h"
 #include "core/container/freelist.h"
 
