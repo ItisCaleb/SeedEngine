@@ -36,14 +36,15 @@ class InstanceDataPool {
 
 class InstanceData : public RefCounted {
     protected:
-        InstanceData(InstanceDataPool *pool):pool(pool) {}
+        InstanceData(InstanceDataPool *pool) : pool(pool) {}
         InstanceDataPool *pool = nullptr;
         Handle instance_handle = NULL_HANDLE;
 
     public:
         virtual void upload() = 0;
         virtual u32 get_size() = 0;
-        virtual void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
+        virtual void frustum_culling(const Frustum &frustum,
+                                     const AABB &bounding_box,
                                      std::vector<u32> &instance_ids,
                                      std::vector<f32> &depths) = 0;
 

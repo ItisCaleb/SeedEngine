@@ -103,18 +103,18 @@ struct Vec3 {
             return Vec3{c * x - s * y, s * x + c * y, z};
         }
 
-        Vec3 min(const Vec3 &b) const{
-            if(this->lensq() < b.lensq()){
+        Vec3 min(const Vec3 &b) const {
+            if (this->lensq() < b.lensq()) {
                 return *this;
-            }else{
+            } else {
                 return b;
             }
         }
 
-        Vec3 max(const Vec3 &b) const{
-            if(this->lensq() > b.lensq()){
+        Vec3 max(const Vec3 &b) const {
+            if (this->lensq() > b.lensq()) {
                 return *this;
-            }else{
+            } else {
                 return b;
             }
         }

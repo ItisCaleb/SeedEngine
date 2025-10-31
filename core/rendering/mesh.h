@@ -27,8 +27,7 @@ class Mesh : public RefCounted {
         template <typename T>
         Mesh(VertexLayout *layout, const std::vector<T> &vertices,
              const std::vector<u32> &indices, const AABB &bounding_box)
-            : Mesh(layout, vertices, indices, Ref<Material>(), bounding_box) {
-        }
+            : Mesh(layout, vertices, indices, Ref<Material>(), bounding_box) {}
 
         template <typename T>
         Mesh(VertexLayout *layout, const std::vector<T> &vertices,

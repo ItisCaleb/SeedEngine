@@ -17,7 +17,7 @@ RectF Viewport::get_dimension() { return dimension; }
 
 RectF Viewport::get_actual_dimension(bool flip_y) {
     f32 y = flip_y ? size.y - (size.y * dimension.y) - (size.y * dimension.h)
-                      : (size.y * dimension.y);
+                   : (size.y * dimension.y);
     return RectF{.x = (size.x * dimension.x),
                  .y = y,
                  .w = (size.x * dimension.w),
@@ -48,8 +48,8 @@ RectF WindowViewport::get_actual_dimension(bool flip_y) {
     u32 actual_w = window->get_width();
     u32 actual_h = window->get_height();
     f32 y = flip_y ? (f32)actual_w - (actual_w * dimension.y) -
-                            (actual_w * dimension.h)
-                      : (actual_w * dimension.y);
+                         (actual_w * dimension.h)
+                   : (actual_w * dimension.y);
     return RectF{.x = (actual_w * dimension.x),
                  .y = (actual_h * dimension.y),
                  .w = (actual_w * dimension.w),

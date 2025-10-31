@@ -22,7 +22,8 @@ class Sky : public Resource {
         Sky(u32 w, u32 h, const u8 *right, const u8 *left, const u8 *top,
             const u8 *bottom, const u8 *front, const u8 *back) {
             Ref<Texture> cubemap;
-            cubemap.create(TextureType::TEXTURE_CUBEMAP, w, h, PixelFormat::RGBA, nullptr);
+            cubemap.create(TextureType::TEXTURE_CUBEMAP, w, h,
+                           PixelFormat::RGBA, nullptr);
             cubemap->upload_cube_map(right, left, top, bottom, front, back);
             sky_mat.create(cubemap);
         }

@@ -9,6 +9,7 @@
 #include "core/resource/resource_loader.h"
 #include "core/resource/model.h"
 #include "core/engine.h"
+#include "core/serialize/json_impl.h"
 #include <assimp/aabb.h>
 #include <assimp/material.h>
 
@@ -145,19 +146,7 @@ inline void to_json(json_type &j, const EditorModel::Material &m) {
                        {"opacity", m.opacity}};
 }
 
-namespace Seed {
 
-template <typename json_type>
-inline void to_json(json_type &j, const Seed::Vec3 &v) {
-    j = json_type{v.x, v.y, v.z};
-}
-
-template <typename json_type>
-inline void to_json(json_type &j, const Seed::AABB &aabb) {
-    j = json_type{{"center", aabb.center}, {"ext", aabb.ext}};
-}
-
-}  // namespace Seed
 void EditorModel::dump(const std::string &file_path) {
     Ref<File> f = File::open(file_path + ".json", "wb");
     Ref<File> bin_f = File::open(file_path + ".bin", "wb");

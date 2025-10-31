@@ -22,7 +22,6 @@ class DefaultRenderer : public Renderer {
                 bool instance;
         };
 
-
         struct ShadowMeshInstance {
                 Ref<Mesh> mesh;
                 std::vector<u32> instance_id;

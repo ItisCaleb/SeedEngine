@@ -68,7 +68,7 @@ JoltBackend::JoltBackend() {
 void JoltBackend::process() {
     system.Update(1.0f / 60, 1, temp_allocator, job_system);
     JPH::BodyManager::DrawSettings setting;
-    //system.DrawBodies(setting, JPH::DebugRenderer::sInstance);
+    // system.DrawBodies(setting, JPH::DebugRenderer::sInstance);
 }
 
 void JoltBackend::query_position(PhysicBody &body, Vec3 &position) {}
@@ -198,8 +198,7 @@ void JoltDebugRenderer::DrawGeometry(
     auto aabb = inGeometry->mBounds;
     aabb.mMin = inModelMatrix * aabb.mMin;
     aabb.mMax = inModelMatrix * aabb.mMax;
-    if (aabb.GetSqDistanceTo(to_jolt(cam->get_position())) >
-            10000 ||
+    if (aabb.GetSqDistanceTo(to_jolt(cam->get_position())) > 10000 ||
         !cam->get_frustum().within_frustum(from_jolt(aabb))) {
         return;
     }

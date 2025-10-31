@@ -24,7 +24,8 @@ DefaultStorage::DefaultStorage() {
     shadow_default_shader = loader->load_shader(
         "assets/shader/shadow_default.vert", "assets/shader/shadow.frag");
     shadow_terrain_shader = loader->load_shader(
-        "assets/shader/shadow_terrain.vert", "assets/shader/shadow.frag", "", "assets/shader/shadow_terrain.tesc",
+        "assets/shader/shadow_terrain.vert", "assets/shader/shadow.frag", "",
+        "assets/shader/shadow_terrain.tesc",
         "assets/shader/shadow_terrain.tese");
 
     shadow_map_default_pipeline.alloc_pipeline(
@@ -89,8 +90,10 @@ DefaultStorage::DefaultStorage() {
     post_data.create(&post_desc, (sizeof(tmp_post) / (sizeof(PostData))),
                      tmp_post);
     u8 white_color[] = {255, 255, 255, 255};
-    white_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA, white_color);
+    white_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,
+                         white_color);
     u8 black_color[] = {0, 0, 0, 255};
-    black_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA, black_color);
+    black_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,
+                         black_color);
 }
 }  // namespace Seed

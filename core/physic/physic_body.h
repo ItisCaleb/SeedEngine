@@ -5,11 +5,9 @@
 
 namespace Seed {
 
-enum class PhysicBodyType {
-    STATIC, DYNAMIC, KINETIC
-};
+enum class PhysicBodyType { STATIC, DYNAMIC, KINETIC };
 
-struct PhysicBody{
+struct PhysicBody {
         PhysicBodyType type;
         Handle handle = NULL_HANDLE;
 };

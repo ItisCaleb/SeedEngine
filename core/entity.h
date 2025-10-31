@@ -12,16 +12,16 @@
 
 namespace Seed {
 class Entity {
-    friend PhysicEngine;
+        friend PhysicEngine;
+
     protected:
         u32 id;
         Ref<Transform> transform;
         PhysicBody body;
         Ref<Model> model;
+
     public:
-        Ref<Transform> get_transform(){
-            return transform;
-        }
+        Ref<Transform> get_transform() { return transform; }
         void create_body(PhysicShape &shape, PhysicBodyType type);
         void remove_body();
         void bind_model(Ref<Model> model);

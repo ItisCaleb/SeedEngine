@@ -18,10 +18,9 @@ void *LinearAllocator::alloc(u64 size, void *data) {
         this->cur = new_size;
         ptr = (void *)((u64)this->memory_base + new_size - size);
     }
-    if(data) memcpy(ptr, data, size);
+    if (data) memcpy(ptr, data, size);
     return ptr;
 }
-
 
 void LinearAllocator::free_all() {
     /* free the tmp buffers and realloc */

@@ -134,7 +134,8 @@ void TransformInstanceData::frustum_culling(const Frustum &frustum,
         if (frustum.within_frustum(aabb)) {
             /* push instance indices */
             instance_ids.push_back(i);
-            depths.push_back(frustum.calculate_depth(transform->get_position()));
+            depths.push_back(
+                frustum.calculate_depth(transform->get_position()));
         }
         i++;
     }

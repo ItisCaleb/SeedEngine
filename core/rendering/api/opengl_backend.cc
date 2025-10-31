@@ -1070,10 +1070,11 @@ void RenderBackendGL::handle_render(RenderCommand &cmd) {
                 break;
             }
             case RenderDrawData::OpType::PUSH_CONSTANT: {
-                HardwareConstantGL *pc = constants.get_or_null(push_constant.handle); 
+                HardwareConstantGL *pc =
+                    constants.get_or_null(push_constant.handle);
                 glBindBuffer(GL_UNIFORM_BUFFER, pc->handle);
-                glBufferData(GL_UNIFORM_BUFFER, op->constant.size, op->constant.data,
-                             GL_DYNAMIC_DRAW);
+                glBufferData(GL_UNIFORM_BUFFER, op->constant.size,
+                             op->constant.data, GL_DYNAMIC_DRAW);
                 glBindBuffer(GL_UNIFORM_BUFFER, 0);
                 break;
             }

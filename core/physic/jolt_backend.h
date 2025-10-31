@@ -97,7 +97,6 @@ class ObjectLayerPairFilterImpl : public JPH::ObjectLayerPairFilter {
 
 class JoltJobWrapper : public JPH::JobSystem {};
 
-
 class JoltDebugRenderer : public JPH::DebugRenderer {
     private:
         class BatchImpl : public JPH::RefTargetVirtual {

@@ -44,7 +44,7 @@ class Camera {
         void set_perspective(f32 fovy, f32 aspect, f32 near, f32 far);
         void set_ortho(f32 left, f32 right, f32 bottom, f32 top, f32 near,
                        f32 far);
-        const Frustum& get_frustum();
+        const Frustum &get_frustum();
         Mat4 look_at();
         Mat4 projection();
         Vec3 to_world_pos(Vec2 pos);

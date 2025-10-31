@@ -8,6 +8,6 @@ target_sources(seed PRIVATE
     mesh_storage.cc
     viewport.cc
     light.cc
-    )
+)
 add_subdirectory(api)
 add_subdirectory(renderer)

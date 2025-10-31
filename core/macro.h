@@ -3,7 +3,6 @@
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 
-
 #define EXPECT_NOT_NULL_RET(val)                    \
     if ((val) == nullptr) {                         \
         SPDLOG_ERROR("Variable " #val " is null."); \
@@ -25,25 +24,25 @@
     } else                                              \
         (void(0))
 
-#define EXPECT_INDEX_INBOUND(num, size)                      \
-    if ((num) >= (size) || (num) < 0) {                      \
+#define EXPECT_INDEX_INBOUND(num, size)                               \
+    if ((num) >= (size) || (num) < 0) {                               \
         SPDLOG_ERROR("{} is out of range, size is " #size " .", num); \
-        return;                                              \
-    } else                                                   \
+        return;                                                       \
+    } else                                                            \
         (void(0))
 
-#define EXPECT_INDEX_INBOUND_THROW(num, size)                \
-    if ((num) >= (size) || (num) < 0) {                      \
+#define EXPECT_INDEX_INBOUND_THROW(num, size)                         \
+    if ((num) >= (size) || (num) < 0) {                               \
         SPDLOG_ERROR("{} is out of range, size is " #size " .", num); \
-        throw std::out_of_range("");                         \
-    } else                                                   \
+        throw std::out_of_range("");                                  \
+    } else                                                            \
         (void(0))
 
-#define EXPECT_INDEX_INBOUND_RET(num, size, ret)             \
-    if ((num) >= (size) || (num) < 0) {                      \
+#define EXPECT_INDEX_INBOUND_RET(num, size, ret)                      \
+    if ((num) >= (size) || (num) < 0) {                               \
         SPDLOG_ERROR("{} is out of range, size is " #size " .", num); \
-        return ret;                                          \
-    } else                                                   \
+        return ret;                                                   \
+    } else                                                            \
         (void(0))
 
 #endif

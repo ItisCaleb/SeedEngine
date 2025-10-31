@@ -16,7 +16,7 @@ void DebugDrawer::draw_triangle(Vec3 v1, Vec3 v2, Vec3 v3, Color color) {
     this->triangle_indices.push_back(index + 2);
 }
 
-void DebugDrawer::clear(){
+void DebugDrawer::clear() {
     this->line_vertices.clear();
     this->triangle_vertices.clear();
     this->triangle_indices.clear();
@@ -25,7 +25,8 @@ void DebugDrawer::clear(){
 DebugDrawer::DebugDrawer() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
-    Ref<Shader> debug_shader = loader->load_shader("assets/shader/debug.vert", "assets/shader/debug.frag");
+    Ref<Shader> debug_shader = loader->load_shader("assets/shader/debug.vert",
+                                                   "assets/shader/debug.frag");
     debug_desc.add_attr(0, VertexAttributeType::FLOAT, 3, 0);
     debug_desc.add_attr(1, VertexAttributeType::UNSIGNED_BYTE, 4, 0);
     debug_mat.create(debug_shader);

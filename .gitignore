@@ -3,3 +3,4 @@ bin/*
 .vscode/*
 imgui.ini
 .vs
+.seed_cache

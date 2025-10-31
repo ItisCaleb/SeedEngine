@@ -130,7 +130,7 @@ class DataBuilder {
         T *get_data() { return static_cast<T *>((void *)&this->buffer[0]); }
         void rollback() {
             T *data = static_cast<T *>((void *)&this->buffer[0]);
-            if(data->operation_cnt == 0) return;
+            if (data->operation_cnt == 0) return;
             data->operation_cnt--;
             this->buffer.resize(this->buffer.size() -
                                 sizeof(typename T::Operation));

@@ -149,9 +149,6 @@ void DefaultRenderer::prepare_meshes() {
 
             u32 last_size = 0;
             for (u32 i = 0; i < CSM_SPLITS; i++) {
-                // for(u32 j = 0;j<instance->get_size();j++){
-                //     shadow_mesh.instance_id.push_back(j);
-                // };
                 instance->frustum_culling(dir_light.get_frustum(i),
                                           bounding_box, shadow_mesh.instance_id,
                                           shadow_mesh.depth);
@@ -221,7 +218,7 @@ void DefaultRenderer::shadow_pass() {
 
         u32 last_size = 0;
         for (u32 i = 0; i < CSM_SPLITS; i++) {
-            if(mesh.instance_ranges[i] == 0) continue;
+            if (mesh.instance_ranges[i] == 0) continue;
             shadow_map_state.set_viewport(&shadow_map_vps[i], true);
             dp.set_states(shadow_map_state, current_sort_key());
             mesh_builder.push_constant(sizeof(u32), &i);

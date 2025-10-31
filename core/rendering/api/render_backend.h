@@ -64,7 +64,7 @@ class RenderBackend {
         void *alloc(u64 size = 0, void *data = nullptr) {
             RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
             queue.queue_lock.lock();
-            void* _data = queue.data_pool.alloc(size, data);
+            void *_data = queue.data_pool.alloc(size, data);
             queue.queue_lock.unlock();
             return _data;
         }

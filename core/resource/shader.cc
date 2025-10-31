@@ -17,7 +17,7 @@ std::string Shader::preprocess(const std::string &shader) {
     static int depth = 0;
     const int MAX_DEPTH = 50;
 
-    if(shader.size() == 0){
+    if (shader.size() == 0) {
         return "";
     }
 

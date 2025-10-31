@@ -129,7 +129,7 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
     }
     for (int i = 0; i < meshs.size(); i++) {
         i32 id = mesh_mats[i];
-        if(id == -1) id = 2;
+        if (id == -1) id = 2;
         meshs[i]->set_material(ref_cast<Material>(materials[id]));
     }
     model.create(meshs);

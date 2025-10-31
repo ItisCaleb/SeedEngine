@@ -1,7 +1,7 @@
 #include "light.h"
 
 namespace Seed {
-    
+
 void DirectionalLight::calculate_csm_lightspace(
     Camera *cam, const std::vector<f32> &resolutions, CSMShadow &csm_data) {
     u32 splits = resolutions.size();
@@ -62,8 +62,8 @@ void DirectionalLight::calculate_csm_lightspace(
         f32 radius = sqrtf(a2 / 4 + x * x);
         f32 AABB_size = radius * 2;
         f32 unit = AABB_size / resolutions[i - 1];
-        Mat4 light_projection =
-            Mat4::ortho_mat(radius, -radius, radius, -radius, -radius, radius);
+        Mat4 light_projection = Mat4::ortho_mat(radius, -radius, radius,
+                                                -radius, -radius * 2, radius);
 
         Vec3 center = cam_pos + cam_front * (near + x);
         /* transform center to light space and quantize */
@@ -87,8 +87,10 @@ void DirectionalLight::calculate_csm_lightspace(
             .right = {.point = center + light_u * radius, .normal = -light_u},
             .top = {.point = center + light_v * radius, .normal = -light_v},
             .bottom = {.point = center - light_v * radius, .normal = light_v},
-            .near = {.point = center - light_front * radius * 100, .normal = light_front},
-            .far = {.point = center + light_front * radius * 100, .normal = -light_front},
+            .near = {.point = center - light_front * radius * 100,
+                     .normal = light_front},
+            .far = {.point = center + light_front * radius * 100,
+                    .normal = -light_front},
         };
 
         /* next split */

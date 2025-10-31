@@ -26,10 +26,9 @@ class Model : public Resource {
     private:
         std::vector<Ref<Mesh>> meshes;
         Ref<TransformInstanceData> instances;
+
     public:
-        std::vector<Ref<Mesh>> &get_meshes(){
-            return meshes;
-        }
+        std::vector<Ref<Mesh>> &get_meshes() { return meshes; }
         Model(const std::vector<Ref<Mesh>> &meshes);
         void insert_transform(Ref<Transform> transform);
         void remove_transform(Ref<Transform> transform);

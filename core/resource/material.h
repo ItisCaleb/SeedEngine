@@ -38,9 +38,7 @@ class Material : public Resource {
         void add_texture_unit(Ref<Texture> tex);
         void remove_texture_unit(u32 unit);
         TextureState *get_texture_unit(u32 unit);
-        u32 get_texture_count() {
-            return textures.size();
-        }
+        u32 get_texture_count() { return textures.size(); }
         void set_rasterizer_state(RenderRasterizerState &state);
         void set_depth_state(RenderDepthStencilState &state);
         void set_blend_state(RenderBlendState &state);
@@ -50,9 +48,7 @@ class Material : public Resource {
         RenderBlendState get_blend_state() { return blend_state; }
 
         RenderResource get_pipeline();
-        RenderResource get_shadow_pipeline(){
-            return shadow_pipeline;
-        }
+        RenderResource get_shadow_pipeline() { return shadow_pipeline; }
         u16 get_id() { return id; }
         virtual void bind_states(RenderDrawDataBuilder &builder);
         inline static u16 last_id = 0;
@@ -69,7 +65,8 @@ class BaseMaterial : public Material {
                 this->add_texture_unit(DS::get_instance()->white_texture);
             }
             depth_state = {.depth_on = true};
-            this->shadow_pipeline = DS::get_instance()->shadow_map_default_pipeline;
+            this->shadow_pipeline =
+                DS::get_instance()->shadow_map_default_pipeline;
         }
         void set_texture_map(TextureMapType type, Ref<Texture> tex) {
             this->set_texture_unit(type, tex);

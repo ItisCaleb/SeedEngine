@@ -15,21 +15,18 @@ void PostRenderer::init() {
     post_mat->add_texture_unit(rt->get_color(0).texture);
 }
 
-void PostRenderer::process(Viewport &viewport){
+void PostRenderer::process(Viewport &viewport) {
     RenderCommandDispatcher dp;
     dp.begin_scope("POST Rendering", current_sort_key());
     auto builder = dp.generate_render_data(post_mat);
     builder.bind_vertex_data(DS::get_instance()->post_data);
-    dp.render(builder, RenderPrimitiveType::TRIANGLES, post_mat->get_pipeline(), current_sort_key());
+    dp.render(builder, RenderPrimitiveType::TRIANGLES, post_mat->get_pipeline(),
+              current_sort_key());
     dp.end_scope(next_sort_key());
 }
 
-void PostRenderer::preprocess(){
-    
-}
+void PostRenderer::preprocess() {}
 
-void PostRenderer::cleanup(){
-    this->seq = 0;
-}
+void PostRenderer::cleanup() { this->seq = 0; }
 
 }  // namespace Seed

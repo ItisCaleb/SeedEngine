@@ -6,7 +6,7 @@ target_sources(seed PRIVATE
     input_handler.cc
     os.cc
     window.cc
-    )
+)
 
 
 add_subdirectory(rendering)

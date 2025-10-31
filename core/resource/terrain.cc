@@ -60,7 +60,8 @@ void TerrainInstanceData::upload() {
     }
     upd->set_filled();
 }
-void TerrainInstanceData::frustum_culling(const Frustum &frustum, const AABB &bounding_box,
+void TerrainInstanceData::frustum_culling(const Frustum &frustum,
+                                          const AABB &bounding_box,
                                           std::vector<u32> &instance_ids,
                                           std::vector<f32> &depths) {
     u32 i = pool->query(instance_handle).idx;

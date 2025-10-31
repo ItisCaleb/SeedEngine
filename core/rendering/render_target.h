@@ -40,7 +40,7 @@ class MultiRenderTarget : public RenderTarget {
             EXPECT_INDEX_INBOUND_THROW(i, 8);
             return color_surface[i];
         }
-        MultiRenderTarget(const Viewport &vp):RenderTarget(vp){}
+        MultiRenderTarget(const Viewport &vp) : RenderTarget(vp) {}
 };
 
 class WindowRenderTarget : public RenderTarget {
@@ -49,7 +49,7 @@ class WindowRenderTarget : public RenderTarget {
 
     public:
         WindowRenderTarget(Window *window);
-        Viewport *get_viewport() override{ return &wvp; }
+        Viewport *get_viewport() override { return &wvp; }
 };
 
 }  // namespace Seed

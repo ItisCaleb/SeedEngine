@@ -116,7 +116,6 @@ void Camera::calculate_dirty() {
     }
 }
 
-
 Mat4 Camera::projection() {
     if (this->frustum.is_ortho) {
         return Mat4::ortho_mat(frustum.right, frustum.left, frustum.top,
@@ -140,7 +139,6 @@ const Frustum &Camera::get_frustum() {
     this->calculate_dirty();
     return frustum_plane;
 }
-
 
 Vec3 Camera::to_world_pos(Vec2 pos) { return {}; }
 

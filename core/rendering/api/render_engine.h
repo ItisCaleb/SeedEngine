@@ -42,7 +42,8 @@ class RenderEngine {
         RenderBackend *get_device();
         Camera *get_cam();
         template <typename T, typename... Args>
-        void register_renderer(u32 layer, Ref<RenderTarget> rt, const Args &...args);
+        void register_renderer(u32 layer, Ref<RenderTarget> rt,
+                               const Args &...args);
         Window *get_current_window() { return current_window; }
         Ref<RenderTarget> get_render_target(const std::string &name);
         InstanceDataPool *get_instance_pool(const std::string &name);

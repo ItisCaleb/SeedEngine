@@ -49,12 +49,12 @@ struct Frustum {
         Plane left, right;
         Plane top, bottom;
         Plane near, far;
-        bool within_frustum(const AABB &aabb) const{
+        bool within_frustum(const AABB &aabb) const {
             return right.within_plane(aabb) && left.within_plane(aabb) &&
                    top.within_plane(aabb) && bottom.within_plane(aabb) &&
                    near.within_plane(aabb) && far.within_plane(aabb);
         }
-        f32 calculate_depth(const Vec3 &pos)const {
+        f32 calculate_depth(const Vec3 &pos) const {
             float dist = (pos - this->near.point).length();
             return dist / (far.point - near.point).length();
         }

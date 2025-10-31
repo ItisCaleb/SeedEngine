@@ -10,6 +10,7 @@ class Shader : public Resource {
         RenderResource shader;
         u8 tex_unit_cnt;
         std::string preprocess(const std::string &shader);
+
     public:
         Shader(const std::string &vertex, const std::string &frag,
                const std::string &geom = "", const std::string &tesc = "",

@@ -3,10 +3,7 @@
 
 namespace Seed {
 
-
-VertexData::~VertexData() {
-    this->vertices.dealloc();
-}
+VertexData::~VertexData() { this->vertices.dealloc(); }
 
 IndexData::IndexData(const std::vector<u8> &indices) {
     this->indices.alloc_index(indices);

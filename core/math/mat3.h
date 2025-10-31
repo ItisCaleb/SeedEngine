@@ -61,7 +61,8 @@ struct Mat3 {
                         this->data[0][2], this->data[1][2], this->data[2][2]);
         }
 
-        inline static Mat3 coord_transform_mat(const Vec3 &u, const Vec3 &v, const Vec3 &w) {
+        inline static Mat3 coord_transform_mat(const Vec3 &u, const Vec3 &v,
+                                               const Vec3 &w) {
             return Mat3{u, v, w};
         }
 

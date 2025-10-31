@@ -14,6 +14,8 @@ namespace Seed {
 class File : public RefCounted {
     private:
         FILE *file;
+        std::string path;
+        std::string full_path;
         u64 file_size;
         u64 read_cnt;
         u64 write_cnt;
@@ -21,20 +23,23 @@ class File : public RefCounted {
     public:
         static Ref<File> open(const std::string &path,
                               const char *mode = "rb") {
+            Ref<File> file;
             std::string fullpath = std::filesystem::absolute(path).string();
             FILE *f = fopen(fullpath.c_str(), mode);
             if (!f) {
                 SPDLOG_WARN("Can't open file '{}'", fullpath);
-                return Ref<File>();
+                return file;
             }
             fseek(f, 0L, SEEK_END);
             u64 sz = ftell(f);
             fseek(f, 0L, SEEK_SET);
-            File *file = new File;
+            file.create();
             file->file = f;
+            file->path = path;
+            file->full_path = fullpath;
             file->file_size = sz;
             file->read_cnt = 0;
-            return Ref<File>(file);
+            return file;
         }
         std::string read_str(size_t size = 0) {
             std::string data;
@@ -80,6 +85,9 @@ class File : public RefCounted {
         size_t write_str(const std::string &str) const {
             return fwrite(str.data(), 1, str.size(), file);
         }
+
+        const std::string &get_path() const { return this->path; }
+        const std::string &get_fullpath() const { return this->path; }
 
         ~File() {
             if (file) {
