@@ -132,7 +132,7 @@ int main(void) {
                 Entity *ent = new Entity(Vec3{(f32)i * 5, 20, (f32)-i});
                 ent->bind_model(rc);
                 engine->get_world()->add_entity(ent);
-                PhysicBoxShape box(Vec3{5, 5, 5});
+                PhysicBoxShape box(Vec3{1, 1, 1});
                 ent->create_body(box, PhysicBodyType::DYNAMIC);
             }
         });

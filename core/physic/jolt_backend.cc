@@ -68,7 +68,7 @@ JoltBackend::JoltBackend() {
 void JoltBackend::process() {
     system.Update(1.0f / 60, 1, temp_allocator, job_system);
     JPH::BodyManager::DrawSettings setting;
-    // system.DrawBodies(setting, JPH::DebugRenderer::sInstance);
+    //system.DrawBodies(setting, JPH::DebugRenderer::sInstance);
 }
 
 void JoltBackend::query_position(PhysicBody &body, Vec3 &position) {}
@@ -167,8 +167,15 @@ JPH::DebugRenderer::Batch JoltDebugRenderer::CreateTriangleBatch(
     const Triangle *inTriangles, int inTriangleCount) {
     BatchImpl *batch = new BatchImpl;
     if (!inTriangles || inTriangleCount == 0) return batch;
-    batch->mTriangles.insert(batch->mTriangles.end(), inTriangles,
-                             inTriangles + inTriangleCount);
+
+    for (u32 i = 0; i < inTriangleCount; i++) {
+        batch->vertices.push_back(inTriangles[i].mV[0]);
+        batch->vertices.push_back(inTriangles[i].mV[1]);
+        batch->vertices.push_back(inTriangles[i].mV[2]);
+        batch->indices.push_back(i * 3);
+        batch->indices.push_back(i * 3 + 1);
+        batch->indices.push_back(i * 3 + 2);
+    }
     return batch;
 }
 
@@ -178,14 +185,12 @@ JPH::DebugRenderer::Batch JoltDebugRenderer::CreateTriangleBatch(
     BatchImpl *batch = new BatchImpl;
     if (!inVertices || inVertexCount == 0 || !inIndices || inIndexCount == 0)
         return batch;
-    batch->mTriangles.reserve(inIndexCount / 3);
-    for (int i = 0; i < batch->mTriangles.size(); i++) {
-        Triangle &t = batch->mTriangles[i];
-        t.mV[0] = inVertices[inIndices[i * 3]];
-        t.mV[1] = inVertices[inIndices[i * 3 + 1]];
-        t.mV[2] = inVertices[inIndices[i * 3 + 2]];
+    batch->vertices.resize(inVertexCount);
+    batch->indices.resize(inIndexCount);
+    for (u32 i = 0; i < inVertexCount; i++) {
+        batch->vertices[i] = inVertices[i];
     }
-
+    memcpy(batch->indices.data(), inIndices, sizeof(u32) * inIndexCount);
     return batch;
 }
 
@@ -207,23 +212,29 @@ void JoltDebugRenderer::DrawGeometry(
                                         inWorldSpaceBounds, inLODScaleSq);
     const BatchImpl *batch =
         static_cast<const BatchImpl *>(lod.mTriangleBatch.GetPtr());
-    for (const Triangle &triangle : batch->mTriangles) {
-        JPH::RVec3 v0 = inModelMatrix * JPH::Vec3(triangle.mV[0].mPosition);
-        JPH::RVec3 v1 = inModelMatrix * JPH::Vec3(triangle.mV[1].mPosition);
-        JPH::RVec3 v2 = inModelMatrix * JPH::Vec3(triangle.mV[2].mPosition);
-        JPH::Color color = inModelColor * triangle.mV[0].mColor;
 
-        switch (inDrawMode) {
-            case EDrawMode::Wireframe:
-                DrawLine(v0, v1, color);
-                DrawLine(v1, v2, color);
-                DrawLine(v2, v0, color);
-                break;
+    std::vector<Vec3> vertices;
+    vertices.reserve(batch->vertices.size());
+    for (const Vertex &v : batch->vertices) {
+        vertices.push_back(from_jolt(inModelMatrix * JPH::Vec3(v.mPosition)));
+    }
+    DebugDrawer *drawer = DebugDrawer::get_instance();
+    Color color = from_jolt(inModelColor);
+    switch (inDrawMode) {
+        case EDrawMode::Wireframe:
+            for (u32 i = 0; i < batch->indices.size(); i += 3) {
+                drawer->draw_line(vertices[batch->indices[i]],
+                                  vertices[batch->indices[i + 1]], color);
+                drawer->draw_line(vertices[batch->indices[i + 1]],
+                                  vertices[batch->indices[i + 2]], color);
+                drawer->draw_line(vertices[batch->indices[i + 2]],
+                                  vertices[batch->indices[i]], color);
+            }
+            break;
 
-            case EDrawMode::Solid:
-                DrawTriangle(v0, v1, v2, color, inCastShadow);
-                break;
-        }
+        case EDrawMode::Solid:
+            drawer->draw_triangles(vertices, batch->indices, color);
+            break;
     }
 }
 

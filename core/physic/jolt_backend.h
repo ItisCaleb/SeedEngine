@@ -108,7 +108,8 @@ class JoltDebugRenderer : public JPH::DebugRenderer {
                     if (--mRefCount == 0) delete this;
                 }
 
-                std::vector<Triangle> mTriangles;
+                std::vector<Vertex> vertices;
+                std::vector<u32> indices;
 
             private:
                 std::atomic<u32> mRefCount = 0;
