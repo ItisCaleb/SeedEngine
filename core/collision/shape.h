@@ -2,6 +2,7 @@
 #define _SEED_SHAPE_H_
 #include "core/types.h"
 #include "core/math/vec3.h"
+#include <cmath>
 
 namespace Seed {
 
@@ -44,6 +45,8 @@ struct Plane {
             return -r <= s;
         }
 };
+
+Vec3 plane_intersect(const Plane &p1, const Plane &p2, const Plane &p3);
 
 struct Frustum {
         Plane left, right;

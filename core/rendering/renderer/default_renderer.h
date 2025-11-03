@@ -57,6 +57,7 @@ class DefaultRenderer : public Renderer {
         void prepare_meshes();
         void shadow_pass();
         void color_pass(Viewport &viewport);
+        void debug_pass(Viewport &viewport);
 
         void init() override;
         void preprocess() override;

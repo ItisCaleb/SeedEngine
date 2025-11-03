@@ -3,6 +3,7 @@
 #include "core/math/utils.h"
 #include "core/rendering/api/render_command.h"
 #include "core/rendering/api/render_engine.h"
+#include "core/debug/debug_drawer.h"
 
 namespace Seed {
 
@@ -128,10 +129,13 @@ void TransformInstanceData::frustum_culling(const Frustum &frustum,
                                             std::vector<u32> &instance_ids,
                                             std::vector<f32> &depths) {
     u32 i = pool->query(instance_handle).idx;
+    DebugDrawer *drawer = DebugDrawer::get_instance();
+
     for (Ref<Transform> transform : transforms) {
         AABB aabb = transform->translate_AABB(bounding_box);
         /* frustum culling */
         if (frustum.within_frustum(aabb)) {
+            drawer->draw_aabb(aabb);
             /* push instance indices */
             instance_ids.push_back(i);
             depths.push_back(

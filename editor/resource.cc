@@ -19,7 +19,7 @@ i16 EditorModel::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
     for (int i = 0; i < mat->GetTextureCount(type); i++) {
         aiString str;
         mat->GetTexture(type, i, &str);
-
+        
         /* find if texture exist */
         for (int j = 0; j < textures.size(); j++) {
             if (textures[j].compare(str.C_Str()) == 0) return j;

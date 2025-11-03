@@ -123,6 +123,8 @@ Ref<Image> Image::median_filter(u32 kernel_size) {
         std::fill(kernel_hg.begin(), kernel_hg.end(), 0);
         for (i32 col = 0; col < this->width; col++) {
             column_hgs[col * 256 + pixel_repeat(col, row - r - 1)[0]]--;
+        }
+        for (i32 col = 0; col < this->width; col++) {
             column_hgs[col * 256 + pixel_repeat(col, row + r)[0]]++;
         }
         for (i32 col = -r - 1; col < r; col++) {

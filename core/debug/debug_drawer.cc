@@ -10,10 +10,94 @@ void DebugDrawer::draw_triangle(Vec3 v1, Vec3 v2, Vec3 v3, Color color) {
     this->triangle_vertices.push_back(DebugVertex{v1, color});
     this->triangle_vertices.push_back(DebugVertex{v2, color});
     this->triangle_vertices.push_back(DebugVertex{v3, color});
-    u32 index = this->triangle_indices.size();
+    u32 index = this->triangle_vertices.size();
     this->triangle_indices.push_back(index);
     this->triangle_indices.push_back(index + 1);
     this->triangle_indices.push_back(index + 2);
+}
+
+void DebugDrawer::draw_triangles(const std::vector<Vec3> vertices,
+                                 const std::vector<u32> indices, Color color) {
+    if (indices.size() % 3 != 0) {
+        SPDLOG_WARN("Indices must be multiple of 3.");
+        return;
+    }
+    for (Vec3 v : vertices) {
+        this->triangle_vertices.push_back(DebugVertex{v, color});
+    }
+    u32 index = this->triangle_vertices.size();
+    for (u32 i : indices) {
+        this->triangle_indices.push_back(index + i);
+    }
+}
+
+void DebugDrawer::draw_frustum(const Frustum &frustum, Color color) {
+    // planes: [near, far, left, right, top, bottom]
+
+    Vec3 near_tl = plane_intersect(frustum.near, frustum.left, frustum.top);
+    Vec3 near_tr = plane_intersect(frustum.near, frustum.right, frustum.top);
+    Vec3 near_bl = plane_intersect(frustum.near, frustum.left, frustum.bottom);
+    Vec3 near_br = plane_intersect(frustum.near, frustum.right, frustum.bottom);
+
+    Vec3 far_tl = plane_intersect(frustum.far, frustum.left, frustum.top);
+    Vec3 far_tr = plane_intersect(frustum.far, frustum.right, frustum.top);
+    Vec3 far_bl = plane_intersect(frustum.far, frustum.left, frustum.bottom);
+    Vec3 far_br = plane_intersect(frustum.far, frustum.right, frustum.bottom);
+
+    std::vector<Vec3> vertices = {near_tl, near_tr, near_br, near_bl,
+                                  far_tl,  far_tr,  far_br,  far_bl};
+
+    std::vector<uint32_t> indices = {// Near face
+                                     0, 1, 2, 0, 2, 3,
+                                     // Far face
+                                     4, 6, 5, 4, 7, 6,
+                                     // Left face
+                                     4, 0, 3, 4, 3, 7,
+                                     // Right face
+                                     5, 6, 2, 5, 2, 1,
+                                     // Top face
+                                     4, 5, 1, 4, 1, 0,
+                                     // Bottom face
+                                     7, 3, 2, 7, 2, 6};
+
+    for (size_t i = 0; i < indices.size(); i += 3) {
+        draw_triangle(vertices[indices[i]], vertices[indices[i + 1]],
+                      vertices[indices[i + 2]]);
+    }
+}
+
+void DebugDrawer::draw_aabb(const AABB &aabb, Color color) {
+    Vec3 c = aabb.center;
+    Vec3 e = aabb.ext;
+
+    // 8 corners
+    std::vector<Vec3> v(8);
+    v[0] = c + Vec3{-e.x, -e.y, -e.z};
+    v[1] = c + Vec3{e.x, -e.y, -e.z};
+    v[2] = c + Vec3{e.x, e.y, -e.z};
+    v[3] = c + Vec3{-e.x, e.y, -e.z};
+    v[4] = c + Vec3{-e.x, -e.y, e.z};
+    v[5] = c + Vec3{e.x, -e.y, e.z};
+    v[6] = c + Vec3{e.x, e.y, e.z};
+    v[7] = c + Vec3{-e.x, e.y, e.z};
+
+    // 每個面 2 個三角形，共 12 個三角形
+    uint32_t indices[] = {// front (z+)
+                          4, 5, 6, 4, 6, 7,
+                          // back (z-)
+                          0, 2, 1, 0, 3, 2,
+                          // left (x-)
+                          0, 7, 3, 0, 4, 7,
+                          // right (x+)
+                          1, 2, 6, 1, 6, 5,
+                          // top (y+)
+                          3, 7, 6, 3, 6, 2,
+                          // bottom (y-)
+                          0, 1, 5, 0, 5, 4};
+
+    for (int i = 0; i < 36; i += 3) {
+        draw_triangle(v[indices[i]], v[indices[i + 1]], v[indices[i + 2]], color);
+    }
 }
 
 void DebugDrawer::clear() {
@@ -28,13 +112,16 @@ DebugDrawer::DebugDrawer() {
     Ref<Shader> debug_shader = loader->load_shader("assets/shader/debug.vert",
                                                    "assets/shader/debug.frag");
     debug_desc.add_attr(0, VertexAttributeType::FLOAT, 3, 0);
-    debug_desc.add_attr(1, VertexAttributeType::UNSIGNED_BYTE, 4, 0);
+    debug_desc.add_attr(1, VertexAttributeType::UNSIGNED_BYTE, 4, 0, true);
     debug_mat.create(debug_shader);
     RenderRasterizerState rst;
-    rst.poly_mode = PolygonMode::LINE;
+    rst.poly_mode = PolygonMode::FILL;
     RenderDepthStencilState depth;
     depth.depth_on = true;
     RenderBlendState blend;
+    blend.func = BlendFunc::create(
+        BlendFactor::SRC_COLOR, BlendFactor::ONE_MINUS_SRC_COLOR,
+        BlendFactor::SRC_ALPHA, BlendFactor::ONE_MINUS_SRC_ALPHA);
     blend.blend_on = true;
     debug_mat->set_rasterizer_state(rst);
     debug_mat->set_depth_state(depth);

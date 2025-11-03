@@ -113,6 +113,7 @@ void DefaultRenderer::prepare_meshes() {
 
     MeshStorage *mesh_storage = MeshStorage::get_instance();
     std::set<InstanceData *> uploaded_instance;
+    
 
     for (auto &[mesh, instance] : mesh_storage->get_meshes()) {
         AABB bounding_box = mesh->get_bounding_box();
@@ -146,7 +147,6 @@ void DefaultRenderer::prepare_meshes() {
             instance->frustum_culling(cam_frustum, bounding_box,
                                       color_mesh->instance_id,
                                       color_mesh->depth);
-
             u32 last_size = 0;
             for (u32 i = 0; i < CSM_SPLITS; i++) {
                 instance->frustum_culling(dir_light.get_frustum(i),
@@ -168,6 +168,9 @@ void DefaultRenderer::preprocess() {
     prepare_meshes();
 
     DebugDrawer *drawer = DebugDrawer::get_instance();
+
+    World *world = SeedEngine::get_instance()->get_world();
+
     debug_line->update(drawer->line_vertices);
     debug_triangle->update(drawer->triangle_vertices);
     debug_triangle_indices->update(drawer->triangle_indices);
@@ -306,6 +309,28 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
     dp.end_scope(next_sort_key());
 }
 
+void DefaultRenderer::debug_pass(Viewport &viewport) {
+    RenderCommandDispatcher dp;
+
+    DebugDrawer *drawer = DebugDrawer::get_instance();
+
+    if (drawer->try_lock()) {
+        RenderDrawDataBuilder line_builder =
+            dp.generate_render_data(drawer->debug_mat);
+        line_builder.bind_vertex_data(debug_line);
+        dp.render(line_builder, RenderPrimitiveType::LINES,
+                  drawer->debug_mat->get_pipeline(), current_sort_key());
+        RenderDrawDataBuilder triangle_builder =
+            dp.generate_render_data(drawer->debug_mat);
+        triangle_builder.bind_vertex_data(debug_triangle);
+        triangle_builder.bind_index_data(debug_triangle_indices);
+        dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES,
+                  drawer->debug_mat->get_pipeline(), current_sort_key());
+        drawer->clear();
+        drawer->unlock();
+    }
+}
+
 void DefaultRenderer::process(Viewport &viewport) {
     World *world = SeedEngine::get_instance()->get_world();
 
@@ -313,26 +338,8 @@ void DefaultRenderer::process(Viewport &viewport) {
     dp.begin_scope("Default Rendering", current_sort_key());
     shadow_pass();
     color_pass(viewport);
+    debug_pass(viewport);
     dp.end_scope(current_sort_key());
-
-    {
-        DebugDrawer *drawer = DebugDrawer::get_instance();
-        if (drawer->try_lock()) {
-            RenderDrawDataBuilder line_builder =
-                dp.generate_render_data(drawer->debug_mat);
-            line_builder.bind_vertex_data(debug_line);
-            dp.render(line_builder, RenderPrimitiveType::LINES,
-                      drawer->debug_mat->get_pipeline(), current_sort_key(1.0));
-            RenderDrawDataBuilder triangle_builder =
-                dp.generate_render_data(drawer->debug_mat);
-            triangle_builder.bind_vertex_data(debug_triangle);
-            triangle_builder.bind_index_data(debug_triangle_indices);
-            dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES,
-                      drawer->debug_mat->get_pipeline(), current_sort_key(1.0));
-            drawer->clear();
-            drawer->unlock();
-        }
-    }
 }
 void DefaultRenderer::cleanup() {
     this->transparent_meshes.clear();

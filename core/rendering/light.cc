@@ -89,7 +89,7 @@ void DirectionalLight::calculate_csm_lightspace(
             .bottom = {.point = center - light_v * radius, .normal = light_v},
             .near = {.point = center - light_front * radius * 100,
                      .normal = light_front},
-            .far = {.point = center + light_front * radius * 100,
+            .far = {.point = center + light_front * radius,
                     .normal = -light_front},
         };
 

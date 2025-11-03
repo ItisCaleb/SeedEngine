@@ -1103,18 +1103,18 @@ void RenderBackendGL::handle_render(RenderCommand &cmd) {
 
     if (index_type != 0) {
         if (draw_data->instance_cnt > 0) {
-            glDrawElementsInstanced(
+            glDrawElementsInstancedBaseInstance(
                 prim_type, draw_data->vertex_cnt, index_type,
-                (void *)(u64)draw_data->index_offset, draw_data->instance_cnt);
+                (void *)(u64)draw_data->index_offset, draw_data->instance_cnt, draw_data->instance_offset);
         } else {
             glDrawElements(prim_type, draw_data->vertex_cnt, index_type,
                            (void *)(u64)draw_data->index_offset);
         }
     } else {
         if (draw_data->instance_cnt > 0) {
-            glDrawArraysInstanced(prim_type, draw_data->vertex_offset,
+            glDrawArraysInstancedBaseInstance(prim_type, draw_data->vertex_offset,
                                   draw_data->vertex_cnt,
-                                  draw_data->instance_cnt);
+                                  draw_data->instance_cnt, draw_data->instance_offset);
         } else {
             glDrawArrays(prim_type, draw_data->vertex_offset,
                          draw_data->vertex_cnt);
