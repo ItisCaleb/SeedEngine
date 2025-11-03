@@ -26,7 +26,6 @@ class Entity {
         void remove_body();
         void bind_model(Ref<Model> model);
         virtual void update(f32 dt) {}
-        virtual void render() {}
 
         Entity(Vec3 position);
         Entity();

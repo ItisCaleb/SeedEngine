@@ -11,7 +11,6 @@ class CameraEntity : public Entity {
 
     public:
         void update(f32 dt) override;
-        void render() override;
         CameraEntity();
         ~CameraEntity();
 };

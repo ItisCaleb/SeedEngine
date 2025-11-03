@@ -7,10 +7,10 @@ void DebugDrawer::draw_line(Vec3 from, Vec3 to, Color color) {
     this->line_vertices.push_back(DebugVertex{to, color});
 }
 void DebugDrawer::draw_triangle(Vec3 v1, Vec3 v2, Vec3 v3, Color color) {
+    u32 index = this->triangle_vertices.size();
     this->triangle_vertices.push_back(DebugVertex{v1, color});
     this->triangle_vertices.push_back(DebugVertex{v2, color});
     this->triangle_vertices.push_back(DebugVertex{v3, color});
-    u32 index = this->triangle_vertices.size();
     this->triangle_indices.push_back(index);
     this->triangle_indices.push_back(index + 1);
     this->triangle_indices.push_back(index + 2);
@@ -22,10 +22,10 @@ void DebugDrawer::draw_triangles(const std::vector<Vec3> vertices,
         SPDLOG_WARN("Indices must be multiple of 3.");
         return;
     }
+    u32 index = this->triangle_vertices.size();
     for (Vec3 v : vertices) {
         this->triangle_vertices.push_back(DebugVertex{v, color});
     }
-    u32 index = this->triangle_vertices.size();
     for (u32 i : indices) {
         this->triangle_indices.push_back(index + i);
     }
@@ -60,10 +60,7 @@ void DebugDrawer::draw_frustum(const Frustum &frustum, Color color) {
                                      // Bottom face
                                      7, 3, 2, 7, 2, 6};
 
-    for (size_t i = 0; i < indices.size(); i += 3) {
-        draw_triangle(vertices[indices[i]], vertices[indices[i + 1]],
-                      vertices[indices[i + 2]]);
-    }
+    draw_triangles(vertices, indices, color);
 }
 
 void DebugDrawer::draw_aabb(const AABB &aabb, Color color) {
@@ -81,8 +78,7 @@ void DebugDrawer::draw_aabb(const AABB &aabb, Color color) {
     v[6] = c + Vec3{e.x, e.y, e.z};
     v[7] = c + Vec3{-e.x, e.y, e.z};
 
-    // 每個面 2 個三角形，共 12 個三角形
-    uint32_t indices[] = {// front (z+)
+    std::vector<u32> indices = {// front (z+)
                           4, 5, 6, 4, 6, 7,
                           // back (z-)
                           0, 2, 1, 0, 3, 2,
@@ -94,10 +90,7 @@ void DebugDrawer::draw_aabb(const AABB &aabb, Color color) {
                           3, 7, 6, 3, 6, 2,
                           // bottom (y-)
                           0, 1, 5, 0, 5, 4};
-
-    for (int i = 0; i < 36; i += 3) {
-        draw_triangle(v[indices[i]], v[indices[i + 1]], v[indices[i + 2]], color);
-    }
+    draw_triangles(v, indices, color);
 }
 
 void DebugDrawer::clear() {

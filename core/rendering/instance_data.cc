@@ -17,38 +17,47 @@ InstanceDataPool::Block InstanceDataPool::split(Block &block) {
 }
 
 Handle InstanceDataPool::alloc(u32 size) {
+    /* get correspond zone */
     u32 lg = log2(roundup_to_pow2(size));
     if (lg >= this->max_order) return NULL_HANDLE;
     auto &zone = this->free_zones[lg];
+
+    /* if there is one, then just give it. */
     if (!zone.empty()) {
         Handle h = this->used_blocks.insert(zone.front());
         zone.pop_front();
         return h;
-    } else {
-        for (u32 i = lg + 1; i < this->max_order; i++) {
-            if (this->free_zones[i].empty()) continue;
-            Block b = this->free_zones[i].front();
-            this->free_zones[i].pop_front();
-            while (1 << lg != b.size) {
-                b = split(b);
-            }
-
-            Handle h = this->used_blocks.insert(b);
-            return h;
-        }
-        return NULL_HANDLE;
     }
+
+    /* or we split zone from upper recursively */
+    for (u32 i = lg + 1; i < this->max_order; i++) {
+        if (this->free_zones[i].empty()) continue;
+        Block b = this->free_zones[i].front();
+        this->free_zones[i].pop_front();
+        while (1 << lg != b.size) {
+            b = split(b);
+        }
+
+        Handle h = this->used_blocks.insert(b);
+        return h;
+    }
+    return NULL_HANDLE;
 }
 
 void InstanceDataPool::merge(Block *b, u32 lg) {
     if (lg == this->max_order) return;
     Block block = *b;
     auto &zone = this->free_zones[lg];
-    bool target_idx = ((block.idx >> lg) & 1) ? block.idx - block.size
-                                              : block.idx + block.size;
 
+    /* check the freed block is left or right, and get the pair block */
+    u32 target_idx = ((block.idx >> lg) & 1) ? block.idx - block.size
+                                             : block.idx + block.size;
+
+    /* find the pair block in target zone  */
     for (auto it = zone.begin(); it != zone.end();) {
         Block buddy = *it;
+
+        /* if the pair block is also free, the we merge recursively */
         if (buddy.idx == target_idx) {
             this->free_zones[lg + 1].push_back(
                 Block{std::min(buddy.idx, block.idx), block.size << 1});
@@ -59,6 +68,7 @@ void InstanceDataPool::merge(Block *b, u32 lg) {
             it++;
         }
     }
+    /* no pair block found */
     this->free_zones[lg].push_back(block);
 }
 void InstanceDataPool::free(Handle handle) {
@@ -68,6 +78,7 @@ void InstanceDataPool::free(Handle handle) {
     /* no merge */
     this->used_blocks.remove(handle);
 }
+
 InstanceDataPool::Block InstanceDataPool::query(Handle handle) {
     Block *b = this->used_blocks.get_or_null(handle);
     if (!b) return Block{0, 0};

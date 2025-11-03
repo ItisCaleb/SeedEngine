@@ -37,7 +37,6 @@ void CameraEntity::update(f32 dt) {
     cam->set_position(pos);
 }
 
-void CameraEntity::render() {}
 
 CameraEntity::CameraEntity() {
     this->cam = RenderEngine::get_instance()->get_cam();

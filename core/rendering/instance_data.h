@@ -10,6 +10,7 @@
 
 namespace Seed {
 
+/* use buddy allocator to manage instance data */
 class InstanceDataPool {
     public:
         struct Block {

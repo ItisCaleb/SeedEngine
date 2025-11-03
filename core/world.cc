@@ -16,9 +16,6 @@ void World::tick(f32 dt) {
     for (Entity *e : this->entities) {
         e->update(dt);
     }
-    for (Entity *e : this->entities) {
-        e->render();
-    }
 }
 
 World::World()
