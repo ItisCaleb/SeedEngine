@@ -15,7 +15,7 @@
 
 using namespace Seed;
 
-i16 EditorModel::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
+i16 DefaultModel::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
     for (int i = 0; i < mat->GetTextureCount(type); i++) {
         aiString str;
         mat->GetTexture(type, i, &str);
@@ -32,7 +32,7 @@ i16 EditorModel::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
     return -1;
 }
 
-AABB EditorModel::calculateAABB(const std::vector<ModelVertex> &vertices) {
+AABB DefaultModel::calculateAABB(const std::vector<ModelVertex> &vertices) {
     f32 x1 = 1e5, x2 = -1e5;
     f32 y1 = 1e5, y2 = -1e5;
     f32 z1 = 1e5, z2 = -1e5;
@@ -50,9 +50,8 @@ AABB EditorModel::calculateAABB(const std::vector<ModelVertex> &vertices) {
     return AABB{Vec3{x2 - w, y2 - h, z2 - d}, Vec3{w, h, d}};
 }
 
-void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
-    meshes.push_back({});
-    EditorMesh &m = meshes.back();
+void DefaultModel::processMesh(aiMesh *mesh, const aiScene *scene) {
+    EditorMesh &m = meshes.emplace_back(EditorMesh{});
     std::vector<ModelVertex> &vertices = m.vertices;
     std::vector<u32> &indices = m.indices;
     for (int i = 0; i < mesh->mNumVertices; i++) {
@@ -80,7 +79,7 @@ void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
     }
     if (mesh->mMaterialIndex >= 0) {
         aiMaterial *mat = scene->mMaterials[mesh->mMaterialIndex];
-        Material model_mat;
+        ::Material model_mat;
         model_mat.diffuse = loadMaterialTextures(mat, aiTextureType_DIFFUSE);
         model_mat.specular = loadMaterialTextures(mat, aiTextureType_SPECULAR);
         model_mat.normal = loadMaterialTextures(mat, aiTextureType_NORMALS);
@@ -104,7 +103,7 @@ void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
     }
 }
 
-void EditorModel::processNode(aiNode *node, const aiScene *scene) {
+void DefaultModel::processNode(aiNode *node, const aiScene *scene) {
     for (int i = 0; i < node->mNumMeshes; i++) {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
         processMesh(mesh, scene);
@@ -114,7 +113,7 @@ void EditorModel::processNode(aiNode *node, const aiScene *scene) {
     }
 }
 
-EditorModel::EditorModel(const std::string &path) {
+DefaultModel::DefaultModel(const std::string &path) {
     Assimp::Importer importer;
     const aiScene *scene = importer.ReadFile(
         path, aiProcess_CalcTangentSpace | aiProcess_GenNormals |
@@ -133,13 +132,13 @@ EditorModel::EditorModel(const std::string &path) {
     directory = dir.parent_path().string();
 }
 
-void EditorModel::dump() {
+void DefaultModel::dump() {
     std::string path = fmt::format("{}/test.mdl", this->directory);
     dump(path);
 }
 
 template <typename json_type>
-inline void to_json(json_type &j, const EditorModel::Material &m) {
+inline void to_json(json_type &j, const  ::Material &m) {
     j = json_type{{"diffuse", m.diffuse},
                        {"specular", m.specular},
                        {"normal", m.normal},
@@ -147,7 +146,7 @@ inline void to_json(json_type &j, const EditorModel::Material &m) {
 }
 
 
-void EditorModel::dump(const std::string &file_path) {
+void DefaultModel::dump(const std::string &file_path) {
     Ref<File> f = File::open(file_path + ".json", "wb");
     Ref<File> bin_f = File::open(file_path + ".bin", "wb");
 
@@ -252,7 +251,7 @@ void ModelGUI::update() {
         nfdopendialogu8args_t args = {0};
         nfdresult_t r = NFD_OpenDialogU8_With(&path, &args);
         if (r == NFD_OKAY) {
-            current_model = new EditorModel(path);
+            current_model = new DefaultModel(path);
         }
     }
 
@@ -263,7 +262,7 @@ void ModelGUI::update() {
                 fmt::format("{}/test.mdl", current_model->directory);
 
             ResourceLoader *loader = ResourceLoader::get_instance();
-            loader->load_async<Model>(path, [=](Ref<Model> rc) {
+            loader->load_async<Seed::Model>(path, [=](Ref<Seed::Model> rc) {
                 // ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, rc);
                 // auto engine = SeedEngine::get_instance();
                 // engine->get_world()->add_entity(ent);

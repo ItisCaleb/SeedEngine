@@ -5,6 +5,7 @@
 #include "editor.h"
 #include "core/types.h"
 #include "core/engine.h"
+#include "core/gui/imgui_helpers.h"
 
 namespace Seed {
 
@@ -86,32 +87,35 @@ void EditorGUI::create_project() {
     End();
 }
 
+void EditorGUI::character_database(){
+    
+}
+
 void EditorGUI::editor_left_panel() {
     Window *window = SeedEngine::get_instance()->get_window();
-    SetNextWindowSize(ImVec2(window->get_width() * 0.2, window->get_height()),
-                      0);
-    Begin("World", 0, STATIC_GUI_FLAG | ImGuiWindowFlags_NoScrollbar);
-    TextUnformatted(Editor::instance->current_project->name.c_str());
-    f32 remain_height = GetWindowHeight() - GetItemRectSize().y;
-    Separator();
-    BeginChild("World Entities", ImVec2(GetWindowWidth(), remain_height * 0.6),
-               false);
-    for (i32 i = 0; i < 20; i++) {
-        Selectable(fmt::format("test{}", i).c_str());
-    }
-    EndChild();
-    Separator();
-    BeginChild("Project", ImVec2(GetWindowWidth(), remain_height * 0.3), false);
-    // TreeNode();
-    EndChild();
+    SetNextWindowPos(ImVec2(0, main_menu_height), ImGuiCond_Always);
+
+    ImGui::Begin("LeftPanel", nullptr,
+                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                     ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+                     ImGuiWindowFlags_NoScrollWithMouse);
+
+    static int currentTab = -1;
+    const VerticalIconTab kTabs[] = {
+        {"S", "Settings", [] {}},
+        {"T", "NPCs", [&] { this->character_database(); }},
+        {"S", "Scripts", [] { ImGui::Text("Script editor"); }},
+        {"P", "Profile", [] { ImGui::Text("User profile"); }},
+    };
+
+    drawLVerticalIconTabs(kTabs, IM_ARRAYSIZE(kTabs), currentTab);
     End();
 }
-static bool b = true;
 
 void EditorGUI::update() {
+    static bool b = true;
     PushFont((ImFont *)font);
     main_menu();
-    SetNextWindowPos(ImVec2{0, main_menu_height});
     if (PROJECT_LOADED) {
         editor_left_panel();
     }
