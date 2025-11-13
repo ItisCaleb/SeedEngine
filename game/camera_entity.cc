@@ -37,7 +37,6 @@ void CameraEntity::update(f32 dt) {
     cam->set_position(pos);
 }
 
-
 CameraEntity::CameraEntity() {
     this->cam = RenderEngine::get_instance()->get_cam();
     this->cam->set_position(Vec3{0, 20, 0});

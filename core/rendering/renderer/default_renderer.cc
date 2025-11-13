@@ -113,7 +113,6 @@ void DefaultRenderer::prepare_meshes() {
 
     MeshStorage *mesh_storage = MeshStorage::get_instance();
     std::set<InstanceData *> uploaded_instance;
-    
 
     for (auto &[mesh, instance] : mesh_storage->get_meshes()) {
         AABB bounding_box = mesh->get_bounding_box();

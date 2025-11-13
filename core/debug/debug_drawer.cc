@@ -79,17 +79,17 @@ void DebugDrawer::draw_aabb(const AABB &aabb, Color color) {
     v[7] = c + Vec3{-e.x, e.y, e.z};
 
     std::vector<u32> indices = {// front (z+)
-                          4, 5, 6, 4, 6, 7,
-                          // back (z-)
-                          0, 2, 1, 0, 3, 2,
-                          // left (x-)
-                          0, 7, 3, 0, 4, 7,
-                          // right (x+)
-                          1, 2, 6, 1, 6, 5,
-                          // top (y+)
-                          3, 7, 6, 3, 6, 2,
-                          // bottom (y-)
-                          0, 1, 5, 0, 5, 4};
+                                4, 5, 6, 4, 6, 7,
+                                // back (z-)
+                                0, 2, 1, 0, 3, 2,
+                                // left (x-)
+                                0, 7, 3, 0, 4, 7,
+                                // right (x+)
+                                1, 2, 6, 1, 6, 5,
+                                // top (y+)
+                                3, 7, 6, 3, 6, 2,
+                                // bottom (y-)
+                                0, 1, 5, 0, 5, 4};
     draw_triangles(v, indices, color);
 }
 

@@ -19,7 +19,7 @@ i16 DefaultModel::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
     for (int i = 0; i < mat->GetTextureCount(type); i++) {
         aiString str;
         mat->GetTexture(type, i, &str);
-        
+
         /* find if texture exist */
         for (int j = 0; j < textures.size(); j++) {
             if (textures[j].compare(str.C_Str()) == 0) return j;
@@ -138,13 +138,12 @@ void DefaultModel::dump() {
 }
 
 template <typename json_type>
-inline void to_json(json_type &j, const  ::Material &m) {
+inline void to_json(json_type &j, const ::Material &m) {
     j = json_type{{"diffuse", m.diffuse},
-                       {"specular", m.specular},
-                       {"normal", m.normal},
-                       {"opacity", m.opacity}};
+                  {"specular", m.specular},
+                  {"normal", m.normal},
+                  {"opacity", m.opacity}};
 }
-
 
 void DefaultModel::dump(const std::string &file_path) {
     Ref<File> f = File::open(file_path + ".json", "wb");
@@ -172,8 +171,7 @@ void DefaultModel::dump(const std::string &file_path) {
         mesh_j["bin_size"] = bytes_size;
         bin_f->write(mesh.vertices.data(),
                      mesh.vertices.size() * sizeof(ModelVertex));
-        bin_f->write(mesh.indices.data(),
-                     mesh.indices.size() * sizeof(u32));
+        bin_f->write(mesh.indices.data(), mesh.indices.size() * sizeof(u32));
         j["meshes"].push_back(mesh_j);
         offset += bytes_size;
     }

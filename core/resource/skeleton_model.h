@@ -54,6 +54,6 @@ class SkeletonModel : public Resource {
         // void remove_transform(Ref<Transform> transform);
         ~SkeletonModel();
 };
-} 
+}  // namespace Seed
 
 #endif

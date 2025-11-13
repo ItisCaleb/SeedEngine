@@ -62,8 +62,8 @@ void DirectionalLight::calculate_csm_lightspace(
         f32 radius = sqrtf(a2 / 4 + x * x);
         f32 AABB_size = radius * 2;
         f32 unit = AABB_size / resolutions[i - 1];
-        Mat4 light_projection = Mat4::ortho_mat(radius, -radius, radius,
-                                                -radius, -radius, radius);
+        Mat4 light_projection =
+            Mat4::ortho_mat(radius, -radius, radius, -radius, -radius, radius);
 
         Vec3 center = cam_pos + cam_front * (near + x);
         /* transform center to light space and quantize */

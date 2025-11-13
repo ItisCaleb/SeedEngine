@@ -87,9 +87,7 @@ void EditorGUI::create_project() {
     End();
 }
 
-void EditorGUI::character_database(){
-    
-}
+void EditorGUI::character_database() {}
 
 void EditorGUI::editor_left_panel() {
     Window *window = SeedEngine::get_instance()->get_window();

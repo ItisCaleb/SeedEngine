@@ -35,10 +35,10 @@ class EditorCamera : public Entity {
             if (input->is_key_pressed(KeyCode::A)) {
                 pos -= front.cross(cam->get_up()) * speed;
             }
-            if (input->is_key_pressed(KeyCode::MINUS)){
+            if (input->is_key_pressed(KeyCode::MINUS)) {
                 if (pos.y <= 1000) pos.y += speed;
             }
-            if (input->is_key_pressed(KeyCode::EQUAL)){
+            if (input->is_key_pressed(KeyCode::EQUAL)) {
                 if (pos.y >= 200) pos.y -= speed;
             }
 
@@ -58,7 +58,9 @@ class EditorCamera : public Entity {
                             MouseEvent::RIGHT)) {
                         return;
                     }
-                    auto vp = Seed::RenderEngine::get_instance()->get_render_target("default")->get_viewport();
+                    auto vp = Seed::RenderEngine::get_instance()
+                                  ->get_render_target("default")
+                                  ->get_viewport();
                     auto coord1 = vp->to_viewport_coord(x, y);
                     auto coord2 = vp->to_viewport_coord(last_x, last_y);
 

@@ -11,7 +11,9 @@ void TerrainGUI::update() {
     auto world = Seed::SeedEngine::get_instance()->get_world();
     auto terrain = world->get_terrain();
 
-    auto vp = Seed::RenderEngine::get_instance()->get_render_target("default")->get_viewport();
+    auto vp = Seed::RenderEngine::get_instance()
+                  ->get_render_target("default")
+                  ->get_viewport();
     auto input = Seed::Input::get_instance();
     auto pos = input->get_mouse_pos();
     auto dim = vp->get_actual_dimension();

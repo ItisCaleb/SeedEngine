@@ -22,7 +22,7 @@ class ThreadPool {
                 bool is_completed = true;
                 u32 thread_index;
         };
-        struct Group{
+        struct Group {
                 std::vector<Work> works;
         };
         struct ThreadData;

@@ -12,6 +12,7 @@ class Editor {
         Project *current_project = nullptr;
         nlohmann::json project_cache;
         void set_last_open(std::string &path);
+
     public:
         Editor();
         ~Editor() = default;

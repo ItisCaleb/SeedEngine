@@ -18,6 +18,7 @@ class KString {
         u64 _size;
         const char *data;
         KString() = default;
+
     public:
         constexpr KString(const char *str) : _size(0), data(0) {
             this->operator=(str);
@@ -31,15 +32,11 @@ class KString {
             _size |= KSTRING_EXT_MASK;
         }
 
-        void operator=(KString &str) {
-            
-        }
+        void operator=(KString &str) {}
 
         KString(const std::string &str);
         ~KString();
-        size_t size(){
-            return this->_size & (~KSTRING_EXT_MASK);
-        }
+        size_t size() { return this->_size & (~KSTRING_EXT_MASK); }
         size_t utf8_size();
 
         KString clone();

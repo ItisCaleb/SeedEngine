@@ -12,7 +12,7 @@ struct VerticalIconTab {
 };
 
 void drawRVerticalIconTabs(const VerticalIconTab *tabs, int tabCount,
-                          int &currentTab) {
+                           int &currentTab) {
     // 1) sizes
     const float pageWidth = 300.f;  // fixed page width
     const float barWidth = 38.f;    // icon strip width
@@ -70,7 +70,7 @@ void drawRVerticalIconTabs(const VerticalIconTab *tabs, int tabCount,
 }
 
 void drawLVerticalIconTabs(const VerticalIconTab *tabs, int tabCount,
-                          int &currentTab) {
+                           int &currentTab) {
     // 1) sizes
     const float pageWidth = 300.f;  // fixed page width
     const float barWidth = 38.f;    // icon strip width
@@ -117,8 +117,7 @@ void drawLVerticalIconTabs(const VerticalIconTab *tabs, int tabCount,
     ImGui::EndChild();
     ImGui::SameLine();
 
-
-        // A) LEFT: only draw page if a tab is active
+    // A) LEFT: only draw page if a tab is active
     if (currentTab >= 0) {
         ImGui::BeginChild("##page", ImVec2(pageWidth, 0), false,
                           ImGuiWindowFlags_NoScrollWithMouse);

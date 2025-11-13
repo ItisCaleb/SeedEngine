@@ -9,9 +9,7 @@ KString::KString(const std::string &str) {
 
 KString::~KString() {}
 
-size_t KString::utf8_size() {
-    return 0;
-}
+size_t KString::utf8_size() { return 0; }
 
 KString KString::clone() {
     KString s;
