@@ -46,6 +46,17 @@ WorkId ThreadPool::add_work(UserFunc func, void *user_data) {
     return new_work->id;
 }
 
+GroupId ThreadPool::add_group(UserFunc func, std::vector<void *> &user_datas){
+    u32 group_id = this->group_list.insert({});
+    Group &g = this->group_list[group_id];
+    for (void *data : user_datas)
+    {
+        WorkId work_id = this->add_work(func, data);
+        g.works.push_back(work_id);
+    }
+    return group_id;
+}
+
 void ThreadPool::wait(WorkId id) {
     if (work_list.present(id)) {
         Work *w = work_list[id];
@@ -56,6 +67,15 @@ void ThreadPool::wait(WorkId id) {
         {
             std::unique_lock lock(td->mutex);
             td->cv.wait(lock);
+        }
+    }
+}
+
+void ThreadPool::wait_group(GroupId id) {
+    if (group_list.present(id)) {
+        Group &group = group_list[id];
+        for (WorkId wid : group.works){
+            this->wait(wid);
         }
     }
 }

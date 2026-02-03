@@ -11,6 +11,8 @@
 
 namespace Seed {
 typedef u32 WorkId;
+typedef u32 GroupId;
+
 class ThreadPool {
         typedef std::function<void(void *user_data)> UserFunc;
 
@@ -23,11 +25,14 @@ class ThreadPool {
                 u32 thread_index;
         };
         struct Group {
-                std::vector<Work> works;
+                std::vector<WorkId> works;
         };
         struct ThreadData;
         std::vector<ThreadData *> threads;
+
+        // Use to track workds
         FreeList<Work *> work_list;
+        FreeList<Group> group_list;
         inline static ThreadPool *instance = nullptr;
         static void thread_func(ThreadData *td);
         u32 last_worker = -1;
@@ -46,7 +51,9 @@ class ThreadPool {
         static ThreadPool *get_instance();
 
         WorkId add_work(UserFunc func, void *user_data = nullptr);
+        GroupId add_group(UserFunc func, std::vector<void *> &user_datas);
         void wait(WorkId id);
+        void wait_group(GroupId id);
         ThreadPool(u32 thread_cnt);
         ~ThreadPool();
 };
