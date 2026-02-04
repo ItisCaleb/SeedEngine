@@ -28,6 +28,8 @@ class Transform : public RefCounted {
             this->position = position;
             this->dirty = true;
         }
+        void set_position(f32 x, f32 y, f32 z) { set_position(Vec3{x, y, z}); }
+
         Quaternion get_rotation() { return rotation; }
         void set_rotation(const Quaternion &rotation) {
             this->rotation = rotation;

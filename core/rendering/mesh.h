@@ -18,11 +18,34 @@ class Mesh : public RefCounted {
     private:
         AABB bounding_box;
         RenderPrimitiveType type = RenderPrimitiveType::TRIANGLES;
+        std::vector<u32> gen_indices(u32 length) {
+            std::vector<u32> indices;
+            for (u32 i = 0; i < length; i++) {
+                indices.push_back(i);
+            }
+            return std::move(indices);
+        }
 
     public:
         Ref<VertexData> vertex_data;
         std::vector<Ref<IndexData>> lod_indices;
         Ref<Material> material;
+
+        Mesh(Ref<VertexData> vertex_data, Ref<Material> material,
+             const AABB &bounding_box)
+            : vertex_data(vertex_data),
+              material(material),
+              bounding_box(bounding_box) {
+            this->lod_indices.reserve(LOD_MAX);
+            this->lod_indices.emplace_back(
+                gen_indices(vertex_data->get_count()));
+        }
+
+        template <typename T>
+        Mesh(VertexLayout *layout, const std::vector<T> &vertices,
+             Ref<Material> material, const AABB &bounding_box)
+            : Mesh(layout, vertices, gen_indices(vertices.size()), material,
+                   bounding_box) {}
 
         template <typename T>
         Mesh(VertexLayout *layout, const std::vector<T> &vertices,

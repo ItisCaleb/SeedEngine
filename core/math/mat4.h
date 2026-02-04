@@ -78,6 +78,10 @@ struct Mat4 {
                         this->data[3][3]};
         }
 
+        /* 1 0 0 x */
+        /* 0 1 0 y */
+        /* 0 0 1 z */
+        /* 0 0 0 1 */
         inline static Mat4 translate_mat(Vec3 t) {
             return Mat4{Vec4{1, 0, 0, t.x}, Vec4{0, 1, 0, t.y},
                         Vec4{0, 0, 1, t.z}, Vec4{0, 0, 0, 1}};
@@ -85,6 +89,11 @@ struct Mat4 {
 
         Mat4 translate(Vec3 t) { return Mat4::translate_mat(t) * (*this); }
 
+
+        /* x 0 0 0 */
+        /* 0 y 0 0 */
+        /* 0 0 z 0 */
+        /* 0 0 0 1 */
         inline static Mat4 scale_mat(Vec3 s) {
             return Mat4{Vec4{s.x, 0, 0, 0}, Vec4{0, s.y, 0, 0},
                         Vec4{0, 0, s.z, 0}, Vec4{0, 0, 0, 1}};

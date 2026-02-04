@@ -136,12 +136,23 @@ int main(void) {
                 ent->create_body(box, PhysicBodyType::DYNAMIC);
             }
         });
+    auto grass = loader->load_async<Billboard>(
+        "assets/grass.png", [=](Ref<Billboard> rc) {
+            for (i32 i = 0; i < 10; i++) {
+                Ref<Transform> tf;
+                tf.create();
+                tf->set_position(-i, 20, i);
+                rc->insert_transform(tf);
+            }
+        });
 
     GuiEngine::get_instance()->add_gui(new DebugGUI);
-    engine->get_world()->get_point_lights().push_back(
+    World *world = engine->get_world();
+    world->get_point_lights().push_back(
         PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
-    engine->get_world()->add_entity<CameraEntity>();
-    engine->get_world()->set_sky(sky->wait());
+    world->add_entity<CameraEntity>();
+    world->set_sky(sky->wait());
+    world->add_billboard(grass->wait());
     engine->start();
 
     return 0;

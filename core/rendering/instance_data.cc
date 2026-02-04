@@ -7,6 +7,8 @@
 
 namespace Seed {
 
+/* Since all instance is same size */
+/* We use a slab allocator to implement the pool */
 InstanceDataPool::Block InstanceDataPool::split(Block &block) {
     if (block.size == 1) return block;
     u32 halfsize = block.size >> 1;

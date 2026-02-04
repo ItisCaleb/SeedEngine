@@ -8,4 +8,5 @@ target_sources(seed PRIVATE
     resource_loader.cc
     default_storage.cc
     shader.cc
+    billboard.cc
 )

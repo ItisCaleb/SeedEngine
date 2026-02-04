@@ -27,6 +27,7 @@ DefaultStorage::DefaultStorage() {
         "assets/shader/shadow_terrain.vert", "assets/shader/shadow.frag", "",
         "assets/shader/shadow_terrain.tesc",
         "assets/shader/shadow_terrain.tese");
+    billboard_shader = loader->load_shader("assets/shader/billboard.vert", "assets/shader/billboard.frag");
 
     shadow_map_default_pipeline.alloc_pipeline(
         shadow_default_shader->get_render_resource(),
@@ -85,9 +86,9 @@ DefaultStorage::DefaultStorage() {
                            -1.0f, 1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
                            1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
 
-    post_desc.add_type_attr<Vec2>(0, 0);
-    post_desc.add_type_attr<Vec2>(1, 0);
-    post_data.create(&post_desc, (sizeof(tmp_post) / (sizeof(PostData))),
+    quad_desc.add_type_attr<Vec2>(0, 0);
+    quad_desc.add_type_attr<Vec2>(1, 0);
+    quad_vertices.create(&quad_desc, (sizeof(tmp_post) / (sizeof(PostData))),
                      tmp_post);
     u8 white_color[] = {255, 255, 255, 255};
     white_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,

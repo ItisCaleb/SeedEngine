@@ -12,6 +12,10 @@ void World::set_terrain(Ref<Terrain> terrain) { this->terrain = terrain; }
 
 void World::set_sky(Ref<Sky> sky) { this->sky = sky; }
 
+void World::add_billboard(Ref<Billboard> billboard){
+    this->billboards.push_back(billboard);
+}
+
 void World::tick(f32 dt) {
     for (Entity *e : this->entities) {
         e->update(dt);

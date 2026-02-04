@@ -4,6 +4,7 @@
 #include "core/resource/terrain.h"
 #include "core/resource/sky.h"
 #include "core/rendering/light.h"
+#include "core/resource/billboard.h"
 
 #include <vector>
 
@@ -11,6 +12,7 @@ namespace Seed {
 class World {
     private:
         std::vector<Entity *> entities;
+        std::vector<Ref<Billboard>> billboards;
         Ref<Terrain> terrain;
         Ref<Sky> sky;
         Vec3 ambient_light;
@@ -34,6 +36,8 @@ class World {
         void add_entity(const Args &...args) {
             add_entity(new T(args...));
         }
+
+        void add_billboard(Ref<Billboard> billboard);
         World(/* args */);
         ~World() = default;
 };

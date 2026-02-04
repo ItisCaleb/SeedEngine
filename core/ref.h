@@ -74,8 +74,8 @@ class Ref {
         Ref(T *data) { this->operator=(data); }
 
         template <typename... Args>
-        void create(const Args &...args) {
-            this->operator=(new T(args...));
+        void create(Args &&...args) {
+            this->operator=(new T(std::forward<Args>(args)...));
         }
 
         template <typename... Args>

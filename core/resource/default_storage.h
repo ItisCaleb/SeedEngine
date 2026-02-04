@@ -21,6 +21,7 @@ class DefaultStorage {
         Ref<Shader> decal_shader;
         Ref<Shader> shadow_default_shader;
         Ref<Shader> shadow_terrain_shader;
+        Ref<Shader> billboard_shader;
         Ref<Texture> white_texture;
         Ref<Texture> black_texture;
 
@@ -28,8 +29,8 @@ class DefaultStorage {
         VertexLayout mesh_desc;
         VertexLayout sky_desc;
         VertexLayout gui_desc;
-        VertexLayout post_desc;
-        Ref<VertexData> post_data;
+        VertexLayout quad_desc;
+        Ref<VertexData> quad_vertices;
         RenderResource shadow_map_default_pipeline;
         RenderResource shadow_map_terrain_pipeline;
 
