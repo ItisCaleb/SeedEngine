@@ -8,7 +8,7 @@
 namespace Seed {
 
 /*
-    Stored ad [w, x, y, z]
+    Stored as [w, x, y, z]
 */
 struct Quaternion {
         f32 w, x, y, z;

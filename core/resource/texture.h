@@ -10,6 +10,8 @@ class Texture : public Resource {
         RenderResource tex_rc;
         TextureType type;
         PixelFormat format;
+        SamplerProperty property;
+        bool mipmap;
         u32 w, h;
 
     public:
@@ -24,6 +26,8 @@ class Texture : public Resource {
 
         Texture(TextureType type, u32 w, u32 h, PixelFormat format,
                 const u8 *image_data);
+        Texture(TextureType type, u32 w, u32 h, PixelFormat format,
+                const u8 *image_data, const SamplerProperty &property);
         ~Texture();
 };
 }  // namespace Seed

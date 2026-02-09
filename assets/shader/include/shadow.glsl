@@ -48,7 +48,7 @@ int SelectCasacade(float depth){
 float ShadowCalculation(sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 normal, vec3 light_dir)
 {
     int casacade_idx = SelectCasacade(frag_z);
-    if(casacade_idx == 4) return 0.0;
+    if(casacade_idx == 3) return 0.0;
     vec3 n = normalize(normal);
     vec4 offset = u_shadow_unit[casacade_idx] * vec4(shadow_pos_offset(shadow_map, dot(n, light_dir), n, 2), 0.0);
     vec4 lightspace_fragpos = u_lightspaces[casacade_idx] * (frag_pos + offset);

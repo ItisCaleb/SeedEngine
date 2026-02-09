@@ -17,12 +17,13 @@ uniform sampler2D terrain_shadowMap;
 uniform sampler2D shadowMap;
 
 float terrain_shadowmapping(vec2 uv, float angle){
-    float shadow = 0;
     float offset = 1 / textureSize(terrain_shadowMap,0).r;
     // lookup texel at patch coordinate for height and scale + shift as desired
     float slope = texture(terrain_shadowMap, uv).r;
-    shadow += slope > angle ? 1.0 : 0.0;
-
+    float soft_width = 0.15;
+    float shadow = smoothstep(angle - soft_width,
+                              angle + soft_width,
+                              slope);
     return shadow;
 }
 

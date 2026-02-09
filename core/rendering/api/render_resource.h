@@ -25,7 +25,7 @@ struct RenderResource {
         RenderResourceType type = RenderResourceType::UNINITIALIZE;
 
         void alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
-                           const void *data);
+                           const void *data, const SamplerProperty &property);
         void alloc_vertex(u32 stride, u32 element_cnt, const void *data);
         void alloc_index(const std::vector<u8> &indices);
         void alloc_index(const std::vector<u16> &indices);

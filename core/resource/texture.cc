@@ -4,8 +4,12 @@
 namespace Seed {
 Texture::Texture(TextureType type, u32 w, u32 h, PixelFormat format,
                  const u8 *image_data)
-    : type(type), w(w), h(h), format(format) {
-    tex_rc.alloc_texture(type, w, h, format, image_data);
+    : Texture(type, w, h, format, image_data, SamplerProperty{}) {}
+
+Texture::Texture(TextureType type, u32 w, u32 h, PixelFormat format,
+                 const u8 *image_data, const SamplerProperty &property)
+    : type(type), w(w), h(h), format(format), property(property) {
+    tex_rc.alloc_texture(type, w, h, format, image_data, property);
 }
 
 void Texture::update(const u8 *data, u32 w, u32 h) {

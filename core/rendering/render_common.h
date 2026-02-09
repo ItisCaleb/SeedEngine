@@ -6,16 +6,36 @@ struct Color {
         u8 r, g, b, a;
 };
 
-enum class TextureType {
+enum class TextureType : u8 {
     TEXTURE_1D,
     TEXTURE_2D,
     TEXTURE_3D,
     TEXTURE_CUBEMAP,
+    TEXTURE_1D_ARRAY,
     TEXTURE_2D_ARRAY,
+    TEXTURE_CUBEMAP_ARRAY,
     TEXTURE_2D_MULTISAMPLE
 };
 
-enum class PixelFormat : u8 { R, RG, RGB, RGBA, D24, D24S8, RGBA16F };
+enum class SamplerFilter : u8 { LINEAR, NEAREST };
+
+enum class SamplerWrap : u8 {
+    CLAMP_TO_EDGE,
+    CLAMP_TO_BORDER,
+    MIRRORED_REPEAT,
+    REPEAT,
+    MIRROR_CLAMP_TO_EDGE
+};
+
+struct SamplerProperty {
+        SamplerFilter min_filter = SamplerFilter::LINEAR;
+        SamplerFilter mag_filter = SamplerFilter::LINEAR;
+        SamplerWrap wrap_u = SamplerWrap::CLAMP_TO_EDGE;
+        SamplerWrap wrap_v = SamplerWrap::CLAMP_TO_EDGE;
+        SamplerWrap wrap_w = SamplerWrap::CLAMP_TO_EDGE;
+};
+
+enum class PixelFormat : u8 { R, RG, RGB, RGBA, RGBA16F, D24, D24S8 };
 
 u32 constexpr static get_pixel_format_size(PixelFormat format) {
     switch (format) {

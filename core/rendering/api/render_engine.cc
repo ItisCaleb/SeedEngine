@@ -62,8 +62,10 @@ void RenderEngine::init() {
 
     Ref<Texture> color_tex(TextureType::TEXTURE_2D, res_w, res_h,
                            PixelFormat::RGBA16F, nullptr);
-    Ref<Texture> depth_tex(TextureType::TEXTURE_2D, res_w, res_h,
-                           PixelFormat::D24S8, nullptr);
+    Ref<Texture> depth_tex(
+        TextureType::TEXTURE_2D, res_w, res_h, PixelFormat::D24S8, nullptr,
+        SamplerProperty{.min_filter = SamplerFilter::NEAREST,
+                        .mag_filter = SamplerFilter::NEAREST});
 
     window_rt.create(current_window);
     post_target.create(Viewport(Vec2{(f32)res_w, (f32)res_h}));

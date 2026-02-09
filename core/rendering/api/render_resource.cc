@@ -7,10 +7,10 @@
 namespace Seed {
 
 void RenderResource::alloc_texture(TextureType type, u32 w, u32 h,
-                                   PixelFormat format, const void *data) {
+                                   PixelFormat format, const void *data, const SamplerProperty &property) {
     this->type = RenderResourceType::TEXTURE;
     RenderEngine::get_instance()->get_device()->alloc_texture(this, type, w, h,
-                                                              format);
+                                                              format, property);
     if (data) {
         if (type == TextureType::TEXTURE_CUBEMAP) {
             SPDLOG_WARN("Cubemap texture will not updload data at allocation.");

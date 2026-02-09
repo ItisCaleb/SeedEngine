@@ -3,7 +3,7 @@
 #include <glad/glad.h>
 #include <spdlog/spdlog.h>
 #include "core/macro.h"
-#include <regex>
+#include "opengl_helper.h"
 
 namespace Seed {
 
@@ -59,7 +59,8 @@ RenderBackendGL::RenderBackendGL() {
     this->alloc_constant(&push_constant, "PushConstant", 0);
 }
 void RenderBackendGL::alloc_texture(RenderResource *rc, TextureType type, u32 w,
-                                    u32 h, PixelFormat format) {
+                                    u32 h, PixelFormat format,
+                                    const SamplerProperty &property) {
     if (rc->type != RenderResourceType::TEXTURE) {
         return;
     }
@@ -68,6 +69,7 @@ void RenderBackendGL::alloc_texture(RenderResource *rc, TextureType type, u32 w,
     texture.h = h;
     texture.type = type;
     texture.format = format;
+    texture.property = property;
     rc->handle = this->textures.insert(texture);
     std::lock_guard lg(alloc_lock);
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
@@ -186,30 +188,6 @@ void RenderBackendGL::dealloc(RenderResource *rc) {
 
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = false});
 }
-void RenderBackendGL::find_samplers(const std::string &src,
-                                    std::vector<std::string> &result) {
-    std::regex sampler_regex(
-        R"(\buniform\s+sampler\w*\s+(\w+)(\s*\[\s*(\d+)\s*\])?)");
-    std::smatch match;
-
-    std::string::const_iterator search_start(src.cbegin());
-    while (std::regex_search(search_start, src.cend(), match, sampler_regex)) {
-        /* retrive name */
-        std::string name = match[1];
-        /* check if is array */
-        std::string array_size_str = match[3];
-
-        if (!array_size_str.empty()) {
-            i32 array_size = std::stoi(array_size_str);
-            for (i32 i = 0; i < array_size; ++i) {
-                result.push_back(fmt::format("{}[{}]", name, i));
-            }
-        } else {
-            result.push_back(name);
-        }
-        search_start = match.suffix().first;
-    }
-}
 
 void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
     RenderResource rc = cmd.rc;
@@ -265,45 +243,42 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             HardwareTextureGL *tex = this->textures.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(tex);
 
-            GLuint type = convert_texture_type(tex->type);
-            GLuint format = convert_pixel_format(tex->format);
-            GLuint internal = convert_pixel_internal(tex->format);
+            GLuint type = GLHelper::texture_type(tex->type);
+            GLuint format = GLHelper::pixel_format(tex->format);
+            GLuint internal = GLHelper::pixel_internal(tex->format);
             glGenTextures(1, &tex->handle);
             glBindTexture(type, tex->handle);
-            if (tex->type == TextureType::TEXTURE_CUBEMAP) {
-                /* we don't allocate for cube map*/
-                glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R,
-                                GL_CLAMP_TO_EDGE);
-            } else if (tex->type == TextureType::TEXTURE_2D_MULTISAMPLE) {
-                // multisample
+            if (tex->type == TextureType::TEXTURE_2D_MULTISAMPLE) {
                 glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, format,
                                         tex->w, tex->h, GL_TRUE);
+                glBindTexture(type, 0);
+                break;
+            }
+
+            glTexParameteri(type, GL_TEXTURE_WRAP_S,
+                            GLHelper::wrap_mode(tex->property.wrap_u));
+            glTexParameteri(type, GL_TEXTURE_WRAP_T,
+                            GLHelper::wrap_mode(tex->property.wrap_v));
+            glTexParameteri(type, GL_TEXTURE_WRAP_R,
+                            GLHelper::wrap_mode(tex->property.wrap_w));
+            glTexParameteri(type, GL_TEXTURE_MIN_FILTER,
+                            GLHelper::filter(tex->property.min_filter));
+            glTexParameteri(type, GL_TEXTURE_MAG_FILTER,
+                            GLHelper::filter(tex->property.mag_filter));
+            if (tex->type == TextureType::TEXTURE_CUBEMAP) {
+                /* we don't allocate for cube map*/
+                glBindTexture(type, 0);
+                break;
+            }
+            if (tex->format == PixelFormat::D24S8) {
+                // depth stencil texture
+                glTexImage2D(type, 0, internal, tex->w, tex->h, 0, format,
+                             GL_UNSIGNED_INT_24_8, nullptr);
             } else {
-                if (tex->format == PixelFormat::D24S8) {
-                    // depth stencil texture
-                    glTexImage2D(type, 0, internal, tex->w, tex->h, 0, format,
-                                 GL_UNSIGNED_INT_24_8, nullptr);
-                } else if (tex->format == PixelFormat::D24) {
-                    glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                    glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_REPEAT);
-                    glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                    glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                    glTexImage2D(type, 0, internal, tex->w, tex->h, 0, format,
-                                 GL_UNSIGNED_BYTE, nullptr);
-                } else {
-                    // normal texture
-                    glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                    glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_REPEAT);
-                    glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                    glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                    glTexImage2D(type, 0, internal, tex->w, tex->h, 0, format,
-                                 GL_UNSIGNED_BYTE, nullptr);
-                    glGenerateMipmap(type);
-                }
+                // normal texture
+                glTexImage2D(type, 0, internal, tex->w, tex->h, 0, format,
+                             GL_UNSIGNED_BYTE, nullptr);
+                // glGenerateMipmap(type);
             }
             glBindTexture(type, 0);
             break;
@@ -357,7 +332,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 throw std::runtime_error(info);
             }
             glAttachShader(program, vertex);
-            find_samplers(shader->vertex_src, samplers);
+            GLHelper::find_samplers(shader->vertex_src, samplers);
 
             /* optional tesselation shader */
             if (shader->tess_ctrl_src.size() > 0 &&
@@ -384,8 +359,8 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 }
                 glAttachShader(program, tess_ctrl);
                 glAttachShader(program, tess_eval);
-                find_samplers(shader->tess_ctrl_src, samplers);
-                find_samplers(shader->tess_eval_src, samplers);
+                GLHelper::find_samplers(shader->tess_ctrl_src, samplers);
+                GLHelper::find_samplers(shader->tess_eval_src, samplers);
 
             } else if (shader->tess_ctrl_src.size() == 0 &&
                            shader->tess_eval_src.size() > 0 ||
@@ -406,7 +381,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                     throw std::runtime_error(info);
                 }
                 glAttachShader(program, geometry);
-                find_samplers(shader->geo_src, samplers);
+                GLHelper::find_samplers(shader->geo_src, samplers);
             }
 
             /* fragment shader */
@@ -420,7 +395,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 throw std::runtime_error(info);
             }
             glAttachShader(program, fragment);
-            find_samplers(shader->fragment_src, samplers);
+            GLHelper::find_samplers(shader->fragment_src, samplers);
 
             glLinkProgram(program);
             glGetProgramiv(program, GL_LINK_STATUS, &success);
@@ -457,91 +432,6 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
         default:
             break;
     }
-}
-
-GLuint RenderBackendGL::convert_texture_type(TextureType type) {
-    GLuint t;
-    switch (type) {
-        case TextureType::TEXTURE_1D:
-            t = GL_TEXTURE_1D;
-            break;
-        case TextureType::TEXTURE_2D:
-            t = GL_TEXTURE_2D;
-            break;
-        case TextureType::TEXTURE_3D:
-            t = GL_TEXTURE_3D;
-            break;
-        case TextureType::TEXTURE_CUBEMAP:
-            t = GL_TEXTURE_CUBE_MAP;
-            break;
-        case TextureType::TEXTURE_2D_ARRAY:
-            t = GL_TEXTURE_2D_ARRAY;
-            break;
-        case TextureType::TEXTURE_2D_MULTISAMPLE:
-            t = GL_TEXTURE_2D_MULTISAMPLE;
-            break;
-        default:
-            break;
-    }
-    return t;
-}
-
-GLuint RenderBackendGL::convert_pixel_internal(PixelFormat format) {
-    GLuint t;
-    switch (format) {
-        case PixelFormat::R:
-            t = GL_R8;
-            break;
-        case PixelFormat::RG:
-            t = GL_RG;
-            break;
-        case PixelFormat::RGB:
-            t = GL_RGB;
-            break;
-        case PixelFormat::RGBA:
-            t = GL_RGBA;
-            break;
-        case PixelFormat::RGBA16F:
-            t = GL_RGBA16F;
-            break;
-        case PixelFormat::D24:
-            t = GL_DEPTH_COMPONENT24;
-            break;
-        case PixelFormat::D24S8:
-            t = GL_DEPTH24_STENCIL8;
-            break;
-        default:
-            break;
-    }
-    return t;
-}
-
-GLuint RenderBackendGL::convert_pixel_format(PixelFormat format) {
-    GLuint t;
-    switch (format) {
-        case PixelFormat::R:
-            t = GL_RED;
-            break;
-        case PixelFormat::RG:
-            t = GL_RG;
-            break;
-        case PixelFormat::RGB:
-            t = GL_RGB;
-            break;
-        case PixelFormat::RGBA16F:
-        case PixelFormat::RGBA:
-            t = GL_RGBA;
-            break;
-        case PixelFormat::D24:
-            t = GL_DEPTH_COMPONENT;
-            break;
-        case PixelFormat::D24S8:
-            t = GL_DEPTH_STENCIL;
-            break;
-        default:
-            break;
-    }
-    return t;
 }
 
 void RenderBackendGL::handle_dealloc(AllocCommand &cmd) {
@@ -621,9 +511,9 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
         case RenderResourceType::TEXTURE: {
             HardwareTextureGL *tex = this->textures.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(tex);
-            GLuint type = convert_texture_type(tex->type);
-            GLuint format = convert_pixel_format(tex->format);
-            GLuint internal = convert_pixel_internal(tex->format);
+            GLuint type = GLHelper::texture_type(tex->type);
+            GLuint format = GLHelper::pixel_format(tex->format);
+            GLuint internal = GLHelper::pixel_internal(tex->format);
             glBindTexture(type, tex->handle);
             if (tex->type == TextureType::TEXTURE_CUBEMAP) {
                 glTexImage2D(
@@ -693,7 +583,7 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
                                        tex->handle, 0);
             } else {
                 glFramebufferTexture2D(GL_FRAMEBUFFER, slot,
-                                       convert_texture_type(tex->type),
+                                       GLHelper::texture_type(tex->type),
                                        tex->handle, 0);
             }
             glBindFramebuffer(GL_FRAMEBUFFER, last_fbo);
@@ -807,7 +697,7 @@ void RenderBackendGL::use_shader(RenderResource &rc) {
 void RenderBackendGL::use_texture(u32 unit, RenderResource &rc) {
     HardwareTextureGL *tex = this->textures.get_or_null(rc.handle);
     EXPECT_NOT_NULL_RET(tex);
-    GLuint type = convert_texture_type(tex->type);
+    GLuint type = GLHelper::texture_type(tex->type);
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(type, tex->handle);
 }
@@ -847,27 +737,6 @@ void RenderBackendGL::setup_rasterizer(const RenderRasterizerState &state) {
     glPatchParameteri(GL_PATCH_VERTICES, state.patch_control_points);
 }
 
-inline static u32 get_op(CompareOP op) {
-    switch (op) {
-        case CompareOP::NEVER:
-            return GL_NEVER;
-        case CompareOP::LESS:
-            return GL_LESS;
-        case CompareOP::EQUAL:
-            return GL_EQUAL;
-        case CompareOP::LESS_OR_EQUAL:
-            return GL_LEQUAL;
-        case CompareOP::GREATER:
-            return GL_GREATER;
-        case CompareOP::GREATER_OR_EQUAL:
-            return GL_GEQUAL;
-        case CompareOP::NOT_EQUAL:
-            return GL_NOTEQUAL;
-        case CompareOP::ALWAYS:
-            return GL_ALWAYS;
-    }
-}
-
 void RenderBackendGL::setup_depth_stencil(
     const RenderDepthStencilState &state) {
     if (state.depth_on)
@@ -879,61 +748,17 @@ void RenderBackendGL::setup_depth_stencil(
         glEnable(GL_STENCIL_TEST);
     else
         glDisable(GL_STENCIL_TEST);
-    glDepthFunc(get_op(state.depth_compare_op));
-    glStencilFunc(get_op(state.stencil_compare_op), 1, 0xff);
+    glDepthFunc(GLHelper::compare_op(state.depth_compare_op));
+    glStencilFunc(GLHelper::compare_op(state.stencil_compare_op), 1, 0xff);
 }
 
-inline static u32 get_blend_func(BlendFactor factor) {
-    switch (factor) {
-        case BlendFactor::ZERO:
-            return GL_ZERO;
-        case BlendFactor::ONE:
-            return GL_ONE;
-        case BlendFactor::SRC_COLOR:
-            return GL_SRC_COLOR;
-        case BlendFactor::ONE_MINUS_SRC_COLOR:
-            return GL_ONE_MINUS_SRC_COLOR;
-        case BlendFactor::DST_COLOR:
-            return GL_DST_COLOR;
-        case BlendFactor::ONE_MINUS_DST_COLOR:
-            return GL_ONE_MINUS_DST_COLOR;
-        case BlendFactor::SRC_ALPHA:
-            return GL_SRC_ALPHA;
-        case BlendFactor::ONE_MINUS_SRC_ALPHA:
-            return GL_ONE_MINUS_SRC_ALPHA;
-        case BlendFactor::DST_ALPHA:
-            return GL_DST_ALPHA;
-        case BlendFactor::ONE_MINUS_DST_ALPHA:
-            return GL_ONE_MINUS_DST_ALPHA;
-        case BlendFactor::CONSTANT_COLOR:
-            return GL_CONSTANT_COLOR;
-        case BlendFactor::ONE_MINUS_CONSTANT_COLOR:
-            return GL_ONE_MINUS_CONSTANT_COLOR;
-        case BlendFactor::CONSTANT_ALPHA:
-            return GL_CONSTANT_COLOR;
-        case BlendFactor::ONE_MINUS_CONSTANT_ALPHA:
-            return GL_ONE_MINUS_CONSTANT_ALPHA;
-        case BlendFactor::SRC_ALPHA_SATURATE:
-            return GL_SRC_ALPHA_SATURATE;
-        case BlendFactor::SRC1_COLOR:
-            return GL_SRC1_COLOR;
-        case BlendFactor::ONE_MINUS_SRC1_COLOR:
-            return GL_ONE_MINUS_SRC1_COLOR;
-        case BlendFactor::SRC1_ALPHA:
-            return GL_SRC1_ALPHA;
-        case BlendFactor::ONE_MINUS_SRC1_ALPHA:
-            return GL_ONE_MINUS_SRC1_ALPHA;
-        default:
-            return GL_ZERO;
-    }
-}
 void RenderBackendGL::setup_blend(const RenderBlendState &state) {
     if (state.blend_on) {
         glEnable(GL_BLEND);
-        glBlendFuncSeparate(get_blend_func(state.func.src_rgb),
-                            get_blend_func(state.func.dst_rgb),
-                            get_blend_func(state.func.src_alpha),
-                            get_blend_func(state.func.dst_alpha));
+        glBlendFuncSeparate(GLHelper::blend_factor(state.func.src_rgb),
+                            GLHelper::blend_factor(state.func.dst_rgb),
+                            GLHelper::blend_factor(state.func.src_alpha),
+                            GLHelper::blend_factor(state.func.dst_alpha));
     } else
         glDisable(GL_BLEND);
 }

@@ -28,6 +28,7 @@ struct HardwareTextureGL {
         u32 w, h;
         TextureType type;
         PixelFormat format;
+        SamplerProperty property;
 };
 
 struct HardwareShaderGL {
@@ -73,12 +74,6 @@ class RenderBackendGL : public RenderBackend {
         HandleOwner<HardwareRenderTargetGL> render_targets;
         HandleOwner<HardwareBufferGL> ssbos;
 
-        void find_samplers(const std::string &src,
-                           std::vector<std::string> &result);
-        GLuint convert_texture_type(TextureType type);
-        GLuint convert_pixel_internal(PixelFormat format);
-        GLuint convert_pixel_format(PixelFormat format);
-
         /* state setup */
         void setup_rasterizer(const RenderRasterizerState &state);
         void setup_depth_stencil(const RenderDepthStencilState &state);
@@ -104,7 +99,7 @@ class RenderBackendGL : public RenderBackend {
 
         /* we defer the allocation to allow multithreading. */
         void alloc_texture(RenderResource *rc, TextureType type, u32 w, u32 h,
-                           PixelFormat format) override;
+                           PixelFormat format, const SamplerProperty &property) override;
         void alloc_vertex(RenderResource *rc, u32 stride,
                           u32 element_cnt) override;
         void alloc_indices(RenderResource *rc, IndexType type,
