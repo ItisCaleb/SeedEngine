@@ -3,6 +3,11 @@
 
 namespace Seed {
 
+void VertexData::_update(u32 size, void *data) {
+    RenderCommandDispatcher dp;
+    dp.update_buffer(this->vertices, 0, size, data);
+}
+
 VertexData::~VertexData() { this->vertices.dealloc(); }
 
 IndexData::IndexData(const std::vector<u8> &indices) {

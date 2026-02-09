@@ -46,6 +46,8 @@ class VertexData : public RefCounted {
 
         u32 get_count() { return count; }
 
+        void _update(u32 size, void* data);
+
         template <typename T>
         void update(u32 count, const T *data) {
             if (layout->get_stride() != sizeof(T)) {
@@ -56,9 +58,7 @@ class VertexData : public RefCounted {
                 return;
             }
             this->count = count;
-            RenderCommandDispatcher dp;
-            dp.update_buffer(this->vertices, 0, count * sizeof(T),
-                             (void *)data);
+            _update(count * sizeof(T), (void*)data);
         }
 
         template <typename T>
