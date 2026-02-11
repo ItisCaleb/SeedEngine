@@ -11,6 +11,9 @@
         "opengl3-binding"
       ]
     },
+    "vulkan",
+    "volk",
+    "shader-slang",
     "spdlog",
     "stb",
     "nlohmann-json",

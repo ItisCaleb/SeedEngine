@@ -1,9 +1,9 @@
 #include "opengl_backend.h"
 #include "render_engine.h"
-#include <glad/glad.h>
 #include <spdlog/spdlog.h>
 #include "core/macro.h"
 #include "opengl_helper.h"
+#include <GLFW/glfw3.h>
 
 namespace Seed {
 
@@ -42,6 +42,10 @@ void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id,
 }
 
 RenderBackendGL::RenderBackendGL() {
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        spdlog::error("Can't initialize GLAD. Exiting");
+        exit(1);
+    }
     glGenVertexArrays(1, &global_vao);
     glBindVertexArray(global_vao);
     int flags;
@@ -56,7 +60,7 @@ RenderBackendGL::RenderBackendGL() {
                               nullptr, GL_TRUE);
     }
     push_constant.type = RenderResourceType::CONSTANT;
-    this->alloc_constant(&push_constant, "PushConstant", 0);
+    this->alloc_constant(&push_constant, 0);
 }
 void RenderBackendGL::alloc_texture(RenderResource *rc, TextureType type, u32 w,
                                     u32 h, PixelFormat format,
@@ -116,16 +120,13 @@ void RenderBackendGL::alloc_indices(RenderResource *rc, IndexType type,
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
 }
 
-void RenderBackendGL::alloc_constant(RenderResource *rc,
-                                     const std::string &name, u32 size) {
+void RenderBackendGL::alloc_constant(RenderResource *rc, u32 size) {
     if (rc->type != RenderResourceType::CONSTANT) {
         return;
     }
-    HardwareConstantGL constant;
+    HardwareBufferGL constant;
     constant.size = size;
-    constant.name = name;
-    rc->handle = this->constants.insert(constant);
-    this->constants.get_or_null(rc->handle)->buffer_base = rc->handle;
+    rc->handle = this->ubos.insert(constant);
     std::lock_guard lg(alloc_lock);
 
     this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
@@ -213,8 +214,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             break;
         }
         case RenderResourceType::CONSTANT: {
-            HardwareConstantGL *constant =
-                this->constants.get_or_null(rc.handle);
+            HardwareBufferGL *constant = this->ubos.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(constant);
 
             glGenBuffers(1, &constant->handle);
@@ -222,21 +222,6 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             glBufferData(GL_UNIFORM_BUFFER, constant->size, nullptr,
                          GL_DYNAMIC_DRAW);
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
-            glBindBufferBase(GL_UNIFORM_BUFFER, rc.handle, constant->handle);
-            constant->buffer_base = rc.handle;
-
-            /* attach uniform buffers */
-            std::vector<HardwareShaderGL *> shader_list;
-            shaders.get_used(shader_list);
-            for (HardwareShaderGL *shader : shader_list) {
-                if (shader->handle == GL_INVALID_INDEX) continue;
-                u32 idx = glGetUniformBlockIndex(shader->handle,
-                                                 constant->name.c_str());
-                if (idx != GL_INVALID_INDEX) {
-                    glUniformBlockBinding(shader->handle, idx,
-                                          constant->buffer_base);
-                }
-            }
             break;
         }
         case RenderResourceType::TEXTURE: {
@@ -384,27 +369,37 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 GLHelper::find_samplers(shader->geo_src, samplers);
             }
 
-            /* fragment shader */
-            fragment = glCreateShader(GL_FRAGMENT_SHADER);
-            glShaderSource(fragment, 1, &frag_c, NULL);
-            glCompileShader(fragment);
-            glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
-            if (!success) {
-                glGetShaderInfoLog(fragment, 512, NULL, info);
-                spdlog::error("shader source: {}", frag_c);
-                throw std::runtime_error(info);
+            if (shader->fragment_src.size() > 0) {
+                /* fragment shader */
+                fragment = glCreateShader(GL_FRAGMENT_SHADER);
+                glShaderSource(fragment, 1, &frag_c, NULL);
+                glCompileShader(fragment);
+                glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
+                if (!success) {
+                    glGetShaderInfoLog(fragment, 512, NULL, info);
+                    spdlog::error("shader source: {}", frag_c);
+                    throw std::runtime_error(info);
+                }
+                glAttachShader(program, fragment);
+                GLHelper::find_samplers(shader->fragment_src, samplers);
             }
-            glAttachShader(program, fragment);
-            GLHelper::find_samplers(shader->fragment_src, samplers);
 
             glLinkProgram(program);
             glGetProgramiv(program, GL_LINK_STATUS, &success);
             if (!success) {
                 glGetProgramInfoLog(program, 512, NULL, info);
+                if (shader->vertex_src.size() > 0) spdlog::info(shader->vertex_src);
+                if (shader->tess_ctrl_src.size() > 0) spdlog::info(shader->tess_ctrl_src);
+                if (shader->tess_ctrl_src.size() > 0) spdlog::info(shader->tess_ctrl_src);
+                if (shader->geo_src.size() > 0) spdlog::info(shader->geo_src);
+                if (shader->fragment_src.size() > 0) spdlog::info(shader->fragment_src);
                 throw std::runtime_error(info);
             }
             glDeleteShader(vertex);
-            glDeleteShader(fragment);
+            if (shader->tess_ctrl_src.size() > 0) glDeleteShader(tess_ctrl);
+            if (shader->tess_eval_src.size() > 0) glDeleteShader(tess_eval);
+            if (shader->geo_src.size() > 0) glDeleteShader(geometry);
+            if (shader->fragment_src.size() > 0) glDeleteShader(fragment);
             shader->handle = program;
             glUseProgram(program);
             /* attach samplers */
@@ -412,18 +407,6 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
                 u32 loc =
                     glGetUniformLocation(shader->handle, samplers[i].c_str());
                 glUniform1i(loc, i);
-            }
-
-            /* attach uniform buffers */
-            std::vector<HardwareConstantGL *> constant_list;
-            constants.get_used(constant_list);
-            for (HardwareConstantGL *constant : constant_list) {
-                u32 idx = glGetUniformBlockIndex(shader->handle,
-                                                 constant->name.c_str());
-                if (idx != GL_INVALID_INDEX) {
-                    glUniformBlockBinding(shader->handle, idx,
-                                          constant->buffer_base);
-                }
             }
             glUseProgram(0);
             break;
@@ -531,8 +514,7 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             break;
         }
         case RenderResourceType::CONSTANT: {
-            HardwareConstantGL *constant =
-                this->constants.get_or_null(rc.handle);
+            HardwareBufferGL *constant = this->ubos.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(constant);
 
             glBindBuffer(GL_UNIFORM_BUFFER, constant->handle);
@@ -819,8 +801,13 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                 break;
             }
             case RenderStateData::OpType::BIND_BUFFERBASE: {
-                HardwareBufferGL *buffer =
+                HardwareBufferGL *buffer = nullptr;
+                if (op->bufferbase.buffer.type == RenderResourceType::BUFFER) {
                     this->ssbos.get_or_null(op->bufferbase.buffer.handle);
+                } else if (op->bufferbase.buffer.type ==
+                           RenderResourceType::CONSTANT) {
+                    this->ubos.get_or_null(op->bufferbase.buffer.handle);
+                }
                 EXPECT_NOT_NULL_BREAK(buffer);
                 glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer->handle);
                 glBindBufferBase(GL_SHADER_STORAGE_BUFFER, op->bufferbase.base,
@@ -895,8 +882,7 @@ void RenderBackendGL::handle_render(RenderCommand &cmd) {
                 break;
             }
             case RenderDrawData::OpType::PUSH_CONSTANT: {
-                HardwareConstantGL *pc =
-                    constants.get_or_null(push_constant.handle);
+                HardwareBufferGL *pc = ubos.get_or_null(push_constant.handle);
                 glBindBuffer(GL_UNIFORM_BUFFER, pc->handle);
                 glBufferData(GL_UNIFORM_BUFFER, op->constant.size,
                              op->constant.data, GL_DYNAMIC_DRAW);
@@ -983,5 +969,8 @@ void RenderBackendGL::process_commands(std::deque<RenderCommand> &cmd_queue) {
         }
         cmd_queue.pop_front();
     }
+}
+void RenderBackendGL::swap_buffer() {
+    glfwSwapBuffers(glfwGetCurrentContext());
 }
 }  // namespace Seed

@@ -7,7 +7,14 @@ namespace Seed {
 static void on_window_resize(GLFWwindow *window, i32 w, i32 h) {}
 
 Window::Window(u32 w, u32 h, const std::string &title)
-    : w(w), h(h), title(title) {
+    : w(w), h(h), title(title) {}
+
+void Window::resize(u32 width, u32 height) {
+    this->w = width;
+    this->h = height;
+}
+
+void Window::create() {
     this->window = glfwCreateWindow(w, h, title.c_str(), NULL, NULL);
     glfwSetWindowUserPointer((GLFWwindow *)this->window,
                              static_cast<void *>(this));
@@ -21,11 +28,6 @@ Window::Window(u32 w, u32 h, const std::string &title)
             window->w = w;
             window->h = h;
         });
-}
-
-void Window::resize(u32 width, u32 height) {
-    this->w = width;
-    this->h = height;
 }
 
 Window::~Window() { glfwDestroyWindow(get_window<GLFWwindow>()); }

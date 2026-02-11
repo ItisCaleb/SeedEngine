@@ -1,75 +1,107 @@
-#ifndef _SEED_OPENGL_BACKEND_H_
-#define _SEED_OPENGL_BACKEND_H_
+#ifndef _SEED_VULKAN_BACKEND_H_
+#define _SEED_VULKAN_BACKEND_H_
 #include "render_backend.h"
 #include "core/container/freelist.h"
 #include "core/handle.h"
 #include <map>
 #include "core/rendering/render_common.h"
+#define VK_NO_PROTOTYPES
+#include <vulkan/vulkan_core.h>
 
 namespace Seed {
 
-#define GLuint u32
-#define GL_INVALID_INDEX (-1)
+// struct HardwareBufferVk {
+//         GLuint handle = GL_INVALID_INDEX;
+//         u64 size;
+// };
 
-struct HardwareBufferGL {
-        GLuint handle = GL_INVALID_INDEX;
-        u64 size;
-};
+// struct HardwareIndexVk : public HardwareBufferGL {
+//         IndexType type;
+// };
 
-struct HardwareIndexGL : public HardwareBufferGL {
-        IndexType type;
-};
+// struct HardwareConstantVk : public HardwareBufferGL {
+//         std::string name;
+//         GLuint buffer_base;
+// };
 
-struct HardwareTextureGL {
-        GLuint handle = GL_INVALID_INDEX;
-        u32 w, h;
-        TextureType type;
-        PixelFormat format;
-        SamplerProperty property;
-};
+// struct HardwareTextureVk {
+//         GLuint handle = GL_INVALID_INDEX;
+//         u32 w, h;
+//         TextureType type;
+//         PixelFormat format;
+//         SamplerProperty property;
+// };
 
-struct HardwareShaderGL {
-        GLuint handle = GL_INVALID_INDEX;
-        std::string vertex_src;
-        std::string geo_src;
-        std::string tess_ctrl_src;
-        std::string tess_eval_src;
-        std::string fragment_src;
-};
+// struct HardwareShaderVk {
+//         GLuint handle = GL_INVALID_INDEX;
+//         std::string vertex_src;
+//         std::string geo_src;
+//         std::string tess_ctrl_src;
+//         std::string tess_eval_src;
+//         std::string fragment_src;
+// };
 
-struct HardwarePipelineGL {
-        RenderResource shader;
-        RenderRasterizerState rst_state;
-        RenderDepthStencilState depth_state;
-        RenderBlendState blend_state;
-};
+// struct HardwarePipelineVk {
+//         RenderResource shader;
+//         RenderRasterizerState rst_state;
+//         RenderDepthStencilState depth_state;
+//         RenderBlendState blend_state;
+// };
 
-struct HardwareRenderTargetGL {
-        GLuint fbo;
-        bool depth_only;
-};
+// struct HardwareRenderTargetVk {
+//         GLuint fbo;
+//         bool depth_only;
+// };
 
-class RenderBackendGL : public RenderBackend {
+class RenderBackendVK : public RenderBackend {
     private:
         struct AllocCommand {
                 RenderResource rc;
                 bool is_alloc;
         };
-        GLuint global_vao;
-        GLuint last_fbo = 0;
+
         RenderResource push_constant;
 
         std::mutex alloc_lock;
         std::queue<AllocCommand> alloc_cmds;
+        VkInstance instance;
+        VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+        VkDevice logical_device = VK_NULL_HANDLE;
+        u32 queue_family_indice;
+        VkQueue graphics_queue;
+        VkSurfaceKHR surface;
+        struct SwapChain {
+                VkSwapchainKHR chain;
+                std::vector<VkImage> images;
+                std::vector<VkImageView> image_views;
+                VkFormat image_format;
+                VkExtent2D extent;
+        } swap_chain;
 
-        HandleOwner<HardwareBufferGL> vertices;
-        HandleOwner<HardwareIndexGL> indices;
-        HandleOwner<HardwareBufferGL> ubos;
-        HandleOwner<HardwareTextureGL> textures;
-        HandleOwner<HardwareShaderGL> shaders;
-        HandleOwner<HardwarePipelineGL> pipelines;
-        HandleOwner<HardwareRenderTargetGL> render_targets;
-        HandleOwner<HardwareBufferGL> ssbos;
+// HandleOwner<HardwareBufferVk> vertices;
+// HandleOwner<HardwareIndexVk> indices;
+// HandleOwner<HardwareConstantVk> constants;
+// HandleOwner<HardwareTextureVk> textures;
+// HandleOwner<HardwareShaderVk> shaders;
+// HandleOwner<HardwarePipelineVk> pipelines;
+// HandleOwner<HardwareRenderTargetVk> render_targets;
+// HandleOwner<HardwareBufferVk> ssbos;
+
+/* vulkan setup */
+#ifdef VULKAN_DEBUG
+        bool enable_validation = true;
+#else
+        bool enable_validation = false;
+#endif
+        void create_instance();
+        bool check_validation_support();
+        void create_debug_messenger();
+        bool pick_physical_device();
+        void create_logical_device();
+        void create_surface(Window *window);
+        void create_swapchain(Window *window);
+        void create_image_views();
+        bool pick_queue_family(VkPhysicalDevice device);
 
         /* state setup */
         void setup_rasterizer(const RenderRasterizerState &state);
@@ -91,10 +123,10 @@ class RenderBackendGL : public RenderBackend {
         void use_texture(u32 unit, RenderResource &rc);
 
     public:
-        RenderBackendGL();
-        ~RenderBackendGL() = default;
+        RenderBackendVK(Window *window);
+        ~RenderBackendVK();
         inline RenderBackendType get_type() override {
-            return RenderBackendType::OPENGL;
+            return RenderBackendType::VULKAN;
         }
         /* we defer the allocation to allow multithreading. */
         void alloc_texture(RenderResource *rc, TextureType type, u32 w, u32 h,

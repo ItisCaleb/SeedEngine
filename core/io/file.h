@@ -41,10 +41,10 @@ class File : public RefCounted {
             file->read_cnt = 0;
             return file;
         }
-        std::string read_str(size_t size = 0) {
+        std::string read_str(size_t size = SIZE_MAX) {
             std::string data;
             if (file && read_cnt < file_size) {
-                if (size == 0 || size > file_size) {
+                if (size > file_size) {
                     size = file_size;
                 }
                 read_cnt += size;

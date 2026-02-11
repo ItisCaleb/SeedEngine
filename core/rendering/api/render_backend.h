@@ -25,6 +25,8 @@ class RenderCommandQueue {
         }
 };
 
+enum class RenderBackendType { OPENGL, VULKAN };
+
 class RenderBackend {
     protected:
         RenderCommandQueue cmd_queue[2];
@@ -33,10 +35,12 @@ class RenderBackend {
         std::shared_mutex queue_lock;
 
     public:
-        RenderBackend(/* args */) = default;
+        RenderBackend() = default;
         ~RenderBackend() = default;
+        virtual RenderBackendType get_type() = 0;
         virtual void alloc_texture(RenderResource *rc, TextureType type, u32 w,
-                                   u32 h, PixelFormat format, const SamplerProperty &property) = 0;
+                                   u32 h, PixelFormat format,
+                                   const SamplerProperty &property) = 0;
         virtual void alloc_vertex(RenderResource *rc, u32 stride,
                                   u32 element_cnt) = 0;
 
@@ -48,8 +52,7 @@ class RenderBackend {
                                   const std::string &geometry_code,
                                   const std::string &tesselation_code,
                                   const std::string &tess_eval_code) = 0;
-        virtual void alloc_constant(RenderResource *rc, const std::string &name,
-                                    u32 size) = 0;
+        virtual void alloc_constant(RenderResource *rc, u32 size) = 0;
         virtual void alloc_pipeline(RenderResource *rc, RenderResource shader,
                                     const RenderRasterizerState &rst_state,
                                     const RenderDepthStencilState &depth_state,
@@ -60,6 +63,7 @@ class RenderBackend {
         virtual void alloc_buffer(RenderResource *rc, u32 size) = 0;
         virtual void dealloc(RenderResource *r) = 0;
         virtual void process_commands(std::deque<RenderCommand> &cmd_queue) = 0;
+        virtual void swap_buffer() = 0;
 
         void *alloc(u64 size = 0, void *data = nullptr) {
             RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
@@ -89,6 +93,7 @@ class RenderBackend {
             this->process_commands(queue.cmd_queue);
             queue.data_pool.free_all();
             queue.queue_lock.unlock();
+            swap_buffer();
         }
 };
 

@@ -70,12 +70,6 @@ class ResourceLoader {
             return async_rc;
         }
 
-        Ref<Shader> load_shader(const std::string &vertex_path,
-                                const std::string &fragment_path,
-                                const std::string &geometry_path = "",
-                                const std::string &tess_ctrl_path = "",
-                                const std::string &tess_eval_path = "");
-
         ResourceLoader(/* args */);
         ~ResourceLoader();
 };

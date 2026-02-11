@@ -12,6 +12,10 @@ inline static i32 clampi(i32 n, i32 low, i32 high) {
     return (n < low) ? low : (n > high) ? high : n;
 }
 
+inline static u32 clampu(u32 n, u32 low, u32 high) {
+    return (n < low) ? low : (n > high) ? high : n;
+}
+
 inline static f32 clampf(f32 n, f32 low, f32 high) {
     return (n < low) ? low : (n > high) ? high : n;
 }

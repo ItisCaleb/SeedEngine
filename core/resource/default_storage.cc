@@ -11,23 +11,17 @@ struct PostData {
 DefaultStorage::DefaultStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
-    mesh_shader = loader->load_shader("assets/shader/default.vert",
-                                      "assets/shader/default.frag");
-    sky_shader =
-        loader->load_shader("assets/shader/sky.vert", "assets/shader/sky.frag");
-    terrain_shader = loader->load_shader(
-        "assets/shader/terrain.vert", "assets/shader/terrain.frag", "",
-        "assets/shader/terrain.tesc", "assets/shader/terrain.tese");
+    mesh_shader = loader->load<Shader>("assets/shader/default.slang");
+    sky_shader = loader->load<Shader>("assets/shader/sky.slang");
+    terrain_shader = loader->load<Shader>("assets/shader/terrain.slang");
 
-    post_shader = loader->load_shader("assets/shader/post.vert",
-                                      "assets/shader/post.frag");
-    shadow_default_shader = loader->load_shader(
-        "assets/shader/shadow_default.vert", "assets/shader/shadow.frag");
-    shadow_terrain_shader = loader->load_shader(
-        "assets/shader/shadow_terrain.vert", "assets/shader/shadow.frag", "",
-        "assets/shader/shadow_terrain.tesc",
-        "assets/shader/shadow_terrain.tese");
-    billboard_shader = loader->load_shader("assets/shader/billboard.vert", "assets/shader/billboard.frag");
+    post_shader = loader->load<Shader>("assets/shader/post.slang");
+    shadow_default_shader =
+        loader->load<Shader>("assets/shader/shadow_default.slang");
+    shadow_terrain_shader =
+        loader->load<Shader>("assets/shader/shadow_terrain.slang");
+    billboard_shader = loader->load<Shader>("assets/shader/billboard.slang");
+    gui_shader = loader->load<Shader>("assets/shader/imgui.slang");
 
     shadow_map_default_pipeline.alloc_pipeline(
         shadow_default_shader->get_render_resource(),
@@ -39,33 +33,6 @@ DefaultStorage::DefaultStorage() {
                               .patch_control_points = 4},
         RenderDepthStencilState{.depth_on = true}, {});
 
-    const char *vertex_shader =
-        "layout (location = 0) in vec2 Position;\n"
-        "layout (location = 1) in vec2 UV;\n"
-        "layout (location = 2) in vec4 Color;\n"
-        "layout (std140) uniform GUIProjMtx {\n"
-        "   mat4 ProjMtx;\n"
-        "};\n"
-        "out vec2 Frag_UV;\n"
-        "out vec4 Frag_Color;\n"
-        "void main()\n"
-        "{\n"
-        "    Frag_UV = UV;\n"
-        "    Frag_Color = Color;\n"
-        "    gl_Position = ProjMtx * vec4(Position.xy,0,1);\n"
-        "}\n";
-
-    const char *fragment_shader =
-        "in vec2 Frag_UV;\n"
-        "in vec4 Frag_Color;\n"
-        "uniform sampler2D u_texture[8];\n"
-        "layout (location = 0) out vec4 Out_Color;\n"
-        "void main()\n"
-        "{\n"
-        "    Out_Color = Frag_Color * texture(u_texture[0], Frag_UV.st);\n"
-        "}\n";
-
-    gui_shader.create(vertex_shader, fragment_shader);
     mesh_desc.add_type_attr<Vec3>(0, 0);
     mesh_desc.add_type_attr<Vec3>(1, 0);
     mesh_desc.add_type_attr<Vec3>(2, 0);
@@ -89,7 +56,7 @@ DefaultStorage::DefaultStorage() {
     quad_desc.add_type_attr<Vec2>(0, 0);
     quad_desc.add_type_attr<Vec2>(1, 0);
     quad_vertices.create(&quad_desc, (sizeof(tmp_post) / (sizeof(PostData))),
-                     tmp_post);
+                         tmp_post);
     u8 white_color[] = {255, 255, 255, 255};
     white_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,
                          white_color);

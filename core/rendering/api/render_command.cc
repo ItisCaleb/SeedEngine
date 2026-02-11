@@ -139,7 +139,8 @@ void RenderStateDataBuilder::clear(StateClearFlag flag) {
 }
 
 void RenderStateDataBuilder::bind_bufferbase(RenderResource buffer, u32 base) {
-    if (buffer.type != RenderResourceType::BUFFER) {
+    if (buffer.type != RenderResourceType::BUFFER &&
+        buffer.type != RenderResourceType::CONSTANT) {
         SPDLOG_ERROR("Can't bind a buffer which type isn't 'Buffer'.");
         return;
     }

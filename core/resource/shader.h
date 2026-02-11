@@ -8,13 +8,11 @@ namespace Seed {
 class Shader : public Resource {
     private:
         RenderResource shader;
+        std::string path;
         u8 tex_unit_cnt;
-        std::string preprocess(const std::string &shader);
 
     public:
-        Shader(const std::string &vertex, const std::string &frag,
-               const std::string &geom = "", const std::string &tesc = "",
-               const std::string &tese = "");
+        Shader(const std::string &path, const std::string &code);
         RenderResource &get_render_resource() { return shader; }
         ~Shader() { shader.dealloc(); }
 };

@@ -7,7 +7,8 @@
 namespace Seed {
 
 void RenderResource::alloc_texture(TextureType type, u32 w, u32 h,
-                                   PixelFormat format, const void *data, const SamplerProperty &property) {
+                                   PixelFormat format, const void *data,
+                                   const SamplerProperty &property) {
     this->type = RenderResourceType::TEXTURE;
     RenderEngine::get_instance()->get_device()->alloc_texture(this, type, w, h,
                                                               format, property);
@@ -30,15 +31,10 @@ void RenderResource::alloc_vertex(u32 stride, u32 vertex_cnt,
         dp.update_buffer(*this, 0, stride * vertex_cnt, (void *)data);
     }
 }
-void RenderResource::alloc_shader(const std::string &vertex_code,
-                                  const std::string &fragment_code,
-                                  const std::string &geometry_code,
-                                  const std::string &tess_ctrl_code,
-                                  const std::string &tess_eval_code) {
+void RenderResource::alloc_shader(const std::string &path,
+                                  const std::string &code) {
     this->type = RenderResourceType::SHADER;
-    RenderEngine::get_instance()->get_device()->alloc_shader(
-        this, vertex_code, fragment_code, geometry_code, tess_ctrl_code,
-        tess_eval_code);
+    RenderEngine::get_instance()->compile_shader(this, path, code);
 }
 
 void RenderResource::alloc_index(const std::vector<u8> &indices) {
@@ -65,11 +61,9 @@ void RenderResource::alloc_index(const std::vector<u32> &indices) {
                      (void *)indices.data());
 }
 
-void RenderResource::alloc_constant(const std::string &name, u32 size,
-                                    void *data) {
+void RenderResource::alloc_constant(u32 size, void *data) {
     this->type = RenderResourceType::CONSTANT;
-    RenderEngine::get_instance()->get_device()->alloc_constant(this, name,
-                                                               size);
+    RenderEngine::get_instance()->get_device()->alloc_constant(this, size);
     if (data) {
         RenderCommandDispatcher dp;
         dp.update_buffer(*this, 0, size, (void *)data);

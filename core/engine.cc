@@ -1,5 +1,4 @@
 #include "engine.h"
-#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "input.h"
 #include "core/rendering/api/render_engine.h"
@@ -24,10 +23,10 @@ SeedEngine *SeedEngine::get_instance() { return instance; }
 
 void SeedEngine::init_systems() {
     ResourceLoader *resource_loader = new ResourceLoader;
+    RenderEngine *render_engine = new RenderEngine(window);
     Input *input = new Input;
     input_handler.init(this->window);
     GuiEngine *gui = new GuiEngine(this->window);
-    RenderEngine *render_engine = new RenderEngine(window);
     DefaultStorage *storage = new DefaultStorage();
     DebugDrawer *debug_drawer = new DebugDrawer();
     ThreadPool *pool = new ThreadPool(OS::cpu_count());
@@ -57,7 +56,6 @@ void SeedEngine::start() {
         world->tick(delta);
 
         render_engine->process();
-        glfwSwapBuffers(glfw_window);
 
         delta = glfwGetTime() - start;
         if (delta < frame_limit) {
@@ -84,22 +82,7 @@ SeedEngine::SeedEngine(f32 target_fps) {
         exit(1);
     }
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-#else
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-#endif
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
-
     window = new Window(1260, 768, "Ave Mujica");
-    if (!window) {
-        spdlog::error("Can't create window. Exiting");
-        glfwTerminate();
-        exit(1);
-    }
-
     init_systems();
 
     this->frame_limit = 1 / target_fps;

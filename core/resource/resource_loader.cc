@@ -1,4 +1,3 @@
-#include <glad/glad.h>
 #include "resource_loader.h"
 #include "core/io/file.h"
 #include <spdlog/spdlog.h>
@@ -28,48 +27,13 @@ ResourceLoader::ResourceLoader() {
 
 ResourceLoader::~ResourceLoader() { instance = nullptr; }
 
-Ref<Shader> ResourceLoader::load_shader(const std::string &vertex_path,
-                                        const std::string &fragment_path,
-                                        const std::string &geometry_path,
-                                        const std::string &tess_ctrl_path,
-                                        const std::string &tess_eval_path) {
+template <>
+Ref<Shader> ResourceLoader::_load(const std::string &path) {
     Ref<Shader> shader;
-    std::string vertex_s, fragment_s, geometry_s, tess_ctrl_s, tess_eval_s;
-
-    Ref<File> vertex_f = File::open(vertex_path, "r");
-    if (vertex_f.is_null()) {
-        throw std::runtime_error("Can't open vertex shader.");
-    }
-    Ref<File> fragment_f = File::open(fragment_path, "r");
-    if (fragment_f.is_null()) {
-        throw std::runtime_error("Can't open fragment shader.");
-    }
-    if (!geometry_path.empty()) {
-        Ref<File> geomertry_f = File::open(geometry_path, "r");
-        if (geomertry_f.is_null()) {
-            throw std::runtime_error("Can't open geometry shader.");
-        }
-        geometry_s = geomertry_f->read_str();
-    }
-
-    if (!tess_ctrl_path.empty()) {
-        Ref<File> tess_ctrl_f = File::open(tess_ctrl_path, "r");
-        if (tess_ctrl_f.is_null()) {
-            throw std::runtime_error("Can't open tesselation control shader.");
-        }
-        tess_ctrl_s = tess_ctrl_f->read_str();
-    }
-    if (!tess_eval_path.empty()) {
-        Ref<File> tess_eval_f = File::open(tess_eval_path, "r");
-        if (tess_eval_f.is_null()) {
-            throw std::runtime_error(
-                "Can't open tesselation evaluation shader.");
-        }
-        tess_eval_s = tess_eval_f->read_str();
-    }
-    vertex_s = vertex_f->read_str();
-    fragment_s = fragment_f->read_str();
-    shader.create(vertex_s, fragment_s, geometry_s, tess_ctrl_s, tess_eval_s);
+    Ref<File> file = File::open(path, "rb");
+    std::string shader_code;
+    shader_code = file->read_str();
+    shader.create(path, shader_code);
     return shader;
 }
 

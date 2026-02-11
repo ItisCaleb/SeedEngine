@@ -30,7 +30,6 @@ void ImguiRenderer::init() {
     font_mat->set_blend_state(blend_state);
     /* create pipeline */
     font_mat->build_pipeline();
-    gui_proj.alloc_constant("GUIProjMtx", sizeof(Mat4), nullptr);
 }
 
 Ref<Texture> ImguiRenderer::create_font_texture() {
@@ -53,24 +52,7 @@ void ImguiRenderer::new_frame() {
 }
 
 void ImguiRenderer::preprocess() {
-    ImDrawData *draw_data = ImGui::GetDrawData();
-
-    f32 L = draw_data->DisplayPos.x;
-    f32 R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
-    f32 T = draw_data->DisplayPos.y;
-    f32 B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
-    const f32 ortho_projection[4][4] = {
-        {2.0f / (R - L), 0.0f, 0.0f, 0.0f},
-        {0.0f, 2.0f / (T - B), 0.0f, 0.0f},
-        {0.0f, 0.0f, -1.0f, 0.0f},
-        {(R + L) / (L - R), (T + B) / (B - T), 0.0f, 1.0f},
-    };
-    RenderCommandDispatcher dp;
-
-    RenderUpdateData *upd = dp.map_buffer(gui_proj, 0, sizeof(ortho_projection),
-                                          current_sort_key());
-    memcpy(upd->get_buffer(), ortho_projection, sizeof(ortho_projection));
-    upd->set_filled();
+    
 }
 
 ImguiRenderer::ImguiData *ImguiRenderer::get_imgui_data() {

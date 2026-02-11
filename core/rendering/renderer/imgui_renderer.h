@@ -14,7 +14,6 @@ class ImguiRenderer : public Renderer {
                 RenderResource indices;
         };
         Ref<Material> font_mat;
-        RenderResource gui_proj;
         ImguiData *get_imgui_data();
         Ref<Texture> create_font_texture();
 

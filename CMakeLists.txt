@@ -40,12 +40,18 @@ find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(nfd CONFIG REQUIRED)
 find_package(Jolt CONFIG REQUIRED)
+find_package(Vulkan REQUIRED)
+find_package(volk CONFIG REQUIRED)
+  find_package(slang CONFIG REQUIRED)
 set_target_properties(Jolt::Jolt PROPERTIES CPP_RTTI_ENABLED ON)
 
 target_link_libraries(seed PUBLIC 
     glad::glad
     glfw 
     OpenGL::GL
+    Vulkan::Vulkan
+    volk::volk
+    volk::volk_headers
     fmt::fmt
     spdlog::spdlog
     nlohmann_json::nlohmann_json
@@ -53,7 +59,13 @@ target_link_libraries(seed PUBLIC
     imgui::imgui
     nfd::nfd
     fkYAML::fkYAML
+    slang::slang
 )
+target_compile_definitions(seed PRIVATE
+        $<$<CONFIG:Debug>:VULKAN_DEBUG>
+
+)
+
 add_subdirectory(core)
 
 set_source_files_properties(

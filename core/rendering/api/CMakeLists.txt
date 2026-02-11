@@ -3,4 +3,6 @@ target_sources(seed PRIVATE
     render_resource.cc
     render_command.cc
     opengl_backend.cc
+    vulkan_backend.cc
+    shader_proxy.cc
     )

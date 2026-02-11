@@ -37,8 +37,8 @@ void DefaultRenderer::init() {
     instance_desc.add_type_attr<u32>(8, 1);
     instance_idx_rc.alloc_vertex(sizeof(u32), 0, nullptr);
 
-    u_lights.alloc_constant("Lights", sizeof(STB140Lights), nullptr);
-    u_csm.alloc_constant("CSMShadow", sizeof(CSMShadow), nullptr);
+    u_lights.alloc_constant(sizeof(STB140Lights), nullptr);
+    u_csm.alloc_constant(sizeof(CSMShadow), nullptr);
 
     sky_vert.create(&DS::get_instance()->sky_desc,
                     (sizeof(skyboxVertices) / sizeof(Vec3)), skyboxVertices);
@@ -71,16 +71,16 @@ void DefaultRenderer::prepare_lights() {
     STB140Lights *light_buf = (STB140Lights *)upd->get_buffer();
     dir_light.get_stb140(&light_buf->u_dir_light);
     light_buf->u_light_ambient = world->get_ambient_light();
-    for (u32 i = 0;
-         i < (sizeof(light_buf->u_point_lights) / sizeof(STB140Light)); i++) {
-        if (i < world->get_point_lights().size()) {
-            world->get_point_lights()[i].get_stb140(
-                &light_buf->u_point_lights[i]);
+    // for (u32 i = 0;
+    //      i < (sizeof(light_buf->u_point_lights) / sizeof(STB140Light)); i++) {
+    //     if (i < world->get_point_lights().size()) {
+    //         world->get_point_lights()[i].get_stb140(
+    //             &light_buf->u_point_lights[i]);
 
-        } else {
-            light_buf->u_point_lights[i].enable = 0.0f;
-        }
-    }
+    //     } else {
+    //         light_buf->u_point_lights[i].enable = 0.0f;
+    //     }
+    // }
     upd->set_filled();
 
     /* CSM frustum splits */

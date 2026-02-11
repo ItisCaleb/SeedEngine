@@ -1,12 +1,12 @@
 #include "render_engine.h"
-#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "core/engine.h"
 #include "core/resource/resource_loader.h"
 #include <spdlog/spdlog.h>
 #include "core/rendering/light.h"
 #include "core/resource/material.h"
-#include "opengl_backend.h"
+#include "core/rendering/api/opengl_backend.h"
+#include "core/rendering/api/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
 #include "core/rendering/renderer/post_renderer.h"
@@ -15,7 +15,54 @@
 #include <spdlog/spdlog.h>
 
 namespace Seed {
+inline Mat4 RenderEngine::get_window_projection() {
+    f32 L = 0;
+    f32 R = current_window->get_width();
+    f32 T = 0;
+    f32 B = current_window->get_height();
+    const Mat4 ortho_projection = {
+        Vec4{2.0f / (R - L), 0.0f, 0.0f, 0.0f},
+        Vec4{0.0f, 2.0f / (T - B), 0.0f, 0.0f},
+        Vec4{0.0f, 0.0f, -1.0f, 0.0f},
+        Vec4{(R + L) / (L - R), (T + B) / (B - T), 0.0f, 1.0f},
+    };
+    return ortho_projection;
+}
+
 RenderEngine *RenderEngine::get_instance() { return instance; }
+
+void RenderEngine::bind_opengl(Window *window) {
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+#else
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+#endif
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+    window->create();
+
+    GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
+
+    glfwMakeContextCurrent(glfw_window);
+    glfwSwapInterval(1);
+
+    this->device = new RenderBackendGL;
+}
+
+void RenderEngine::bind_vulken(Window *window) {
+    spdlog::info("Initializing Vulkan Rendering backend");
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    window->create();
+
+    GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
+
+    this->device = new RenderBackendVK(window);
+}
+
+static const std::vector<std::string> DEFAULT_INCLUDE_PATHS = {
+    "assets/shader",
+};
 
 RenderEngine::RenderEngine(Window *window) {
     instance = this;
@@ -25,16 +72,9 @@ RenderEngine::RenderEngine(Window *window) {
             "Can't initialize Render engine, window is null, exiting.");
         exit(1);
     }
-    GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
+    bind_opengl(window);
 
-    glfwMakeContextCurrent(glfw_window);
-    glfwSwapInterval(1);
-
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        spdlog::error("Can't initialize GLAD. Exiting");
-        exit(1);
-    }
-    this->device = new RenderBackendGL;
+    this->shader_proxy = new ShaderProxy(DEFAULT_INCLUDE_PATHS);
     this->mesh_storage = new MeshStorage;
     this->current_window = window;
     this->instance_pools["TransformDataPool"] =
@@ -43,13 +83,17 @@ RenderEngine::RenderEngine(Window *window) {
         new InstanceDataPool(sizeof(Vec4), 1024);
     RenderCommandDispatcher dp;
     u32 i = 0;
-    for (auto &[name, pool] : instance_pools) {
-        RenderStateDataBuilder builder;
-        builder.bind_bufferbase(pool->get_render_buffer(), i++);
-        dp.set_states(builder, 0);
-    }
-    matrices_rc.alloc_constant("Matrices", sizeof(Mat4) * 3, NULL);
-    cam_rc.alloc_constant("Camera", sizeof(Vec3), NULL);
+    cam_rc.alloc_constant(sizeof(Vec3), NULL);
+    matrices_rc.alloc_constant(sizeof(Mat4) * 3, NULL);
+    /* Bind engine default buffers */
+    RenderStateDataBuilder builder;
+    builder.bind_bufferbase(
+        this->instance_pools["TransformDataPool"]->get_render_buffer(), 0);
+    builder.bind_bufferbase(
+        this->instance_pools["TerrainDataPool"]->get_render_buffer(), 1);
+    builder.bind_bufferbase(cam_rc, 8);
+    builder.bind_bufferbase(matrices_rc, 9);
+    dp.set_states(builder, 0);
 }
 
 void RenderEngine::init() {
@@ -112,6 +156,7 @@ void RenderEngine::process() {
     Mat4 *matrices = (Mat4 *)upd->get_buffer();
     matrices[0] = cam.projection().transpose();
     matrices[1] = cam.look_at().transpose();
+    matrices[2] = get_window_projection();
     upd->set_filled();
     upd = dp.map_buffer(cam_rc, 0, sizeof(Vec3));
     Vec3 *cam_pos = (Vec3 *)upd->get_buffer();
@@ -149,6 +194,11 @@ InstanceDataPool *RenderEngine::get_instance_pool(const std::string &name) {
         return iter->second;
     }
     return nullptr;
+}
+
+void RenderEngine::compile_shader(RenderResource *rc, const std::string &path,
+                                  const std::string &shader) {
+    this->shader_proxy->compile_shader(rc, path, shader);
 }
 
 RenderEngine::~RenderEngine() { instance = nullptr; }
