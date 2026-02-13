@@ -10,8 +10,8 @@ void RenderResource::alloc_texture(TextureType type, u32 w, u32 h,
                                    PixelFormat format, const void *data,
                                    const SamplerProperty &property) {
     this->type = RenderResourceType::TEXTURE;
-    RenderEngine::get_instance()->get_device()->alloc_texture(this, type, w, h,
-                                                              format, property);
+    RenderEngine::get_instance()->get_device()->alloc_texture(
+        this, type, w, h, format, property, data);
     if (data) {
         if (type == TextureType::TEXTURE_CUBEMAP) {
             SPDLOG_WARN("Cubemap texture will not updload data at allocation.");
@@ -22,10 +22,10 @@ void RenderResource::alloc_texture(TextureType type, u32 w, u32 h,
     }
 }
 void RenderResource::alloc_vertex(u32 stride, u32 vertex_cnt,
-                                  const void *data) {
+                                  UpdateFrequence frequence, const void *data) {
     this->type = RenderResourceType::VERTEX;
-    RenderEngine::get_instance()->get_device()->alloc_vertex(this, stride,
-                                                             vertex_cnt);
+    RenderEngine::get_instance()->get_device()->alloc_vertex(
+        this, stride, vertex_cnt, frequence, data);
     if (data) {
         RenderCommandDispatcher dp;
         dp.update_buffer(*this, 0, stride * vertex_cnt, (void *)data);
@@ -37,37 +37,32 @@ void RenderResource::alloc_shader(const std::string &path,
     RenderEngine::get_instance()->compile_shader(this, path, code);
 }
 
-void RenderResource::alloc_index(const std::vector<u8> &indices) {
+void RenderResource::alloc_index(const std::vector<u8> &indices,
+                                 UpdateFrequence frequence) {
     this->type = RenderResourceType::INDEX;
     RenderEngine::get_instance()->get_device()->alloc_indices(
-        this, IndexType::UNSIGNED_BYTE, indices.size());
-    RenderCommandDispatcher dp;
-    dp.update_buffer(*this, 0, indices.size(), (void *)indices.data());
+        this, IndexType::UNSIGNED_BYTE, indices.size(), frequence,
+        indices.data());
 }
-void RenderResource::alloc_index(const std::vector<u16> &indices) {
+void RenderResource::alloc_index(const std::vector<u16> &indices,
+                                 UpdateFrequence frequence) {
     this->type = RenderResourceType::INDEX;
     RenderEngine::get_instance()->get_device()->alloc_indices(
-        this, IndexType::UNSIGNED_SHORT, indices.size());
-    RenderCommandDispatcher dp;
-    dp.update_buffer(*this, 0, indices.size() * sizeof(u16),
-                     (void *)indices.data());
+        this, IndexType::UNSIGNED_SHORT, indices.size(), frequence,
+        indices.data());
 }
-void RenderResource::alloc_index(const std::vector<u32> &indices) {
+void RenderResource::alloc_index(const std::vector<u32> &indices,
+                                 UpdateFrequence frequence) {
     this->type = RenderResourceType::INDEX;
     RenderEngine::get_instance()->get_device()->alloc_indices(
-        this, IndexType::UNSIGNED_INT, indices.size());
-    RenderCommandDispatcher dp;
-    dp.update_buffer(*this, 0, indices.size() * sizeof(u32),
-                     (void *)indices.data());
+        this, IndexType::UNSIGNED_INT, indices.size(), frequence,
+        indices.data());
 }
 
 void RenderResource::alloc_constant(u32 size, void *data) {
     this->type = RenderResourceType::CONSTANT;
-    RenderEngine::get_instance()->get_device()->alloc_constant(this, size);
-    if (data) {
-        RenderCommandDispatcher dp;
-        dp.update_buffer(*this, 0, size, (void *)data);
-    }
+    RenderEngine::get_instance()->get_device()->alloc_constant(this, size,
+                                                               data);
 }
 void RenderResource::alloc_pipeline(RenderResource shader,
                                     const RenderRasterizerState &rst_state,
@@ -85,11 +80,7 @@ void RenderResource::alloc_render_target(bool depth_only) {
 
 void RenderResource::alloc_buffer(u32 size, void *data) {
     this->type = RenderResourceType::BUFFER;
-    RenderEngine::get_instance()->get_device()->alloc_buffer(this, size);
-    if (data) {
-        RenderCommandDispatcher dp;
-        dp.update_buffer(*this, 0, size, (void *)data);
-    }
+    RenderEngine::get_instance()->get_device()->alloc_buffer(this, size, data);
 }
 
 void RenderResource::dealloc() {

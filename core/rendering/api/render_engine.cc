@@ -5,8 +5,8 @@
 #include <spdlog/spdlog.h>
 #include "core/rendering/light.h"
 #include "core/resource/material.h"
-#include "core/rendering/api/opengl_backend.h"
-#include "core/rendering/api/vulkan_backend.h"
+#include "core/rendering/backend/opengl_backend.h"
+#include "core/rendering/backend/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
 #include "core/rendering/renderer/post_renderer.h"
@@ -72,7 +72,7 @@ RenderEngine::RenderEngine(Window *window) {
             "Can't initialize Render engine, window is null, exiting.");
         exit(1);
     }
-    bind_opengl(window);
+    bind_vulken(window);
 
     this->shader_proxy = new ShaderProxy(DEFAULT_INCLUDE_PATHS);
     this->mesh_storage = new MeshStorage;
@@ -81,6 +81,7 @@ RenderEngine::RenderEngine(Window *window) {
         new InstanceDataPool(sizeof(Mat4), 65536);
     this->instance_pools["TerrainDataPool"] =
         new InstanceDataPool(sizeof(Vec4), 1024);
+    visible_ssbo.alloc_buffer(sizeof(int) * 65536, 0);
     RenderCommandDispatcher dp;
     u32 i = 0;
     cam_rc.alloc_constant(sizeof(Vec3), NULL);
@@ -88,9 +89,9 @@ RenderEngine::RenderEngine(Window *window) {
     /* Bind engine default buffers */
     RenderStateDataBuilder builder;
     builder.bind_bufferbase(
-        this->instance_pools["TransformDataPool"]->get_render_buffer(), 0);
+        this->instance_pools["TransformDataPool"]->get_render_buffer(), 1);
     builder.bind_bufferbase(
-        this->instance_pools["TerrainDataPool"]->get_render_buffer(), 1);
+        this->instance_pools["TerrainDataPool"]->get_render_buffer(), 2);
     builder.bind_bufferbase(cam_rc, 8);
     builder.bind_bufferbase(matrices_rc, 9);
     dp.set_states(builder, 0);

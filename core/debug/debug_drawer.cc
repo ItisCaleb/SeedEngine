@@ -102,10 +102,10 @@ void DebugDrawer::clear() {
 DebugDrawer::DebugDrawer() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
-    Ref<Shader> debug_shader = loader->load<Shader>("assets/shader/debug.slang");
-    debug_desc.add_attr(0, VertexAttributeType::FLOAT, 3, 0);
-    debug_desc.add_attr(1, VertexAttributeType::UNSIGNED_BYTE, 4, 0, true);
-    debug_mat.create(debug_shader);
+    Ref<Shader> debug_shader =
+        loader->load<Shader>("assets/shader/debug.slang");
+    debug_desc.add_attr(0, VertexAttributeType::FLOAT, 3);
+    debug_desc.add_attr(1, VertexAttributeType::UNSIGNED_BYTE, 4, true);
     RenderRasterizerState rst;
     rst.poly_mode = PolygonMode::FILL;
     RenderDepthStencilState depth;
@@ -115,8 +115,6 @@ DebugDrawer::DebugDrawer() {
         BlendFactor::SRC_COLOR, BlendFactor::ONE_MINUS_SRC_COLOR,
         BlendFactor::SRC_ALPHA, BlendFactor::ONE_MINUS_SRC_ALPHA);
     blend.blend_on = true;
-    debug_mat->set_rasterizer_state(rst);
-    debug_mat->set_depth_state(depth);
-    debug_mat->set_blend_state(blend);
+    debug_mat.create(debug_shader, rst, depth, blend);
 }
 }  // namespace Seed

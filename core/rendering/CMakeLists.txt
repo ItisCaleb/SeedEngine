@@ -11,3 +11,4 @@ target_sources(seed PRIVATE
 )
 add_subdirectory(api)
 add_subdirectory(renderer)
+add_subdirectory(backend)

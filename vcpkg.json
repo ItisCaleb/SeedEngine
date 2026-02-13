@@ -13,6 +13,7 @@
     },
     "vulkan",
     "volk",
+    "vulkan-memory-allocator",
     "shader-slang",
     "spdlog",
     "stb",

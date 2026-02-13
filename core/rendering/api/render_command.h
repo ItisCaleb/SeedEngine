@@ -233,9 +233,10 @@ struct RenderUpdateData {
 
                 /* slot -1 for depth attachment */
                 struct {
-                        u32 face;
+                        u8 face;
+                        u8 slot;
+                        bool is_depth;
                         RenderResource texture;
-                        i32 slot;
                 } attachment{};
         };
         void *get_buffer() {

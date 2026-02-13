@@ -1,5 +1,5 @@
 #include "opengl_backend.h"
-#include "render_engine.h"
+#include "core/rendering/api/render_engine.h"
 #include <spdlog/spdlog.h>
 #include "core/macro.h"
 #include "opengl_helper.h"
@@ -60,11 +60,12 @@ RenderBackendGL::RenderBackendGL() {
                               nullptr, GL_TRUE);
     }
     push_constant.type = RenderResourceType::CONSTANT;
-    this->alloc_constant(&push_constant, 0);
+    this->alloc_constant(&push_constant, 0, nullptr);
 }
 void RenderBackendGL::alloc_texture(RenderResource *rc, TextureType type, u32 w,
                                     u32 h, PixelFormat format,
-                                    const SamplerProperty &property) {
+                                    const SamplerProperty &property,
+                                    const void *data) {
     if (rc->type != RenderResourceType::TEXTURE) {
         return;
     }
@@ -76,10 +77,19 @@ void RenderBackendGL::alloc_texture(RenderResource *rc, TextureType type, u32 w,
     texture.property = property;
     rc->handle = this->textures.insert(texture);
     std::lock_guard lg(alloc_lock);
-    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
+
+    void *tmp = nullptr;
+    if (data) {
+        size_t size = w * h * get_pixel_format_size(format);
+        tmp = malloc(w * h * get_pixel_format_size(format));
+        memcpy(tmp, data, size);
+    }
+    this->alloc_cmds.push(
+        AllocCommand{.rc = *rc, .is_alloc = true, .alloc_data = tmp});
 }
 void RenderBackendGL::alloc_vertex(RenderResource *rc, u32 stride,
-                                   u32 vertex_cnt) {
+                                   u32 vertex_cnt, UpdateFrequence frequence,
+                                   const void *data) {
     if (rc->type != RenderResourceType::VERTEX) {
         return;
     }
@@ -87,40 +97,42 @@ void RenderBackendGL::alloc_vertex(RenderResource *rc, u32 stride,
     buffer.size = stride * vertex_cnt;
     rc->handle = this->vertices.insert(buffer);
     std::lock_guard lg(alloc_lock);
+    void *tmp = nullptr;
+    if (data) {
+        tmp = malloc(buffer.size);
+        memcpy(tmp, data, buffer.size);
+    }
 
-    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
+    this->alloc_cmds.push(
+        AllocCommand{.rc = *rc, .is_alloc = true, .alloc_data = tmp});
 }
 
 void RenderBackendGL::alloc_indices(RenderResource *rc, IndexType type,
-                                    u32 element_cnt) {
+                                    u32 element_cnt, UpdateFrequence frequence,
+                                    const void *data) {
     if (rc->type != RenderResourceType::INDEX) {
         return;
     }
     GLuint handle;
-    u32 type_size = 0;
-    switch (type) {
-        case IndexType::UNSIGNED_BYTE:
-            type_size = 1;
-            break;
-        case IndexType::UNSIGNED_SHORT:
-            type_size = 2;
-            break;
-        case IndexType::UNSIGNED_INT:
-            type_size = 4;
-            break;
-        default:
-            break;
-    }
+    u32 type_size = get_index_size(type);
+
     HardwareIndexGL index;
     index.size = element_cnt * type_size;
     index.type = type;
     rc->handle = this->indices.insert(index);
     std::lock_guard lg(alloc_lock);
+    void *tmp = nullptr;
+    if (data) {
+        tmp = malloc(index.size);
+        memcpy(tmp, data, index.size);
+    }
 
-    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
+    this->alloc_cmds.push(
+        AllocCommand{.rc = *rc, .is_alloc = true, .alloc_data = tmp});
 }
 
-void RenderBackendGL::alloc_constant(RenderResource *rc, u32 size) {
+void RenderBackendGL::alloc_constant(RenderResource *rc, u32 size,
+                                     const void *data) {
     if (rc->type != RenderResourceType::CONSTANT) {
         return;
     }
@@ -128,8 +140,14 @@ void RenderBackendGL::alloc_constant(RenderResource *rc, u32 size) {
     constant.size = size;
     rc->handle = this->ubos.insert(constant);
     std::lock_guard lg(alloc_lock);
+    void *tmp = nullptr;
+    if (data) {
+        tmp = malloc(size);
+        memcpy(tmp, data, size);
+    }
 
-    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
+    this->alloc_cmds.push(
+        AllocCommand{.rc = *rc, .is_alloc = true, .alloc_data = tmp});
 }
 
 void RenderBackendGL::alloc_shader(RenderResource *rc,
@@ -151,7 +169,8 @@ void RenderBackendGL::alloc_shader(RenderResource *rc,
     rc->handle = this->shaders.insert(shader);
     std::lock_guard lg(alloc_lock);
 
-    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
+    this->alloc_cmds.push(
+        AllocCommand{.rc = *rc, .is_alloc = true, .alloc_data = nullptr});
 }
 
 void RenderBackendGL::alloc_pipeline(RenderResource *rc, RenderResource shader,
@@ -174,14 +193,22 @@ void RenderBackendGL::alloc_render_target(RenderResource *rc, bool depth_only) {
     rc->handle = this->render_targets.insert({.depth_only = depth_only});
     std::lock_guard lg(alloc_lock);
 
-    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
+    this->alloc_cmds.push(
+        AllocCommand{.rc = *rc, .is_alloc = true, .alloc_data = nullptr});
 }
 
-void RenderBackendGL::alloc_buffer(RenderResource *rc, u32 size) {
+void RenderBackendGL::alloc_buffer(RenderResource *rc, u32 size,
+                                   const void *data) {
     rc->handle = this->ssbos.insert({.size = size});
     std::lock_guard lg(alloc_lock);
+    void *tmp = nullptr;
+    if (data) {
+        tmp = malloc(size);
+        memcpy(tmp, data, size);
+    }
 
-    this->alloc_cmds.push(AllocCommand{.rc = *rc, .is_alloc = true});
+    this->alloc_cmds.push(
+        AllocCommand{.rc = *rc, .is_alloc = true, .alloc_data = tmp});
 }
 
 void RenderBackendGL::dealloc(RenderResource *rc) {
@@ -198,8 +225,8 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             EXPECT_NOT_NULL_RET(buffer);
             glGenBuffers(1, &buffer->handle);
             glBindBuffer(GL_ARRAY_BUFFER, buffer->handle);
-            glBufferData(GL_ARRAY_BUFFER, buffer->size, nullptr,
-                         GL_DYNAMIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, buffer->size, cmd.alloc_data,
+                         GL_STATIC_DRAW);
             glBindBuffer(GL_ARRAY_BUFFER, 0);
             break;
         }
@@ -208,7 +235,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             EXPECT_NOT_NULL_RET(index);
             glGenBuffers(1, &index->handle);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index->handle);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, index->size, nullptr,
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, index->size, cmd.alloc_data,
                          GL_STATIC_DRAW);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
             break;
@@ -219,7 +246,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
 
             glGenBuffers(1, &constant->handle);
             glBindBuffer(GL_UNIFORM_BUFFER, constant->handle);
-            glBufferData(GL_UNIFORM_BUFFER, constant->size, nullptr,
+            glBufferData(GL_UNIFORM_BUFFER, constant->size, cmd.alloc_data,
                          GL_DYNAMIC_DRAW);
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
             break;
@@ -258,11 +285,11 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             if (tex->format == PixelFormat::D24S8) {
                 // depth stencil texture
                 glTexImage2D(type, 0, internal, tex->w, tex->h, 0, format,
-                             GL_UNSIGNED_INT_24_8, nullptr);
+                             GL_UNSIGNED_INT_24_8, cmd.alloc_data);
             } else {
                 // normal texture
                 glTexImage2D(type, 0, internal, tex->w, tex->h, 0, format,
-                             GL_UNSIGNED_BYTE, nullptr);
+                             GL_UNSIGNED_BYTE, cmd.alloc_data);
                 // glGenerateMipmap(type);
             }
             glBindTexture(type, 0);
@@ -286,7 +313,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             EXPECT_NOT_NULL_RET(ssbo);
             glGenBuffers(1, &ssbo->handle);
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo->handle);
-            glBufferData(GL_SHADER_STORAGE_BUFFER, ssbo->size, nullptr,
+            glBufferData(GL_SHADER_STORAGE_BUFFER, ssbo->size, cmd.alloc_data,
                          GL_DYNAMIC_DRAW);
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
@@ -388,11 +415,15 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             glGetProgramiv(program, GL_LINK_STATUS, &success);
             if (!success) {
                 glGetProgramInfoLog(program, 512, NULL, info);
-                if (shader->vertex_src.size() > 0) spdlog::info(shader->vertex_src);
-                if (shader->tess_ctrl_src.size() > 0) spdlog::info(shader->tess_ctrl_src);
-                if (shader->tess_ctrl_src.size() > 0) spdlog::info(shader->tess_ctrl_src);
+                if (shader->vertex_src.size() > 0)
+                    spdlog::info(shader->vertex_src);
+                if (shader->tess_ctrl_src.size() > 0)
+                    spdlog::info(shader->tess_ctrl_src);
+                if (shader->tess_ctrl_src.size() > 0)
+                    spdlog::info(shader->tess_ctrl_src);
                 if (shader->geo_src.size() > 0) spdlog::info(shader->geo_src);
-                if (shader->fragment_src.size() > 0) spdlog::info(shader->fragment_src);
+                if (shader->fragment_src.size() > 0)
+                    spdlog::info(shader->fragment_src);
                 throw std::runtime_error(info);
             }
             glDeleteShader(vertex);
@@ -414,6 +445,9 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
 
         default:
             break;
+    }
+    if (cmd.alloc_data) {
+        free(cmd.alloc_data);
     }
 }
 
@@ -482,7 +516,7 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             glBindBuffer(GL_ARRAY_BUFFER, vertex->handle);
             if (vertex->size < update_data->buffer.size) {
                 glBufferData(GL_ARRAY_BUFFER, update_data->buffer.size, data,
-                             GL_DYNAMIC_DRAW);
+                             GL_STATIC_DRAW);
                 vertex->size = update_data->buffer.size;
             } else {
                 glBufferSubData(GL_ARRAY_BUFFER, update_data->buffer.offset,
@@ -535,7 +569,7 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index->handle);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, update_data->buffer.size,
-                         data, GL_DYNAMIC_DRAW);
+                         data, GL_STATIC_DRAW);
             index->size = update_data->buffer.size;
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
             break;
@@ -549,7 +583,7 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             EXPECT_NOT_NULL_BREAK(tex);
             glBindFramebuffer(GL_FRAMEBUFFER, rt->fbo);
             GLuint slot;
-            if (update_data->attachment.slot == -1) {
+            if (update_data->attachment.is_depth) {
                 if (tex->format == PixelFormat::D24) {
                     slot = GL_DEPTH_ATTACHMENT;
                 } else if (tex->format == PixelFormat::D24S8) {
@@ -646,7 +680,7 @@ void RenderBackendGL::use_vertex_desc(VertexLayout *desc) {
                 break;
         }
 
-        glVertexAttribDivisor(attr.layout_num, attr.instance_step);
+        glVertexAttribDivisor(attr.layout_num, desc->is_instance() ? 1 : 0);
         cnt += attr.size * size;
     }
     glEnableVertexAttribArray(0);

@@ -86,7 +86,7 @@ class DebugGUI : public GUI {
                     state.poly_mode = PolygonMode::FILL;
                 }
 
-                mat->set_rasterizer_state(state);
+                //mat->set_rasterizer_state(state);
             }
             ImGui::End();
         };

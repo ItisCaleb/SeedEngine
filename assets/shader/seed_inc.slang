@@ -5,12 +5,15 @@ typedef float3x3 mat3
 typedef float4x4 mat4 
 
 [[vk::binding(0)]]
-StructuredBuffer<mat4> gTransform;
+StructuredBuffer<uint> gVisible;
 
 [[vk::binding(1)]]
-StructuredBuffer<vec4> gTerrain;
+StructuredBuffer<mat4> gTransform;
 
 [[vk::binding(2)]]
+StructuredBuffer<vec4> gTerrain;
+
+[[vk::binding(3)]]
 StructuredBuffer<mat4> gBones;
 
 struct Camera {

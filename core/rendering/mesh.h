@@ -38,7 +38,8 @@ class Mesh : public RefCounted {
               bounding_box(bounding_box) {
             this->lod_indices.reserve(LOD_MAX);
             this->lod_indices.emplace_back(
-                gen_indices(vertex_data->get_count()));
+                gen_indices(vertex_data->get_count()),
+                UpdateFrequence::IMMUTABLE);
         }
 
         template <typename T>
@@ -57,9 +58,9 @@ class Mesh : public RefCounted {
              const std::vector<u32> &indices, Ref<Material> material,
              const AABB &bounding_box)
             : material(material), bounding_box(bounding_box) {
-            vertex_data.create(layout, vertices);
+            vertex_data.create(layout, vertices, UpdateFrequence::IMMUTABLE);
             this->lod_indices.reserve(LOD_MAX);
-            this->lod_indices.emplace_back(indices);
+            this->lod_indices.emplace_back(indices, UpdateFrequence::IMMUTABLE);
         }
 
         ~Mesh() {}

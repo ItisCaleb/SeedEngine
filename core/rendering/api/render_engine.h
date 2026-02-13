@@ -4,8 +4,8 @@
 #include <queue>
 #include <vector>
 #include "core/rendering/camera.h"
-#include "render_command.h"
-#include "render_backend.h"
+#include "core/rendering/api/render_command.h"
+#include "core/rendering/backend/render_backend.h"
 #include "core/rendering/mesh.h"
 #include "core/resource/model.h"
 #include "core/rendering/renderer/renderer.h"
@@ -17,6 +17,7 @@
 
 namespace Seed {
 class RenderEngine {
+    friend DefaultRenderer;
     private:
         struct Layer {
                 Ref<RenderTarget> rt;
@@ -29,6 +30,7 @@ class RenderEngine {
         MeshStorage *mesh_storage;
         ShaderProxy *shader_proxy;
         RenderResource matrices_rc, cam_rc;
+        RenderResource visible_ssbo;
         Camera cam;
         std::vector<Layer> layers;
         std::unordered_map<std::string, Ref<RenderTarget>> render_targets;

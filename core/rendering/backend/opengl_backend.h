@@ -54,6 +54,7 @@ class RenderBackendGL : public RenderBackend {
         struct AllocCommand {
                 RenderResource rc;
                 bool is_alloc;
+                void *alloc_data = nullptr;
         };
         GLuint global_vao;
         GLuint last_fbo = 0;
@@ -98,24 +99,30 @@ class RenderBackendGL : public RenderBackend {
         }
         /* we defer the allocation to allow multithreading. */
         void alloc_texture(RenderResource *rc, TextureType type, u32 w, u32 h,
-                           PixelFormat format,
-                           const SamplerProperty &property) override;
-        void alloc_vertex(RenderResource *rc, u32 stride,
-                          u32 element_cnt) override;
-        void alloc_indices(RenderResource *rc, IndexType type,
-                           u32 element_cnt) override;
+                           PixelFormat format, const SamplerProperty &property,
+                           const void *data) override;
+        void alloc_vertex(RenderResource *rc, u32 stride, u32 element_cnt,
+                          UpdateFrequence frequence, const void *data) override;
+        void alloc_indices(RenderResource *rc, IndexType type, u32 element_cnt,
+                           UpdateFrequence frequence,
+                           const void *data) override;
         void alloc_shader(RenderResource *rc, const std::string &vertex_code,
                           const std::string &fragment_code,
                           const std::string &geometry_code,
                           const std::string &tess_ctrl_code,
                           const std::string &tess_eval_code) override;
-        void alloc_constant(RenderResource *rc, u32 size) override;
+        void setup_shader_layout(RenderResource *rc,
+                                 const ShaderLayout &layout) override {};
+
+        void alloc_constant(RenderResource *rc, u32 size,
+                            const void *data) override;
         void alloc_pipeline(RenderResource *rc, RenderResource shader,
                             const RenderRasterizerState &rst_state,
                             const RenderDepthStencilState &depth_state,
                             const RenderBlendState &blend_state) override;
         void alloc_render_target(RenderResource *rc, bool depth_only) override;
-        void alloc_buffer(RenderResource *rc, u32 size) override;
+        void alloc_buffer(RenderResource *rc, u32 size,
+                          const void *data) override;
         void dealloc(RenderResource *r) override;
         void process_commands(std::deque<RenderCommand> &cmd_queue) override;
         void swap_buffer() override;

@@ -33,19 +33,19 @@ DefaultStorage::DefaultStorage() {
                               .patch_control_points = 4},
         RenderDepthStencilState{.depth_on = true}, {});
 
-    mesh_desc.add_type_attr<Vec3>(0, 0);
-    mesh_desc.add_type_attr<Vec3>(1, 0);
-    mesh_desc.add_type_attr<Vec3>(2, 0);
-    mesh_desc.add_type_attr<Vec2>(3, 0);
+    mesh_desc.add_type_attr<Vec3>(0);
+    mesh_desc.add_type_attr<Vec3>(1);
+    mesh_desc.add_type_attr<Vec3>(2);
+    mesh_desc.add_type_attr<Vec2>(3);
 
-    sky_desc.add_type_attr<Vec3>(0, 0);
+    sky_desc.add_type_attr<Vec3>(0);
 
-    terrain_desc.add_type_attr<Vec2>(0, 0);
-    terrain_desc.add_type_attr<Vec2>(1, 0);
+    terrain_desc.add_type_attr<Vec2>(0);
+    terrain_desc.add_type_attr<Vec2>(1);
 
-    gui_desc.add_type_attr<Vec2>(0, 0);
-    gui_desc.add_type_attr<Vec2>(1, 0);
-    gui_desc.add_attr(2, VertexAttributeType::UNSIGNED_BYTE, 4, 0, true);
+    gui_desc.add_type_attr<Vec2>(0);
+    gui_desc.add_type_attr<Vec2>(1);
+    gui_desc.add_attr(2, VertexAttributeType::UNSIGNED_BYTE, 4, true);
 
     PostData tmp_post[] = {-1.0f, 1.0f, 0.0f, 1.0f,  -1.0f, -1.0f,
                            0.0f,  0.0f, 1.0f, -1.0f, 1.0f,  0.0f,
@@ -53,8 +53,8 @@ DefaultStorage::DefaultStorage() {
                            -1.0f, 1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
                            1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
 
-    quad_desc.add_type_attr<Vec2>(0, 0);
-    quad_desc.add_type_attr<Vec2>(1, 0);
+    quad_desc.add_type_attr<Vec2>(0);
+    quad_desc.add_type_attr<Vec2>(1);
     quad_vertices.create(&quad_desc, (sizeof(tmp_post) / (sizeof(PostData))),
                          tmp_post);
     u8 white_color[] = {255, 255, 255, 255};

@@ -6,9 +6,9 @@ struct VS_OUT{
 }
 
 [shader("vertex")]
-VS_OUT vert(float2 aPos, float2 aTexCoord, uint aInstanceIndex){
+VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
     VS_OUT out;
-    vec4 terrain = gTerrain[aInstanceIndex];
+    vec4 terrain = gTerrain[gVisible[id]];
     out.sv_position = vec4(aPos.x + terrain.x, 0.0f, aPos.y + terrain.y, 1.0);
     out.uv = aTexCoord + terrain.zw;
     return out;
@@ -53,7 +53,7 @@ PatchTessFactors PatchConstantFunction(InputPatch<VS_OUT, 4> patch) {
 Sampler2D height_map; 
 
 float get_height(vec2 tex_coord){
-    return height_map.Sample(tex_coord).y * 256.0 - 128.0;
+    return height_map.SampleLevelZero(tex_coord).y * 256.0 - 128.0;
 }
 
 [[vk_push_constant]]

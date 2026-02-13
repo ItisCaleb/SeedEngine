@@ -6,9 +6,9 @@ struct VS_OUT{
 }
 
 [shader("vertex")]
-VS_OUT vert(float2 aPos, float2 aTexCoord, uint aInstanceIndex){
+VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
     VS_OUT output;
-    float4x4 aModel = gTransform[aInstanceIndex];
+    float4x4 aModel = gTransform[gVisible[id]];
     float3 scale = float3(aModel[0][0], aModel[1][1], aModel[2][2]);
     float3 pos = aModel[3].xyz;
 

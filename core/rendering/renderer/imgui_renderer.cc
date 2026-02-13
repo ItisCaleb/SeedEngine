@@ -14,8 +14,8 @@ void ImguiRenderer::init() {
     io.BackendRendererUserData = (void *)bd;
     io.BackendRendererName = "imgui_impl_seed";
     bd->vertex.alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0,
-                            nullptr);
-    bd->indices.alloc_index(std::vector<u16>());
+                            UpdateFrequence::PERDRAW, nullptr);
+    bd->indices.alloc_index(std::vector<u16>(), UpdateFrequence::PERDRAW);
 
     // Build texture atlas
     Ref<Texture> atlas = create_font_texture();
@@ -25,11 +25,9 @@ void ImguiRenderer::init() {
         .func = BlendFunc::create(
             BlendFactor::SRC_ALPHA, BlendFactor::ONE_MINUS_SRC_ALPHA,
             BlendFactor::ONE, BlendFactor::ONE_MINUS_SRC_ALPHA)};
-    font_mat.create(DS::get_instance()->gui_shader);
+    font_mat.create(DS::get_instance()->gui_shader, RenderRasterizerState{},
+                    RenderDepthStencilState{}, blend_state);
     font_mat->add_texture_unit(atlas);
-    font_mat->set_blend_state(blend_state);
-    /* create pipeline */
-    font_mat->build_pipeline();
 }
 
 Ref<Texture> ImguiRenderer::create_font_texture() {
@@ -51,9 +49,7 @@ void ImguiRenderer::new_frame() {
     }
 }
 
-void ImguiRenderer::preprocess() {
-    
-}
+void ImguiRenderer::preprocess() {}
 
 ImguiRenderer::ImguiData *ImguiRenderer::get_imgui_data() {
     return ImGui::GetCurrentContext()

@@ -64,12 +64,6 @@ class ShaderProxy {
                 u32 index;
         };
 
-        void compile_glsl(RenderResource *rc,
-                          Slang::ComPtr<slang::IComponentType> program,
-                          const std::vector<EntryPointInfo> &entryPoints);
-        void compile_spirv(RenderResource *rc,
-                           Slang::ComPtr<slang::IComponentType> program,
-                           const std::vector<EntryPointInfo> &entryPoints);
 
     public:
         ShaderProxy(const std::vector<std::string> &include_path);

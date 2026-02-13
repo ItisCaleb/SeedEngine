@@ -12,9 +12,9 @@ struct VS_OUT{
 }
 
 [shader("vertex")]
-VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint aInstanceIndex){
+VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_VulkanInstanceID){
     VS_OUT out;
-    mat4 aModel = gTransform[aInstanceIndex];
+    mat4 aModel = gTransform[gVisible[id]];
     vec4 worldPos = aModel * vec4(aPos, 1.0);
     // For right handed system,
     // after view transformation, the depth is always negative

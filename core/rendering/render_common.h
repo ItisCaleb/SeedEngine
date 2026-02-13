@@ -35,30 +35,44 @@ struct SamplerProperty {
         SamplerWrap wrap_w = SamplerWrap::CLAMP_TO_EDGE;
 };
 
-enum class PixelFormat : u8 { R, RG, RGB, RGBA, RGBA16F, D24, D24S8 };
+enum class PixelFormat : u8 {
+    R,
+    RG,
+    RGB,
+    RGBA,
+    RGBA16F,
+    D24,
+    D24S8,
+    D32,
+    D32S8
+};
 
 u32 constexpr static get_pixel_format_size(PixelFormat format) {
     switch (format) {
         case PixelFormat::R:
             return 1;
         case PixelFormat::RG:
-        case PixelFormat::RGBA16F:
             return 2;
         case PixelFormat::RGB:
         case PixelFormat::D24:
             return 3;
         case PixelFormat::RGBA:
         case PixelFormat::D24S8:
+        case PixelFormat::D32:
             return 4;
+        case PixelFormat::D32S8:
+            return 5;
+        case PixelFormat::RGBA16F:
+            return 8;
         default:
             return 1;
     }
 }
 
-enum class RenderPrimitiveType { LINES, TRIANGLES, POINTS, PATCHES };
-enum class PolygonMode { POINT, LINE, FILL };
-enum class Cullmode { NONE, FRONT, BACK, BOTH };
-enum class CompareOP {
+enum class RenderPrimitiveType : u8 { LINES, TRIANGLES, POINTS, PATCHES };
+enum class PolygonMode : u8 { POINT, LINE, FILL };
+enum class Cullmode : u8 { NONE, FRONT, BACK, BOTH };
+enum class CompareOP : u8 {
     NEVER,
     LESS,
     EQUAL,
@@ -126,5 +140,7 @@ struct RenderBlendState {
 
         };
 };
+
+enum class UpdateFrequence : u8 { IMMUTABLE, PERFRAME, PERDRAW };
 
 #endif

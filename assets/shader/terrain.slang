@@ -6,9 +6,9 @@ struct VS_OUT{
 }
 
 [shader("vertex")]
-VS_OUT vert(float2 aPos, float2 aTexCoord, uint aInstanceIndex){
+VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
     VS_OUT out;
-    vec4 terrain = gTerrain[aInstanceIndex];
+    vec4 terrain = gTerrain[gVisible[id]];
     out.sv_position = vec4(aPos.x + terrain.x, 0.0f, aPos.y + terrain.y, 1.0);
     out.uv = aTexCoord + terrain.zw;
     return out;
@@ -62,7 +62,7 @@ struct DS_OUT{
 Sampler2D height_map; 
 
 float get_height(vec2 tex_coord){
-    return height_map.Sample(tex_coord).y * 256.0 - 128.0;
+    return height_map.SampleLevelZero(tex_coord).y * 256.0 - 128.0;
 }
 
 [shader("domain")]
@@ -126,7 +126,7 @@ Sampler2D shadowMap;
 
 float terrain_shadowmapping(vec2 uv, float angle){
     // lookup texel at patch coordinate for height and scale + shift as desired
-    float slope = terrain_shadowMap.Sample(uv).r;
+    float slope = terrain_shadowMap.SampleLevelZero(uv).r;
     float soft_width = 0.15;
     float shadow = smoothstep(angle - soft_width,
                               angle + soft_width,

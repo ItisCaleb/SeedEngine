@@ -34,14 +34,12 @@ Vec3 skyboxVertices[] = {
 void DefaultRenderer::init() {
     ResourceLoader *loader = ResourceLoader::get_instance();
 
-    instance_desc.add_type_attr<u32>(8, 1);
-    instance_idx_rc.alloc_vertex(sizeof(u32), 0, nullptr);
-
     u_lights.alloc_constant(sizeof(STB140Lights), nullptr);
     u_csm.alloc_constant(sizeof(CSMShadow), nullptr);
 
     sky_vert.create(&DS::get_instance()->sky_desc,
-                    (sizeof(skyboxVertices) / sizeof(Vec3)), skyboxVertices);
+                    (sizeof(skyboxVertices) / sizeof(Vec3)), skyboxVertices,
+                    UpdateFrequence::IMMUTABLE);
     u32 shadow_map_resolution = shadow_map.get_resolution();
 
     Viewport shadow_map_vp(
@@ -54,9 +52,10 @@ void DefaultRenderer::init() {
     }
     DebugDrawer *drawer = DebugDrawer::get_instance();
 
-    debug_line.create(&drawer->debug_desc);
-    debug_triangle.create(&drawer->debug_desc);
-    debug_triangle_indices.create(std::vector<u32>{});
+    debug_line.create(&drawer->debug_desc, UpdateFrequence::PERFRAME);
+    debug_triangle.create(&drawer->debug_desc, UpdateFrequence::PERFRAME);
+    debug_triangle_indices.create(std::vector<u32>{},
+                                  UpdateFrequence::PERFRAME);
 }
 
 void DefaultRenderer::prepare_lights() {
@@ -72,7 +71,8 @@ void DefaultRenderer::prepare_lights() {
     dir_light.get_stb140(&light_buf->u_dir_light);
     light_buf->u_light_ambient = world->get_ambient_light();
     // for (u32 i = 0;
-    //      i < (sizeof(light_buf->u_point_lights) / sizeof(STB140Light)); i++) {
+    //      i < (sizeof(light_buf->u_point_lights) / sizeof(STB140Light)); i++)
+    //      {
     //     if (i < world->get_point_lights().size()) {
     //         world->get_point_lights()[i].get_stb140(
     //             &light_buf->u_point_lights[i]);
@@ -178,6 +178,7 @@ void DefaultRenderer::preprocess() {
 void DefaultRenderer::shadow_pass() {
     RenderCommandDispatcher dp;
     dp.begin_scope("Shadow Pass", current_sort_key());
+    RenderResource visble_buffer = RenderEngine::get_instance()->visible_ssbo;
 
     /* shadow pass */
     RenderStateDataBuilder shadow_map_state;
@@ -205,7 +206,7 @@ void DefaultRenderer::shadow_pass() {
             !mesh.mesh->get_material()->get_shadow_pipeline().inited())
             continue;
 
-        dp.update_buffer(instance_idx_rc, 0,
+        dp.update_buffer(visble_buffer, 0,
                          sizeof(u32) * mesh.instance_id.size(),
                          (void *)mesh.instance_id.data(), current_sort_key());
         RenderDrawDataBuilder mesh_builder;
@@ -214,8 +215,6 @@ void DefaultRenderer::shadow_pass() {
             last_material = mesh.mesh->get_material();
         }
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
-        mesh_builder.bind_vertex(instance_idx_rc);
-        mesh_builder.bind_description(&instance_desc);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
 
         u32 last_size = 0;
@@ -239,6 +238,7 @@ void DefaultRenderer::shadow_pass() {
 
 void DefaultRenderer::color_pass(Viewport &viewport) {
     RenderCommandDispatcher dp;
+    RenderResource visble_buffer = RenderEngine::get_instance()->visible_ssbo;
     dp.begin_scope("Color Pass", current_sort_key());
     RenderStateDataBuilder color_state;
     color_state.bind_render_target(RenderEngine::get_instance()
@@ -251,7 +251,7 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
     Ref<Material> last_material;
     for (MeshInstance &mesh : opaque_meshes) {
         if (mesh.instance_id.empty()) continue;
-        dp.update_buffer(instance_idx_rc, 0,
+        dp.update_buffer(visble_buffer, 0,
                          sizeof(u32) * mesh.instance_id.size(),
                          (void *)mesh.instance_id.data(), current_sort_key());
         RenderDrawDataBuilder mesh_builder;
@@ -263,8 +263,6 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
             last_material = mesh.mesh->get_material();
         }
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
-        mesh_builder.bind_vertex(instance_idx_rc);
-        mesh_builder.bind_description(&instance_desc);
         mesh_builder.set_instance(mesh.instance_id.size());
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
         dp.render(mesh_builder, mesh.mesh->get_type(),
@@ -274,7 +272,7 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
 
     for (MeshInstance &mesh : transparent_meshes) {
         if (mesh.instance_id.empty()) continue;
-        dp.update_buffer(instance_idx_rc, 0,
+        dp.update_buffer(visble_buffer, 0,
                          sizeof(u32) * mesh.instance_id.size(),
                          (void *)mesh.instance_id.data(), current_sort_key());
         RenderDrawDataBuilder mesh_builder;
@@ -286,8 +284,6 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
             last_material = mesh.mesh->get_material();
         }
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
-        mesh_builder.bind_vertex(instance_idx_rc);
-        mesh_builder.bind_description(&instance_desc);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
         for (u32 i = 0; i < mesh.instance_id.size(); i++) {
             mesh_builder.set_instance(1, i);

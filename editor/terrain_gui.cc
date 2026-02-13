@@ -31,7 +31,7 @@ void TerrainGUI::update() {
         }
         terrain->get_material()->get_texture_unit(0)->get_texture();
 
-        mat->set_rasterizer_state(state);
+        //mat->set_rasterizer_state(state);
     }
     if (ImGui::Button("Reset terrain")) {
         auto mat = world->get_terrain()->get_material();

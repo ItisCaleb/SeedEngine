@@ -1,5 +1,7 @@
 #include "shader_proxy.h"
 #include "core/rendering/api/render_engine.h"
+#include "core/rendering/backend/opengl_backend.h"
+#include "core/rendering/backend/vulkan_backend.h"
 #include "core/io/file.h"
 #include <filesystem>
 
@@ -16,6 +18,18 @@ namespace Seed {
 //     // *outBlob = RawBlob
 //     return SLANG_OK;
 // }
+
+static std::vector<slang::CompilerOptionEntry> spirv_compile_opt = {
+    slang::CompilerOptionEntry{
+        .name = slang::CompilerOptionName::EmitSpirvDirectly,
+        .value =
+            slang::CompilerOptionValue{
+                .kind = slang::CompilerOptionValueKind::Int,
+                .intValue0 = true}},
+    slang::CompilerOptionEntry{
+        .name = slang::CompilerOptionName::VulkanUseEntryPointName,
+        .value = slang::CompilerOptionValue{
+            .kind = slang::CompilerOptionValueKind::Int, .intValue0 = true}}};
 
 ShaderProxy::ShaderProxy(const std::vector<std::string> &include_path) {
     for (auto &path : include_path) {
@@ -36,11 +50,13 @@ ShaderProxy::ShaderProxy(const std::vector<std::string> &include_path) {
     // glsl_session_desc.fileSystem = &this->file_system;
 
     spirv_target_desc.format = SLANG_SPIRV;
-    spirv_target_desc.profile = global_session->findProfile("glsl_450");
+    spirv_target_desc.profile = global_session->findProfile("spirv_1_3");
     spirv_session_desc.targets = &spirv_target_desc;
     spirv_session_desc.targetCount = 1;
     spirv_session_desc.searchPaths = this->include_path.data();
     spirv_session_desc.searchPathCount = this->include_path.size();
+    spirv_session_desc.compilerOptionEntries = spirv_compile_opt.data();
+    spirv_session_desc.compilerOptionEntryCount = spirv_compile_opt.size();
     // spirv_session_desc.fileSystem = &this->file_system;
 }
 
@@ -72,8 +88,8 @@ void ShaderProxy::compile_shader(RenderResource *rc, const std::string &path,
     module = session->loadModuleFromSourceString(
         module_name.data(), path.data(), shader.data(), diagnostics.writeRef());
     if (diagnostics) {
-        spdlog::error("Slang shader diagnostic: {}",
-                      (const char *)diagnostics->getBufferPointer());
+        SPDLOG_ERROR("Slang shader diagnostic: {}",
+                     (const char *)diagnostics->getBufferPointer());
     }
     std::vector<slang::IComponentType *> com_types;
     com_types.push_back(module);
@@ -101,41 +117,89 @@ void ShaderProxy::compile_shader(RenderResource *rc, const std::string &path,
     Slang::ComPtr<slang::IComponentType> linkedProgram;
     program->link(linkedProgram.writeRef(), diagnostics.writeRef());
     if (diagnostics) {
-        spdlog::error("Slang shader diagnostic: {}",
-                      (const char *)diagnostics->getBufferPointer());
+        SPDLOG_ERROR("Slang shader diagnostic: {}",
+                     (const char *)diagnostics->getBufferPointer());
     }
-    switch (backend->get_type()) {
-        case RenderBackendType::OPENGL:
-            compile_glsl(rc, linkedProgram, entry_points);
-            break;
-        case RenderBackendType::VULKAN:
-            compile_glsl(rc, linkedProgram, entry_points);
-            break;
-        default:
-            break;
-    }
-}
+    slang::ProgramLayout *programLayout = linkedProgram->getLayout(0);
+    slang::TypeLayoutReflection *globlalLayout =
+        programLayout->getGlobalParamsTypeLayout();
+    ShaderLayout layout;
+    u32 binding_cnt = globlalLayout->getBindingRangeCount();
+    u32 push_constant_offset = 0;
+    for (uint32_t i = 0; i < binding_cnt; i++) {
+        slang::BindingType _type = globlalLayout->getBindingRangeType(i);
+        auto name = globlalLayout->getBindingRangeLeafVariable(i)->getName();
+        i64 count = globlalLayout->getBindingRangeBindingCount(i);
 
-void ShaderProxy::compile_glsl(RenderResource *rc,
-                               Slang::ComPtr<slang::IComponentType> program,
-                               const std::vector<EntryPointInfo> &entryPoints) {
+        i64 descriptorSetIndex =
+            globlalLayout->getBindingRangeDescriptorSetIndex(i);
+        i64 descriptorRangeIndex =
+            globlalLayout->getBindingRangeFirstDescriptorRangeIndex(i);
+
+        i64 set =
+            globlalLayout->getDescriptorSetSpaceOffset(descriptorSetIndex);
+        i64 binding = globlalLayout->getDescriptorSetDescriptorRangeIndexOffset(
+            descriptorSetIndex, descriptorRangeIndex);
+
+        switch (_type) {
+            case slang::BindingType::CombinedTextureSampler:
+            case slang::BindingType::Sampler:
+                layout.bindings.push_back(
+                    ShaderBinding{.binding_point = binding,
+                                  .type = ShaderResourceType::SAMPLER,
+                                  .count = count});
+                break;
+            case slang::BindingType::ConstantBuffer:
+                layout.bindings.push_back(
+                    ShaderBinding{.binding_point = binding,
+                                  .type = ShaderResourceType::UBO,
+                                  .count = count});
+                break;
+            case slang::BindingType::RawBuffer:
+            case slang::BindingType::MutableRawBuffer:
+                layout.bindings.push_back(
+                    ShaderBinding{.binding_point = binding,
+                                  .type = ShaderResourceType::SSBO,
+                                  .count = count});
+                break;
+            case slang::BindingType::PushConstant: {
+                u32 cnt = globlalLayout->getBindingRangeLeafTypeLayout(i)
+                              ->getElementTypeLayout()
+                              ->getFieldCount();
+                u32 size = globlalLayout->getBindingRangeLeafTypeLayout(i)
+                               ->getElementTypeLayout()
+                               ->getSize();
+                if (size > 256) {
+                    spdlog::warn(
+                        "Shader '{}.slang' push contant size {} exceeds 256",
+                        name, size);
+                }
+                size &= 0xff;
+                // u64 offset =
+                // globlalLayout->getBindingRangeLeafTypeLayout(i)->get();
+                layout.push_constants.push_back(PushConstantRange{
+                    .offset = (u8)(push_constant_offset & 0xff), .size = (u8)(size)});
+                push_constant_offset += size;
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
     std::string vert;
     std::string tesc;
     std::string tese;
     std::string geom;
     std::string frag;
-    for (auto &ep : entryPoints) {
+    for (auto &ep : entry_points) {
         Slang::ComPtr<slang::IBlob> code;
         Slang::ComPtr<slang::IBlob> diagnostics;
-        try{
-            program->getEntryPointCode(ep.index, 0, code.writeRef(), diagnostics.writeRef());
-
-        }catch(std::exception &e){
-            spdlog::error(e.what());
-        }
+        linkedProgram->getEntryPointCode(ep.index, 0, code.writeRef(),
+                                         diagnostics.writeRef());
         if (diagnostics) {
-            spdlog::error("Slang shader diagnostic: {}",
-                          (const char *)diagnostics->getBufferPointer());
+            SPDLOG_ERROR("Slang shader diagnostic: {}",
+                         (const char *)diagnostics->getBufferPointer());
         }
         switch (ep.stage) {
             case ShaderStage::VERTEX:
@@ -164,12 +228,10 @@ void ShaderProxy::compile_glsl(RenderResource *rc,
                 break;
         }
     }
+
     RenderEngine::get_instance()->get_device()->alloc_shader(rc, vert, frag,
                                                              geom, tesc, tese);
 }
-void ShaderProxy::compile_spirv(
-    RenderResource *rc, Slang::ComPtr<slang::IComponentType> program,
-    const std::vector<EntryPointInfo> &entryPoints) {}
 
 ShaderProxy::~ShaderProxy() {
     for (auto path : include_path) {

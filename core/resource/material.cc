@@ -17,36 +17,10 @@ void Material::remove_texture_unit(u32 unit) {
     this->textures.erase(this->textures.begin() + unit);
 }
 
-void Material::set_rasterizer_state(RenderRasterizerState &state) {
-    this->raster_state = state;
-    this->pipeline_dirty = true;
-}
-void Material::set_depth_state(RenderDepthStencilState &state) {
-    this->depth_state = state;
-    this->pipeline_dirty = true;
-}
-void Material::set_blend_state(RenderBlendState &state) {
-    this->blend_state = state;
-    this->pipeline_dirty = true;
-}
-void Material::set_shader(Ref<Shader> shader) {
-    this->shader = shader;
-    this->pipeline_dirty = true;
-}
-
-void Material::build_pipeline() {
-    EXPECT_NOT_NULL_RET(shader.ptr());
-    if (this->pipeline.inited()) {
-        this->pipeline.dealloc();
-    }
-    this->pipeline.alloc_pipeline(shader->get_render_resource(), raster_state,
-                                  depth_state, blend_state);
-}
-
 RenderResource Material::get_pipeline() {
-    if (pipeline_dirty) {
-        build_pipeline();
-        pipeline_dirty = false;
+    if (pipeline.handle == NULL_HANDLE) {
+        this->pipeline.alloc_pipeline(shader->get_render_resource(),
+                                      raster_state, depth_state, blend_state);
     }
     return this->pipeline;
 }

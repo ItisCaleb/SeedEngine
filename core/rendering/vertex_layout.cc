@@ -2,11 +2,10 @@
 
 namespace Seed {
 void VertexLayout::add_attr(u8 layout_num, VertexAttributeType type, u32 size,
-                            u32 instance_step, bool should_normalized) {
+                            bool should_normalized) {
     this->attrs.push_back({.layout_num = layout_num,
                            .type = type,
                            .size = size,
-                           .instance_step = instance_step,
                            .should_normalized = should_normalized});
 
     u32 type_size = 1;

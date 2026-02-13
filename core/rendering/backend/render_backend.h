@@ -1,7 +1,7 @@
 #ifndef _SEED_RENDER_BACKEND_H_
 #define _SEED_RENDER_BACKEND_H_
-#include "render_command.h"
-#include "render_resource.h"
+#include "core/rendering/api/render_command.h"
+#include "core/rendering/api/render_resource.h"
 #include "core/handle.h"
 #include "core/allocator/linear_allocator.h"
 #include <shared_mutex>
@@ -25,6 +25,23 @@ class RenderCommandQueue {
         }
 };
 
+enum class ShaderResourceType : u8 { UBO, SSBO, SAMPLER };
+
+struct ShaderBinding {
+        i64 binding_point;
+        ShaderResourceType type;
+        i64 count;
+};
+struct PushConstantRange {
+        u8 offset;
+        u8 size;
+};
+
+struct ShaderLayout {
+        std::vector<ShaderBinding> bindings;
+        std::vector<PushConstantRange> push_constants;
+};
+
 enum class RenderBackendType { OPENGL, VULKAN };
 
 class RenderBackend {
@@ -40,19 +57,24 @@ class RenderBackend {
         virtual RenderBackendType get_type() = 0;
         virtual void alloc_texture(RenderResource *rc, TextureType type, u32 w,
                                    u32 h, PixelFormat format,
-                                   const SamplerProperty &property) = 0;
+                                   const SamplerProperty &property,
+                                   const void *data) = 0;
         virtual void alloc_vertex(RenderResource *rc, u32 stride,
-                                  u32 element_cnt) = 0;
-
-        virtual void alloc_indices(RenderResource *rc, IndexType type,
-                                   u32 element_cnt) = 0;
+                                  u32 element_cnt, UpdateFrequence frequence,
+                                  const void *data) = 0;
         virtual void alloc_shader(RenderResource *rc,
                                   const std::string &vertex_code,
                                   const std::string &fragment_code,
                                   const std::string &geometry_code,
-                                  const std::string &tesselation_code,
+                                  const std::string &tess_ctrl_code,
                                   const std::string &tess_eval_code) = 0;
-        virtual void alloc_constant(RenderResource *rc, u32 size) = 0;
+        virtual void setup_shader_layout(RenderResource *rc,
+                                         const ShaderLayout &layout) = 0;
+        virtual void alloc_indices(RenderResource *rc, IndexType type,
+                                   u32 element_cnt, UpdateFrequence frequence,
+                                   const void *data) = 0;
+        virtual void alloc_constant(RenderResource *rc, u32 size,
+                                    const void *data) = 0;
         virtual void alloc_pipeline(RenderResource *rc, RenderResource shader,
                                     const RenderRasterizerState &rst_state,
                                     const RenderDepthStencilState &depth_state,
@@ -60,41 +82,17 @@ class RenderBackend {
         virtual void alloc_render_target(RenderResource *rc,
                                          bool depth_only) = 0;
 
-        virtual void alloc_buffer(RenderResource *rc, u32 size) = 0;
+        virtual void alloc_buffer(RenderResource *rc, u32 size,
+                                  const void *data) = 0;
         virtual void dealloc(RenderResource *r) = 0;
         virtual void process_commands(std::deque<RenderCommand> &cmd_queue) = 0;
         virtual void swap_buffer() = 0;
 
-        void *alloc(u64 size = 0, void *data = nullptr) {
-            RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
-            queue.queue_lock.lock();
-            void *_data = queue.data_pool.alloc(size, data);
-            queue.queue_lock.unlock();
-            return _data;
-        }
+        void *alloc(u64 size = 0, void *data = nullptr);
 
-        void *push_cmd(RenderCommand &cmd, u64 size = 0, void *data = nullptr) {
-            RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
-            queue.queue_lock.lock();
-            if (size > 0) {
-                cmd.data = queue.data_pool.alloc(size, data);
-            }
-            queue.cmd_queue.push_back(cmd);
-            queue.queue_lock.unlock();
-            return cmd.data;
-        }
+        void *push_cmd(RenderCommand &cmd, u64 size = 0, void *data = nullptr);
 
-        void process() {
-            RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
-            current_queue++;
-            queue.queue_lock.lock();
-            std::stable_sort(queue.cmd_queue.begin(), queue.cmd_queue.end(),
-                             RenderCommand::cmp);
-            this->process_commands(queue.cmd_queue);
-            queue.data_pool.free_all();
-            queue.queue_lock.unlock();
-            swap_buffer();
-        }
+        void process();
 };
 
 }  // namespace Seed
