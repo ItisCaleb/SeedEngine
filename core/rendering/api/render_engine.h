@@ -54,8 +54,10 @@ class RenderEngine {
         Window *get_current_window() { return current_window; }
         Ref<RenderTarget> get_render_target(const std::string &name);
         InstanceDataPool *get_instance_pool(const std::string &name);
+
+        /* if not null, layout will be filled */
         void compile_shader(RenderResource *rc, const std::string &path,
-                            const std::string &shader);
+                            const std::string &shader, ShaderLayout *layout);
 
         RenderEngine(Window *window);
         ~RenderEngine();

@@ -5,6 +5,12 @@ struct VS_OUT{
     float4 sv_position : SV_Position;
 }
 
+struct Property{
+    Sampler2D image;
+};
+
+ParameterBlock<Property> prop;
+
 [shader("vertex")]
 VS_OUT vert(float2 aPos, float2 aTexCoord){
     VS_OUT out;
@@ -13,13 +19,10 @@ VS_OUT vert(float2 aPos, float2 aTexCoord){
     return out;
 }
 
-
-Sampler2D image;
-
 [shader("fragment")]
 float4 frag(VS_OUT in) : SV_Target0{
     const float gamma = 1.0;
-    vec3 hdrColor = image.Sample(in.uv).rgb;
+    vec3 hdrColor = prop.image.Sample(in.uv).rgb;
     // exposure tone mapping
     vec3 mapped =  hdrColor / (hdrColor + vec3(1.0));
     // gamma correction

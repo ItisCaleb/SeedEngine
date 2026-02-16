@@ -131,7 +131,7 @@ void TransformInstanceData::upload() {
     Mat4 *mats = (Mat4 *)upd->get_buffer();
     u32 i = 0;
     for (Ref<Transform> transform : this->transforms) {
-        mats[i] = transform->get_model_matrix().transpose();
+        mats[i] = transform->get_model_matrix();
         i++;
     }
     upd->set_filled();

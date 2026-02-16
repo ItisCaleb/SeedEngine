@@ -9,6 +9,11 @@
 #include "core/rendering/api/render_resource.h"
 
 namespace Seed {
+
+struct ShaderBinding;
+struct ShaderBindingSet;
+struct PushConstantRange;
+
 class ShaderProxy {
     private:
         std::vector<char *> include_path;
@@ -22,7 +27,8 @@ class ShaderProxy {
         //         SLANG_NO_THROW uint32_t SLANG_MCALL addRef() SLANG_OVERRIDE {
         //             return 1;
         //         }
-        //         SLANG_NO_THROW uint32_t SLANG_MCALL release() SLANG_OVERRIDE {
+        //         SLANG_NO_THROW uint32_t SLANG_MCALL release() SLANG_OVERRIDE
+        //         {
         //             return 1;
         //         }
         //         virtual SLANG_NO_THROW void const *SLANG_MCALL
@@ -39,7 +45,8 @@ class ShaderProxy {
         //         SLANG_NO_THROW uint32_t SLANG_MCALL addRef() SLANG_OVERRIDE {
         //             return 1;
         //         }
-        //         SLANG_NO_THROW uint32_t SLANG_MCALL release() SLANG_OVERRIDE {
+        //         SLANG_NO_THROW uint32_t SLANG_MCALL release() SLANG_OVERRIDE
+        //         {
         //             return 1;
         //         }
         //         virtual SLANG_NO_THROW void *SLANG_MCALL
@@ -64,11 +71,13 @@ class ShaderProxy {
                 u32 index;
         };
 
+        void append_binding_set(slang::TypeLayoutReflection *reflection,
+                                ShaderLayout &shader_layout);
 
     public:
         ShaderProxy(const std::vector<std::string> &include_path);
         void compile_shader(RenderResource *rc, const std::string &path,
-                            const std::string &shader);
+                            const std::string &shader, ShaderLayout *layout);
         ~ShaderProxy();
 };
 }  // namespace Seed

@@ -9,6 +9,6 @@
 namespace Seed {
 
 Shader::Shader(const std::string &path, const std::string &code) {
-    shader.alloc_shader(path, code);
+    shader.alloc_shader(path, code, &this->layout);
 }
 }  // namespace Seed

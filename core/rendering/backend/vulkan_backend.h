@@ -32,6 +32,7 @@ struct HardwareTextureVk {
         VkImageView view;
         VkSampler sampler;
         VmaAllocation memory;
+        VkImageLayout layout;
 };
 
 struct HardwareShaderVk {
@@ -40,7 +41,7 @@ struct HardwareShaderVk {
         std::string tess_ctrl_src;
         std::string tess_eval_src;
         std::string fragment_src;
-        VkDescriptorSetLayout set_layout;
+        std::vector<VkDescriptorSetLayout> set_layouts;
         VkPipelineLayout layout;
 };
 
@@ -54,6 +55,7 @@ struct HardwarePipelineVk {
 struct HardwareAttachmentVk {
         u8 slot;
         bool is_depth;
+        bool is_stencil;
         VkFormat image_format;
         Handle texture_handle;
 };
@@ -63,6 +65,7 @@ struct HardwareRenderTargetVk {
         bool depth_only;
         bool dirty = true;
         bool texture_changed = true;
+        bool is_swapchain = false;
         u32 w, h;
         VkRenderPass render_pass_cache = nullptr;
         VkFramebuffer framebuffer_cache = nullptr;
@@ -81,12 +84,17 @@ class RenderBackendVK : public RenderBackend {
         VkCommandPool command_pool;
         VkCommandBuffer command_buffer;
         VmaAllocator buffer_allocator;
-        HardwareRenderTargetVk *current_render_target;
+        VkDescriptorPool descriptor_pool;
+        Handle current_render_target;
+        VkSemaphore image_available_semaphore;
+        VkFence in_flight_fence;
         struct SwapChain {
                 VkSwapchainKHR chain;
                 VkFormat format;
                 std::vector<Handle> textures;
                 std::vector<Handle> render_targets;
+                std::vector<VkSemaphore> semaphore;
+                u32 next_index = 0;
         } swap_chain;
 
         HandleOwner<HardwareBufferVk> vertices;
@@ -112,7 +120,6 @@ class RenderBackendVK : public RenderBackend {
                                 VmaAllocation memory;
                         } texture;
                         struct {
-                                VkDescriptorSetLayout set_layout;
                                 VkPipelineLayout layout;
                         } shader;
                         struct {
@@ -124,22 +131,43 @@ class RenderBackendVK : public RenderBackend {
 
         struct BufferCopy {
                 VkBuffer staging_buffer;
+                VmaAllocation staging_allocation;
                 VkBuffer target_buffer;
                 u64 size;
         };
 
         struct ImageCopy {
                 VkBuffer staging_buffer;
+                VmaAllocation staging_allocation;
                 VkImage target_image;
                 u32 w, h;
+                PixelFormat format;
+        };
+
+        struct Binding {
+                RenderResourceType type;
+                union {
+                        VkBuffer buffer;
+                        struct {
+                                VkImageView view;
+                                VkSampler sampler;
+                        } image;
+                };
+                u32 binding_point;
         };
 
         /* delay destroy to end of frame */
         std::queue<DestroyResource> destroy_queue;
         std::queue<BufferCopy> buffer_copy_queue;
-        std::queue<ImageCopy> image_copy_queue;
+        std::vector<ImageCopy> image_copy_queue;
 
         std::unordered_map<u64, VkPipeline> pipeline_cache;
+        std::unordered_map<u64, VkDescriptorSetLayout> descriptor_layout_cache;
+        std::unordered_map<u64, VkDescriptorSet> descriptor_set_cache;
+
+        /* we'll assume global binding */
+        /* won't be destroyed at all */
+        std::vector<Binding> global_bindings;
 
 /* vulkan setup */
 #ifdef VULKAN_DEBUG
@@ -147,6 +175,7 @@ class RenderBackendVK : public RenderBackend {
 #else
         bool enable_validation = false;
 #endif
+        /* vulkan initiliazation */
         void create_instance();
         bool check_validation_support();
         void create_debug_messenger();
@@ -158,39 +187,53 @@ class RenderBackendVK : public RenderBackend {
         void create_swapchain_framebuffer();
         void create_command_pool();
         void create_command_buffer();
+        void create_descriptor_pool();
+        void create_sync_objects();
+
+        /* helper functions */
         void create_staging_buffer(VkBuffer *buffer, VmaAllocation *allocation,
                                    u64 size);
         void create_host_visible_buffer(VkBuffer *buffer,
                                         VmaAllocation *allocation,
-                                        VkBufferUsageFlagBits usage, u64 size,
+                                        VkBufferUsageFlags usage, u64 size,
                                         const void *data);
         void create_gpu_only_buffer(VkBuffer *buffer, VmaAllocation *allocation,
-                                    VkBufferUsageFlagBits usage, u64 size,
+                                    VkBufferUsageFlags usage, u64 size,
                                     const void *data);
+        VkImageMemoryBarrier create_image_barrier(HardwareTextureVk *texture,
+                                                  VkImageLayout target_layout,
+                                                  u32 layer);
+
+        /* create on flight */
+
+        void handle_create();
+        void handle_destroy();
+        void transition_render_target(HardwareRenderTargetVk *rt,
+                                      bool to_attachment);
         VkPipeline create_vk_pipeline(HardwarePipelineVk *pipeline,
                                       HardwareRenderTargetVk *render_target,
-                                      std::vector<VertexLayout *> &layouts);
+                                      std::vector<VertexLayout *> &layouts,
+                                      VkPrimitiveTopology primitive);
         VkPipeline get_vk_pipeline(HardwarePipelineVk *pipeline,
                                    HardwareRenderTargetVk *render_target,
-                                   std::vector<VertexLayout *> &layouts);
+                                   std::vector<VertexLayout *> &layouts,
+                                   VkPrimitiveTopology primitive);
         void create_render_pass(HardwareRenderTargetVk *render_target,
                                 bool is_swapchain);
         void create_framebuffer(HardwareRenderTargetVk *render_target);
+        HardwareRenderTargetVk *get_current_render_target();
 
         VkShaderModule create_shader_module(const std::string &shader);
         bool pick_queue_family(VkPhysicalDevice device);
 
         void reallocate_buffer(HardwareBufferVk *buffer,
                                VkBufferUsageFlagBits usage, u64 size);
-
+        VkDescriptorSet get_descriptor_set(VkDescriptorSetLayout layout,
+                                           std::vector<Binding> &bindings);
         /* drawing commands */
-        /* for multithreading purpose */
         void handle_update(RenderCommand &cmd);
         void handle_state(RenderCommand &cmd);
         void handle_render(RenderCommand &cmd);
-
-        /* binding operations */
-        void use_texture(u32 unit, RenderResource &rc);
 
     public:
         RenderBackendVK(Window *window);

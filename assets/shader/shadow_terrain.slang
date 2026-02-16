@@ -5,6 +5,14 @@ struct VS_OUT{
     float4 sv_position : SV_Position;
 }
 
+struct Property{
+    Sampler2D height_map; 
+    Sampler2D terrain_shadow_map;
+};
+
+ParameterBlock<Property> prop;
+
+
 [shader("vertex")]
 VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
     VS_OUT out;
@@ -19,6 +27,7 @@ struct HSOutput
     float4 position;
     float2 uv;
 };
+
 
 [shader("hull")]
 [domain("quad")]
@@ -50,10 +59,9 @@ PatchTessFactors PatchConstantFunction(InputPatch<VS_OUT, 4> patch) {
     return factors;
 }
 
-Sampler2D height_map; 
 
 float get_height(vec2 tex_coord){
-    return height_map.SampleLevelZero(tex_coord).y * 256.0 - 128.0;
+    return prop.height_map.SampleLevelZero(tex_coord).y * 256.0 - 128.0;
 }
 
 [[vk_push_constant]]
@@ -61,6 +69,7 @@ ConstantBuffer<uint> split;
 
 [shader("domain")]
 [domain("quad")]
+[partitioning("fractional_odd")]
 vec4 tese(
     float3 tessCoord : SV_DomainLocation,
     const OutputPatch<HSOutput, 4> patch

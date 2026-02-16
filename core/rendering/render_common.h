@@ -44,7 +44,8 @@ enum class PixelFormat : u8 {
     D24,
     D24S8,
     D32,
-    D32S8
+    D32S8,
+    S8
 };
 
 u32 constexpr static get_pixel_format_size(PixelFormat format) {

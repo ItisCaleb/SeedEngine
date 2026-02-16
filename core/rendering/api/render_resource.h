@@ -6,6 +6,7 @@
 #include <map>
 #include "core/rendering/render_common.h"
 #include "core/handle.h"
+#include "core/rendering/shader_layout.h"
 
 namespace Seed {
 enum class RenderResourceType : u8 {
@@ -35,7 +36,7 @@ struct RenderResource {
         void alloc_index(const std::vector<u32> &indices,
                          UpdateFrequence frequence);
 
-        void alloc_shader(const std::string &path, const std::string &code);
+        void alloc_shader(const std::string &path, const std::string &code, ShaderLayout *layout);
         void alloc_constant(u32 size, void *data);
         void alloc_pipeline(RenderResource shader,
                             const RenderRasterizerState &rst_state,

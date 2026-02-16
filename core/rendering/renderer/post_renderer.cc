@@ -12,7 +12,7 @@ void PostRenderer::init() {
         SPDLOG_WARN("Can't get default render target");
         return;
     }
-    post_mat->add_texture_unit(rt->get_color(0).texture);
+    post_mat->set_texture("image", rt->get_color(0).texture);
 }
 
 void PostRenderer::process(Viewport &viewport) {

@@ -33,9 +33,14 @@ Vec3 skyboxVertices[] = {
 
 void DefaultRenderer::init() {
     ResourceLoader *loader = ResourceLoader::get_instance();
+    RenderCommandDispatcher dp;
+    RenderStateDataBuilder builder;
 
     u_lights.alloc_constant(sizeof(STB140Lights), nullptr);
     u_csm.alloc_constant(sizeof(CSMShadow), nullptr);
+    builder.bind_bufferbase(u_lights, 10);
+    builder.bind_bufferbase(u_csm, 11);
+    dp.set_states(builder, 0);
 
     sky_vert.create(&DS::get_instance()->sky_desc,
                     (sizeof(skyboxVertices) / sizeof(Vec3)), skyboxVertices,

@@ -88,6 +88,7 @@ RenderEngine::RenderEngine(Window *window) {
     matrices_rc.alloc_constant(sizeof(Mat4) * 3, NULL);
     /* Bind engine default buffers */
     RenderStateDataBuilder builder;
+    builder.bind_bufferbase(visible_ssbo, 0);
     builder.bind_bufferbase(
         this->instance_pools["TransformDataPool"]->get_render_buffer(), 1);
     builder.bind_bufferbase(
@@ -153,11 +154,11 @@ void RenderEngine::process() {
         builder.clear(StateClearFlag::CLEAR_DEPTH);
         dp.set_states(builder, 0);
     }
-    RenderUpdateData *upd = dp.map_buffer(matrices_rc, 0, sizeof(Mat4) * 2);
+    RenderUpdateData *upd = dp.map_buffer(matrices_rc, 0, sizeof(Mat4) * 3);
     Mat4 *matrices = (Mat4 *)upd->get_buffer();
-    matrices[0] = cam.projection().transpose();
-    matrices[1] = cam.look_at().transpose();
-    matrices[2] = get_window_projection();
+    matrices[0] = cam.projection();
+    matrices[1] = cam.look_at();
+    matrices[2] = get_window_projection().transpose();
     upd->set_filled();
     upd = dp.map_buffer(cam_rc, 0, sizeof(Vec3));
     Vec3 *cam_pos = (Vec3 *)upd->get_buffer();
@@ -198,8 +199,8 @@ InstanceDataPool *RenderEngine::get_instance_pool(const std::string &name) {
 }
 
 void RenderEngine::compile_shader(RenderResource *rc, const std::string &path,
-                                  const std::string &shader) {
-    this->shader_proxy->compile_shader(rc, path, shader);
+                                  const std::string &shader, ShaderLayout *layout) {
+    this->shader_proxy->compile_shader(rc, path, shader, layout);
 }
 
 RenderEngine::~RenderEngine() { instance = nullptr; }

@@ -78,7 +78,7 @@ void DirectionalLight::calculate_csm_lightspace(
 
         Mat4 light_view = light_lookat * Mat4::translate_mat(-center);
         csm_data.light_space_mat[i - 1] =
-            (light_projection * light_view).transpose();
+            (light_projection * light_view);
         csm_data.fars[i - 1] = far;
         csm_data.units[i - 1] = unit;
         /* we muliply by 100 to prevent error culled */

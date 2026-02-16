@@ -6,15 +6,29 @@
 namespace Seed {
 
 void Material::set_texture_unit(u32 unit, Ref<Texture> texture) {
-    EXPECT_INDEX_INBOUND(unit, this->textures.size());
-    this->textures[unit].bind_texture(texture);
+    this->textures[unit] = texture;
 }
-void Material::add_texture_unit(Ref<Texture> tex) {
-    this->textures.push_back(TextureState(tex));
+
+void Material::set_texture(const std::string &name, Ref<Texture> texture) {
+    u32 unit = shader->get_layout().get_texture_unit(name);
+    if (unit == -1) {
+        SPDLOG_WARN("Texture name '{}' is not in shader {}", name,
+                    shader->get_path());
+        return;
+    }
+    set_texture_unit(unit, texture);
 }
-void Material::remove_texture_unit(u32 unit) {
-    EXPECT_INDEX_INBOUND(unit, this->textures.size());
-    this->textures.erase(this->textures.begin() + unit);
+
+void Material::remove_texture_unit(u32 unit) { this->textures.erase(unit); }
+
+void Material::remove_texture(const std::string &name) {
+    u32 unit = shader->get_layout().get_texture_unit(name);
+    if (unit == -1) {
+        SPDLOG_WARN("Texture name '{}' is not in shader {}", name,
+                    shader->get_path());
+        return;
+    }
+    remove_texture_unit(unit);
 }
 
 RenderResource Material::get_pipeline() {
@@ -26,17 +40,26 @@ RenderResource Material::get_pipeline() {
 }
 
 void Material::bind_states(RenderDrawDataBuilder &builder) {
-    for (i32 i = 0; i < this->textures.size(); i++) {
-        Ref<Texture> tex = textures[i].get_texture();
+    for (auto &iter : textures) {
+        Ref<Texture> tex = iter.second;
         if (tex.is_valid()) {
-            builder.bind_texture(i, tex->get_resource());
+            builder.bind_texture(iter.first, tex->get_resource());
         }
     }
 }
 
-TextureState *Material::get_texture_unit(u32 unit) {
-    EXPECT_INDEX_INBOUND_RET(unit, this->textures.size(), nullptr);
-    return &this->textures[unit];
+Ref<Texture> Material::get_texture_unit(u32 unit) {
+    return this->textures[unit];
+}
+
+Ref<Texture> Material::get_texture(const std::string &name) {
+    u32 unit = shader->get_layout().get_texture_unit(name);
+    if (unit == -1) {
+        SPDLOG_WARN("Texture name '{}' is not in shader {}", name,
+                    shader->get_path());
+        return Ref<Texture>();
+    }
+    return get_texture_unit(unit);
 }
 
 }  // namespace Seed

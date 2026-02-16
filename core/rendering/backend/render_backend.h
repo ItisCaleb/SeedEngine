@@ -4,6 +4,7 @@
 #include "core/rendering/api/render_resource.h"
 #include "core/handle.h"
 #include "core/allocator/linear_allocator.h"
+#include "core/rendering/shader_layout.h"
 #include <shared_mutex>
 #include <algorithm>
 #include <deque>
@@ -25,22 +26,7 @@ class RenderCommandQueue {
         }
 };
 
-enum class ShaderResourceType : u8 { UBO, SSBO, SAMPLER };
 
-struct ShaderBinding {
-        i64 binding_point;
-        ShaderResourceType type;
-        i64 count;
-};
-struct PushConstantRange {
-        u8 offset;
-        u8 size;
-};
-
-struct ShaderLayout {
-        std::vector<ShaderBinding> bindings;
-        std::vector<PushConstantRange> push_constants;
-};
 
 enum class RenderBackendType { OPENGL, VULKAN };
 

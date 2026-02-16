@@ -835,18 +835,25 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                 break;
             }
             case RenderStateData::OpType::BIND_BUFFERBASE: {
-                HardwareBufferGL *buffer = nullptr;
                 if (op->bufferbase.buffer.type == RenderResourceType::BUFFER) {
-                    this->ssbos.get_or_null(op->bufferbase.buffer.handle);
+                    HardwareBufferGL *buffer =
+                        this->ssbos.get_or_null(op->bufferbase.buffer.handle);
+                    EXPECT_NOT_NULL_BREAK(buffer);
+                    glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer->handle);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER,
+                                     op->bufferbase.base, buffer->handle);
+                    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
                 } else if (op->bufferbase.buffer.type ==
                            RenderResourceType::CONSTANT) {
-                    this->ubos.get_or_null(op->bufferbase.buffer.handle);
+                    HardwareBufferGL *buffer =
+                        this->ubos.get_or_null(op->bufferbase.buffer.handle);
+                    EXPECT_NOT_NULL_BREAK(buffer);
+                    glBindBuffer(GL_UNIFORM_BUFFER, buffer->handle);
+                    glBindBufferBase(GL_UNIFORM_BUFFER,
+                                     op->bufferbase.base, buffer->handle);
+                    glBindBuffer(GL_UNIFORM_BUFFER, 0);
                 }
-                EXPECT_NOT_NULL_BREAK(buffer);
-                glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer->handle);
-                glBindBufferBase(GL_SHADER_STORAGE_BUFFER, op->bufferbase.base,
-                                 buffer->handle);
-                glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
                 break;
             }
             default:

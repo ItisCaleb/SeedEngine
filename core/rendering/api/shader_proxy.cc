@@ -4,6 +4,7 @@
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/io/file.h"
 #include <filesystem>
+#include "core/rendering/shader_layout.h"
 
 namespace Seed {
 
@@ -60,8 +61,83 @@ ShaderProxy::ShaderProxy(const std::vector<std::string> &include_path) {
     // spirv_session_desc.fileSystem = &this->file_system;
 }
 
+void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
+                                     ShaderLayout &shader_layout) {
+    u32 binding_cnt = layout->getBindingRangeCount();
+    u32 push_constant_offset = 0;
+    ShaderBindingSet binding_set;
+    for (uint32_t i = 0; i < binding_cnt; i++) {
+        slang::BindingType _type = layout->getBindingRangeType(i);
+        std::string name = layout->getBindingRangeLeafVariable(i)->getName();
+        i64 count = layout->getBindingRangeBindingCount(i);
+
+        i64 set = layout->getBindingRangeDescriptorSetIndex(i);
+        i64 descriptorRangeIndex =
+            layout->getBindingRangeFirstDescriptorRangeIndex(i);
+        i64 binding = layout->getDescriptorSetDescriptorRangeIndexOffset(
+            set, descriptorRangeIndex);
+        shader_layout.texture_unit.emplace(name, binding);
+        switch (_type) {
+            case slang::BindingType::CombinedTextureSampler:
+            case slang::BindingType::Sampler:
+                binding_set.bindings.push_back(
+                    ShaderBinding{.binding_point = binding,
+                                  .type = ShaderResourceType::SAMPLER,
+                                  .count = count,
+                                  .name = name});
+                break;
+            case slang::BindingType::ConstantBuffer:
+                binding_set.bindings.push_back(
+                    ShaderBinding{.binding_point = binding,
+                                  .type = ShaderResourceType::UBO,
+                                  .count = count,
+                                  .name = name});
+                break;
+            case slang::BindingType::RawBuffer:
+            case slang::BindingType::MutableRawBuffer:
+                binding_set.bindings.push_back(
+                    ShaderBinding{.binding_point = binding,
+                                  .type = ShaderResourceType::SSBO,
+                                  .count = count,
+                                  .name = name});
+                break;
+            case slang::BindingType::ParameterBlock:
+                append_binding_set(layout->getBindingRangeLeafTypeLayout(i)
+                                       ->getElementTypeLayout(),
+                                   shader_layout);
+                break;
+            case slang::BindingType::PushConstant: {
+                u32 cnt = layout->getBindingRangeLeafTypeLayout(i)
+                              ->getElementTypeLayout()
+                              ->getFieldCount();
+                u32 size = layout->getBindingRangeLeafTypeLayout(i)
+                               ->getElementTypeLayout()
+                               ->getSize();
+                if (size > 256) {
+                    spdlog::warn(
+                        "Shader '{}.slang' push contant size {} exceeds 256",
+                        name, size);
+                }
+                size &= 0xff;
+                // u64 offset =
+                // globlalLayout->getBindingRangeLeafTypeLayout(i)->get();
+                shader_layout.push_constants.push_back(PushConstantRange{
+                    .offset = (u8)(push_constant_offset & 0xff),
+                    .size = (u8)(size)});
+                push_constant_offset += size;
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    shader_layout.sets.push_back(binding_set);
+}
+
 void ShaderProxy::compile_shader(RenderResource *rc, const std::string &path,
-                                 const std::string &shader) {
+                                 const std::string &shader,
+                                 ShaderLayout *layout) {
     RenderBackend *backend = RenderEngine::get_instance()->get_device();
     auto get_module_name = [](const std::string &path) -> std::string {
         std::filesystem::path p(path);
@@ -123,69 +199,9 @@ void ShaderProxy::compile_shader(RenderResource *rc, const std::string &path,
     slang::ProgramLayout *programLayout = linkedProgram->getLayout(0);
     slang::TypeLayoutReflection *globlalLayout =
         programLayout->getGlobalParamsTypeLayout();
-    ShaderLayout layout;
-    u32 binding_cnt = globlalLayout->getBindingRangeCount();
-    u32 push_constant_offset = 0;
-    for (uint32_t i = 0; i < binding_cnt; i++) {
-        slang::BindingType _type = globlalLayout->getBindingRangeType(i);
-        auto name = globlalLayout->getBindingRangeLeafVariable(i)->getName();
-        i64 count = globlalLayout->getBindingRangeBindingCount(i);
-
-        i64 descriptorSetIndex =
-            globlalLayout->getBindingRangeDescriptorSetIndex(i);
-        i64 descriptorRangeIndex =
-            globlalLayout->getBindingRangeFirstDescriptorRangeIndex(i);
-
-        i64 set =
-            globlalLayout->getDescriptorSetSpaceOffset(descriptorSetIndex);
-        i64 binding = globlalLayout->getDescriptorSetDescriptorRangeIndexOffset(
-            descriptorSetIndex, descriptorRangeIndex);
-
-        switch (_type) {
-            case slang::BindingType::CombinedTextureSampler:
-            case slang::BindingType::Sampler:
-                layout.bindings.push_back(
-                    ShaderBinding{.binding_point = binding,
-                                  .type = ShaderResourceType::SAMPLER,
-                                  .count = count});
-                break;
-            case slang::BindingType::ConstantBuffer:
-                layout.bindings.push_back(
-                    ShaderBinding{.binding_point = binding,
-                                  .type = ShaderResourceType::UBO,
-                                  .count = count});
-                break;
-            case slang::BindingType::RawBuffer:
-            case slang::BindingType::MutableRawBuffer:
-                layout.bindings.push_back(
-                    ShaderBinding{.binding_point = binding,
-                                  .type = ShaderResourceType::SSBO,
-                                  .count = count});
-                break;
-            case slang::BindingType::PushConstant: {
-                u32 cnt = globlalLayout->getBindingRangeLeafTypeLayout(i)
-                              ->getElementTypeLayout()
-                              ->getFieldCount();
-                u32 size = globlalLayout->getBindingRangeLeafTypeLayout(i)
-                               ->getElementTypeLayout()
-                               ->getSize();
-                if (size > 256) {
-                    spdlog::warn(
-                        "Shader '{}.slang' push contant size {} exceeds 256",
-                        name, size);
-                }
-                size &= 0xff;
-                // u64 offset =
-                // globlalLayout->getBindingRangeLeafTypeLayout(i)->get();
-                layout.push_constants.push_back(PushConstantRange{
-                    .offset = (u8)(push_constant_offset & 0xff), .size = (u8)(size)});
-                push_constant_offset += size;
-                break;
-            }
-            default:
-                break;
-        }
-    }
+    ShaderLayout _layout;
+    append_binding_set(globlalLayout, _layout);
+    std::reverse(_layout.sets.begin(), _layout.sets.end());
 
     std::string vert;
     std::string tesc;
@@ -231,6 +247,11 @@ void ShaderProxy::compile_shader(RenderResource *rc, const std::string &path,
 
     RenderEngine::get_instance()->get_device()->alloc_shader(rc, vert, frag,
                                                              geom, tesc, tese);
+    RenderEngine::get_instance()->get_device()->setup_shader_layout(rc,
+                                                                    _layout);
+    if (layout) {
+        *layout = _layout;
+    }
 }
 
 ShaderProxy::~ShaderProxy() {

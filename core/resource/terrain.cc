@@ -15,21 +15,21 @@ namespace Seed {
 TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
     : Material(DS::get_instance()->terrain_shader) {
     this->shadow_pipeline = DS::get_instance()->shadow_map_terrain_pipeline;
-    this->add_texture_unit(height_map);
-    this->add_texture_unit(DS::get_instance()->black_texture);
+    this->set_texture("height_map", height_map);
+    this->set_texture("terrain_shadowMap", DS::get_instance()->black_texture);
     this->raster_state = {.cull_mode = Cullmode::FRONT,
                           .patch_control_points = 4};
     this->depth_state = {.depth_on = true};
 }
 void TerrainMaterial::set_height_map(Ref<Texture> height_map) {
-    this->set_texture_unit(0, height_map);
+    this->set_texture("height_map", height_map);
 }
 Ref<Texture> TerrainMaterial::get_height_map() {
-    return this->get_texture_unit(0)->get_texture();
+    return this->get_texture("height_map");
 }
 
 void TerrainMaterial::set_light_map(Ref<Texture> light_map) {
-    this->set_texture_unit(1, light_map);
+    this->set_texture("terrain_shadowMap", light_map);
 }
 
 void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {

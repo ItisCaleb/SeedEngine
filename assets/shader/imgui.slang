@@ -6,6 +6,12 @@ struct VS_OUT{
     float4 sv_position : SV_Position;
 }
 
+struct Property{
+    Sampler2D u_texture;
+};
+
+ParameterBlock<Property> prop;
+
 [shader("vertex")]
 VS_OUT vert(vec2 aPos, vec2 aUV, vec4 aColor){
     VS_OUT out;
@@ -16,8 +22,7 @@ VS_OUT vert(vec2 aPos, vec2 aUV, vec4 aColor){
 }
 
 
-Sampler2D u_texture;
 [shader("fragment")]
 float4 frag(VS_OUT in) : SV_Target0{
-    return in.color * u_texture.Sample(in.uv);
+    return in.color * prop.u_texture.Sample(in.uv);
 }

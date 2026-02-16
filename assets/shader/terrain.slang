@@ -5,6 +5,14 @@ struct VS_OUT{
     float4 sv_position: SV_Position;
 }
 
+struct Property{
+    Sampler2D height_map; 
+    Sampler2D terrain_shadowMap;
+    Sampler2D shadowMap;
+};
+
+ParameterBlock<Property> prop;
+
 [shader("vertex")]
 VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
     VS_OUT out;
@@ -59,14 +67,14 @@ struct DS_OUT{
     float view_depth;
 };
 
-Sampler2D height_map; 
 
 float get_height(vec2 tex_coord){
-    return height_map.SampleLevelZero(tex_coord).y * 256.0 - 128.0;
+    return prop.height_map.SampleLevelZero(tex_coord).y * 256.0 - 128.0;
 }
 
 [shader("domain")]
 [domain("quad")]
+[partitioning("fractional_odd")]
 DS_OUT tese(
     float3 tessCoord : SV_DomainLocation,
     const OutputPatch<HSOutput, 4> patch
@@ -114,19 +122,18 @@ DS_OUT tese(
     out.normal = normalize(vec3(lh - rh, 2, dh - uh));
     out.fragPos = p;
     out.view_depth = -(gMatrices.u_view * p).z;
-    out.position = mul(gMatrices.u_projection, gMatrices.u_view) * p;
+    out.position = gMatrices.u_projection * gMatrices.u_view * p;
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     return out;
 }
 
 
-Sampler2D terrain_shadowMap;
-Sampler2D shadowMap;
+
 
 float terrain_shadowmapping(vec2 uv, float angle){
     // lookup texel at patch coordinate for height and scale + shift as desired
-    float slope = terrain_shadowMap.SampleLevelZero(uv).r;
+    float slope = prop.terrain_shadowMap.SampleLevelZero(uv).r;
     float soft_width = 0.15;
     float shadow = smoothstep(angle - soft_width,
                               angle + soft_width,
@@ -151,7 +158,7 @@ float4 frag(DS_OUT in){
     light_out +=
         calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
             diffuse_sample, specular_sample, dir_light, view_dir,
-            1, in.normal) * (1.0 - ShadowCalculation(shadowMap, in.fragPos, in.view_depth, in.normal, dir_light))
+            1, in.normal) * (1.0 - ShadowCalculation(prop.shadowMap, in.fragPos, in.view_depth, in.normal, dir_light))
     * (1.0 - terrain_shadowmapping(in.texCoord, c));
     // for (int i = 0; i < 8; i++) {
     //     Light light = gLights.u_point_lights[i];

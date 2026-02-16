@@ -27,7 +27,7 @@ void ImguiRenderer::init() {
             BlendFactor::ONE, BlendFactor::ONE_MINUS_SRC_ALPHA)};
     font_mat.create(DS::get_instance()->gui_shader, RenderRasterizerState{},
                     RenderDepthStencilState{}, blend_state);
-    font_mat->add_texture_unit(atlas);
+    font_mat->set_texture("u_texture", atlas);
 }
 
 Ref<Texture> ImguiRenderer::create_font_texture() {

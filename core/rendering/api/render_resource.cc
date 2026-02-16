@@ -12,29 +12,17 @@ void RenderResource::alloc_texture(TextureType type, u32 w, u32 h,
     this->type = RenderResourceType::TEXTURE;
     RenderEngine::get_instance()->get_device()->alloc_texture(
         this, type, w, h, format, property, data);
-    if (data) {
-        if (type == TextureType::TEXTURE_CUBEMAP) {
-            SPDLOG_WARN("Cubemap texture will not updload data at allocation.");
-            return;
-        }
-        RenderCommandDispatcher dp;
-        dp.update_texture(*this, format, 0, 0, w, h, (void *)data);
-    }
 }
 void RenderResource::alloc_vertex(u32 stride, u32 vertex_cnt,
                                   UpdateFrequence frequence, const void *data) {
     this->type = RenderResourceType::VERTEX;
     RenderEngine::get_instance()->get_device()->alloc_vertex(
         this, stride, vertex_cnt, frequence, data);
-    if (data) {
-        RenderCommandDispatcher dp;
-        dp.update_buffer(*this, 0, stride * vertex_cnt, (void *)data);
-    }
 }
 void RenderResource::alloc_shader(const std::string &path,
-                                  const std::string &code) {
+                                  const std::string &code, ShaderLayout *layout) {
     this->type = RenderResourceType::SHADER;
-    RenderEngine::get_instance()->compile_shader(this, path, code);
+    RenderEngine::get_instance()->compile_shader(this, path, code, layout);
 }
 
 void RenderResource::alloc_index(const std::vector<u8> &indices,

@@ -9,21 +9,12 @@
 #include "core/resource/default_storage.h"
 
 namespace Seed {
-class TextureState {
-    private:
-        Ref<Texture> texture;
 
-    public:
-        TextureState(Ref<Texture> texture) : texture(texture) {}
-        void bind_texture(Ref<Texture> texture) { this->texture = texture; }
-        Ref<Texture> get_texture() { return texture; }
-        ~TextureState() = default;
-};
 class RenderDrawDataBuilder;
 class Material : public Resource {
     protected:
         u16 id;
-        std::vector<TextureState> textures;
+        std::unordered_map<u32, Ref<Texture>> textures;
         RenderResource pipeline;
         RenderResource shadow_pipeline;
         Ref<Shader> shader;
@@ -33,9 +24,13 @@ class Material : public Resource {
 
     public:
         void set_texture_unit(u32 unit, Ref<Texture> texture);
-        void add_texture_unit(Ref<Texture> tex);
+        void set_texture(const std::string &name, Ref<Texture> texture);
         void remove_texture_unit(u32 unit);
-        TextureState *get_texture_unit(u32 unit);
+        void remove_texture(const std::string &name);
+
+        Ref<Texture> get_texture_unit(u32 unit);
+        Ref<Texture> get_texture(const std::string &name);
+
         u32 get_texture_count() { return textures.size(); }
 
         RenderRasterizerState get_rasterizer_state() { return raster_state; }
@@ -61,19 +56,24 @@ class Material : public Resource {
 };
 
 class BaseMaterial : public Material {
+    private:
+        inline static const char* name_map[] = {
+            "u_diffuse", "u_specular", "u_normal"
+        };
     public:
         enum TextureMapType : u8 { DIFFUSE = 0, SPECULAR, NORMAl, MAX };
+
         f32 shiness;
         BaseMaterial() : Material(DS::get_instance()->mesh_shader) {
-            for (i32 i = 0; i < TextureMapType::MAX; i++) {
-                this->add_texture_unit(DS::get_instance()->white_texture);
-            }
+            this->set_texture(name_map[DIFFUSE], DS::get_instance()->white_texture);
+            this->set_texture(name_map[SPECULAR], DS::get_instance()->white_texture);
+            this->set_texture(name_map[NORMAl], DS::get_instance()->white_texture);
             depth_state = {.depth_on = true};
             this->shadow_pipeline =
                 DS::get_instance()->shadow_map_default_pipeline;
         }
         void set_texture_map(TextureMapType type, Ref<Texture> tex) {
-            this->set_texture_unit(type, tex);
+            this->set_texture(name_map[type], tex);
         }
 };
 

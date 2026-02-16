@@ -49,7 +49,7 @@ class VulkanHelper {
             VK_FORMAT_R8G8B8_UNORM,       VK_FORMAT_R8G8B8A8_UNORM,
             VK_FORMAT_R16G16B16A16_UNORM, VK_FORMAT_X8_D24_UNORM_PACK32,
             VK_FORMAT_D24_UNORM_S8_UINT,  VK_FORMAT_D32_SFLOAT,
-            VK_FORMAT_D32_SFLOAT_S8_UINT};
+            VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_S8_UINT};
         inline static VkImageType image_type[] = {
             VK_IMAGE_TYPE_1D, VK_IMAGE_TYPE_2D, VK_IMAGE_TYPE_3D,
             VK_IMAGE_TYPE_2D, VK_IMAGE_TYPE_1D, VK_IMAGE_TYPE_2D,
@@ -71,7 +71,13 @@ class VulkanHelper {
 
         inline static VkDescriptorType desc_type[] = {
             VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_SAMPLER};
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER};
+
+        inline static VkPrimitiveTopology topology[] = {
+            VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
+            VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            VK_PRIMITIVE_TOPOLOGY_POINT_LIST, VK_PRIMITIVE_TOPOLOGY_PATCH_LIST};
 
     public:
         inline static VkPipelineRasterizationStateCreateInfo rasterizer(
@@ -95,12 +101,11 @@ class VulkanHelper {
             VkPipelineDepthStencilStateCreateInfo depth_stencil{};
             depth_stencil.sType =
                 VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-            depth_stencil.depthTestEnable = state.depth_on;
-            depth_stencil.stencilTestEnable = state.stencil_on;
+            depth_stencil.depthTestEnable = state.depth_on ? VK_TRUE : VK_FALSE;
+            depth_stencil.stencilTestEnable =
+                state.stencil_on ? VK_TRUE : VK_FALSE;
             depth_stencil.depthCompareOp =
                 compare_op[(u8)state.depth_compare_op];
-            depth_stencil.stencilTestEnable =
-                compare_op[(u8)state.stencil_compare_op];
             return depth_stencil;
         }
 
@@ -192,7 +197,7 @@ class VulkanHelper {
             _binding_desc.inputRate = layout->is_instance()
                                           ? VK_VERTEX_INPUT_RATE_INSTANCE
                                           : VK_VERTEX_INPUT_RATE_VERTEX;
-            _binding_desc.stride = _binding_desc.stride;
+            _binding_desc.stride = layout->get_stride();
             for (const VertexAttribute &desc : layout->get_attrs()) {
                 VkVertexInputAttributeDescription _attr_desc{};
                 _attr_desc.binding = binding;
@@ -251,6 +256,61 @@ class VulkanHelper {
         inline static VkDescriptorType descriptor_type(
             ShaderResourceType type) {
             return desc_type[(u8)type];
+        }
+
+        inline static VkPrimitiveTopology primitive(RenderPrimitiveType type) {
+            return topology[(u8)type];
+        }
+
+        inline static VkIndexType index_type(IndexType type) {
+            switch (type) {
+                case IndexType::UNSIGNED_BYTE:
+                    return VK_INDEX_TYPE_UINT8;
+                case IndexType::UNSIGNED_SHORT:
+                    return VK_INDEX_TYPE_UINT16;
+                case IndexType::UNSIGNED_INT:
+                default:
+                    return VK_INDEX_TYPE_UINT32;
+            }
+        }
+
+        inline static bool is_depth(PixelFormat format) {
+            switch (format) {
+                case PixelFormat::D24:
+                case PixelFormat::D32:
+                case PixelFormat::D24S8:
+                case PixelFormat::D32S8:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        inline static bool is_stencil(PixelFormat format) {
+            switch (format) {
+                case PixelFormat::S8:
+                case PixelFormat::D24S8:
+                case PixelFormat::D32S8:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        inline static VkImageAspectFlags aspect_flag(PixelFormat format) {
+            VkImageAspectFlags flag = 0;
+            bool depth = is_depth(format);
+            bool stencil = is_stencil(format);
+            if (!(stencil || depth)) {
+                flag = VK_IMAGE_ASPECT_COLOR_BIT;
+            }
+            if (depth) {
+                flag |= VK_IMAGE_ASPECT_DEPTH_BIT;
+            }
+            if (stencil) {
+                flag |= VK_IMAGE_ASPECT_STENCIL_BIT;
+            }
+            return flag;
         }
 };
 }  // namespace Seed

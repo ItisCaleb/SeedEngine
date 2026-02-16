@@ -66,6 +66,11 @@ vec3 operator*(mat3 a, vec3 b)
     return mul(b, a);
 }
 
+mat4 operator*(mat4 a, mat4 b)
+{
+    return mul(b, a);
+}
+
 
 vec3 calculate_light(vec3 diffuse, vec3 specular, vec3 diffuse_sample, vec3 specular_sample, vec3 light_dir, vec3 view_dir,
                      float d, vec3 n) {

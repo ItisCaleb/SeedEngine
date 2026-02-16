@@ -297,7 +297,7 @@ void RenderCommandDispatcher::update_depth_attachment(
     RenderUpdateData update_data;
     update_data.rc = render_target;
     update_data.attachment.face = face;
-    update_data.attachment.slot = -1;
+    update_data.attachment.is_depth = true;
     update_data.attachment.texture = tex;
     push_update_cmd(update_data, sort_key, 0);
 }

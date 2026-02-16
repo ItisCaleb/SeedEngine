@@ -11,6 +11,15 @@ struct VS_OUT{
     vec4 sv_position : SV_Position;
 }
 
+struct Property{
+    Sampler2D u_diffuse;
+    Sampler2D u_specular;
+    Sampler2D u_normal;
+    Sampler2D shadowMap;
+};
+
+ParameterBlock<Property> prop;
+
 [shader("vertex")]
 VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_VulkanInstanceID){
     VS_OUT out;
@@ -20,7 +29,7 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_
     // after view transformation, the depth is always negative
     // So we negate it
     out.view_depth = -(gMatrices.u_view * worldPos).z;
-    out.sv_position = mul(gMatrices.u_projection, gMatrices.u_view) * worldPos;
+    out.sv_position = gMatrices.u_projection * gMatrices.u_view * worldPos;
 
     mat3 TBN_to_world = mat3(1.0);
     if(length(aNormal) > 0.01){
@@ -49,18 +58,15 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_
 }
 
 
-Sampler2D u_diffuse;
-Sampler2D u_specular;
-Sampler2D u_normal;
-Sampler2D shadowMap;
+
 [shader("fragment")]
 float4 frag(VS_OUT in){
-    vec3 light_out = u_diffuse.Sample(in.texCoord).rgb * gLights.u_light_ambient;
-    vec3 normal = u_normal.Sample(in.texCoord).rgb;
+    vec3 light_out = prop.u_diffuse.Sample(in.texCoord).rgb * gLights.u_light_ambient;
+    vec3 normal = prop.u_normal.Sample(in.texCoord).rgb;
     normal = normalize(normal * 2.0 - 1.0);   
     vec3 view_dir = normalize(in.view_pos - in.fragPos);
-    vec3 diffuse_sample = u_diffuse.Sample(in.texCoord).xyz;
-    vec3 specular_sample = u_specular.Sample(in.texCoord).xyz;
+    vec3 diffuse_sample = prop.u_diffuse.Sample(in.texCoord).xyz;
+    vec3 specular_sample = prop.u_specular.Sample(in.texCoord).xyz;
     vec3 dir_light = -normalize(in.tangent_dir_light);
     // direction
     light_out +=
@@ -68,7 +74,7 @@ float4 frag(VS_OUT in){
                          diffuse_sample, specular_sample,
                                 dir_light, view_dir,
                                 1, normal) *
-                                (1.0 - ShadowCalculation(shadowMap, vec4(in.fragPos, 1.0), in.view_depth, normal, dir_light));
+                                (1.0 - ShadowCalculation(prop.shadowMap, vec4(in.fragPos, 1.0), in.view_depth, normal, dir_light));
 
     // for (int i = 0; i < 8; i++) {
     //     Light light = gLights.u_point_lights[i];

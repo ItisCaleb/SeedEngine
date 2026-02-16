@@ -9,7 +9,7 @@ constexpr const u32 HASH_BUFFER_SIZE = 256;
 class Hash {
     private:
         u32 size = 0;
-        u8 *buffer[HASH_BUFFER_SIZE];
+        u8 buffer[HASH_BUFFER_SIZE];
 
     public:
         Hash() = default;

@@ -5,6 +5,12 @@ struct VS_OUT{
     float4 sv_position : SV_Position;
 }
 
+struct Property{
+    Sampler2D u_billboard;
+};
+
+ParameterBlock<Property> prop;
+
 [shader("vertex")]
 VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
     VS_OUT output;
@@ -19,16 +25,13 @@ VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
 
     float3 worldPos = pos + right * aPos.x * scale.x + up * aPos.y * scale.y;
     output.uv = aTexCoord;
-    output.sv_position = mul(gMatrices.u_projection, gMatrices.u_view) * vec4(worldPos, 1.0);
+    output.sv_position = gMatrices.u_projection * gMatrices.u_view * vec4(worldPos, 1.0);
     return output;
 }
 
-
-Sampler2D u_billboard;
-
 [shader("fragment")]
 float4 frag(VS_OUT in) : SV_Target0{
-    float4 color = u_billboard.Sample(in.uv);
+    float4 color = prop.u_billboard.Sample(in.uv);
     if(color.a < 0.1)
         discard;
     return color;
