@@ -10,8 +10,8 @@ class ImguiRenderer : public Renderer {
     private:
         inline static ImguiRenderer *instance = nullptr;
         struct ImguiData {
-                RenderResource vertex;
-                RenderResource indices;
+                VertexHandle vertex;
+                IndexHandle indices;
         };
         Ref<Material> font_mat;
         ImguiData *get_imgui_data();

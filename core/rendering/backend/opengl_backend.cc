@@ -308,7 +308,7 @@ void RenderBackendGL::handle_alloc(AllocCommand &cmd) {
             }
             break;
         }
-        case RenderResourceType::BUFFER: {
+        case RenderResourceType::STORAGE_BUFFER: {
             HardwareBufferGL *ssbo = this->ssbos.get_or_null(rc.handle);
             EXPECT_NOT_NULL_RET(ssbo);
             glGenBuffers(1, &ssbo->handle);
@@ -501,7 +501,7 @@ void RenderBackendGL::handle_dealloc(AllocCommand &cmd) {
 }
 
 void RenderBackendGL::handle_update(RenderCommand &cmd) {
-    RenderUpdateData *update_data = static_cast<RenderUpdateData *>(cmd.data);
+    RenderStreamData *update_data = static_cast<RenderStreamData *>(cmd.data);
     if (!update_data->filled) {
         this->push_cmd(cmd);
         return;
@@ -605,7 +605,7 @@ void RenderBackendGL::handle_update(RenderCommand &cmd) {
             glBindFramebuffer(GL_FRAMEBUFFER, last_fbo);
             break;
         }
-        case RenderResourceType::BUFFER: {
+        case RenderResourceType::STORAGE_BUFFER: {
             HardwareBufferGL *buffer = this->ssbos.get_or_null(rc.handle);
             EXPECT_NOT_NULL_BREAK(buffer);
 
@@ -815,14 +815,14 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                 break;
             }
             case RenderStateData::OpType::BIND_RENDER_TARGET: {
-                if (op->render_target.type ==
+                if (op->render_target_handle.type ==
                     RenderResourceType::UNINITIALIZE) {
                     glBindFramebuffer(GL_FRAMEBUFFER, 0);
                     last_fbo = 0;
                     break;
                 }
                 HardwareRenderTargetGL *render_target =
-                    this->render_targets.get_or_null(op->render_target.handle);
+                    this->render_targets.get_or_null(op->render_target_handle.handle);
                 EXPECT_NOT_NULL_BREAK(render_target);
 
                 glBindFramebuffer(GL_FRAMEBUFFER, render_target->fbo);
@@ -834,23 +834,23 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                 }
                 break;
             }
-            case RenderStateData::OpType::BIND_BUFFERBASE: {
-                if (op->bufferbase.buffer.type == RenderResourceType::BUFFER) {
+            case RenderStateData::OpType::BIND_CONSTANT: {
+                if (op->constant.buffer.type == RenderResourceType::STORAGE_BUFFER) {
                     HardwareBufferGL *buffer =
-                        this->ssbos.get_or_null(op->bufferbase.buffer.handle);
+                        this->ssbos.get_or_null(op->constant.buffer.handle);
                     EXPECT_NOT_NULL_BREAK(buffer);
                     glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer->handle);
                     glBindBufferBase(GL_SHADER_STORAGE_BUFFER,
-                                     op->bufferbase.base, buffer->handle);
+                                     op->constant.base, buffer->handle);
                     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-                } else if (op->bufferbase.buffer.type ==
+                } else if (op->constant.buffer.type ==
                            RenderResourceType::CONSTANT) {
                     HardwareBufferGL *buffer =
-                        this->ubos.get_or_null(op->bufferbase.buffer.handle);
+                        this->ubos.get_or_null(op->constant.buffer.handle);
                     EXPECT_NOT_NULL_BREAK(buffer);
                     glBindBuffer(GL_UNIFORM_BUFFER, buffer->handle);
                     glBindBufferBase(GL_UNIFORM_BUFFER,
-                                     op->bufferbase.base, buffer->handle);
+                                     op->constant.base, buffer->handle);
                     glBindBuffer(GL_UNIFORM_BUFFER, 0);
                 }
 
@@ -886,12 +886,12 @@ void RenderBackendGL::handle_render(RenderCommand &cmd) {
         auto type = op->type;
         switch (type) {
             case RenderDrawData::OpType::BIND_VERTEX:
-                bind_buffer(op->vertex_rc);
+                bind_buffer(op->vertex_handle);
                 break;
             case RenderDrawData::OpType::BIND_INDEX: {
-                bind_buffer(op->index_rc);
+                bind_buffer(op->index_handle);
                 HardwareIndexGL *index =
-                    this->indices.get_or_null(op->index_rc.handle);
+                    this->indices.get_or_null(op->index_handle.handle);
                 switch (index->type) {
                     case IndexType::UNSIGNED_BYTE:
                         index_type = GL_UNSIGNED_BYTE;

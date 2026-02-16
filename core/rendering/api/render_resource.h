@@ -9,57 +9,126 @@
 #include "core/rendering/shader_layout.h"
 
 namespace Seed {
+
 enum class RenderResourceType : u8 {
     TEXTURE,
     VERTEX,
     INDEX,
     CONSTANT,
-    BUFFER,
+    STORAGE_BUFFER,
     SHADER,
     PIPELINE,
-    RENDER_TARGET,
-    UNINITIALIZE
+    RENDER_TARGET
 };
 
-struct RenderResource {
-        Handle handle = NULL_HANDLE;
-        RenderResourceType type = RenderResourceType::UNINITIALIZE;
+struct TextureTag;
+struct VertexTag;
+struct IndexTag;
+struct ConstantTag;
+struct SSBOTag;
+struct ShaderTag;
+struct PipelineTag;
+struct RenderTargetTag;
 
-        void alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
-                           const void *data, const SamplerProperty &property);
-        void alloc_vertex(u32 stride, u32 element_cnt,
+typedef TypedHandle<TextureTag> TextureHandle;
+typedef TypedHandle<VertexTag> VertexHandle;
+typedef TypedHandle<IndexTag> IndexHandle;
+typedef TypedHandle<ConstantTag> ConstantHandle;
+typedef TypedHandle<SSBOTag> SSBOHandle;
+typedef TypedHandle<ShaderTag> ShaderHandle;
+typedef TypedHandle<PipelineTag> PipelineHandle;
+typedef TypedHandle<RenderTargetTag> RenderTargetHandle;
+
+namespace RHI {
+
+[[nodiscard]]
+TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
+                            const void *data, const SamplerProperty &property);
+
+[[nodiscard]]
+VertexHandle alloc_vertex(u32 stride, u32 element_cnt,
                           UpdateFrequence frequence, const void *data);
-        void alloc_index(const std::vector<u8> &indices,
-                         UpdateFrequence frequence);
-        void alloc_index(const std::vector<u16> &indices,
-                         UpdateFrequence frequence);
-        void alloc_index(const std::vector<u32> &indices,
-                         UpdateFrequence frequence);
 
-        void alloc_shader(const std::string &path, const std::string &code, ShaderLayout *layout);
-        void alloc_constant(u32 size, void *data);
-        void alloc_pipeline(RenderResource shader,
-                            const RenderRasterizerState &rst_state,
-                            const RenderDepthStencilState &depth_state,
-                            const RenderBlendState &blend_state);
+[[nodiscard]]
+IndexHandle alloc_index(const std::vector<u8> &indices,
+                        UpdateFrequence frequence);
 
-        void alloc_render_target(bool depth_only);
-        void alloc_buffer(u32 size, void *data);
-        void dealloc();
-        bool inited();
+[[nodiscard]]
+IndexHandle alloc_index(const std::vector<u16> &indices,
+                        UpdateFrequence frequence);
 
-        Handle get_handle() {
-            /* retrieve the right 24 bits */
-            return this->handle & 0xffffff;
-        }
-        RenderResourceType get_type() {
-            return static_cast<RenderResourceType>(this->handle >> 24);
-        }
+[[nodiscard]]
+IndexHandle alloc_index(const std::vector<u32> &indices,
+                        UpdateFrequence frequence);
 
-        RenderResource() = default;
-        ~RenderResource() = default;
-};
+[[nodiscard]]
+ConstantHandle alloc_constant(u32 size, UpdateFrequence frequence, void *data);
 
+[[nodiscard]]
+SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
+                                void *data);
+
+[[nodiscard]]
+ShaderHandle alloc_shader(const std::string &path, const std::string &code,
+                          ShaderLayout *layout);
+
+[[nodiscard]]
+PipelineHandle alloc_pipeline(ShaderHandle shader,
+                              const RenderRasterizerState &rst_state,
+                              const RenderDepthStencilState &depth_state,
+                              const RenderBlendState &blend_state);
+
+[[nodiscard]]
+RenderTargetHandle alloc_render_target(bool depth_only);
+
+void *alloc_heap(u32 size);
+
+/* these commands will be execute at start of frame */
+void update(VertexHandle handle, u32 offset, u32 size, void *data);
+
+/* these commands will be execute at start of frame */
+void update(IndexHandle handle, u32 offset, u32 size, void *data);
+
+/* these commands will be execute at start of frame */
+void update(ConstantHandle handle, u32 offset, u32 size, void *data);
+
+/* these commands will be execute at start of frame */
+void update(SSBOHandle handle, u32 offset, u32 size, void *data);
+
+/* these commands will be execute at start of frame */
+void update(TextureHandle handle, PixelFormat format, u32 layer, u32 offx,
+            u32 offy, u32 w, u32 h, void *data);
+
+/* these commands will be execute at start of frame */
+void update_from_heap(VertexHandle handle, u32 offset, u32 size, void *data);
+
+/* these commands will be execute at start of frame */
+void update_from_heap(IndexHandle handle, u32 offset, u32 size, void *data);
+
+/* these commands will be execute at start of frame */
+void update_from_heap(ConstantHandle handle, u32 offset, u32 size, void *data);
+
+/* these commands will be execute at start of frame */
+void update_from_heap(SSBOHandle handle, u32 offset, u32 size, void *data);
+
+void bind_depth_attachment(RenderTargetHandle handle, TextureHandle texture,
+                           u32 face);
+void bind_color_attachment(RenderTargetHandle handle, u8 slot,
+                           TextureHandle texture, u32 face);
+
+void *map_buffer();
+void ummap_buffer();
+
+void dealloc(TextureHandle handle);
+void dealloc(VertexHandle handle);
+void dealloc(IndexHandle handle);
+void dealloc(ShaderHandle handle);
+void dealloc(ConstantHandle handle);
+void dealloc(PipelineHandle handle);
+void dealloc(SSBOHandle handle);
+void dealloc(RenderTargetHandle handle);
+
+};  // namespace RHI
 }  // namespace Seed
 
 #endif

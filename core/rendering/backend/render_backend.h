@@ -26,14 +26,11 @@ class RenderCommandQueue {
         }
 };
 
-
-
 enum class RenderBackendType { OPENGL, VULKAN };
 
 class RenderBackend {
     protected:
         RenderCommandQueue cmd_queue[2];
-        RenderResource current_pipeline;
         std::atomic<int> current_queue = 0;
         std::shared_mutex queue_lock;
 
@@ -41,36 +38,56 @@ class RenderBackend {
         RenderBackend() = default;
         ~RenderBackend() = default;
         virtual RenderBackendType get_type() = 0;
-        virtual void alloc_texture(RenderResource *rc, TextureType type, u32 w,
-                                   u32 h, PixelFormat format,
-                                   const SamplerProperty &property,
-                                   const void *data) = 0;
-        virtual void alloc_vertex(RenderResource *rc, u32 stride,
-                                  u32 element_cnt, UpdateFrequence frequence,
-                                  const void *data) = 0;
-        virtual void alloc_shader(RenderResource *rc,
-                                  const std::string &vertex_code,
-                                  const std::string &fragment_code,
-                                  const std::string &geometry_code,
-                                  const std::string &tess_ctrl_code,
-                                  const std::string &tess_eval_code) = 0;
-        virtual void setup_shader_layout(RenderResource *rc,
+        virtual TextureHandle alloc_texture(TextureType type, u32 w, u32 h,
+                                            PixelFormat format,
+                                            const SamplerProperty &property,
+                                            const void *data) = 0;
+        virtual VertexHandle alloc_vertex(u32 stride, u32 element_cnt,
+                                          UpdateFrequence frequence,
+                                          const void *data) = 0;
+        virtual IndexHandle alloc_indices(IndexType type, u32 element_cnt,
+                                          UpdateFrequence frequence,
+                                          const void *data) = 0;
+        virtual ConstantHandle alloc_constant(u32 size, const void *data,
+                                              UpdateFrequence frequence) = 0;
+        virtual SSBOHandle alloc_storage_buffer(u32 size, const void *data,
+                                                UpdateFrequence frequence) = 0;
+        virtual ShaderHandle alloc_shader(
+            const std::string &vertex_code, const std::string &fragment_code,
+            const std::string &geometry_code, const std::string &tess_ctrl_code,
+            const std::string &tess_eval_code) = 0;
+        virtual void setup_shader_layout(ShaderHandle handle,
                                          const ShaderLayout &layout) = 0;
-        virtual void alloc_indices(RenderResource *rc, IndexType type,
-                                   u32 element_cnt, UpdateFrequence frequence,
-                                   const void *data) = 0;
-        virtual void alloc_constant(RenderResource *rc, u32 size,
-                                    const void *data) = 0;
-        virtual void alloc_pipeline(RenderResource *rc, RenderResource shader,
-                                    const RenderRasterizerState &rst_state,
-                                    const RenderDepthStencilState &depth_state,
-                                    const RenderBlendState &blend_state) = 0;
-        virtual void alloc_render_target(RenderResource *rc,
-                                         bool depth_only) = 0;
 
-        virtual void alloc_buffer(RenderResource *rc, u32 size,
-                                  const void *data) = 0;
-        virtual void dealloc(RenderResource *r) = 0;
+        virtual PipelineHandle alloc_pipeline(
+            ShaderHandle shader, const RenderRasterizerState &rst_state,
+            const RenderDepthStencilState &depth_state,
+            const RenderBlendState &blend_state) = 0;
+        virtual RenderTargetHandle alloc_render_target(bool depth_only) = 0;
+        virtual void update(VertexHandle handle, u32 offset, u32 size,
+                            void *data) = 0;
+        virtual void update(IndexHandle handle, u32 offset, u32 size,
+                            void *data) = 0;
+        virtual void update(ConstantHandle handle, u32 offset, u32 size,
+                            void *data) = 0;
+        virtual void update(SSBOHandle handle, u32 offset, u32 size,
+                            void *data) = 0;
+        virtual void update(TextureHandle handle, u32 layer, u32 offx, u32 offy,
+                            u32 w, u32 h, void *data) = 0;
+
+        virtual void bind_depth_attachment(RenderTargetHandle handle,
+                                           TextureHandle texture, u32 face) = 0;
+        virtual void bind_color_attachment(RenderTargetHandle handle, u8 slot,
+                                           TextureHandle texture, u32 face) = 0;
+        virtual void dealloc(TextureHandle handle) = 0;
+        virtual void dealloc(VertexHandle handle) = 0;
+        virtual void dealloc(IndexHandle handle) = 0;
+        virtual void dealloc(ShaderHandle handle) = 0;
+        virtual void dealloc(ConstantHandle handle) = 0;
+        virtual void dealloc(PipelineHandle handle) = 0;
+        virtual void dealloc(SSBOHandle handle) = 0;
+        virtual void dealloc(RenderTargetHandle handle) = 0;
+
         virtual void process_commands(std::deque<RenderCommand> &cmd_queue) = 0;
         virtual void swap_buffer() = 0;
 

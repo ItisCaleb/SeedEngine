@@ -4,36 +4,35 @@
 namespace Seed {
 
 void VertexData::_update(u32 size, void *data) {
-    RenderCommandDispatcher dp;
-    dp.update_buffer(this->vertices, 0, size, data);
+    RHI::update(handle, 0, size, data);
 }
 
-VertexData::~VertexData() { this->vertices.dealloc(); }
+VertexData::~VertexData() { RHI::dealloc(handle); }
 
 IndexData::IndexData(const std::vector<u8> &indices,
                      UpdateFrequence frequence) {
-    this->indices.alloc_index(indices, frequence);
+    this->handle = RHI::alloc_index(indices, frequence);
     this->type = IndexType::UNSIGNED_BYTE;
     this->size = indices.size();
     this->frequence = frequence;
 }
 IndexData::IndexData(const std::vector<u16> &indices,
                      UpdateFrequence frequence) {
-    this->indices.alloc_index(indices, frequence);
+    this->handle = RHI::alloc_index(indices, frequence);
     this->type = IndexType::UNSIGNED_SHORT;
     this->size = indices.size();
     this->frequence = frequence;
 }
 IndexData::IndexData(const std::vector<u32> &indices,
                      UpdateFrequence frequence) {
-    this->indices.alloc_index(indices, frequence);
+    this->handle = RHI::alloc_index(indices, frequence);
     this->type = IndexType::UNSIGNED_INT;
     this->size = indices.size();
     this->frequence = frequence;
 }
 
 void IndexData::update(const std::vector<u8> &indices) {
-    if (frequence == UpdateFrequence::IMMUTABLE) {
+    if (frequence == UpdateFrequence::STATIC) {
         SPDLOG_ERROR("Cannot update, index is immutable");
         return;
     }
@@ -41,13 +40,13 @@ void IndexData::update(const std::vector<u8> &indices) {
         SPDLOG_ERROR("Index Type doens't match. Provided: u8");
         return;
     }
-    RenderCommandDispatcher dp;
-    dp.update_buffer(this->indices, 0, sizeof(u8) * indices.size(),
-                     (void *)indices.data());
+    RHI::update(this->handle, 0, sizeof(u8) * indices.size(),
+                (void *)indices.data());
+
     this->size = indices.size();
 }
 void IndexData::update(const std::vector<u16> &indices) {
-    if (frequence == UpdateFrequence::IMMUTABLE) {
+    if (frequence == UpdateFrequence::STATIC) {
         SPDLOG_ERROR("Cannot update, index is immutable");
         return;
     }
@@ -55,13 +54,13 @@ void IndexData::update(const std::vector<u16> &indices) {
         SPDLOG_ERROR("Index Type doens't match. Provided: u16");
         return;
     }
-    RenderCommandDispatcher dp;
-    dp.update_buffer(this->indices, 0, sizeof(u16) * indices.size(),
-                     (void *)indices.data());
+    RHI::update(this->handle, 0, sizeof(u16) * indices.size(),
+                (void *)indices.data());
+
     this->size = indices.size();
 }
 void IndexData::update(const std::vector<u32> &indices) {
-    if (frequence == UpdateFrequence::IMMUTABLE) {
+    if (frequence == UpdateFrequence::STATIC) {
         SPDLOG_ERROR("Cannot update, index is immutable");
         return;
     }
@@ -69,12 +68,11 @@ void IndexData::update(const std::vector<u32> &indices) {
         SPDLOG_ERROR("Index Type doens't match. Provided: u32");
         return;
     }
-    RenderCommandDispatcher dp;
-    dp.update_buffer(this->indices, 0, sizeof(u32) * indices.size(),
-                     (void *)indices.data());
+    RHI::update(this->handle, 0, sizeof(u32) * indices.size(),
+                (void *)indices.data());
     this->size = indices.size();
 }
 
-IndexData::~IndexData() { this->indices.dealloc(); }
+IndexData::~IndexData() { RHI::dealloc(this->handle); }
 
 }  // namespace Seed

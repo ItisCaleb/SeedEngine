@@ -23,15 +23,15 @@ DefaultStorage::DefaultStorage() {
     billboard_shader = loader->load<Shader>("assets/shader/billboard.slang");
     gui_shader = loader->load<Shader>("assets/shader/imgui.slang");
 
-    shadow_map_default_pipeline.alloc_pipeline(
-        shadow_default_shader->get_render_resource(),
-        RenderRasterizerState{.cull_mode = Cullmode::FRONT},
-        RenderDepthStencilState{.depth_on = true}, {});
-    shadow_map_terrain_pipeline.alloc_pipeline(
-        shadow_terrain_shader->get_render_resource(),
-        RenderRasterizerState{.cull_mode = Cullmode::FRONT,
-                              .patch_control_points = 4},
-        RenderDepthStencilState{.depth_on = true}, {});
+    shadow_map_default_pipeline =
+        RHI::alloc_pipeline(shadow_default_shader->get_handle(),
+                            RenderRasterizerState{.cull_mode = Cullmode::FRONT},
+                            RenderDepthStencilState{.depth_on = true}, {});
+    shadow_map_terrain_pipeline =
+        RHI::alloc_pipeline(shadow_terrain_shader->get_handle(),
+                            RenderRasterizerState{.cull_mode = Cullmode::FRONT,
+                                                  .patch_control_points = 4},
+                            RenderDepthStencilState{.depth_on = true}, {});
 
     mesh_desc.add_type_attr<Vec3>(0);
     mesh_desc.add_type_attr<Vec3>(1);

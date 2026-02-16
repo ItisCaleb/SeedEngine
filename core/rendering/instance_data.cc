@@ -89,7 +89,8 @@ InstanceDataPool::Block InstanceDataPool::query(Handle handle) {
 
 InstanceDataPool::InstanceDataPool(u32 data_size, u32 size) {
     this->max_order = log2(roundup_to_pow2(size)) + 1;
-    this->ssbo_rc.alloc_buffer((1 << max_order) * data_size, nullptr);
+    this->ssbo_handle = RHI::alloc_storage_buffer(
+        (1 << max_order) * data_size, UpdateFrequence::PERFRAME, nullptr);
     this->free_zones.resize(max_order);
     this->free_zones[this->max_order - 1].push_back(
         Block{0, 1u << (this->max_order - 1)});
@@ -124,17 +125,15 @@ void TransformInstanceData::upload() {
     }
     /* upload */
     InstanceDataPool::Block block = pool->query(instance_handle);
-    RenderCommandDispatcher dp;
-    RenderUpdateData *upd =
-        dp.map_buffer(pool->get_render_buffer(), sizeof(Mat4) * block.idx,
-                      sizeof(Mat4) * this->transforms.size());
-    Mat4 *mats = (Mat4 *)upd->get_buffer();
+    Mat4 *mats =
+        (Mat4 *)RHI::alloc_heap(sizeof(Mat4) * this->transforms.size());
     u32 i = 0;
     for (Ref<Transform> transform : this->transforms) {
         mats[i] = transform->get_model_matrix();
         i++;
     }
-    upd->set_filled();
+    RHI::update_from_heap(pool->get_render_buffer(), sizeof(Mat4) * block.idx,
+                          sizeof(Mat4) * this->transforms.size(), mats);
 }
 
 void TransformInstanceData::frustum_culling(const Frustum &frustum,

@@ -15,8 +15,8 @@ class Material : public Resource {
     protected:
         u16 id;
         std::unordered_map<u32, Ref<Texture>> textures;
-        RenderResource pipeline;
-        RenderResource shadow_pipeline;
+        PipelineHandle pipeline = NULL_HANDLE;
+        PipelineHandle shadow_pipeline = NULL_HANDLE;
         Ref<Shader> shader;
         RenderRasterizerState raster_state;
         RenderDepthStencilState depth_state;
@@ -37,8 +37,8 @@ class Material : public Resource {
         RenderDepthStencilState get_depth_state() { return depth_state; }
         RenderBlendState get_blend_state() { return blend_state; }
 
-        RenderResource get_pipeline();
-        RenderResource get_shadow_pipeline() { return shadow_pipeline; }
+        PipelineHandle get_pipeline();
+        PipelineHandle get_shadow_pipeline() { return shadow_pipeline; }
         u16 get_id() { return id; }
         virtual void bind_states(RenderDrawDataBuilder &builder);
         inline static u16 last_id = 0;

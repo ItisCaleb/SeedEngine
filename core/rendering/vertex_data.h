@@ -10,23 +10,23 @@ namespace Seed {
 class VertexData : public RefCounted {
     private:
         u32 count = 0;
-        RenderResource vertices;
+        VertexHandle handle;
         VertexLayout *layout = nullptr;
         UpdateFrequence frequence;
 
     public:
         VertexData(VertexLayout *layout,
-                   UpdateFrequence frequence = UpdateFrequence::IMMUTABLE) {
+                   UpdateFrequence frequence = UpdateFrequence::STATIC) {
             if (!layout) throw std::runtime_error("Layout is null.");
             this->layout = layout;
             this->frequence = frequence;
-            this->vertices.alloc_vertex(layout->get_stride(), 0, frequence,
-                                        nullptr);
+            handle =
+                RHI::alloc_vertex(layout->get_stride(), 0, frequence, nullptr);
         }
 
         template <typename T>
         VertexData(VertexLayout *layout, u32 count, const T *data,
-                   UpdateFrequence frequence = UpdateFrequence::IMMUTABLE) {
+                   UpdateFrequence frequence = UpdateFrequence::STATIC) {
             if (!layout) throw std::runtime_error("Layout is null.");
             if (layout->get_stride() != sizeof(T)) {
                 SPDLOG_ERROR(
@@ -38,17 +38,17 @@ class VertexData : public RefCounted {
             this->layout = layout;
             this->count = count;
             this->frequence = frequence;
-            this->vertices.alloc_vertex(layout->get_stride(), count, frequence,
-                                        (void *)data);
+            this->handle = RHI::alloc_vertex(layout->get_stride(), count,
+                                             frequence, (void *)data);
         }
 
         template <typename T>
         VertexData(VertexLayout *layout, const std::vector<T> &data,
-                   UpdateFrequence frequence = UpdateFrequence::IMMUTABLE)
+                   UpdateFrequence frequence = UpdateFrequence::STATIC)
             : VertexData(layout, data.size(), data.data(), frequence) {}
         ~VertexData();
 
-        RenderResource get_resource() { return this->vertices; }
+        VertexHandle get_handle() { return this->handle; }
         VertexLayout *get_layout() { return this->layout; }
 
         u32 get_count() { return count; }
@@ -57,7 +57,7 @@ class VertexData : public RefCounted {
 
         template <typename T>
         void update(u32 count, const T *data) {
-            if (frequence == UpdateFrequence::IMMUTABLE) {
+            if (frequence == UpdateFrequence::STATIC) {
                 SPDLOG_ERROR("Cannot update, vertex is immutable");
                 return;
             }
@@ -95,12 +95,12 @@ class IndexData : public RefCounted {
     private:
         IndexType type = IndexType::UNSIGNED_INT;
         u32 size = 0;
-        RenderResource indices;
+        IndexHandle handle;
         UpdateFrequence frequence;
 
     public:
         IndexType get_type() { return type; }
-        RenderResource get_resource() { return this->indices; }
+        IndexHandle get_handle() { return this->handle; }
 
         IndexData(const std::vector<u32> &indices, UpdateFrequence frequence);
         IndexData(const std::vector<u16> &indices, UpdateFrequence frequence);

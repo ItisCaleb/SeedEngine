@@ -76,8 +76,9 @@ class ShaderProxy {
 
     public:
         ShaderProxy(const std::vector<std::string> &include_path);
-        void compile_shader(RenderResource *rc, const std::string &path,
-                            const std::string &shader, ShaderLayout *layout);
+        ShaderHandle compile_shader(const std::string &path,
+                                    const std::string &shader,
+                                    ShaderLayout *layout);
         ~ShaderProxy();
 };
 }  // namespace Seed

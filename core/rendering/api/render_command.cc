@@ -6,20 +6,20 @@ namespace Seed {
 
 #define RD RenderEngine::get_instance()->get_device()
 
-void RenderDrawDataBuilder::bind_vertex(RenderResource rc) {
+void RenderDrawDataBuilder::bind_vertex(VertexHandle handle) {
     RenderDrawData::Operation *op =
         alloc_operation(RenderDrawData::OpType::BIND_VERTEX);
-    op->vertex_rc = rc;
+    op->vertex_handle = handle;
 };
-void RenderDrawDataBuilder::bind_index(RenderResource rc) {
+void RenderDrawDataBuilder::bind_index(IndexHandle handle) {
     RenderDrawData::Operation *op =
         alloc_operation(RenderDrawData::OpType::BIND_INDEX);
-    op->index_rc = rc;
+    op->index_handle = handle;
 };
 
 void RenderDrawDataBuilder::bind_vertex_data(Ref<VertexData> data, u32 offset) {
     EXPECT_NOT_NULL_RET(data.ptr());
-    bind_vertex(data->get_resource());
+    bind_vertex(data->get_handle());
     RenderDrawData *draw_data = get_data();
     draw_data->vertex_cnt = data->get_count();
     draw_data->vertex_offset = offset;
@@ -28,7 +28,7 @@ void RenderDrawDataBuilder::bind_vertex_data(Ref<VertexData> data, u32 offset) {
 
 void RenderDrawDataBuilder::bind_index_data(Ref<IndexData> data, u32 offset) {
     EXPECT_NOT_NULL_RET(data.ptr());
-    bind_index(data->get_resource());
+    bind_index(data->get_handle());
     RenderDrawData *draw_data = get_data();
     draw_data->vertex_cnt = data->get_size();
     draw_data->index_offset = offset;
@@ -41,10 +41,10 @@ void RenderDrawDataBuilder::push_constant(u32 size, void *data) {
     op->constant.size = size;
 }
 
-void RenderDrawDataBuilder::bind_texture(u32 unit, RenderResource rc) {
+void RenderDrawDataBuilder::bind_texture(u32 unit, TextureHandle handle) {
     RenderDrawData::Operation *op =
         alloc_operation(RenderDrawData::OpType::BIND_TEXTURE);
-    op->texture.rc = rc;
+    op->texture.texture_handle = handle;
     op->texture.unit = unit;
 };
 void RenderDrawDataBuilder::bind_description(VertexLayout *desc) {
@@ -82,16 +82,16 @@ void RenderDrawDataBuilder::set_instance(u32 instance_cnt,
     data->instance_offset = instance_offset;
 }
 
-void RenderStateDataBuilder::bind_render_target(RenderResource target) {
+void RenderStateDataBuilder::bind_render_target(RenderTargetHandle handle) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::BIND_RENDER_TARGET);
-    op->render_target = target;
+    op->render_target_handle = handle;
 }
 
 void RenderStateDataBuilder::bind_window() {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::BIND_RENDER_TARGET);
-    op->render_target = {};
+    op->render_target_handle = NULL_HANDLE;
 }
 
 void RenderStateDataBuilder::set_viewport(Viewport *viewport, bool flip_y) {
@@ -138,16 +138,18 @@ void RenderStateDataBuilder::clear(StateClearFlag flag) {
     op->clear_flag |= flag;
 }
 
-void RenderStateDataBuilder::bind_bufferbase(RenderResource buffer, u32 base) {
-    if (buffer.type != RenderResourceType::BUFFER &&
-        buffer.type != RenderResourceType::CONSTANT) {
-        SPDLOG_ERROR("Can't bind a buffer which type isn't 'Buffer'.");
-        return;
-    }
+void RenderStateDataBuilder::bind_constant(ConstantHandle handle, u32 base) {
     RenderStateData::Operation *op =
-        alloc_operation(RenderStateData::OpType::BIND_BUFFERBASE);
-    op->bufferbase.buffer = buffer;
-    op->bufferbase.base = base;
+        alloc_operation(RenderStateData::OpType::BIND_CONSTANT);
+    op->constant.handle = handle;
+    op->constant.base = base;
+}
+
+void RenderStateDataBuilder::bind_storage_buffer(SSBOHandle handle, u32 base) {
+    RenderStateData::Operation *op =
+        alloc_operation(RenderStateData::OpType::BIND_STORAGE_BUFFER);
+    op->ssbo.handle = handle;
+    op->ssbo.base = base;
 }
 
 void RenderCommandDispatcher::begin_scope(const std::string &scope,
@@ -165,7 +167,7 @@ void RenderCommandDispatcher::end_scope(u32 sort_key) {
     RD->push_cmd(cmd);
 }
 
-void *RenderCommandDispatcher::push_update_cmd(RenderUpdateData &update_data,
+void *RenderCommandDispatcher::push_update_cmd(RenderStreamData &update_data,
                                                u32 sort_key, u64 size,
                                                void *data = nullptr) {
     RenderCommand cmd;
@@ -174,132 +176,47 @@ void *RenderCommandDispatcher::push_update_cmd(RenderUpdateData &update_data,
 
     /* since updata data may not be filled immediately */
     /* we use malloc to ensure it will not be erased at end of frame */
-    cmd.data = malloc(sizeof(RenderUpdateData) + size);
-    RenderUpdateData *upd = (RenderUpdateData *)cmd.data;
+    cmd.data = malloc(sizeof(RenderStreamData) + size);
+    RenderStreamData *upd = (RenderStreamData *)cmd.data;
     *upd = update_data;
-    if (size > 0) {
-        if (data) {
-            memcpy(upd->get_buffer(), data, size);
-            upd->filled = true;
-        } else {
-            upd->filled = false;
-        }
-    } else {
-        upd->filled = true;
-    }
+    if (size > 0 && data) memcpy(upd->get_buffer(), data, size);
+
     RD->push_cmd(cmd);
 
     return cmd.data;
 }
 
-void RenderCommandDispatcher::update_buffer(const RenderResource &buffer,
-                                            u32 offset, u32 size, void *data,
-                                            u32 sort_key) {
-    if (buffer.type != RenderResourceType::VERTEX &&
-        buffer.type != RenderResourceType::CONSTANT &&
-        buffer.type != RenderResourceType::INDEX &&
-        buffer.type != RenderResourceType::BUFFER)
-        return;
-    if (size == 0) return;
-    RenderUpdateData update_data;
-    update_data.rc = buffer;
-    update_data.buffer.size = size;
-    update_data.buffer.offset = offset;
+void RenderCommandDispatcher::push_buffer(VertexHandle handle, u32 size,
+                                            void *data, u32 sort_key) {
+    RenderStreamData update_data;
+    update_data.type = RenderResourceType::VERTEX;
+    update_data.handle = handle;
+    update_data.size = size;
     push_update_cmd(update_data, sort_key, size, data);
 }
-
-RenderUpdateData *RenderCommandDispatcher::map_buffer(
-    const RenderResource &buffer, u32 offset, u32 size, u32 sort_key) {
-    if (buffer.type != RenderResourceType::VERTEX &&
-        buffer.type != RenderResourceType::CONSTANT &&
-        buffer.type != RenderResourceType::INDEX &&
-        buffer.type != RenderResourceType::BUFFER)
-        return nullptr;
-    if (size == 0) return nullptr;
-
-    RenderUpdateData update_data;
-    update_data.rc = buffer;
-    update_data.buffer.size = size;
-    update_data.buffer.offset = offset;
-    return (RenderUpdateData *)push_update_cmd(update_data, sort_key, size);
+void RenderCommandDispatcher::push_buffer(IndexHandle handle, u32 size,
+                                            void *data, u32 sort_key) {
+    RenderStreamData update_data;
+    update_data.type = RenderResourceType::INDEX;
+    update_data.handle = handle;
+    update_data.size = size;
+    push_update_cmd(update_data, sort_key, size, data);
 }
-
-void RenderCommandDispatcher::update_texture(const RenderResource &texture,
-                                             PixelFormat format, u32 x_off,
-                                             u32 y_off, u32 w, u32 h,
-                                             void *data, u32 sort_key) {
-    if (texture.type != RenderResourceType::TEXTURE) return;
-    if (w == 0 || h == 0) return;
-    RenderUpdateData update_data;
-    update_data.rc = texture;
-    update_data.texture.x_off = x_off;
-    update_data.texture.y_off = y_off;
-    update_data.texture.w = w;
-    update_data.texture.h = h;
-    push_update_cmd(update_data, sort_key,
-                    w * h * get_pixel_format_size(format), data);
+void RenderCommandDispatcher::push_buffer(ConstantHandle handle, u32 size,
+                                            void *data, u32 sort_key) {
+    RenderStreamData update_data;
+    update_data.type = RenderResourceType::CONSTANT;
+    update_data.handle = handle;
+    update_data.size = size;
+    push_update_cmd(update_data, sort_key, size, data);
 }
-
-RenderUpdateData *RenderCommandDispatcher::map_texture(
-    const RenderResource &texture, PixelFormat format, u32 x_off, u32 y_off,
-    u32 w, u32 h, u32 sort_key) {
-    if (texture.type != RenderResourceType::TEXTURE) return nullptr;
-    if (w == 0 || h == 0) return nullptr;
-
-    RenderUpdateData update_data;
-    update_data.rc = texture;
-    update_data.texture.x_off = x_off;
-    update_data.texture.y_off = y_off;
-    update_data.texture.w = w;
-    update_data.texture.h = h;
-    return (RenderUpdateData *)push_update_cmd(
-        update_data, sort_key, w * h * get_pixel_format_size(format));
-}
-
-void RenderCommandDispatcher::update_cubemap(const RenderResource &texture,
-                                             u8 face, u16 x_off, u16 y_off,
-                                             u16 w, u16 h, void *data,
-                                             u32 sort_key) {
-    if (texture.type != RenderResourceType::TEXTURE) return;
-    if (face >= 6) {
-        SPDLOG_ERROR("Face is invalid.");
-        return;
-    }
-    if (w == 0 || h == 0) return;
-
-    RenderUpdateData update_data;
-    update_data.rc = texture;
-    update_data.texture.x_off = x_off;
-    update_data.texture.y_off = y_off;
-    update_data.texture.w = w;
-    update_data.texture.h = h;
-    update_data.texture.face = face;
-    push_update_cmd(update_data, sort_key, w * h * 4, data);
-}
-
-void RenderCommandDispatcher::update_color_attachment(
-    const RenderResource &render_target, i32 slot, RenderResource tex, u32 face,
-    u32 sort_key) {
-    if (slot < 0) {
-        SPDLOG_ERROR("Can't update attachment with slot smaller than 0");
-        return;
-    }
-    RenderUpdateData update_data;
-    update_data.rc = render_target;
-    update_data.attachment.face = face;
-    update_data.attachment.slot = slot;
-    update_data.attachment.texture = tex;
-    push_update_cmd(update_data, sort_key, 0);
-}
-void RenderCommandDispatcher::update_depth_attachment(
-    const RenderResource &render_target, RenderResource tex, u32 face,
-    u32 sort_key) {
-    RenderUpdateData update_data;
-    update_data.rc = render_target;
-    update_data.attachment.face = face;
-    update_data.attachment.is_depth = true;
-    update_data.attachment.texture = tex;
-    push_update_cmd(update_data, sort_key, 0);
+void RenderCommandDispatcher::push_buffer(SSBOHandle handle, u32 size,
+                                            void *data, u32 sort_key) {
+    RenderStreamData update_data;
+    update_data.type = RenderResourceType::STORAGE_BUFFER;
+    update_data.handle = handle;
+    update_data.size = size;
+    push_update_cmd(update_data, sort_key, size, data);
 }
 
 RenderDrawDataBuilder RenderCommandDispatcher::generate_render_data(
@@ -321,7 +238,7 @@ void RenderCommandDispatcher::set_states(RenderStateDataBuilder &builder,
 
 void RenderCommandDispatcher::render(RenderDrawDataBuilder &builder,
                                      RenderPrimitiveType type,
-                                     RenderResource pipeline, u32 sort_key) {
+                                     PipelineHandle pipeline, u32 sort_key) {
     RenderCommand cmd;
     cmd.sort_key = sort_key;
     cmd.type = RenderCommandType::RENDER;

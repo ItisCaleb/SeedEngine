@@ -142,6 +142,12 @@ struct RenderBlendState {
         };
 };
 
-enum class UpdateFrequence : u8 { IMMUTABLE, PERFRAME, PERDRAW };
+enum class UpdateFrequence : u8 { 
+    /* Update occasionally or never*/
+    STATIC, 
+    /* Update per frame*/
+    PERFRAME, 
+    /* Update per drawcall*/
+    PERDRAW };
 
 #endif

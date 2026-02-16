@@ -43,6 +43,14 @@ class HandleOwner {
         }
 };
 
+template<typename T>
+struct TypedHandle{
+    Handle handle;
+    constexpr TypedHandle() = default;
+    constexpr TypedHandle(Handle handle):handle(handle) {}
+    constexpr operator Handle() const { return handle;}
+};
+
 }  // namespace Seed
 
 #endif

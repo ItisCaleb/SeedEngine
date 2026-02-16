@@ -19,7 +19,7 @@ class InstanceDataPool {
         };
 
     private:
-        RenderResource ssbo_rc;
+        SSBOHandle ssbo_handle;
         std::vector<std::list<Block>> free_zones;
         HandleOwner<Block> used_blocks;
         u32 max_order;
@@ -30,7 +30,7 @@ class InstanceDataPool {
         Handle alloc(u32 size);
         void free(Handle handle);
         Block query(Handle handle);
-        RenderResource get_render_buffer() { return ssbo_rc; }
+        SSBOHandle get_render_buffer() { return ssbo_handle; }
         InstanceDataPool(u32 data_size, u32 size);
         ~InstanceDataPool();
 };

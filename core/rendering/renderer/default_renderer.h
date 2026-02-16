@@ -33,7 +33,6 @@ class DefaultRenderer : public Renderer {
 
         Ref<Material> debug_mat;
         Ref<VertexData> sky_vert;
-        RenderResource terrain_m;
         Ref<VertexData> debug_line;
         Ref<VertexData> debug_triangle;
         Ref<IndexData> debug_triangle_indices;
@@ -41,8 +40,8 @@ class DefaultRenderer : public Renderer {
         /* Lighting */
         ShadowMap shadow_map;
         Ref<RenderTarget> shadow_map_rt;
-        RenderResource u_lights;
-        RenderResource u_csm;
+        ConstantHandle u_lights;
+        ConstantHandle u_csm;
         Handle shadow_map_dir_handle[CSM_SPLITS];
         std::vector<ShadowMeshInstance> shadow_meshes;
 

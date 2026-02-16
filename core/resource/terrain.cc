@@ -48,17 +48,14 @@ void TerrainInstanceData::upload() {
     }
     /* upload */
     InstanceDataPool::Block block = pool->query(instance_handle);
-    RenderCommandDispatcher dp;
-    RenderUpdateData *upd =
-        dp.map_buffer(pool->get_render_buffer(), sizeof(Vec4) * block.idx,
-                      sizeof(Vec4) * this->instances.size());
-    Vec4 *vecs = (Vec4 *)upd->get_buffer();
+    Vec4 *vecs = (Vec4 *)RHI::alloc_heap(sizeof(Vec4) * this->instances.size());
     u32 i = 0;
     for (TerrainInstance &instance : this->instances) {
         memcpy(&vecs[i], &instance, sizeof(Vec4));
         i++;
     }
-    upd->set_filled();
+    RHI::update_from_heap(pool->get_render_buffer(), sizeof(Vec4) * block.idx,
+                          sizeof(Vec4) * this->instances.size(), vecs);
 }
 void TerrainInstanceData::frustum_culling(const Frustum &frustum,
                                           const AABB &bounding_box,

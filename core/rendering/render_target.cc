@@ -3,39 +3,34 @@
 
 namespace Seed {
 RenderTarget::RenderTarget(const Viewport &vp, bool depth_only) : vp(vp) {
-    this->rc.alloc_render_target(depth_only);
+    handle = RHI::alloc_render_target(depth_only);
 }
 
 void RenderTarget::bind_depth(AttachmentSurface &surface) {
     this->depth_surface = surface;
-    RenderCommandDispatcher dp;
-    dp.update_depth_attachment(this->rc, surface.texture->get_resource(),
+    RHI::bind_depth_attachment(handle, surface.texture->get_handle(),
                                surface.face);
 }
 
 void RenderTarget::bind_depth(Ref<Texture> tex, u8 face) {
     this->depth_surface = AttachmentSurface{tex, face};
-    RenderCommandDispatcher dp;
-    dp.update_depth_attachment(this->rc, tex->get_resource(), face);
+    RHI::bind_depth_attachment(handle, tex->get_handle(), face);
 }
 
-RenderTarget::~RenderTarget() { this->rc.dealloc(); }
+RenderTarget::~RenderTarget() { RHI::dealloc(handle); }
 
-void MultiRenderTarget::bind_color(u32 slot, AttachmentSurface &surface) {
+void MultiRenderTarget::bind_color(u8 slot, AttachmentSurface &surface) {
     EXPECT_INDEX_INBOUND_THROW(slot, 8);
     this->color_surface[slot] = surface;
-    RenderCommandDispatcher dp;
-
-    dp.update_color_attachment(this->rc, 0, surface.texture->get_resource(),
+    RHI::bind_color_attachment(handle, slot, surface.texture->get_handle(),
                                surface.face);
 }
 
-void MultiRenderTarget::bind_color(u32 slot, Ref<Texture> tex, u8 face) {
+void MultiRenderTarget::bind_color(u8 slot, Ref<Texture> tex, u32 face) {
     EXPECT_INDEX_INBOUND_THROW(slot, 8);
     this->color_surface[slot] = AttachmentSurface{tex, face};
-    RenderCommandDispatcher dp;
-    dp.update_color_attachment(this->rc, 0, tex->get_resource(), face);
+    RHI::bind_color_attachment(handle, slot, tex->get_handle(), face);
 }
 
-WindowRenderTarget::WindowRenderTarget(Window *window) : wvp(window) {}
+WindowRenderTarget::WindowRenderTarget(Window *window) : wvp(window) { this->handle = NULL_HANDLE;}
 }  // namespace Seed

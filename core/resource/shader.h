@@ -8,15 +8,15 @@
 namespace Seed {
 class Shader : public Resource {
     private:
-        RenderResource shader;
+        ShaderHandle handle;
         ShaderLayout layout;
         std::string path;
 
     public:
         Shader(const std::string &path, const std::string &code);
-        RenderResource &get_render_resource() { return shader; }
+        ShaderHandle get_handle() { return handle; }
         ShaderLayout &get_layout() { return layout; }
-        ~Shader() { shader.dealloc(); }
+        ~Shader() { RHI::dealloc(handle); }
 };
 }  // namespace Seed
 

@@ -17,7 +17,8 @@
 
 namespace Seed {
 class RenderEngine {
-    friend DefaultRenderer;
+        friend DefaultRenderer;
+
     private:
         struct Layer {
                 Ref<RenderTarget> rt;
@@ -29,8 +30,8 @@ class RenderEngine {
         RenderBackend *device;
         MeshStorage *mesh_storage;
         ShaderProxy *shader_proxy;
-        RenderResource matrices_rc, cam_rc;
-        RenderResource visible_ssbo;
+        ConstantHandle matrices_rc, cam_rc;
+        SSBOHandle visible_ssbo;
         Camera cam;
         std::vector<Layer> layers;
         std::unordered_map<std::string, Ref<RenderTarget>> render_targets;
@@ -40,8 +41,8 @@ class RenderEngine {
         void bind_opengl(Window *window);
         void bind_vulken(Window *window);
 
-
         Mat4 get_window_projection();
+
     public:
         static RenderEngine *get_instance();
         void init();
@@ -56,8 +57,9 @@ class RenderEngine {
         InstanceDataPool *get_instance_pool(const std::string &name);
 
         /* if not null, layout will be filled */
-        void compile_shader(RenderResource *rc, const std::string &path,
-                            const std::string &shader, ShaderLayout *layout);
+        ShaderHandle compile_shader(const std::string &path,
+                                    const std::string &shader,
+                                    ShaderLayout *layout);
 
         RenderEngine(Window *window);
         ~RenderEngine();

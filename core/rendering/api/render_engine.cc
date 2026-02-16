@@ -5,7 +5,6 @@
 #include <spdlog/spdlog.h>
 #include "core/rendering/light.h"
 #include "core/resource/material.h"
-#include "core/rendering/backend/opengl_backend.h"
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
@@ -47,7 +46,7 @@ void RenderEngine::bind_opengl(Window *window) {
     glfwMakeContextCurrent(glfw_window);
     glfwSwapInterval(1);
 
-    this->device = new RenderBackendGL;
+    // this->device = new RenderBackendGL;
 }
 
 void RenderEngine::bind_vulken(Window *window) {
@@ -81,20 +80,26 @@ RenderEngine::RenderEngine(Window *window) {
         new InstanceDataPool(sizeof(Mat4), 65536);
     this->instance_pools["TerrainDataPool"] =
         new InstanceDataPool(sizeof(Vec4), 1024);
-    visible_ssbo.alloc_buffer(sizeof(int) * 65536, 0);
+    this->instance_pools["BonesPool"] =
+        new InstanceDataPool(sizeof(Vec4), 1024);
+    visible_ssbo = RHI::alloc_storage_buffer(sizeof(int) * 65536,
+                                             UpdateFrequence::PERDRAW, nullptr);
+    cam_rc =
+        RHI::alloc_constant(sizeof(Vec3), UpdateFrequence::PERFRAME, nullptr);
+    matrices_rc = RHI::alloc_constant(sizeof(Mat4) * 3,
+                                      UpdateFrequence::PERFRAME, nullptr);
     RenderCommandDispatcher dp;
-    u32 i = 0;
-    cam_rc.alloc_constant(sizeof(Vec3), NULL);
-    matrices_rc.alloc_constant(sizeof(Mat4) * 3, NULL);
     /* Bind engine default buffers */
     RenderStateDataBuilder builder;
-    builder.bind_bufferbase(visible_ssbo, 0);
-    builder.bind_bufferbase(
+    builder.bind_storage_buffer(visible_ssbo, 0);
+    builder.bind_storage_buffer(
         this->instance_pools["TransformDataPool"]->get_render_buffer(), 1);
-    builder.bind_bufferbase(
+    builder.bind_storage_buffer(
         this->instance_pools["TerrainDataPool"]->get_render_buffer(), 2);
-    builder.bind_bufferbase(cam_rc, 8);
-    builder.bind_bufferbase(matrices_rc, 9);
+    builder.bind_storage_buffer(
+        this->instance_pools["BonesPool"]->get_render_buffer(), 3);
+    builder.bind_constant(cam_rc, 8);
+    builder.bind_constant(matrices_rc, 9);
     dp.set_states(builder, 0);
 }
 
@@ -147,29 +152,27 @@ void RenderEngine::process() {
     RenderCommandDispatcher dp;
     for (auto &iter : this->render_targets) {
         RenderStateDataBuilder builder;
-        builder.bind_render_target(iter.second->get_resource());
+        builder.bind_render_target(iter.second->get_handle());
         builder.set_scissor(iter.second->get_viewport());
         builder.set_viewport(iter.second->get_viewport());
         builder.clear(StateClearFlag::CLEAR_COLOR);
         builder.clear(StateClearFlag::CLEAR_DEPTH);
         dp.set_states(builder, 0);
     }
-    RenderUpdateData *upd = dp.map_buffer(matrices_rc, 0, sizeof(Mat4) * 3);
-    Mat4 *matrices = (Mat4 *)upd->get_buffer();
+    Mat4 *matrices = (Mat4 *)RHI::alloc_heap(sizeof(Mat4) * 3);
+    Vec3 *cam_pos = (Vec3 *)RHI::alloc_heap(sizeof(Vec3));
     matrices[0] = cam.projection();
     matrices[1] = cam.look_at();
     matrices[2] = get_window_projection().transpose();
-    upd->set_filled();
-    upd = dp.map_buffer(cam_rc, 0, sizeof(Vec3));
-    Vec3 *cam_pos = (Vec3 *)upd->get_buffer();
     *cam_pos = this->cam.get_position();
-    upd->set_filled();
+    RHI::update_from_heap(matrices_rc, 0, sizeof(Mat4) * 3, matrices);
+    RHI::update_from_heap(cam_rc, 0, sizeof(Vec3), cam_pos);
     for (Layer &layer : this->layers) {
         RenderCommandDispatcher layer_dp;
         {
             RenderStateDataBuilder builder;
             builder.set_viewport(layer.rt->get_viewport());
-            builder.bind_render_target(layer.rt->get_resource());
+            builder.bind_render_target(layer.rt->get_handle());
             layer_dp.set_states(builder, layer.renderer->current_sort_key());
         }
         layer.renderer->preprocess();
@@ -198,9 +201,10 @@ InstanceDataPool *RenderEngine::get_instance_pool(const std::string &name) {
     return nullptr;
 }
 
-void RenderEngine::compile_shader(RenderResource *rc, const std::string &path,
-                                  const std::string &shader, ShaderLayout *layout) {
-    this->shader_proxy->compile_shader(rc, path, shader, layout);
+ShaderHandle RenderEngine::compile_shader(const std::string &path,
+                                          const std::string &shader,
+                                          ShaderLayout *layout) {
+    return this->shader_proxy->compile_shader(path, shader, layout);
 }
 
 RenderEngine::~RenderEngine() { instance = nullptr; }

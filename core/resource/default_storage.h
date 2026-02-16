@@ -31,8 +31,8 @@ class DefaultStorage {
         VertexLayout gui_desc;
         VertexLayout quad_desc;
         Ref<VertexData> quad_vertices;
-        RenderResource shadow_map_default_pipeline;
-        RenderResource shadow_map_terrain_pipeline;
+        PipelineHandle shadow_map_default_pipeline;
+        PipelineHandle shadow_map_terrain_pipeline;
 
         static DefaultStorage *get_instance() { return instance; }
         DefaultStorage();

@@ -7,7 +7,7 @@ namespace Seed {
 
 class Texture : public Resource {
     private:
-        RenderResource tex_rc;
+        TextureHandle handle;
         TextureType type;
         PixelFormat format;
         SamplerProperty property;
@@ -15,7 +15,7 @@ class Texture : public Resource {
         u32 w, h;
 
     public:
-        RenderResource &get_resource() { return tex_rc; }
+        TextureHandle get_handle() { return handle; }
         u32 get_width() { return w; }
 
         u32 get_height() { return h; }

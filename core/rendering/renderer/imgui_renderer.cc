@@ -13,9 +13,11 @@ void ImguiRenderer::init() {
     ImguiData *bd = IM_NEW(ImguiData)();
     io.BackendRendererUserData = (void *)bd;
     io.BackendRendererName = "imgui_impl_seed";
-    bd->vertex.alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0,
-                            UpdateFrequence::PERDRAW, nullptr);
-    bd->indices.alloc_index(std::vector<u16>(), UpdateFrequence::PERDRAW);
+
+    bd->vertex = RHI::alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0,
+                                   UpdateFrequence::PERDRAW, nullptr);
+    bd->indices =
+        RHI::alloc_index(std::vector<u16>(), UpdateFrequence::PERDRAW);
 
     // Build texture atlas
     Ref<Texture> atlas = create_font_texture();
@@ -79,10 +81,10 @@ void ImguiRenderer::process(Viewport &viewport) {
             draw_list->VtxBuffer.Size * (int)sizeof(ImDrawVert);
         u32 idx_buffer_size =
             draw_list->IdxBuffer.Size * (int)sizeof(ImDrawIdx);
-        dp.update_buffer(bd->vertex, 0, vtx_buffer_size,
-                         draw_list->VtxBuffer.Data, current_sort_key());
-        dp.update_buffer(bd->indices, 0, idx_buffer_size,
-                         draw_list->IdxBuffer.Data, current_sort_key());
+        dp.push_buffer(bd->vertex, vtx_buffer_size, draw_list->VtxBuffer.Data,
+                       current_sort_key());
+        dp.push_buffer(bd->indices, idx_buffer_size, draw_list->IdxBuffer.Data,
+                       current_sort_key());
 
         for (int cmd_i = 0; cmd_i < draw_list->CmdBuffer.Size; cmd_i++) {
             const ImDrawCmd *pcmd = &draw_list->CmdBuffer[cmd_i];

@@ -70,8 +70,8 @@ class VulkanHelper {
         };
 
         inline static VkDescriptorType desc_type[] = {
-            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER};
 
         inline static VkPrimitiveTopology topology[] = {

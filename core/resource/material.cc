@@ -31,10 +31,10 @@ void Material::remove_texture(const std::string &name) {
     remove_texture_unit(unit);
 }
 
-RenderResource Material::get_pipeline() {
+PipelineHandle Material::get_pipeline() {
     if (pipeline.handle == NULL_HANDLE) {
-        this->pipeline.alloc_pipeline(shader->get_render_resource(),
-                                      raster_state, depth_state, blend_state);
+        this->pipeline = RHI::alloc_pipeline(shader->get_handle(), raster_state,
+                                             depth_state, blend_state);
     }
     return this->pipeline;
 }
@@ -43,7 +43,7 @@ void Material::bind_states(RenderDrawDataBuilder &builder) {
     for (auto &iter : textures) {
         Ref<Texture> tex = iter.second;
         if (tex.is_valid()) {
-            builder.bind_texture(iter.first, tex->get_resource());
+            builder.bind_texture(iter.first, tex->get_handle());
         }
     }
 }

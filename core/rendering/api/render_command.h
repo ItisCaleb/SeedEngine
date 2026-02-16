@@ -69,11 +69,11 @@ struct RenderDrawData {
         struct Operation {
                 OpType type;
                 union {
-                        RenderResource vertex_rc;
-                        RenderResource index_rc;
+                        VertexHandle vertex_handle;
+                        IndexHandle index_handle;
                         struct {
                                 u32 unit;
-                                RenderResource rc;
+                                TextureHandle texture_handle;
                         } texture;
                         struct {
                                 void *data;
@@ -90,7 +90,7 @@ struct RenderDrawData {
         u32 vertex_cnt = 0;
         u32 index_offset = 0;
         u32 vertex_offset = 0;
-        RenderResource pipeline;
+        PipelineHandle pipeline;
         RenderPrimitiveType type;
         u32 operation_cnt = 0;
 };
@@ -148,12 +148,12 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
         friend RenderCommandDispatcher;
 
     public:
-        void bind_vertex(RenderResource rc);
-        void bind_index(RenderResource rc);
+        void bind_vertex(VertexHandle handle);
+        void bind_index(IndexHandle handle);
         void bind_vertex_data(Ref<VertexData> data, u32 offset = 0);
         void bind_index_data(Ref<IndexData> data, u32 offset = 0);
 
-        void bind_texture(u32 unit, RenderResource rc);
+        void bind_texture(u32 unit, TextureHandle handle);
         void bind_description(VertexLayout *desc);
         void push_constant(u32 size, void *data);
         void set_viewport(f32 x, f32 y, f32 width, f32 height);
@@ -175,12 +175,13 @@ struct RenderStateData {
             VIEWPORT,
             SCISSOR,
             CLEAR,
-            BIND_BUFFERBASE
+            BIND_CONSTANT,
+            BIND_STORAGE_BUFFER
         };
         struct Operation {
                 OpType type;
                 union {
-                        RenderResource render_target;
+                        RenderTargetHandle render_target_handle;
                         struct {
                                 RectF *view_rects;
                                 u32 counts;
@@ -188,9 +189,13 @@ struct RenderStateData {
                         RectF scissor_rect;
                         u8 clear_flag;
                         struct {
-                                RenderResource buffer;
+                                ConstantHandle handle;
                                 u32 base;
-                        } bufferbase;
+                        } constant;
+                        struct {
+                                SSBOHandle handle;
+                                u32 base;
+                        } ssbo;
                 };
         };
         u32 operation_cnt = 0;
@@ -200,7 +205,7 @@ class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
         friend RenderCommandDispatcher;
 
     public:
-        void bind_render_target(RenderResource target);
+        void bind_render_target(RenderTargetHandle handle);
         void bind_window();
         void set_viewport(Viewport *viewport, bool flip_y = false);
         void set_viewports(std::vector<Viewport> &viewports,
@@ -209,41 +214,19 @@ class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
         void set_scissor(const RectF &scissor_rect);
         void set_scissor(Viewport *viewport, bool flip_y = false);
-        void bind_bufferbase(RenderResource buffer, u32 base);
+        void bind_constant(ConstantHandle constant, u32 base);
+        void bind_storage_buffer(SSBOHandle constant, u32 base);
 
         void clear(StateClearFlag flag);
 };
 
-struct RenderUpdateData {
-        RenderResource rc;
-        bool filled;
-        union {
-                struct {
-                        u32 offset;
-                        u32 size;
-                } buffer;
-
-                struct {
-                        u32 x_off;
-                        u32 y_off;
-                        u32 w;
-                        u32 h;
-                        u8 face;
-                } texture;
-
-                /* slot -1 for depth attachment */
-                struct {
-                        u8 face;
-                        u8 slot;
-                        bool is_depth;
-                        RenderResource texture;
-                } attachment{};
-        };
+struct RenderStreamData {
+        RenderResourceType type;
+        Handle handle;
+        u32 size;
         void *get_buffer() {
-            return (void *)((u64)this + sizeof(RenderUpdateData));
+            return (void *)((u64)this + sizeof(RenderStreamData));
         }
-
-        void set_filled() { this->filled = true; }
 };
 
 class RenderCommandQueue;
@@ -252,7 +235,7 @@ class RenderCommandDispatcher {
 
     private:
         RectF viewport;
-        void *push_update_cmd(RenderUpdateData &update_data, u32 sort_key,
+        void *push_update_cmd(RenderStreamData &update_data, u32 sort_key,
                               u64 size, void *data);
 
     public:
@@ -261,33 +244,20 @@ class RenderCommandDispatcher {
 
         void set_states(RenderStateDataBuilder &builder, u32 sort_key);
         /* Will copy data to a temporary buffer.*/
-        void update_buffer(const RenderResource &buffer, u32 offset, u32 size,
+        void push_buffer(VertexHandle handle, u32 size,
                            void *data, u32 sort_key = 0);
-        RenderUpdateData *map_buffer(const RenderResource &buffer, u32 offset,
-                                     u32 size, u32 sort_key = 0);
-
-        /* Will copy data to a temporary buffer.*/
-        void update_texture(const RenderResource &texture, PixelFormat format,
-                            u32 x_off, u32 y_off, u32 w, u32 h, void *data,
-                            u32 sort_key = 0);
-        RenderUpdateData *map_texture(const RenderResource &buffer,
-                                      PixelFormat format, u32 x_off, u32 y_off,
-                                      u32 w, u32 h, u32 sort_key = 0);
-        void update_cubemap(const RenderResource &texture, u8 face, u16 x_off,
-                            u16 y_off, u16 w, u16 h, void *data,
-                            u32 sort_key = 0);
-        void update_color_attachment(const RenderResource &render_target,
-                                     i32 slot, RenderResource tex, u32 face = 0,
-                                     u32 sort_key = 0);
-        void update_depth_attachment(const RenderResource &render_target,
-                                     RenderResource tex, u32 face = 0,
-                                     u32 sort_key = 0);
+        void push_buffer(IndexHandle handle, u32 size, void *data,
+                           u32 sort_key = 0);
+        void push_buffer(ConstantHandle handle, u32 size,
+                           void *data, u32 sort_key = 0);
+        void push_buffer(SSBOHandle handled, u32 size, void *data,
+                           u32 sort_key = 0);
 
         /* will automatically fill material state and textures */
         RenderDrawDataBuilder generate_render_data(Ref<Material> mat);
 
         void render(RenderDrawDataBuilder &builder, RenderPrimitiveType type,
-                    RenderResource pipeline, u32 sort_key);
+                    PipelineHandle pipeline, u32 sort_key);
 
         RenderCommandDispatcher();
         ~RenderCommandDispatcher();

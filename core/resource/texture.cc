@@ -9,24 +9,22 @@ Texture::Texture(TextureType type, u32 w, u32 h, PixelFormat format,
 Texture::Texture(TextureType type, u32 w, u32 h, PixelFormat format,
                  const u8 *image_data, const SamplerProperty &property)
     : type(type), w(w), h(h), format(format), property(property) {
-    tex_rc.alloc_texture(type, w, h, format, image_data, property);
+    handle = RHI::alloc_texture(type, w, h, format, image_data, property);
 }
 
 void Texture::update(const u8 *data, u32 w, u32 h) {
-    RenderCommandDispatcher dp;
-    dp.update_texture(tex_rc, format, 0, 0, w, h, (void *)data);
+    RHI::update(handle, format, 0, 0, 0, w, h, (void *)data);
 }
 
 void Texture::upload_cube_map(const u8 *right, const u8 *left, const u8 *top,
                               const u8 *bottom, const u8 *front,
                               const u8 *back) {
-    RenderCommandDispatcher dp;
-    dp.update_cubemap(tex_rc, 0, 0, 0, w, h, (void *)right);
-    dp.update_cubemap(tex_rc, 1, 0, 0, w, h, (void *)left);
-    dp.update_cubemap(tex_rc, 2, 0, 0, w, h, (void *)top);
-    dp.update_cubemap(tex_rc, 3, 0, 0, w, h, (void *)bottom);
-    dp.update_cubemap(tex_rc, 4, 0, 0, w, h, (void *)front);
-    dp.update_cubemap(tex_rc, 5, 0, 0, w, h, (void *)back);
+    RHI::update(handle, format, 0, 0, 0, w, h, (void *)right);
+    RHI::update(handle, format, 1, 0, 0, w, h, (void *)left);
+    RHI::update(handle, format, 2, 0, 0, w, h, (void *)top);
+    RHI::update(handle, format, 3, 0, 0, w, h, (void *)bottom);
+    RHI::update(handle, format, 4, 0, 0, w, h, (void *)front);
+    RHI::update(handle, format, 5, 0, 0, w, h, (void *)back);
 }
-Texture::~Texture() { tex_rc.dealloc(); }
+Texture::~Texture() { RHI::dealloc(handle); }
 }  // namespace Seed

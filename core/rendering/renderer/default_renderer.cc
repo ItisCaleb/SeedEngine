@@ -36,15 +36,17 @@ void DefaultRenderer::init() {
     RenderCommandDispatcher dp;
     RenderStateDataBuilder builder;
 
-    u_lights.alloc_constant(sizeof(STB140Lights), nullptr);
-    u_csm.alloc_constant(sizeof(CSMShadow), nullptr);
-    builder.bind_bufferbase(u_lights, 10);
-    builder.bind_bufferbase(u_csm, 11);
+    u_lights = RHI::alloc_constant(sizeof(STB140Lights),
+                                   UpdateFrequence::PERFRAME, nullptr);
+    u_csm = RHI::alloc_constant(sizeof(CSMShadow), UpdateFrequence::PERFRAME,
+                                nullptr);
+    builder.bind_constant(u_lights, 10);
+    builder.bind_constant(u_csm, 11);
     dp.set_states(builder, 0);
 
     sky_vert.create(&DS::get_instance()->sky_desc,
                     (sizeof(skyboxVertices) / sizeof(Vec3)), skyboxVertices,
-                    UpdateFrequence::IMMUTABLE);
+                    UpdateFrequence::STATIC);
     u32 shadow_map_resolution = shadow_map.get_resolution();
 
     Viewport shadow_map_vp(
@@ -70,9 +72,8 @@ void DefaultRenderer::prepare_lights() {
     Camera *cam = RenderEngine::get_instance()->get_cam();
 
     /* upload lights uniform*/
-    RenderUpdateData *upd =
-        dp.map_buffer(u_lights, 0, sizeof(STB140Lights), current_sort_key());
-    STB140Lights *light_buf = (STB140Lights *)upd->get_buffer();
+    STB140Lights *light_buf =
+        (STB140Lights *)RHI::alloc_heap(sizeof(STB140Lights));
     dir_light.get_stb140(&light_buf->u_dir_light);
     light_buf->u_light_ambient = world->get_ambient_light();
     // for (u32 i = 0;
@@ -86,11 +87,10 @@ void DefaultRenderer::prepare_lights() {
     //         light_buf->u_point_lights[i].enable = 0.0f;
     //     }
     // }
-    upd->set_filled();
+    RHI::update_from_heap(u_lights, 0, sizeof(STB140Lights), light_buf);
 
     /* CSM frustum splits */
-    upd = dp.map_buffer(u_csm, 0, sizeof(CSMShadow), current_sort_key());
-    CSMShadow *csm_data = (CSMShadow *)upd->get_buffer();
+    CSMShadow *csm_data = (CSMShadow *)RHI::alloc_heap(sizeof(CSMShadow));
     std::vector<f32> resolutions;
     for (u32 i = 0; i < CSM_SPLITS; i++) {
         resolutions.push_back(
@@ -99,13 +99,11 @@ void DefaultRenderer::prepare_lights() {
                 .h);
     }
     dir_light.calculate_csm_lightspace(cam, resolutions, *csm_data);
-    Mat4 *light_mats = (Mat4 *)upd->get_buffer();
-
     for (u32 i = 0; i < CSM_SPLITS; i++) {
         csm_data->shadow_uv[i] = shadow_map.query_uv(shadow_map_dir_handle[i]);
     }
 
-    upd->set_filled();
+    RHI::update_from_heap(u_csm, 0, sizeof(CSMShadow), csm_data);
 }
 
 void DefaultRenderer::prepare_meshes() {
@@ -183,12 +181,12 @@ void DefaultRenderer::preprocess() {
 void DefaultRenderer::shadow_pass() {
     RenderCommandDispatcher dp;
     dp.begin_scope("Shadow Pass", current_sort_key());
-    RenderResource visble_buffer = RenderEngine::get_instance()->visible_ssbo;
+    SSBOHandle visble_buffer = RenderEngine::get_instance()->visible_ssbo;
 
     /* shadow pass */
     RenderStateDataBuilder shadow_map_state;
     u32 shadow_map_resolution = shadow_map.get_resolution();
-    shadow_map_state.bind_render_target(shadow_map_rt->get_resource());
+    shadow_map_state.bind_render_target(shadow_map_rt->get_handle());
     dp.set_states(shadow_map_state, current_sort_key());
     shadow_map_state.reset();
     std::vector<Viewport> shadow_map_vps;
@@ -208,12 +206,11 @@ void DefaultRenderer::shadow_pass() {
     Ref<Material> last_material;
     for (ShadowMeshInstance &mesh : shadow_meshes) {
         if (mesh.instance_id.empty() ||
-            !mesh.mesh->get_material()->get_shadow_pipeline().inited())
+            mesh.mesh->get_material()->get_shadow_pipeline() == NULL_HANDLE)
             continue;
 
-        dp.update_buffer(visble_buffer, 0,
-                         sizeof(u32) * mesh.instance_id.size(),
-                         (void *)mesh.instance_id.data(), current_sort_key());
+        dp.push_buffer(visble_buffer, sizeof(u32) * mesh.instance_id.size(),
+                       (void *)mesh.instance_id.data(), current_sort_key());
         RenderDrawDataBuilder mesh_builder;
         if (last_material != mesh.mesh->get_material()) {
             mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
@@ -243,12 +240,12 @@ void DefaultRenderer::shadow_pass() {
 
 void DefaultRenderer::color_pass(Viewport &viewport) {
     RenderCommandDispatcher dp;
-    RenderResource visble_buffer = RenderEngine::get_instance()->visible_ssbo;
+    SSBOHandle visble_buffer = RenderEngine::get_instance()->visible_ssbo;
     dp.begin_scope("Color Pass", current_sort_key());
     RenderStateDataBuilder color_state;
     color_state.bind_render_target(RenderEngine::get_instance()
                                        ->get_render_target("default")
-                                       ->get_resource());
+                                       ->get_handle());
     color_state.set_scissor(viewport.get_actual_dimension(false));
     color_state.set_viewport(&viewport);
     dp.set_states(color_state, current_sort_key());
@@ -256,15 +253,14 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
     Ref<Material> last_material;
     for (MeshInstance &mesh : opaque_meshes) {
         if (mesh.instance_id.empty()) continue;
-        dp.update_buffer(visble_buffer, 0,
-                         sizeof(u32) * mesh.instance_id.size(),
-                         (void *)mesh.instance_id.data(), current_sort_key());
+        dp.push_buffer(visble_buffer, sizeof(u32) * mesh.instance_id.size(),
+                       (void *)mesh.instance_id.data(), current_sort_key());
         RenderDrawDataBuilder mesh_builder;
         if (last_material != mesh.mesh->get_material()) {
             mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
             mesh_builder.bind_texture(
                 mesh.mesh->get_material()->get_texture_count(),
-                shadow_map.get_texture()->get_resource());
+                shadow_map.get_texture()->get_handle());
             last_material = mesh.mesh->get_material();
         }
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
@@ -277,15 +273,14 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
 
     for (MeshInstance &mesh : transparent_meshes) {
         if (mesh.instance_id.empty()) continue;
-        dp.update_buffer(visble_buffer, 0,
-                         sizeof(u32) * mesh.instance_id.size(),
-                         (void *)mesh.instance_id.data(), current_sort_key());
+        dp.push_buffer(visble_buffer, sizeof(u32) * mesh.instance_id.size(),
+                       (void *)mesh.instance_id.data(), current_sort_key());
         RenderDrawDataBuilder mesh_builder;
         if (last_material != mesh.mesh->get_material()) {
             mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
             mesh_builder.bind_texture(
                 mesh.mesh->get_material()->get_texture_count(),
-                shadow_map.get_texture()->get_resource());
+                shadow_map.get_texture()->get_handle());
             last_material = mesh.mesh->get_material();
         }
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);

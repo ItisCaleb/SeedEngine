@@ -1,6 +1,6 @@
 #include "shader_proxy.h"
 #include "core/rendering/api/render_engine.h"
-#include "core/rendering/backend/opengl_backend.h"
+// #include "core/rendering/backend/opengl_backend.h"
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/io/file.h"
 #include <filesystem>
@@ -135,9 +135,9 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
     shader_layout.sets.push_back(binding_set);
 }
 
-void ShaderProxy::compile_shader(RenderResource *rc, const std::string &path,
-                                 const std::string &shader,
-                                 ShaderLayout *layout) {
+ShaderHandle ShaderProxy::compile_shader(const std::string &path,
+                                         const std::string &shader,
+                                         ShaderLayout *layout) {
     RenderBackend *backend = RenderEngine::get_instance()->get_device();
     auto get_module_name = [](const std::string &path) -> std::string {
         std::filesystem::path p(path);
@@ -245,13 +245,15 @@ void ShaderProxy::compile_shader(RenderResource *rc, const std::string &path,
         }
     }
 
-    RenderEngine::get_instance()->get_device()->alloc_shader(rc, vert, frag,
-                                                             geom, tesc, tese);
-    RenderEngine::get_instance()->get_device()->setup_shader_layout(rc,
+    ShaderHandle handle =
+        RenderEngine::get_instance()->get_device()->alloc_shader(
+            vert, frag, geom, tesc, tese);
+    RenderEngine::get_instance()->get_device()->setup_shader_layout(handle,
                                                                     _layout);
     if (layout) {
         *layout = _layout;
     }
+    return handle;
 }
 
 ShaderProxy::~ShaderProxy() {
