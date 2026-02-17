@@ -105,7 +105,7 @@ template <typename T>
 class DataBuilder {
     protected:
         std::vector<u8> buffer;
-        std::vector<T *> op_view;
+        std::vector<typename T::Operation *> op_view;
         typename T::Operation *alloc_operation(typename T::OpType type) {
             this->buffer.resize(this->buffer.size() +
                                 sizeof(typename T::Operation));
@@ -120,7 +120,7 @@ class DataBuilder {
             /* for debug */
             op_view.resize(data->operation_cnt);
             for (i32 i = 0; i < data->operation_cnt; i++) {
-                op_view[i] = (T *)((u64)data + sizeof(T) +
+                op_view[i] = (typename T::Operation *)((u64)data + sizeof(T) +
                                    i * sizeof(typename T::Operation));
             }
             return dst;

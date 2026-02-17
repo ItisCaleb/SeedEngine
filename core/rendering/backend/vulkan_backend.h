@@ -22,6 +22,7 @@ struct HardwareBufferVk {
         u32 next_offset = 0;
         u32 last_offset = 0;
         u64 size;
+        void *mapped_ptr = nullptr;
 };
 
 struct HardwareIndexVk : public HardwareBufferVk {
@@ -138,10 +139,18 @@ class RenderBackendVK : public RenderBackend {
                 };
         };
 
-        struct BufferUpdate {
+        struct StaticBufferUpdate {
                 VkBuffer staging_buffer;
                 VmaAllocation staging_allocation;
                 VkBuffer target_buffer;
+                u64 offset;
+                u64 size;
+        };
+
+        struct DynamicBufferUpdate {
+                void *data;
+                void *target_buffer;
+                VmaAllocation allocation;
                 u64 offset;
                 u64 size;
         };
@@ -166,7 +175,9 @@ class RenderBackendVK : public RenderBackend {
 
         /* delay destroy to end of frame */
         std::queue<DestroyResource> destroy_queue;
-        std::queue<BufferUpdate> buffer_copy_queue;
+        std::queue<StaticBufferUpdate> static_buffer_update_queue;
+        std::queue<DynamicBufferUpdate> dynamic_buffer_update_queue;
+
         std::vector<ImageUpdate> image_copy_queue;
         std::vector<HardwareBufferVk *> streams_to_reset;
 
@@ -245,8 +256,8 @@ class RenderBackendVK : public RenderBackend {
                                            std::vector<Binding> &bindings);
         void bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
                                  std::vector<Binding> &bindings);
-            /* drawing commands */
-            void handle_update(RenderCommand &cmd);
+        /* drawing commands */
+        void handle_update(RenderCommand &cmd);
         void handle_state(RenderCommand &cmd);
         void handle_render(RenderCommand &cmd);
 

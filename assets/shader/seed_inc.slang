@@ -156,7 +156,8 @@ float ShadowCalculation(Sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 
     vec3 projCoords = lightspace_fragpos.xyz / lightspace_fragpos.w;
     //vec2 depth_duv = recieve_plane_bias_uv(projCoords);
     // transform to [0,1] range
-    projCoords = projCoords * 0.5 + 0.5;
+    // Vulkan's clip space z is already [0,1]
+    projCoords.xy = projCoords.xy * 0.5 + 0.5;
     
     // get closest depth value from light’s perspective (using
     // [0,1] range fragPosLight as coords)

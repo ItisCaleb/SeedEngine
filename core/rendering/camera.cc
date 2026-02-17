@@ -136,7 +136,7 @@ Mat4 Camera::projection() {
 
 Mat4 Camera::projection_zero() {
     if (this->frustum.is_ortho) {
-        return Mat4::ortho_mat(frustum.right, frustum.left, frustum.top,
+        return Mat4::ortho_mat_zero(frustum.right, frustum.left, frustum.top,
                                frustum.bottom, frustum.near, frustum.far);
 
     } else {

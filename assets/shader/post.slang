@@ -23,9 +23,9 @@ VS_OUT vert(float2 aPos, float2 aTexCoord){
 float4 frag(VS_OUT in) : SV_Target0{
     const float gamma = 1.0;
     vec3 hdrColor = prop.image.Sample(in.uv).rgb;
-    // exposure tone mapping
-    vec3 mapped =  hdrColor / (hdrColor + vec3(1.0));
-    // gamma correction
-    mapped = pow(mapped, vec3(1.0 / gamma));
-    return vec4(mapped, 1.0);
+    // // exposure tone mapping
+    // vec3 mapped =  hdrColor / (hdrColor + vec3(1.0));
+    // // gamma correction
+    // mapped = pow(mapped, vec3(1.0 / gamma));
+    return vec4(hdrColor, 1.0);
 }

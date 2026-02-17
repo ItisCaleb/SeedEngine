@@ -163,7 +163,7 @@ void RenderEngine::process() {
     Vec3 *cam_pos = (Vec3 *)RHI::alloc_heap(sizeof(Vec3));
     matrices[0] = cam.projection_zero();
     matrices[1] = cam.look_at();
-    matrices[2] = get_window_projection();
+    matrices[2] = get_window_projection().transpose();
     *cam_pos = this->cam.get_position();
     RHI::update_from_heap(matrices_rc, 0, sizeof(Mat4) * 3, matrices);
     RHI::update_from_heap(cam_rc, 0, sizeof(Vec3), cam_pos);

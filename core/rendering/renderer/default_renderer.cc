@@ -254,7 +254,6 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
     for (MeshInstance &mesh : opaque_meshes) {
         if (mesh.visible_size == 0) continue;
         RenderDrawDataBuilder mesh_builder;
-        mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
         if (last_material != mesh.mesh->get_material()) {
             mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
             mesh_builder.bind_texture(
@@ -262,6 +261,7 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
                 shadow_map.get_texture()->get_handle());
             last_material = mesh.mesh->get_material();
         }
+        mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.set_instance(mesh.visible_size);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
@@ -273,7 +273,6 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
     for (MeshInstance &mesh : transparent_meshes) {
         if (mesh.visible_size == 0) continue;
         RenderDrawDataBuilder mesh_builder;
-        mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
         if (last_material != mesh.mesh->get_material()) {
             mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
             mesh_builder.bind_texture(
@@ -281,6 +280,7 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
                 shadow_map.get_texture()->get_handle());
             last_material = mesh.mesh->get_material();
         }
+        mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
         for (u32 i = 0; i < mesh.visible_size; i++) {

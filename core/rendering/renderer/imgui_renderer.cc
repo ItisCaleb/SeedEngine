@@ -103,21 +103,25 @@ void ImguiRenderer::process(Viewport &viewport) {
                                 (pcmd->ClipRect.y - clip_off.y) * clip_scale.y);
                 ImVec2 clip_max((pcmd->ClipRect.z - clip_off.x) * clip_scale.x,
                                 (pcmd->ClipRect.w - clip_off.y) * clip_scale.y);
+                if (clip_min.x < 0.0f) clip_min.x = 0.0f;
+                if (clip_min.y < 0.0f) clip_min.y = 0.0f;
+                if (clip_max.x > fb_width) clip_max.x = (float)fb_width;
+                if (clip_max.y > fb_height) clip_max.y = (float)fb_height;
                 if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
                     continue;
                 RenderDrawDataBuilder builder =
                     dp.generate_render_data(this->font_mat);
                 builder.set_viewport(view_rect.x, view_rect.y, fb_width,
                                      fb_height);
-                builder.set_scissor(clip_min.x, fb_height - clip_max.y,
+                builder.set_scissor(clip_min.x, clip_min.y,
                                     clip_max.x - clip_min.x,
                                     clip_max.y - clip_min.y);
                 builder.bind_vertex(bd->vertex);
                 builder.bind_description(&DS::get_instance()->gui_desc);
                 builder.bind_index(bd->indices);
-                builder.set_draw_vertex(draw_list->VtxBuffer.Size, 0);
-                builder.set_draw_index(pcmd->ElemCount,
-                                       pcmd->IdxOffset * sizeof(ImDrawIdx));
+                builder.set_draw_vertex(draw_list->VtxBuffer.Size,
+                                        pcmd->VtxOffset);
+                builder.set_draw_index(pcmd->ElemCount, pcmd->IdxOffset);
                 dp.render(builder, RenderPrimitiveType::TRIANGLES,
                           font_mat->get_pipeline(), current_sort_key());
             }

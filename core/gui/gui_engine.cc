@@ -28,7 +28,7 @@ GuiEngine::GuiEngine(Window *window) {
     // ImGui::StyleColorsLight();
 
     // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(glfw_window, true);
+    ImGui_ImplGlfw_InitForVulkan(glfw_window, true);
     NFD_Init();
 }
 void GuiEngine::update() {

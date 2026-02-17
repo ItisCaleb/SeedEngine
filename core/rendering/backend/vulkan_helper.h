@@ -102,6 +102,8 @@ class VulkanHelper {
             depth_stencil.sType =
                 VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
             depth_stencil.depthTestEnable = state.depth_on ? VK_TRUE : VK_FALSE;
+            depth_stencil.depthWriteEnable = state.depth_on ? VK_TRUE : VK_FALSE;
+            depth_stencil.maxDepthBounds = 1.0f;
             depth_stencil.stencilTestEnable =
                 state.stencil_on ? VK_TRUE : VK_FALSE;
             depth_stencil.depthCompareOp =
@@ -238,8 +240,8 @@ class VulkanHelper {
             samplerInfo.magFilter = filter(property.mag_filter);
             samplerInfo.minFilter = filter(property.min_filter);
             samplerInfo.addressModeU = wrap_mode(property.wrap_u);
-            samplerInfo.addressModeU = wrap_mode(property.wrap_v);
-            samplerInfo.addressModeU = wrap_mode(property.wrap_w);
+            samplerInfo.addressModeV = wrap_mode(property.wrap_v);
+            samplerInfo.addressModeW = wrap_mode(property.wrap_w);
             samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
             samplerInfo.mipLodBias = 0.0f;
             samplerInfo.minLod = 0.0f;

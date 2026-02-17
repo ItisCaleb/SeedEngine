@@ -22,10 +22,10 @@ void Image::update(std::vector<u8> &data, u32 w, u32 h, u32 off_x, u32 off_y) {
     this->update(data.data(), w, h, off_x, off_y);
 }
 
-Ref<Texture> Image::create_texture() {
+Ref<Texture> Image::create_texture(const SamplerProperty &property) {
     Ref<Texture> texture;
     texture.create(TextureType::TEXTURE_2D, width, height, format,
-                   this->data.data());
+                   this->data.data(), property);
     return texture;
 }
 void Image::upload(Ref<Texture> texture) {

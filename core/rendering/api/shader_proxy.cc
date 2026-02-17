@@ -58,6 +58,8 @@ ShaderProxy::ShaderProxy(const std::vector<std::string> &include_path) {
     spirv_session_desc.searchPathCount = this->include_path.size();
     spirv_session_desc.compilerOptionEntries = spirv_compile_opt.data();
     spirv_session_desc.compilerOptionEntryCount = spirv_compile_opt.size();
+    /* the default is*/
+    spirv_session_desc.defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
     // spirv_session_desc.fileSystem = &this->file_system;
 }
 

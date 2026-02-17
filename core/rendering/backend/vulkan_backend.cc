@@ -541,11 +541,11 @@ void RenderBackendVK::create_gpu_only_buffer(VkBuffer *buffer,
         create_staging_buffer(&stagingBuffer, &stagingAllocation, size);
         vmaCopyMemoryToAllocation(buffer_allocator, data, stagingAllocation, 0,
                                   size);
-        this->buffer_copy_queue.push(
-            BufferUpdate{.staging_buffer = stagingBuffer,
-                         .staging_allocation = stagingAllocation,
-                         .target_buffer = *buffer,
-                         .size = size});
+        this->static_buffer_update_queue.push(
+            StaticBufferUpdate{.staging_buffer = stagingBuffer,
+                               .staging_allocation = stagingAllocation,
+                               .target_buffer = *buffer,
+                               .size = size});
     }
 }
 
@@ -594,17 +594,29 @@ void RenderBackendVK::push_buffer_update(HardwareBufferVk *buffer, u64 offset,
     if (buffer->size < offset + size) {
         reallocate_buffer(buffer, offset + size);
     }
-    VkBuffer stagingBuffer;
-    VmaAllocation stagingAllocation;
-    create_staging_buffer(&stagingBuffer, &stagingAllocation, size);
-    vmaCopyMemoryToAllocation(buffer_allocator, data, stagingAllocation, 0,
-                              size);
-    this->buffer_copy_queue.push(
-        BufferUpdate{.staging_buffer = stagingBuffer,
-                     .staging_allocation = stagingAllocation,
-                     .target_buffer = buffer->buffer,
-                     .offset = offset,
-                     .size = size});
+    /* static buffer */
+    if (buffer->mapped_ptr == nullptr) {
+        VkBuffer stagingBuffer;
+        VmaAllocation stagingAllocation;
+        create_staging_buffer(&stagingBuffer, &stagingAllocation, size);
+        vmaCopyMemoryToAllocation(buffer_allocator, data, stagingAllocation, 0,
+                                  size);
+        this->static_buffer_update_queue.push(
+            StaticBufferUpdate{.staging_buffer = stagingBuffer,
+                               .staging_allocation = stagingAllocation,
+                               .target_buffer = buffer->buffer,
+                               .offset = offset,
+                               .size = size});
+        free(data);
+
+    } else {
+        this->dynamic_buffer_update_queue.push(
+            DynamicBufferUpdate{.data = data,
+                                .target_buffer = buffer->mapped_ptr,
+                                .allocation = buffer->memory,
+                                .offset = offset,
+                                .size = size});
+    }
 }
 
 void RenderBackendVK::push_image_update(TextureHandle handle, u32 layer,
@@ -652,6 +664,9 @@ void RenderBackendVK::reallocate_buffer(HardwareBufferVk *buffer, u64 size) {
     vmaCreateBuffer(buffer_allocator, &bufferInfo, &allocInfo, &new_buffer,
                     &allocation, nullptr);
 
+    if (buffer->mapped_ptr != nullptr) {
+        vmaUnmapMemory(buffer_allocator, buffer->memory);
+    }
     this->destroy_queue.push(DestroyResource{
         .type = RenderResourceType::VERTEX,
         .buffer = {.buffer = buffer->buffer, .memory = buffer->memory}});
@@ -660,6 +675,9 @@ void RenderBackendVK::reallocate_buffer(HardwareBufferVk *buffer, u64 size) {
     buffer->size = size;
     buffer->buffer = new_buffer;
     buffer->memory = allocation;
+    if (buffer->mapped_ptr != nullptr) {
+        vmaMapMemory(buffer_allocator, buffer->memory, &buffer->mapped_ptr);
+    }
 }
 
 void RenderBackendVK::stream_buffer(HardwareBufferVk *buffer, u64 size,
@@ -899,21 +917,24 @@ VertexHandle RenderBackendVK::alloc_vertex(u32 stride, u32 element_cnt,
     if (element_cnt == 0) {
         element_cnt = 10000;
     }
-    if (frequence == UpdateFrequence::PERDRAW) {
-        create_host_visible_buffer(&vertex, &allocation,
-                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                   stride * element_cnt, data);
-    } else {
+    void *mapped_ptr = nullptr;
+    if (frequence == UpdateFrequence::STATIC) {
         create_gpu_only_buffer(&vertex, &allocation,
                                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                stride * element_cnt, data);
+    } else {
+        create_host_visible_buffer(&vertex, &allocation,
+                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                   stride * element_cnt, data);
+        vmaMapMemory(buffer_allocator, allocation, &mapped_ptr);
     }
 
     return this->vertices.insert({.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                   .buffer = vertex,
                                   .memory = allocation,
                                   .frequence = frequence,
-                                  .size = stride * element_cnt});
+                                  .size = stride * element_cnt,
+                                  .mapped_ptr = mapped_ptr});
 }
 
 IndexHandle RenderBackendVK::alloc_indices(IndexType type, u32 element_cnt,
@@ -926,13 +947,15 @@ IndexHandle RenderBackendVK::alloc_indices(IndexType type, u32 element_cnt,
     if (element_cnt == 0) {
         element_cnt = 10000;
     }
+    void *mapped_ptr = nullptr;
     u64 size = get_index_size(type) * element_cnt;
-    if (frequence == UpdateFrequence::PERDRAW) {
-        create_host_visible_buffer(
-            &indice, &allocation, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, size, data);
-    } else {
+    if (frequence == UpdateFrequence::STATIC) {
         create_gpu_only_buffer(&indice, &allocation,
                                VK_BUFFER_USAGE_INDEX_BUFFER_BIT, size, data);
+    } else {
+        create_host_visible_buffer(
+            &indice, &allocation, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, size, data);
+        vmaMapMemory(buffer_allocator, allocation, &mapped_ptr);
     }
 
     HardwareIndexVk index;
@@ -942,7 +965,56 @@ IndexHandle RenderBackendVK::alloc_indices(IndexType type, u32 element_cnt,
     index.size = size;
     index.frequence = frequence;
     index.memory = allocation;
+    index.mapped_ptr = mapped_ptr;
     return this->indices.insert(index);
+}
+
+ConstantHandle RenderBackendVK::alloc_constant(u32 size, const void *data,
+                                               UpdateFrequence frequence) {
+    VkBuffer constant;
+    VmaAllocation allocation;
+    void *mapped_ptr = nullptr;
+    if (frequence == UpdateFrequence::STATIC) {
+        create_gpu_only_buffer(&constant, &allocation,
+                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, size, data);
+
+    } else {
+        create_host_visible_buffer(&constant, &allocation,
+                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, size,
+                                   data);
+        vmaMapMemory(buffer_allocator, allocation, &mapped_ptr);
+    }
+    return this->constants.insert({.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                   .buffer = constant,
+                                   .memory = allocation,
+                                   .frequence = frequence,
+                                   .size = size,
+                                   .mapped_ptr = mapped_ptr});
+}
+
+SSBOHandle RenderBackendVK::alloc_storage_buffer(u32 size, const void *data,
+                                                 UpdateFrequence frequence) {
+    VkBuffer buffer;
+    VmaAllocation allocation;
+    void *mapped_ptr = nullptr;
+    if (frequence == UpdateFrequence::STATIC) {
+        create_gpu_only_buffer(&buffer, &allocation,
+                               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, size, data);
+
+    } else {
+        create_host_visible_buffer(&buffer, &allocation,
+                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, size,
+                                   data);
+
+        vmaMapMemory(buffer_allocator, allocation, &mapped_ptr);
+    }
+
+    return this->ssbos.insert({.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                               .buffer = buffer,
+                               .memory = allocation,
+                               .frequence = frequence,
+                               .size = size,
+                               .mapped_ptr = mapped_ptr});
 }
 
 VkShaderModule RenderBackendVK::create_shader_module(
@@ -1038,45 +1110,6 @@ void RenderBackendVK::setup_shader_layout(ShaderHandle handle,
     }
     shader->set_layouts = set_layouts;
     shader->layout = pipelineLayout;
-}
-
-ConstantHandle RenderBackendVK::alloc_constant(u32 size, const void *data,
-                                               UpdateFrequence frequence) {
-    VkBuffer constant;
-    VmaAllocation allocation;
-    if (frequence == UpdateFrequence::PERDRAW) {
-        create_host_visible_buffer(&constant, &allocation,
-                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, size,
-                                   data);
-    } else {
-        create_gpu_only_buffer(&constant, &allocation,
-                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, size, data);
-    }
-    return this->constants.insert({.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                   .buffer = constant,
-                                   .memory = allocation,
-                                   .frequence = frequence,
-                                   .size = size});
-}
-
-SSBOHandle RenderBackendVK::alloc_storage_buffer(u32 size, const void *data,
-                                                 UpdateFrequence frequence) {
-    VkBuffer buffer;
-    VmaAllocation allocation;
-    if (frequence == UpdateFrequence::PERDRAW) {
-        create_host_visible_buffer(&buffer, &allocation,
-                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, size,
-                                   data);
-    } else {
-        create_gpu_only_buffer(&buffer, &allocation,
-                               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, size, data);
-    }
-
-    return this->ssbos.insert({.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                               .buffer = buffer,
-                               .memory = allocation,
-                               .frequence = frequence,
-                               .size = size});
 }
 
 PipelineHandle RenderBackendVK::alloc_pipeline(
@@ -1316,8 +1349,8 @@ void RenderBackendVK::handle_frame_update() {
                          nullptr, transfer_barriers.size(),
                          transfer_barriers.data());
 
-    while (!buffer_copy_queue.empty()) {
-        BufferUpdate &copy = buffer_copy_queue.front();
+    while (!static_buffer_update_queue.empty()) {
+        StaticBufferUpdate &copy = static_buffer_update_queue.front();
         VkBufferCopy _copy{};
         _copy.srcOffset = 0;
         _copy.dstOffset = copy.offset;
@@ -1328,9 +1361,18 @@ void RenderBackendVK::handle_frame_update() {
             DestroyResource{.type = RenderResourceType::VERTEX,
                             .buffer = {.buffer = copy.staging_buffer,
                                        .memory = copy.staging_allocation}});
-        buffer_copy_queue.pop();
+        static_buffer_update_queue.pop();
     }
 
+    std::vector<VmaAllocation> allocations_to_flush;
+    while (!dynamic_buffer_update_queue.empty()) {
+        DynamicBufferUpdate &copy = dynamic_buffer_update_queue.front();
+        memcpy((void *)((u64)copy.target_buffer + copy.offset), copy.data,
+               copy.size);
+        free(copy.data);
+        vmaFlushAllocation(buffer_allocator, copy.allocation, copy.offset, copy.size);
+        dynamic_buffer_update_queue.pop();
+    }
     for (ImageUpdate &copy : image_copy_queue) {
         VkBufferImageCopy _copy{};
         HardwareTextureVk *texture = this->textures.get_or_null(copy.texture);
@@ -1592,7 +1634,6 @@ void RenderBackendVK::update(VertexHandle handle, u32 offset, u32 size,
     HardwareBufferVk *vertex = this->vertices.get_or_null(handle);
     EXPECT_NOT_NULL_RET(vertex);
     push_buffer_update(vertex, offset, size, data);
-    free(data);
 }
 
 void RenderBackendVK::update(IndexHandle handle, u32 offset, u32 size,
@@ -1600,7 +1641,6 @@ void RenderBackendVK::update(IndexHandle handle, u32 offset, u32 size,
     HardwareIndexVk *index = this->indices.get_or_null(handle);
     EXPECT_NOT_NULL_RET(index);
     push_buffer_update(index, offset, size, data);
-    free(data);
 }
 
 void RenderBackendVK::update(ConstantHandle handle, u32 offset, u32 size,
@@ -1608,7 +1648,6 @@ void RenderBackendVK::update(ConstantHandle handle, u32 offset, u32 size,
     HardwareBufferVk *constant = this->constants.get_or_null(handle);
     EXPECT_NOT_NULL_RET(constant);
     push_buffer_update(constant, offset, size, data);
-    free(data);
 }
 
 void RenderBackendVK::update(SSBOHandle handle, u32 offset, u32 size,
@@ -1616,7 +1655,6 @@ void RenderBackendVK::update(SSBOHandle handle, u32 offset, u32 size,
     HardwareBufferVk *storage_buffer = this->ssbos.get_or_null(handle);
     EXPECT_NOT_NULL_RET(storage_buffer);
     push_buffer_update(storage_buffer, offset, size, data);
-    free(data);
 }
 
 void RenderBackendVK::update(TextureHandle handle, u32 layer, u32 offx,
@@ -1624,7 +1662,6 @@ void RenderBackendVK::update(TextureHandle handle, u32 layer, u32 offx,
     HardwareTextureVk *texture = this->textures.get_or_null(handle);
     EXPECT_NOT_NULL_RET(texture);
     push_image_update(handle, layer, offx, offy, w, h, data);
-    free(data);
 }
 
 void RenderBackendVK::bind_depth_attachment(RenderTargetHandle handle,
@@ -1946,7 +1983,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 viewport_rect.maxDepth = 1;
                 viewport_rect.minDepth = 0;
                 viewport_rect.width = op->viewports.view_rects[0].w;
-                viewport_rect.height = -op->viewports.view_rects[0].h;
+                viewport_rect.height = op->viewports.view_rects[0].h;
                 viewport_set = true;
                 break;
             }
@@ -2034,7 +2071,10 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
         vkCmdSetScissor(render_cmd_buffer, 0, 1, &scissor_rect);
     }
     if (viewport_set) {
-        viewport_rect.y = get_current_render_target()->h - viewport_rect.y;
+        if (current_render_target == -1) {
+            viewport_rect.y = rt->h - viewport_rect.y;
+            viewport_rect.height = -viewport_rect.height;
+        }
         vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
     }
     if (!attachments.empty()) {
@@ -2094,12 +2134,16 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
             case RenderDrawData::OpType::VIEWPORT: {
                 VkViewport viewport_rect;
                 viewport_rect.x = op->view_rect.x;
-                viewport_rect.y =
-                    get_current_render_target()->h - op->view_rect.y;
+                viewport_rect.y = op->view_rect.y;
                 viewport_rect.maxDepth = 1.0;
                 viewport_rect.minDepth = 0.0;
                 viewport_rect.width = op->view_rect.w;
-                viewport_rect.height = -op->view_rect.h;
+                viewport_rect.height = op->view_rect.h;
+                if (current_render_target == -1) {
+                    viewport_rect.y =
+                        get_current_render_target()->h - viewport_rect.y;
+                    viewport_rect.height = -viewport_rect.height;
+                }
                 vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
                 break;
             }
