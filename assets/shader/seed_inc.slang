@@ -7,6 +7,14 @@ typedef float4x4 mat4
 [[vk::binding(0)]]
 StructuredBuffer<uint> gVisible;
 
+struct PushConstant {
+    uint visible_index;
+    /* used by CSM */
+    uint split;
+}
+[[vk_push_constant]]
+ConstantBuffer<PushConstant> gPC;
+
 [[vk::binding(1)]]
 StructuredBuffer<mat4> gTransform;
 
@@ -56,21 +64,37 @@ ConstantBuffer<CSMShadow> gCSM;
 
 
 
-vec4 operator*(mat4 a, vec4 b)
+inline vec4 operator*(mat4 a, vec4 b)
 {
     return mul(b, a);
 }
 
-vec3 operator*(mat3 a, vec3 b)
+inline vec3 operator*(mat3 a, vec3 b)
 {
     return mul(b, a);
 }
 
-mat4 operator*(mat4 a, mat4 b)
+inline mat4 operator*(mat4 a, mat4 b)
 {
     return mul(b, a);
 }
 
+
+inline mat4 GetTransform(uint id){
+    return gTransform[gVisible[id + gPC.visible_index]];
+}
+
+inline vec4 GetTerrain(uint id){
+    return gTerrain[gVisible[id + gPC.visible_index]];
+}
+
+inline mat4 GetBone(uint id){
+    return gBones[gVisible[id + gPC.visible_index]];
+}
+
+inline mat4 GetLightSpace(){
+    return gCSM.u_lightspaces[gPC.split];
+}
 
 vec3 calculate_light(vec3 diffuse, vec3 specular, vec3 diffuse_sample, vec3 specular_sample, vec3 light_dir, vec3 view_dir,
                      float d, vec3 n) {

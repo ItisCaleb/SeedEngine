@@ -16,7 +16,7 @@ ParameterBlock<Property> prop;
 [shader("vertex")]
 VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
     VS_OUT out;
-    vec4 terrain = gTerrain[gVisible[id]];
+    vec4 terrain = GetTerrain(id);
     out.sv_position = vec4(aPos.x + terrain.x, 0.0f, aPos.y + terrain.y, 1.0);
     out.uv = aTexCoord + terrain.zw;
     return out;

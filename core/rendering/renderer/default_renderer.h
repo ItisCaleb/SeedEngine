@@ -17,19 +17,20 @@ class DefaultRenderer : public Renderer {
 
         struct MeshInstance {
                 Ref<Mesh> mesh;
-                std::vector<u32> instance_id;
+                u32 visible_offset;
+                u32 visible_size;
                 std::vector<f32> depth;
-                bool instance;
         };
 
         struct ShadowMeshInstance {
                 Ref<Mesh> mesh;
-                std::vector<u32> instance_id;
+                std::vector<u32> visible_offset;
+                std::vector<u32> visible_size;
                 std::vector<f32> depth;
-                std::vector<u32> instance_ranges;
         };
         std::vector<MeshInstance> opaque_meshes;
         std::vector<MeshInstance> transparent_meshes;
+        std::vector<u32> visible_instances;
 
         Ref<Material> debug_mat;
         Ref<VertexData> sky_vert;

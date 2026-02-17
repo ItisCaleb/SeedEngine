@@ -17,7 +17,7 @@ static const std::vector<const char *> validationLayers = {
     "VK_LAYER_KHRONOS_validation"};
 
 static const std::vector<const char *> deviceExtensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_MAINTENANCE_1_EXTENSION_NAME};
 
 static VkDebugUtilsMessengerEXT debug_messenger;
 
@@ -420,11 +420,6 @@ void RenderBackendVK::create_command_buffer() {
         VK_SUCCESS) {
         throw std::runtime_error("failed to allocate command buffers!");
     }
-
-    if (vkAllocateCommandBuffers(device, &allocInfo, &update_cmd_buffer) !=
-        VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate command buffers!");
-    }
 }
 
 void RenderBackendVK::create_descriptor_pool() {
@@ -671,6 +666,7 @@ void RenderBackendVK::stream_buffer(HardwareBufferVk *buffer, u64 size,
                                     u64 alignment, void *data) {
     vmaCopyMemoryToAllocation(buffer_allocator, data, buffer->memory,
                               buffer->next_offset, size);
+    buffer->last_offset = buffer->next_offset;
     size = (size + alignment - 1) & ~(alignment - 1);
     buffer->next_offset += size;
     streams_to_reset.push_back(buffer);
@@ -1021,12 +1017,14 @@ void RenderBackendVK::setup_shader_layout(ShaderHandle handle,
     }
     /* bindings */
 
+    u32 i = 0;
     for (const PushConstantRange &range : shader_layout.get_push_contants()) {
         VkPushConstantRange _range;
         _range.offset = range.offset;
         _range.size = range.size;
         _range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
         ranges.push_back(_range);
+        i++;
     }
 
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1750,9 +1748,6 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = 0;                   // Optional
     beginInfo.pInheritanceInfo = nullptr;  // Optional
-    if (vkBeginCommandBuffer(update_cmd_buffer, &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("failed to begin recording command buffer!");
-    }
 
     if (vkBeginCommandBuffer(render_cmd_buffer, &beginInfo) != VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording command buffer!");
@@ -1803,7 +1798,6 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         cmd_queue.pop_front();
     }
     vkCmdEndRenderPass(render_cmd_buffer);
-    vkEndCommandBuffer(update_cmd_buffer);
     vkEndCommandBuffer(render_cmd_buffer);
 
     VkSubmitInfo submitInfo{};
@@ -1812,11 +1806,13 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     VkSemaphore waitSemaphores[] = {image_available_semaphore};
     VkPipelineStageFlags waitStages[] = {
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    VkCommandBuffer commandBuffers[] = {render_cmd_buffer, update_cmd_buffer};
+    VkCommandBuffer commandBuffers[] = {
+        render_cmd_buffer,
+    };
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 2;
+    submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = commandBuffers;
 
     submitInfo.signalSemaphoreCount = 1;
@@ -1828,6 +1824,7 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     }
     for (HardwareBufferVk *buffer : this->streams_to_reset) {
         buffer->next_offset = 0;
+        buffer->last_offset = 0;
     }
     this->streams_to_reset.clear();
 }
@@ -1949,7 +1946,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 viewport_rect.maxDepth = 1;
                 viewport_rect.minDepth = 0;
                 viewport_rect.width = op->viewports.view_rects[0].w;
-                viewport_rect.height = op->viewports.view_rects[0].h;
+                viewport_rect.height = -op->viewports.view_rects[0].h;
                 viewport_set = true;
                 break;
             }
@@ -1962,6 +1959,9 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 break;
             }
             case RenderStateData::OpType::BIND_RENDER_TARGET: {
+                if (current_render_target == op->render_target_handle) {
+                    break;
+                }
                 if (op->render_target_handle == -1) {
                     target_rt = this->render_targets.get_or_null(
                         this->swap_chain.render_targets[swap_chain.next_index]);
@@ -1970,6 +1970,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                         op->render_target_handle);
                 }
                 EXPECT_NOT_NULL_BREAK(target_rt);
+
                 target_rt_handle = op->render_target_handle;
                 break;
             }
@@ -2033,6 +2034,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
         vkCmdSetScissor(render_cmd_buffer, 0, 1, &scissor_rect);
     }
     if (viewport_set) {
+        viewport_rect.y = get_current_render_target()->h - viewport_rect.y;
         vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
     }
     if (!attachments.empty()) {
@@ -2058,6 +2060,7 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
         this->pipelines.get_or_null(draw_data->pipeline);
     EXPECT_NOT_NULL_RET(pipeline);
     HardwareShaderVk *shader = this->shaders.get_or_null(pipeline->shader);
+    u32 push_constant_offset = 0;
     for (i32 i = 0; i < draw_data->operation_cnt; i++) {
         auto *op = &head[i];
         auto type = op->type;
@@ -2066,7 +2069,7 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                 HardwareBufferVk *_vertex =
                     this->vertices.get_or_null(op->vertex_handle);
                 vertex.push_back(_vertex->buffer);
-                vertex_offsets.push_back(_vertex->next_offset);
+                vertex_offsets.push_back(_vertex->last_offset);
                 break;
             }
             case RenderDrawData::OpType::BIND_INDEX: {
@@ -2091,11 +2094,12 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
             case RenderDrawData::OpType::VIEWPORT: {
                 VkViewport viewport_rect;
                 viewport_rect.x = op->view_rect.x;
-                viewport_rect.y = op->view_rect.y;
+                viewport_rect.y =
+                    get_current_render_target()->h - op->view_rect.y;
                 viewport_rect.maxDepth = 1.0;
                 viewport_rect.minDepth = 0.0;
                 viewport_rect.width = op->view_rect.w;
-                viewport_rect.height = op->view_rect.h;
+                viewport_rect.height = -op->view_rect.h;
                 vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
                 break;
             }
@@ -2110,9 +2114,10 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
             }
             case RenderDrawData::OpType::PUSH_CONSTANT: {
                 vkCmdPushConstants(render_cmd_buffer, shader->layout,
-                                   VK_SHADER_STAGE_ALL_GRAPHICS, 0,
-                                   op->constant.size, op->constant.data);
-
+                                   VK_SHADER_STAGE_ALL_GRAPHICS,
+                                   push_constant_offset, op->constant.size,
+                                   op->constant.data);
+                push_constant_offset += op->constant.size;
                 break;
             }
             default:
@@ -2141,7 +2146,7 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
         draw_data->instance_cnt < 1 ? 1 : draw_data->instance_cnt;
     if (index) {
         vkCmdBindIndexBuffer(render_cmd_buffer, index->buffer,
-                             index->next_offset,
+                             index->last_offset,
                              VulkanHelper::index_type(index->type));
         vkCmdDrawIndexed(render_cmd_buffer, draw_data->vertex_cnt,
                          draw_data->instance_cnt, draw_data->index_offset,

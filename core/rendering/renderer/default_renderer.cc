@@ -107,7 +107,7 @@ void DefaultRenderer::prepare_lights() {
 }
 
 void DefaultRenderer::prepare_meshes() {
-    RenderCommandDispatcher dp;
+    SSBOHandle visble_buffer = RenderEngine::get_instance()->visible_ssbo;
 
     World *world = SeedEngine::get_instance()->get_world();
 
@@ -117,6 +117,8 @@ void DefaultRenderer::prepare_meshes() {
     MeshStorage *mesh_storage = MeshStorage::get_instance();
     std::set<InstanceData *> uploaded_instance;
 
+    u32 last_visible_offset = 0;
+    visible_instances.clear();
     for (auto &[mesh, instance] : mesh_storage->get_meshes()) {
         AABB bounding_box = mesh->get_bounding_box();
 
@@ -139,30 +141,31 @@ void DefaultRenderer::prepare_meshes() {
         const Frustum &cam_frustum = cam->get_frustum();
         if (!instance.is_null()) {
             /* Use instancing */
-            color_mesh->instance = true;
 
             if (uploaded_instance.find(instance.ptr()) ==
                 uploaded_instance.end()) {
                 uploaded_instance.insert(instance.ptr());
                 instance->upload();
             }
+            color_mesh->visible_offset = visible_instances.size();
             instance->frustum_culling(cam_frustum, bounding_box,
-                                      color_mesh->instance_id,
-                                      color_mesh->depth);
+                                      visible_instances, color_mesh->depth);
+            color_mesh->visible_size =
+                visible_instances.size() - color_mesh->visible_offset;
             u32 last_size = 0;
             for (u32 i = 0; i < CSM_SPLITS; i++) {
+                shadow_mesh.visible_offset.push_back(visible_instances.size());
                 instance->frustum_culling(dir_light.get_frustum(i),
-                                          bounding_box, shadow_mesh.instance_id,
+                                          bounding_box, visible_instances,
                                           shadow_mesh.depth);
-                u32 size = shadow_mesh.instance_id.size() - last_size;
-                shadow_mesh.instance_ranges.push_back(size);
-                last_size = shadow_mesh.instance_id.size();
+                shadow_mesh.visible_size.push_back(
+                    visible_instances.size() -
+                    shadow_mesh.visible_offset.back());
             }
-
-        } else {
-            color_mesh->instance = false;
         }
     }
+    RHI::update(visble_buffer, 0, sizeof(u32) * visible_instances.size(),
+                visible_instances.data());
 }
 
 void DefaultRenderer::preprocess() {
@@ -181,7 +184,6 @@ void DefaultRenderer::preprocess() {
 void DefaultRenderer::shadow_pass() {
     RenderCommandDispatcher dp;
     dp.begin_scope("Shadow Pass", current_sort_key());
-    SSBOHandle visble_buffer = RenderEngine::get_instance()->visible_ssbo;
 
     /* shadow pass */
     RenderStateDataBuilder shadow_map_state;
@@ -205,12 +207,9 @@ void DefaultRenderer::shadow_pass() {
 
     Ref<Material> last_material;
     for (ShadowMeshInstance &mesh : shadow_meshes) {
-        if (mesh.instance_id.empty() ||
-            mesh.mesh->get_material()->get_shadow_pipeline() == NULL_HANDLE)
+        if (mesh.mesh->get_material()->get_shadow_pipeline() == NULL_HANDLE)
             continue;
 
-        dp.push_buffer(visble_buffer, sizeof(u32) * mesh.instance_id.size(),
-                       (void *)mesh.instance_id.data(), current_sort_key());
         RenderDrawDataBuilder mesh_builder;
         if (last_material != mesh.mesh->get_material()) {
             mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
@@ -221,16 +220,17 @@ void DefaultRenderer::shadow_pass() {
 
         u32 last_size = 0;
         for (u32 i = 0; i < CSM_SPLITS; i++) {
-            if (mesh.instance_ranges[i] == 0) continue;
+            if (mesh.visible_size[i] == 0) continue;
             shadow_map_state.set_viewport(&shadow_map_vps[i], true);
             dp.set_states(shadow_map_state, current_sort_key());
+            mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset[i]);
             mesh_builder.push_constant(sizeof(u32), &i);
-            mesh_builder.set_instance(mesh.instance_ranges[i], last_size);
-            last_size += mesh.instance_ranges[i];
+            mesh_builder.set_instance(mesh.visible_size[i], 0);
             dp.render(mesh_builder, mesh.mesh->get_type(),
                       mesh.mesh->get_material()->get_shadow_pipeline(),
                       current_sort_key());
             shadow_map_state.reset();
+            mesh_builder.rollback();
             mesh_builder.rollback();
         }
     }
@@ -252,10 +252,9 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
 
     Ref<Material> last_material;
     for (MeshInstance &mesh : opaque_meshes) {
-        if (mesh.instance_id.empty()) continue;
-        dp.push_buffer(visble_buffer, sizeof(u32) * mesh.instance_id.size(),
-                       (void *)mesh.instance_id.data(), current_sort_key());
+        if (mesh.visible_size == 0) continue;
         RenderDrawDataBuilder mesh_builder;
+        mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
         if (last_material != mesh.mesh->get_material()) {
             mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
             mesh_builder.bind_texture(
@@ -264,7 +263,7 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
             last_material = mesh.mesh->get_material();
         }
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
-        mesh_builder.set_instance(mesh.instance_id.size());
+        mesh_builder.set_instance(mesh.visible_size);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
         dp.render(mesh_builder, mesh.mesh->get_type(),
                   mesh.mesh->get_material()->get_pipeline(),
@@ -272,10 +271,9 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
     }
 
     for (MeshInstance &mesh : transparent_meshes) {
-        if (mesh.instance_id.empty()) continue;
-        dp.push_buffer(visble_buffer, sizeof(u32) * mesh.instance_id.size(),
-                       (void *)mesh.instance_id.data(), current_sort_key());
+        if (mesh.visible_size == 0) continue;
         RenderDrawDataBuilder mesh_builder;
+        mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
         if (last_material != mesh.mesh->get_material()) {
             mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
             mesh_builder.bind_texture(
@@ -285,7 +283,7 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
         }
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
-        for (u32 i = 0; i < mesh.instance_id.size(); i++) {
+        for (u32 i = 0; i < mesh.visible_size; i++) {
             mesh_builder.set_instance(1, i);
             dp.render(mesh_builder, mesh.mesh->get_type(),
                       mesh.mesh->get_material()->get_pipeline(),

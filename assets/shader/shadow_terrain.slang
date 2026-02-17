@@ -16,7 +16,7 @@ ParameterBlock<Property> prop;
 [shader("vertex")]
 VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
     VS_OUT out;
-    vec4 terrain = gTerrain[gVisible[id]];
+    vec4 terrain = GetTerrain(id);
     out.sv_position = vec4(aPos.x + terrain.x, 0.0f, aPos.y + terrain.y, 1.0);
     out.uv = aTexCoord + terrain.zw;
     return out;
@@ -64,8 +64,6 @@ float get_height(vec2 tex_coord){
     return prop.height_map.SampleLevelZero(tex_coord).y * 256.0 - 128.0;
 }
 
-[[vk_push_constant]]
-ConstantBuffer<uint> split;
 
 [shader("domain")]
 [domain("quad")]
@@ -111,6 +109,7 @@ vec4 tese(
 
     // displace point along normal
     p += vec4(0, height, 0 , 0);
+    mat4 aLSpace = GetLightSpace();
 
-    return gCSM.u_lightspaces[split] * p;
+    return aLSpace * p;
 }

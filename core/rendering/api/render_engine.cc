@@ -83,7 +83,7 @@ RenderEngine::RenderEngine(Window *window) {
     this->instance_pools["BonesPool"] =
         new InstanceDataPool(sizeof(Vec4), 1024);
     visible_ssbo = RHI::alloc_storage_buffer(sizeof(int) * 65536,
-                                             UpdateFrequence::PERDRAW, nullptr);
+                                             UpdateFrequence::PERFRAME, nullptr);
     cam_rc =
         RHI::alloc_constant(sizeof(Vec3), UpdateFrequence::PERFRAME, nullptr);
     matrices_rc = RHI::alloc_constant(sizeof(Mat4) * 3,
@@ -161,9 +161,9 @@ void RenderEngine::process() {
     }
     Mat4 *matrices = (Mat4 *)RHI::alloc_heap(sizeof(Mat4) * 3);
     Vec3 *cam_pos = (Vec3 *)RHI::alloc_heap(sizeof(Vec3));
-    matrices[0] = cam.projection();
+    matrices[0] = cam.projection_zero();
     matrices[1] = cam.look_at();
-    matrices[2] = get_window_projection().transpose();
+    matrices[2] = get_window_projection();
     *cam_pos = this->cam.get_position();
     RHI::update_from_heap(matrices_rc, 0, sizeof(Mat4) * 3, matrices);
     RHI::update_from_heap(cam_rc, 0, sizeof(Vec3), cam_pos);

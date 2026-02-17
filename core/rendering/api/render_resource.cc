@@ -69,9 +69,9 @@ void update(VertexHandle handle, u32 offset, u32 size, void *data) {
         return;
     }
     void *heap = alloc_heap(size);
-    memcpy(data, heap, size);
+    memcpy(heap, data, size);
     RenderEngine::get_instance()->get_device()->update(handle, offset, size,
-                                                       data);
+                                                       heap);
 }
 
 /* these commands will be execute at start of frame */
@@ -80,9 +80,9 @@ void update(IndexHandle handle, u32 offset, u32 size, void *data) {
         return;
     }
     void *heap = alloc_heap(size);
-    memcpy(data, heap, size);
+    memcpy(heap, data, size);
     RenderEngine::get_instance()->get_device()->update(handle, offset, size,
-                                                       data);
+                                                       heap);
 }
 
 /* these commands will be execute at start of frame */
@@ -91,9 +91,9 @@ void update(ConstantHandle handle, u32 offset, u32 size, void *data) {
         return;
     }
     void *heap = alloc_heap(size);
-    memcpy(data, heap, size);
+    memcpy(heap, data, size);
     RenderEngine::get_instance()->get_device()->update(handle, offset, size,
-                                                       data);
+                                                       heap);
 }
 
 /* these commands will be execute at start of frame */
@@ -102,9 +102,9 @@ void update(SSBOHandle handle, u32 offset, u32 size, void *data) {
         return;
     }
     void *heap = alloc_heap(size);
-    memcpy(data, heap, size);
+    memcpy(heap, data, size);
     RenderEngine::get_instance()->get_device()->update(handle, offset, size,
-                                                       data);
+                                                       heap);
 }
 
 void update(TextureHandle handle, PixelFormat format, u32 layer, u32 offx,
@@ -114,9 +114,9 @@ void update(TextureHandle handle, PixelFormat format, u32 layer, u32 offx,
         return;
     }
     void *heap = alloc_heap(size);
-    memcpy(data, heap, size);
+    memcpy(heap, data, size);
     RenderEngine::get_instance()->get_device()->update(handle, layer, offx,
-                                                       offy, w, h, data);
+                                                       offy, w, h, heap);
 }
 
 /* these commands will be execute at start of frame */

@@ -19,7 +19,8 @@ struct HardwareBufferVk {
         VkBuffer buffer;
         VmaAllocation memory;
         UpdateFrequence frequence;
-        u64 next_offset = 0;
+        u32 next_offset = 0;
+        u32 last_offset = 0;
         u64 size;
 };
 
@@ -91,7 +92,6 @@ class RenderBackendVK : public RenderBackend {
         VkSurfaceKHR surface;
         VkCommandPool command_pool;
         VkCommandBuffer render_cmd_buffer;
-        VkCommandBuffer update_cmd_buffer;
         VmaAllocator buffer_allocator;
         VkDescriptorPool descriptor_pool;
         Handle current_render_target;
