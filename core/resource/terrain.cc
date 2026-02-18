@@ -99,8 +99,8 @@ void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
         for (i32 j = 0; j < CHUNK_SIZE; j++) {
             u32 sample_col = j + left + half_width;
             u32 sample_row = i + bottom + half_depth;
-            if (sample_col >= height_map->get_height() ||
-                sample_row >= height_map->get_width()) {
+            if (sample_col >= height_map->get_width() ||
+                sample_row >= height_map->get_height()) {
                 height_field[i * CHUNK_SIZE + j] = FLT_MIN;
             } else {
                 // get height from y value

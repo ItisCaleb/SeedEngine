@@ -1437,7 +1437,7 @@ void RenderBackendVK::handle_frame_update() {
         VkImageMemoryBarrier barrier{};
         HardwareTextureVk *texture = this->textures.get_or_null(copy.texture);
         barrier = create_image_barrier(texture,
-                                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0);
+                                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copy.face);
         transfer_barriers.push_back(barrier);
         barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
