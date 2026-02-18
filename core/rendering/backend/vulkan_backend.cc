@@ -117,6 +117,7 @@ void RenderBackendVK::create_instance() {
 
 #ifdef __APPLE__
     /* for MacOS compatibility */
+    requiredExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
     requiredExtensions.emplace_back(
         VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
     createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
@@ -228,6 +229,12 @@ void RenderBackendVK::create_logical_device() {
     deviceFeatures2.pNext = &features12;
     deviceFeatures2.features.tessellationShader = true;
     deviceFeatures2.features.samplerAnisotropy = true;
+
+    std::vector<const char*> enabledExtensions = deviceExtensions;
+
+    #ifdef __APPLE__
+        enabledExtensions.emplace_back("VK_KHR_portability_subset");
+    #endif
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
