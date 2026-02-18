@@ -8,6 +8,6 @@ cmake --preset install
 
 ## compile and run
 ```sh
-cmake --build build --preset default && .\bin\app.exe
+cmake --build build --preset default && ./bin/app
 ```
 or try to execute `script/run.bat` and `script/run.sh`

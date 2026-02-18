@@ -1,3 +1,1 @@
-cmake --preset default
-cmake --build build&&\
-./bin/app
+cmake --build build --preset default && ./bin/app
