@@ -3,83 +3,92 @@
 #include <vector>
 #include "core/types.h"
 #include <iterator>
+#include <mutex>
 
 namespace Seed {
-template <typename T>
+template <typename T, u32 chunk_size = 256>
 class FreeList {
+    private:
+        struct FreeElement {
+                T element;
+                int next;
+        };
+        constexpr static const u32 MAX_CHUNK = 4;
+        FreeElement *chunks[MAX_CHUNK] = {};
+        i32 first_free = -1;
+        std::atomic<i32> cap;
+        std::mutex chunk_lock;
+        inline FreeElement *get_element(i32 index) const {
+            return &chunks[index / chunk_size][index % chunk_size];
+        }
+
     public:
         /// Creates a new free list.
-        FreeList() : first_free(-1) {}
+        FreeList() { chunks[0] = new FreeElement[chunk_size]; }
 
         /// Inserts an element to the free list and returns an index to it.
-        int insert(const T &element) {
+        i32 insert(const T &element) {
             if (first_free != -1) {
-                const int index = first_free;
-                first_free = data[index].next;
-                data[index].element = element;
-                data[index].next = -1;
+                const i32 index = first_free;
+                FreeElement *data = get_element(index);
+                first_free = data->next;
+                data->element = element;
+                data->next = -1;
                 return index;
             } else {
-                FreeElement fe;
-                fe.element = element;
-                fe.next = -1;
-                data.push_back(fe);
-                return static_cast<int>(data.size() - 1);
+                i32 index = this->cap++;
+                u32 chunk = index / chunk_size;
+                /* prevent multiple threads alloc chunk */
+                if (this->chunks[chunk] == nullptr) {
+                    chunk_lock.lock();
+                    if (this->chunks[chunk] == nullptr) {
+                        chunks[chunk] = new FreeElement[chunk_size];
+                    }
+                    chunk_lock.unlock();
+                }
+                chunks[chunk][index % chunk_size] =
+                    FreeElement{.element = element, .next = -1};
+                return index;
             }
-            this->cnt++;
         }
 
         bool present(int n) const {
-            if (n < 0 || n >= data.size()) return false;
-            return data[n].next == -1;
+            if (n < 0 || n >= this->cap) return false;
+            return get_element(n)->next == -1;
         }
 
         // Removes the nth element from the free list.
         void erase(int n) {
             if (!present(n)) return;
-            data[n].element.~T();
-            data[n].next = first_free;
+            FreeElement *data = get_element(n);
+            data->element.~T();
+            data->next = first_free;
             first_free = n;
-            this->cnt--;
-        }
-
-        // Removes all elements from the free list.
-        void clear() {
-            data.clear();
-            first_free = -1;
-            this->cnt = 0;
         }
 
         // Returns the range of valid indices.
         int range() const { return static_cast<int>(data.size()); }
 
         // Returns the usage count
-        int count() const { return this->cnt; }
+        int count() const { return this->cap; }
 
         // Returns the nth element.
         T &operator[](int n) {
-            if (data[n].next != -1) {
+            FreeElement *data = get_element(n);
+            if (data->next != -1) {
                 throw std::runtime_error("Accessing invalid freelist element");
             }
-            return data[n].element;
+            return data->element;
         }
 
         // Returns the nth element.
         const T &operator[](int n) const {
-            if (data[n].next != -1) {
+            FreeElement *data = get_element(n);
+            if (data->next != -1) {
                 throw std::runtime_error("Accessing invalid freelist element");
             }
-            return data[n].element;
+            return data->element;
         }
-
-    private:
-        struct FreeElement {
-                T element;
-                int next;
-        };
-        std::vector<FreeElement> data;
-        int first_free;
-        int cnt = 0;
 };
 
 }  // namespace Seed
