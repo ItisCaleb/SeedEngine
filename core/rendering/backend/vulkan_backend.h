@@ -9,7 +9,11 @@
 #include <vulkan/vulkan_core.h>
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 0
-#include <vma/vk_mem_alloc.h>
+#ifdef __APPLE__ 
+    #include <vk_mem_alloc.h>
+#else
+    #include <vma/vk_mem_alloc.h>
+#endif
 #include "core/container/ring_buffer.h"
 
 namespace Seed {

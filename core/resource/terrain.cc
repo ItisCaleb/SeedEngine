@@ -5,6 +5,7 @@
 #include "core/rendering/api/render_engine.h"
 #include <math.h>
 #include <deque>
+#include <cfloat>
 
 namespace Seed {
 

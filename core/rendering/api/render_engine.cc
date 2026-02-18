@@ -114,7 +114,7 @@ void RenderEngine::init() {
     Ref<Texture> color_tex(TextureType::TEXTURE_2D, res_w, res_h,
                            PixelFormat::RGBA16F, nullptr);
     Ref<Texture> depth_tex(
-        TextureType::TEXTURE_2D, res_w, res_h, PixelFormat::D24S8, nullptr,
+        TextureType::TEXTURE_2D, res_w, res_h, PixelFormat::D32S8, nullptr,
         SamplerProperty{.min_filter = SamplerFilter::NEAREST,
                         .mag_filter = SamplerFilter::NEAREST});
 

@@ -71,11 +71,12 @@ target_compile_definitions(seed PRIVATE
 add_subdirectory(core)
 add_subdirectory(thirdparty)
 
-set_source_files_properties(
-    "core/resource/image.cc"
-    PROPERTIES
-    COMPILE_OPTIONS "-mavx2;-mavx512vl;-mavx512bw"
-)
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
+    target_compile_options(seed PRIVATE -mavx2 -mavx512vl -mavx512bw)
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    # ARM 不需要這些指令，可以留空或加入 -march=armv8-a
+    message(STATUS "Detected ARM architecture, disabling AVX flags")
+endif()
 
 
 # The game code

@@ -3,12 +3,15 @@
 #include "core/rendering/backend/vulkan_helper.h"
 #define VOLK_IMPLEMENTATION
 #include <volk.h>
-#include <vma/vk_mem_alloc.h>
+#define VMA_IMPLEMENTATION
+#ifdef __APPLE__ 
+    #include <vk_mem_alloc.h>
+#else
+    #include <vma/vk_mem_alloc.h>
+#endif
 #include "core/math/utils.h"
 #include "core/macro.h"
 #include "core/misc/hash.h"
-#define VMA_IMPLEMENTATION
-#include <vma/vk_mem_alloc.h>
 #include <utility>
 
 namespace Seed {
@@ -116,7 +119,7 @@ void RenderBackendVK::create_instance() {
     /* for MacOS compatibility */
     requiredExtensions.emplace_back(
         VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-    create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
     if (enable_validation) {
         requiredExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);

@@ -2,7 +2,13 @@
 #include <spdlog/spdlog.h>
 #include "core/macro.h"
 #include <algorithm>
-#include <immintrin.h>
+#if defined(__x86_64__) || defined(_M_X64)
+    #include <immintrin.h>
+    #define SEED_ARCH_X86
+#elif defined(__arm64__) || defined(__aarch64__)
+    #include <arm_neon.h>
+    #define SEED_ARCH_ARM
+#endif
 
 namespace Seed {
 
@@ -89,12 +95,21 @@ Ref<Image> Image::median_filter(u32 kernel_size) {
     auto add_kernel = [&](i32 col) {
         if (col < 0) col = 0;
         if (col >= this->width) col = this->width - 1;
+
+#ifdef SEED_ARCH_X86
+        // 原有的 AVX 優化實作
         for (i32 i = 0; i < 256; i += 32) {
-            __m256i kernel = _mm256_loadu_epi8(&kernel_hg[i]);
-            __m256i column = _mm256_loadu_epi8(&column_hgs[col * 256 + i]);
+            __m256i kernel = _mm256_loadu_epi8((const __m256i*)&kernel_hg[i]);
+            __m256i column = _mm256_loadu_epi8((const __m256i*)&column_hgs[col * 256 + i]);
             __m256i result = _mm256_add_epi8(kernel, column);
-            _mm256_storeu_epi8(&kernel_hg[i], result);
+            _mm256_storeu_epi8((__m256i*)&kernel_hg[i], result);
         }
+#else
+        // 通用 C++ 實作（給 ARM/Mac 使用）
+        for (i32 i = 0; i < 256; i++) {
+            kernel_hg[i] += column_hgs[col * 256 + i];
+        }
+#endif
     };
 
     auto update_kernel = [&](i32 to_add, i32 to_sub) {
@@ -102,14 +117,22 @@ Ref<Image> Image::median_filter(u32 kernel_size) {
         if (to_add >= this->width) to_add = this->width - 1;
         if (to_sub < 0) to_sub = 0;
         if (to_sub >= this->width) to_sub = this->width - 1;
+
+#ifdef SEED_ARCH_X86
         for (i32 i = 0; i < 256; i += 32) {
-            __m256i kernel = _mm256_loadu_epi8(&kernel_hg[i]);
-            __m256i add_col = _mm256_loadu_epi8(&column_hgs[to_add * 256 + i]);
-            __m256i sub_col = _mm256_loadu_epi8(&column_hgs[to_sub * 256 + i]);
+            __m256i kernel = _mm256_loadu_epi8((const __m256i*)&kernel_hg[i]);
+            __m256i add_col = _mm256_loadu_epi8((const __m256i*)&column_hgs[to_add * 256 + i]);
+            __m256i sub_col = _mm256_loadu_epi8((const __m256i*)&column_hgs[to_sub * 256 + i]);
             __m256i result = _mm256_add_epi8(kernel, add_col);
             result = _mm256_sub_epi8(result, sub_col);
-            _mm256_storeu_epi8(&kernel_hg[i], result);
+            _mm256_storeu_epi8((__m256i*)&kernel_hg[i], result);
         }
+#else
+        for (i32 i = 0; i < 256; i++) {
+            kernel_hg[i] += column_hgs[to_add * 256 + i];
+            kernel_hg[i] -= column_hgs[to_sub * 256 + i];
+        }
+#endif
     };
 
     /* initiailize column histograms */
