@@ -696,11 +696,7 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
     for (auto &binding : bindings) {
         _hash.update(&binding.binding_point);
         _hash.update(&binding.type);
-        if (binding.type == RenderResourceType::TEXTURE) {
-            _hash.update(&binding.image);
-        } else {
-            _hash.update(&binding.buffer);
-        }
+        _hash.update(&binding.resource_id);
     }
     u64 hash = _hash.digest();
     auto iter = descriptor_set_cache.find(hash);
@@ -737,7 +733,7 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
 
         if (binding.type == RenderResourceType::CONSTANT) {
             HardwareBufferVk *constant =
-                this->constants.get_or_null(binding.buffer);
+                this->constants.get_or_null(binding.handle);
             VkDescriptorBufferInfo info{};
             info.buffer = constant->buffer;
             info.offset = 0;
@@ -749,7 +745,7 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
             write.pBufferInfo = &bufferInfos.back();
         } else if (binding.type == RenderResourceType::STORAGE_BUFFER) {
             HardwareBufferVk *storage_buffer =
-                this->ssbos.get_or_null(binding.buffer);
+                this->ssbos.get_or_null(binding.handle);
             VkDescriptorBufferInfo info{};
             info.buffer = storage_buffer->buffer;
             info.offset = 0;
@@ -761,7 +757,7 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
             write.pBufferInfo = &bufferInfos.back();
         } else if (binding.type == RenderResourceType::TEXTURE) {
             HardwareTextureVk *texture =
-                this->textures.get_or_null(binding.image);
+                this->textures.get_or_null(binding.handle);
             VkDescriptorImageInfo info{};
             info.imageView = texture->view;
             info.sampler = texture->sampler;
@@ -789,11 +785,11 @@ void RenderBackendVK::bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
     for (Binding &binding : bindings) {
         if (binding.type == RenderResourceType::CONSTANT) {
             HardwareBufferVk *constant =
-                this->constants.get_or_null(binding.buffer);
+                this->constants.get_or_null(binding.handle);
             offsets.push_back(constant->next_offset);
         } else if (binding.type == RenderResourceType::STORAGE_BUFFER) {
             HardwareBufferVk *storage_buffer =
-                this->ssbos.get_or_null(binding.buffer);
+                this->ssbos.get_or_null(binding.handle);
             offsets.push_back(storage_buffer->next_offset);
         }
     }
@@ -2017,7 +2013,8 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 EXPECT_NOT_NULL_BREAK(constant);
                 this->global_bindings.push_back(
                     Binding{.type = RenderResourceType::CONSTANT,
-                            .buffer = op->constant.handle,
+                            .handle = op->constant.handle,
+                            .resource_id = op->constant.handle,
                             .binding_point = op->constant.base});
                 break;
             }
@@ -2027,7 +2024,8 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 EXPECT_NOT_NULL_BREAK(ssbo);
                 this->global_bindings.push_back(
                     Binding{.type = RenderResourceType::STORAGE_BUFFER,
-                            .buffer = op->ssbo.handle,
+                            .handle = op->ssbo.handle,
+                            .resource_id = op->ssbo.handle,
                             .binding_point = op->constant.base});
                 break;
             }
@@ -2123,10 +2121,12 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
             case RenderDrawData::OpType::BIND_TEXTURE: {
                 HardwareTextureVk *tex =
                     this->textures.get_or_null(op->texture.texture_handle);
+                i32 id = this->textures.get_id(op->texture.texture_handle);
                 EXPECT_NOT_NULL_BREAK(tex);
                 texture_bindings.push_back(
                     Binding{.type = RenderResourceType::TEXTURE,
-                            .image = op->texture.texture_handle,
+                            .handle = op->texture.texture_handle,
+                            .resource_id = id,
                             .binding_point = op->texture.unit});
 
                 break;

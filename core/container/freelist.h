@@ -66,9 +66,6 @@ class FreeList {
             first_free = n;
         }
 
-        // Returns the range of valid indices.
-        int range() const { return static_cast<int>(data.size()); }
-
         // Returns the usage count
         int count() const { return this->cap; }
 

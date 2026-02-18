@@ -111,7 +111,7 @@ class RenderBackendVK : public RenderBackend {
         HandleOwner<HardwareIndexVk> indices;
         HandleOwner<HardwareBufferVk> constants;
         HandleOwner<HardwareBufferVk> ssbos;
-        HandleOwner<HardwareTextureVk> textures;
+        HandleIdOwner<HardwareTextureVk> textures;
         HandleOwner<HardwareShaderVk> shaders;
         HandleOwner<HardwarePipelineVk> pipelines;
         HandleOwner<HardwareRenderTargetVk> render_targets;
@@ -166,10 +166,8 @@ class RenderBackendVK : public RenderBackend {
 
         struct Binding {
                 RenderResourceType type;
-                union {
-                        Handle buffer;
-                        TextureHandle image;
-                };
+                Handle handle;
+                i32 resource_id;
                 u32 binding_point;
         };
 
@@ -299,8 +297,8 @@ class RenderBackendVK : public RenderBackend {
 
         /* We'll use different method for updating different type of buffer */
         /* for STATIC we create a staging buffer to transfer */
-        /* for PERFRAME we reuse staging buffer */
-        /* for PERDRAW we use ring buffer with buffer mapping */
+        /* for PERFRAME we just map data */
+        /* for PERDRAW we use linear allocation with buffer mapping */
         void update(VertexHandle handle, u32 offset, u32 size,
                     void *data) override;
         void update(IndexHandle handle, u32 offset, u32 size,
