@@ -3,11 +3,11 @@
 #include "core/macro.h"
 #include <algorithm>
 #if defined(__x86_64__) || defined(_M_X64)
-    #include <immintrin.h>
-    #define SEED_ARCH_X86
+#include <immintrin.h>
+#define SEED_ARCH_X86
 #elif defined(__arm64__) || defined(__aarch64__)
-    #include <arm_neon.h>
-    #define SEED_ARCH_ARM
+#include <arm_neon.h>
+#define SEED_ARCH_ARM
 #endif
 
 namespace Seed {
@@ -34,6 +34,14 @@ Ref<Texture> Image::create_texture(const SamplerProperty &property) {
                    this->data.data(), property);
     return texture;
 }
+Ref<MappableTexture> Image::create_mappable_texture(
+    const SamplerProperty &property) {
+    Ref<MappableTexture> texture;
+    texture.create(TextureType::TEXTURE_2D, width, height, format,
+                   this->data.data(), property);
+    return texture;
+}
+
 void Image::upload(Ref<Texture> texture) {
     EXPECT_NOT_NULL_RET(texture.ptr());
     texture->update(this->data.data(), width, height);
@@ -99,10 +107,11 @@ Ref<Image> Image::median_filter(u32 kernel_size) {
 #ifdef SEED_ARCH_X86
         // 原有的 AVX 優化實作
         for (i32 i = 0; i < 256; i += 32) {
-            __m256i kernel = _mm256_loadu_epi8((const __m256i*)&kernel_hg[i]);
-            __m256i column = _mm256_loadu_epi8((const __m256i*)&column_hgs[col * 256 + i]);
+            __m256i kernel = _mm256_loadu_epi8((const __m256i *)&kernel_hg[i]);
+            __m256i column =
+                _mm256_loadu_epi8((const __m256i *)&column_hgs[col * 256 + i]);
             __m256i result = _mm256_add_epi8(kernel, column);
-            _mm256_storeu_epi8((__m256i*)&kernel_hg[i], result);
+            _mm256_storeu_epi8((__m256i *)&kernel_hg[i], result);
         }
 #else
         // 通用 C++ 實作（給 ARM/Mac 使用）
@@ -120,12 +129,14 @@ Ref<Image> Image::median_filter(u32 kernel_size) {
 
 #ifdef SEED_ARCH_X86
         for (i32 i = 0; i < 256; i += 32) {
-            __m256i kernel = _mm256_loadu_epi8((const __m256i*)&kernel_hg[i]);
-            __m256i add_col = _mm256_loadu_epi8((const __m256i*)&column_hgs[to_add * 256 + i]);
-            __m256i sub_col = _mm256_loadu_epi8((const __m256i*)&column_hgs[to_sub * 256 + i]);
+            __m256i kernel = _mm256_loadu_epi8((const __m256i *)&kernel_hg[i]);
+            __m256i add_col = _mm256_loadu_epi8(
+                (const __m256i *)&column_hgs[to_add * 256 + i]);
+            __m256i sub_col = _mm256_loadu_epi8(
+                (const __m256i *)&column_hgs[to_sub * 256 + i]);
             __m256i result = _mm256_add_epi8(kernel, add_col);
             result = _mm256_sub_epi8(result, sub_col);
-            _mm256_storeu_epi8((__m256i*)&kernel_hg[i], result);
+            _mm256_storeu_epi8((__m256i *)&kernel_hg[i], result);
         }
 #else
         for (i32 i = 0; i < 256; i++) {

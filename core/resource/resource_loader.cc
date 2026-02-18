@@ -152,9 +152,7 @@ template <>
 Ref<Image> ResourceLoader::_load(const std::string &path) {
     Ref<Image> image;
     int w, h, comp;
-    stbi_set_flip_vertically_on_load(true);
     void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
-    stbi_set_flip_vertically_on_load(false);
 
     if (!data) {
         spdlog::warn("Can't load image from {}", path);

@@ -6,7 +6,7 @@
 namespace Seed {
 
 class Texture : public Resource {
-    private:
+    protected:
         TextureHandle handle;
         TextureType type;
         PixelFormat format;
@@ -28,6 +28,7 @@ class Texture : public Resource {
                 const u8 *image_data);
         Texture(TextureType type, u32 w, u32 h, PixelFormat format,
                 const u8 *image_data, const SamplerProperty &property);
+        
         ~Texture();
 };
 }  // namespace Seed

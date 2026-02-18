@@ -42,10 +42,6 @@ typedef TypedHandle<RenderTargetTag> RenderTargetHandle;
 namespace RHI {
 
 [[nodiscard]]
-TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
-                            const void *data, const SamplerProperty &property);
-
-[[nodiscard]]
 VertexHandle alloc_vertex(u32 stride, u32 element_cnt,
                           UpdateFrequence frequence, const void *data);
 
@@ -67,6 +63,14 @@ ConstantHandle alloc_constant(u32 size, UpdateFrequence frequence, void *data);
 [[nodiscard]]
 SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
                                 void *data);
+
+[[nodiscard]]
+TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
+                            const void *data, const SamplerProperty &property);
+[[nodiscard]]
+TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
+                                     PixelFormat format, const void *data,
+                                     const SamplerProperty &property);
 
 [[nodiscard]]
 ShaderHandle alloc_shader(const std::string &path, const std::string &code,
@@ -116,8 +120,11 @@ void bind_depth_attachment(RenderTargetHandle handle, TextureHandle texture,
 void bind_color_attachment(RenderTargetHandle handle, u8 slot,
                            TextureHandle texture, u32 face);
 
-void *map_buffer();
-void ummap_buffer();
+void *map_buffer(VertexHandle handle);
+void *map_buffer(IndexHandle handle);
+void *map_buffer(ConstantHandle handle);
+void *map_buffer(SSBOHandle handle);
+void *map_texture(TextureHandle handle);
 
 void dealloc(TextureHandle handle);
 void dealloc(VertexHandle handle);

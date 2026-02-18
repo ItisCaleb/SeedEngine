@@ -9,4 +9,5 @@ target_sources(seed PRIVATE
     default_storage.cc
     shader.cc
     billboard.cc
+    mappable_texture.cc
 )

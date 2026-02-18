@@ -3,7 +3,6 @@
 #include "core/ref.h"
 #include "core/math/vec2.h"
 #include "core/resource/material.h"
-#include "core/rendering/vertex_data.h"
 #include "core/resource/image.h"
 #include "core/physic/physic_body.h"
 #include "core/collision/shape.h"
@@ -57,7 +56,6 @@ class Terrain : public Resource {
         Ref<Mesh> mesh;
 
         Ref<TerrainInstanceData> instances;
-        bool loaded = false;
         void build_mesh();
         void create_chunk(Ref<Image> height_map, i32 left, i32 top,
                           u32 half_width, u32 half_depth);
@@ -65,8 +63,11 @@ class Terrain : public Resource {
 
     public:
         Terrain(Ref<Image> height_map);
+        void set_material(Ref<TerrainMaterial> mat){
+            this->mesh->set_material(ref_cast<Material>(mat));
+            this->terrain_mat = mat;
+        }
         Ref<TerrainMaterial> get_material() { return terrain_mat; }
-        bool is_loaded() { return loaded; }
 
         ~Terrain();
 };
