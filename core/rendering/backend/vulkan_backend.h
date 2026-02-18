@@ -111,7 +111,7 @@ class RenderBackendVK : public RenderBackend {
         HandleOwner<HardwareIndexVk> indices;
         HandleOwner<HardwareBufferVk> constants;
         HandleOwner<HardwareBufferVk> ssbos;
-        HandleOwner<HardwareTextureVk> textures;
+        HandleIdOwner<HardwareTextureVk> textures;
         HandleOwner<HardwareShaderVk> shaders;
         HandleOwner<HardwarePipelineVk> pipelines;
         HandleOwner<HardwareRenderTargetVk> render_targets;
@@ -166,10 +166,8 @@ class RenderBackendVK : public RenderBackend {
 
         struct Binding {
                 RenderResourceType type;
-                union {
-                        Handle buffer;
-                        TextureHandle image;
-                };
+                Handle handle;
+                i32 resource_id;
                 u32 binding_point;
         };
 

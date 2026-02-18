@@ -13,11 +13,9 @@ template <typename T>
 class HandleOwner {
     private:
         FreeList<T> datas;
-        std::mutex modify_lock;
 
     public:
         Handle insert(const T &d) {
-            std::lock_guard lg(modify_lock);
             return datas.insert(d);
         }
 
@@ -29,16 +27,47 @@ class HandleOwner {
             }
         }
 
-        void get_used(std::vector<T *> &v) {
-            for (i32 i = 0; i < datas.range(); i++) {
-                if (datas.present(i)) {
-                    v.push_back(&datas[i]);
-                }
+        void remove(Handle h) {
+            datas.erase(h);
+        }
+};
+
+template <typename T>
+class HandleIdOwner {
+    private:
+        struct IDType{
+            i32 id;
+            T element;
+        };
+        FreeList<IDType> datas;
+        i32 current_id = 0;
+
+    public:
+        Handle insert(const T &d) {
+            i32 index = datas.insert(IDType{
+                .id = current_id++,
+                .element = d                
+            });
+            return index;
+        }
+
+        T *get_or_null(Handle h) {
+            if (datas.present(h)) {
+                return &datas[h].element;
+            } else {
+                return nullptr;
+            }
+        }
+
+        i32 get_id(Handle h){
+            if (datas.present(h)) {
+                return datas[h].id;
+            } else {
+                return -1;
             }
         }
 
         void remove(Handle h) {
-            std::lock_guard lg(modify_lock);
             datas.erase(h);
         }
 };
