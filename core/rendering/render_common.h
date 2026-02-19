@@ -41,6 +41,7 @@ enum class PixelFormat : u8 {
     RGB,
     RGBA,
     RGBA16F,
+    RGBA16I,
     D24,
     D24S8,
     D32,
@@ -64,6 +65,7 @@ u32 constexpr static get_pixel_format_size(PixelFormat format) {
         case PixelFormat::D32S8:
             return 5;
         case PixelFormat::RGBA16F:
+        case PixelFormat::RGBA16I:
             return 8;
         default:
             return 1;

@@ -34,6 +34,7 @@ class Fiber {
         Fiber(std::function<void> fiber_func)
             : fiber_func(fiber_func), status(FiberStatus::READY) {}
         ~Fiber();
+        void resume();
 };
 
 }  // namespace Seed

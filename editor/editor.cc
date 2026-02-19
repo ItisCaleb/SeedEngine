@@ -10,6 +10,8 @@
 #include "terrain_gui.h"
 #include "editor_camera.h"
 #include "editor.h"
+#include "editor_terrain.h"
+#include "editor_storage.h"
 
 using namespace Seed;
 
@@ -35,6 +37,7 @@ int main(int, char **) {
     // Main loop
     Seed::SeedEngine *engine = new Seed::SeedEngine(60.0f);
     Editor *editor = new Editor;
+    new EditorStorage;
     bool show_demo_window = true;
 
     // ImGui::ShowDemoWindow(&show_demo_window);
@@ -44,11 +47,10 @@ int main(int, char **) {
 
     engine->get_world()->add_entity<EditorCamera>();
 
-    // ResourceLoader *loader = ResourceLoader::get_instance();
+    ResourceLoader *loader = ResourceLoader::get_instance();
     // auto sky = loader->load_async<Sky>("assets/sky.json");
-    // auto terrain = loader->load<Terrain>("assets/iceland_heightmap.png");
     // engine->get_world()->set_sky(sky->wait());
-    // engine->get_world()->set_terrain(terrain);
+    // engine->get_world()->set_terrain(terrain->wait());
 
     engine->start();
     NFD_Quit();

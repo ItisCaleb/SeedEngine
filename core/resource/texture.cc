@@ -8,7 +8,11 @@ Texture::Texture(TextureType type, u32 w, u32 h, PixelFormat format,
 
 Texture::Texture(TextureType type, u32 w, u32 h, PixelFormat format,
                  const u8 *image_data, const SamplerProperty &property)
-    : type(type), w(w), h(h), format(format), property(property) {
+    : type(type),
+      w(w),
+      h(h),
+      format(format),
+      property(property) {
     handle = RHI::alloc_texture(type, w, h, format, image_data, property);
 }
 

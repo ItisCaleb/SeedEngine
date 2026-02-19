@@ -44,12 +44,17 @@ class VulkanHelper {
             VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA       // ONE_MINUS_SRC1_ALPHA
         };
 
-        inline static VkFormat pixel_format[] = {
-            VK_FORMAT_R8_UNORM,           VK_FORMAT_R8G8_UNORM,
-            VK_FORMAT_R8G8B8_UNORM,       VK_FORMAT_R8G8B8A8_UNORM,
-            VK_FORMAT_R16G16B16A16_UNORM, VK_FORMAT_X8_D24_UNORM_PACK32,
-            VK_FORMAT_D24_UNORM_S8_UINT,  VK_FORMAT_D32_SFLOAT,
-            VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_S8_UINT};
+        inline static VkFormat pixel_format[] = {VK_FORMAT_R8_UNORM,
+                                                 VK_FORMAT_R8G8_UNORM,
+                                                 VK_FORMAT_R8G8B8_UNORM,
+                                                 VK_FORMAT_R8G8B8A8_UNORM,
+                                                 VK_FORMAT_R16G16B16A16_UNORM,
+                                                 VK_FORMAT_R16G16B16A16_SINT,
+                                                 VK_FORMAT_X8_D24_UNORM_PACK32,
+                                                 VK_FORMAT_D24_UNORM_S8_UINT,
+                                                 VK_FORMAT_D32_SFLOAT,
+                                                 VK_FORMAT_D32_SFLOAT_S8_UINT,
+                                                 VK_FORMAT_S8_UINT};
         inline static VkImageType image_type[] = {
             VK_IMAGE_TYPE_1D, VK_IMAGE_TYPE_2D, VK_IMAGE_TYPE_3D,
             VK_IMAGE_TYPE_2D, VK_IMAGE_TYPE_1D, VK_IMAGE_TYPE_2D,
@@ -102,7 +107,8 @@ class VulkanHelper {
             depth_stencil.sType =
                 VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
             depth_stencil.depthTestEnable = state.depth_on ? VK_TRUE : VK_FALSE;
-            depth_stencil.depthWriteEnable = state.depth_on ? VK_TRUE : VK_FALSE;
+            depth_stencil.depthWriteEnable =
+                state.depth_on ? VK_TRUE : VK_FALSE;
             depth_stencil.maxDepthBounds = 1.0f;
             depth_stencil.stencilTestEnable =
                 state.stencil_on ? VK_TRUE : VK_FALSE;

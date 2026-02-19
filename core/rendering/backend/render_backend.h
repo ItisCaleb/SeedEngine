@@ -42,6 +42,9 @@ class RenderBackend {
                                             PixelFormat format,
                                             const SamplerProperty &property,
                                             const void *data) = 0;
+        virtual TextureHandle alloc_mappable_texture(
+            TextureType type, u32 w, u32 h, PixelFormat format,
+            const SamplerProperty &property, const void *data) = 0;
         virtual VertexHandle alloc_vertex(u32 stride, u32 element_cnt,
                                           UpdateFrequence frequence,
                                           const void *data) = 0;
@@ -64,29 +67,17 @@ class RenderBackend {
             const RenderDepthStencilState &depth_state,
             const RenderBlendState &blend_state) = 0;
         virtual RenderTargetHandle alloc_render_target(bool depth_only) = 0;
-        virtual void update(VertexHandle handle, u32 offset, u32 size,
-                            void *data) = 0;
-        virtual void update(IndexHandle handle, u32 offset, u32 size,
-                            void *data) = 0;
-        virtual void update(ConstantHandle handle, u32 offset, u32 size,
-                            void *data) = 0;
-        virtual void update(SSBOHandle handle, u32 offset, u32 size,
-                            void *data) = 0;
+        virtual void update(RenderResourceType type, Handle handle, u32 offset,
+                            u32 size, void *data) = 0;
         virtual void update(TextureHandle handle, u32 layer, u32 offx, u32 offy,
                             u32 w, u32 h, void *data) = 0;
-
+        virtual void *map_buffer(RenderResourceType type, Handle handle) = 0;
+        virtual void *map_texture(TextureHandle handle) = 0;
         virtual void bind_depth_attachment(RenderTargetHandle handle,
                                            TextureHandle texture, u32 face) = 0;
         virtual void bind_color_attachment(RenderTargetHandle handle, u8 slot,
                                            TextureHandle texture, u32 face) = 0;
-        virtual void dealloc(TextureHandle handle) = 0;
-        virtual void dealloc(VertexHandle handle) = 0;
-        virtual void dealloc(IndexHandle handle) = 0;
-        virtual void dealloc(ShaderHandle handle) = 0;
-        virtual void dealloc(ConstantHandle handle) = 0;
-        virtual void dealloc(PipelineHandle handle) = 0;
-        virtual void dealloc(SSBOHandle handle) = 0;
-        virtual void dealloc(RenderTargetHandle handle) = 0;
+        virtual void dealloc(RenderResourceType type, Handle handle) = 0;
 
         virtual void process_commands(std::deque<RenderCommand> &cmd_queue) = 0;
         virtual void swap_buffer() = 0;

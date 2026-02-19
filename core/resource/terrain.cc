@@ -97,20 +97,16 @@ void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
     auto &hm_data = height_map->get_data();
     for (i32 i = CHUNK_SIZE - 1; i >= 0; i--) {
         for (i32 j = 0; j < CHUNK_SIZE; j++) {
-            u32 sample_col = i + bottom + half_depth;
-            u32 sample_row = j + left + half_width;
-            if (sample_col >= height_map->get_height() ||
-                sample_row >= height_map->get_width()) {
+            u32 sample_col = j + left + half_width;
+            u32 sample_row = i + bottom + half_depth;
+            if (sample_col >= height_map->get_width() ||
+                sample_row >= height_map->get_height()) {
                 height_field[i * CHUNK_SIZE + j] = FLT_MIN;
             } else {
                 // get height from y value
-                f32 height =
-                    (f32)hm_data[(sample_col * height_map->get_width() +
-                                  sample_row) *
-                                     4 +
-                                 1] *
-                        HEIGHT_SCALE +
-                    HEIGHT_OFFSET;
+                f32 height = (f32)height_map->pixel(sample_col, sample_row)[1] *
+                                 HEIGHT_SCALE +
+                             HEIGHT_OFFSET;
                 max_height = std::max(max_height, height);
                 min_height = std::min(min_height, height);
                 height_field[i * CHUNK_SIZE + j] = height;
@@ -298,7 +294,6 @@ Terrain::Terrain(Ref<Image> height_map) {
     MeshStorage::get_instance()->add_mesh(
         this->mesh, ref_cast<InstanceData>(this->instances));
     gen_lightmap(height_map);
-    this->loaded = true;
 }
 
 Terrain::~Terrain() {}

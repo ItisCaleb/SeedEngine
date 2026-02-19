@@ -4,10 +4,6 @@
 
 namespace Seed {
 
-struct PostData {
-        Vec2 pos;
-        Vec2 tex;
-};
 DefaultStorage::DefaultStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
@@ -47,16 +43,19 @@ DefaultStorage::DefaultStorage() {
     gui_desc.add_type_attr<Vec2>(1);
     gui_desc.add_attr(2, VertexAttributeType::UNSIGNED_BYTE, 4, true);
 
-    PostData tmp_post[] = {-1.0f, 1.0f, 0.0f, 1.0f,  -1.0f, -1.0f,
-                           0.0f,  0.0f, 1.0f, -1.0f, 1.0f,  0.0f,
+    struct QuadData {
+            Vec2 pos;
+            Vec2 tex;
+    };
+    QuadData quad[] = {-1.0f, 1.0f, 0.0f, 1.0f,  -1.0f, -1.0f,
+                       0.0f,  0.0f, 1.0f, -1.0f, 1.0f,  0.0f,
 
-                           -1.0f, 1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
-                           1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
+                       -1.0f, 1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
+                       1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
 
     quad_desc.add_type_attr<Vec2>(0);
     quad_desc.add_type_attr<Vec2>(1);
-    quad_vertices.create(&quad_desc, (sizeof(tmp_post) / (sizeof(PostData))),
-                         tmp_post);
+    quad_vertices.create(&quad_desc, (sizeof(quad) / (sizeof(QuadData))), quad);
     u8 white_color[] = {255, 255, 255, 255};
     white_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,
                          white_color);

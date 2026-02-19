@@ -9,10 +9,10 @@
 #include <vulkan/vulkan_core.h>
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 0
-#ifdef __APPLE__ 
-    #include <vk_mem_alloc.h>
+#ifdef __APPLE__
+#include <vk_mem_alloc.h>
 #else
-    #include <vma/vk_mem_alloc.h>
+#include <vma/vk_mem_alloc.h>
 #endif
 #include "core/container/ring_buffer.h"
 
@@ -42,6 +42,7 @@ struct HardwareTextureVk {
         VkSampler sampler;
         VmaAllocation memory;
         std::vector<VkImageLayout> layouts;
+        void *mapped_ptr = nullptr;
 };
 
 struct HardwareShaderVk {
@@ -88,6 +89,7 @@ struct HardwareRenderTargetVk {
 
 class RenderBackendVK : public RenderBackend {
     private:
+        Window *current_window;
         VkInstance instance;
         VkPhysicalDevice physical_device = VK_NULL_HANDLE;
         VkPhysicalDeviceProperties device_properties;
@@ -122,6 +124,7 @@ class RenderBackendVK : public RenderBackend {
 
         struct DestroyResource {
                 RenderResourceType type;
+                bool mapped;
                 union {
                         struct {
                                 VkBuffer buffer;
@@ -181,6 +184,8 @@ class RenderBackendVK : public RenderBackend {
         std::queue<DynamicBufferUpdate> dynamic_buffer_update_queue;
 
         std::vector<ImageUpdate> image_copy_queue;
+        std::vector<TextureHandle> mappable_image_transition_queue;
+
         std::vector<HardwareBufferVk *> streams_to_reset;
 
         std::unordered_map<u64, VkPipeline> pipeline_cache;
@@ -205,6 +210,7 @@ class RenderBackendVK : public RenderBackend {
         void create_logical_device();
         void create_surface(Window *window);
         void create_swapchain(Window *window);
+        void recreate_swapchain(Window *window);
         void create_image_views();
         void create_swapchain_framebuffer();
         void create_command_pool();
@@ -251,6 +257,8 @@ class RenderBackendVK : public RenderBackend {
                                 void *data);
         void push_image_update(TextureHandle texture, u32 layer, u32 offx,
                                u32 offy, u32 w, u32 h, void *data);
+        void push_buffer_destroy(RenderResourceType type, VkBuffer buffer,
+                                 VmaAllocation allocation, bool mapped);
         void reallocate_buffer(HardwareBufferVk *buffer, u64 size);
         void stream_buffer(HardwareBufferVk *buffer, u64 size, u64 alignment,
                            void *data);
@@ -274,6 +282,10 @@ class RenderBackendVK : public RenderBackend {
                                     PixelFormat format,
                                     const SamplerProperty &property,
                                     const void *data) override;
+        TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
+                                             PixelFormat format,
+                                             const SamplerProperty &property,
+                                             const void *data) override;
         VertexHandle alloc_vertex(u32 stride, u32 element_cnt,
                                   UpdateFrequence frequence,
                                   const void *data) override;
@@ -303,29 +315,18 @@ class RenderBackendVK : public RenderBackend {
         /* for STATIC we create a staging buffer to transfer */
         /* for PERFRAME we just map data */
         /* for PERDRAW we use linear allocation with buffer mapping */
-        void update(VertexHandle handle, u32 offset, u32 size,
-                    void *data) override;
-        void update(IndexHandle handle, u32 offset, u32 size,
-                    void *data) override;
-        void update(ConstantHandle handle, u32 offset, u32 size,
-                    void *data) override;
-        void update(SSBOHandle handle, u32 offset, u32 size,
-                    void *data) override;
+        void update(RenderResourceType type, Handle handle, u32 offset,
+                    u32 size, void *data) override;
         void update(TextureHandle handle, u32 layer, u32 offx, u32 offy, u32 w,
                     u32 h, void *data) override;
-
+        void *map_buffer(RenderResourceType type, Handle handle) override;
+        void *map_texture(TextureHandle handle) override;
         void bind_depth_attachment(RenderTargetHandle handle,
                                    TextureHandle texture, u32 face) override;
         void bind_color_attachment(RenderTargetHandle handle, u8 slot,
                                    TextureHandle texture, u32 face) override;
-        void dealloc(TextureHandle handle) override;
-        void dealloc(VertexHandle handle) override;
-        void dealloc(IndexHandle handle) override;
-        void dealloc(ShaderHandle handle) override;
-        void dealloc(ConstantHandle handle) override;
-        void dealloc(PipelineHandle handle) override;
-        void dealloc(SSBOHandle handle) override;
-        void dealloc(RenderTargetHandle handle) override;
+        void dealloc(RenderResourceType type, Handle handle) override;
+
         void process_commands(std::deque<RenderCommand> &cmd_queue) override;
         void swap_buffer() override;
 };

@@ -14,6 +14,10 @@ class Editor {
         void set_last_open(std::string &path);
 
     public:
+        static Editor* get_instance(){
+            return instance;
+        }
+
         Editor();
         ~Editor() = default;
 };
