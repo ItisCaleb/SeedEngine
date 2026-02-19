@@ -69,18 +69,6 @@ void Image::download(Ref<Texture> texture) {
     EXPECT_NOT_NULL_RET(texture.ptr());
 }
 
-u8 *Image::pixel(u32 x, u32 y) {
-    return &this->data[(y * width + x) * get_pixel_format_size(format)];
-}
-
-u8 *Image::pixel_repeat(i32 x, i32 y) {
-    if (x < 0) x = 0;
-    if (x >= width) x = width - 1;
-    if (y < 0) y = 0;
-    if (y >= height) y = height - 1;
-    return &this->data[(y * width + x) * get_pixel_format_size(format)];
-}
-
 Ref<Image> Image::median_filter(u32 kernel_size) {
     std::vector<u8> column_hgs;
     std::vector<u8> kernel_hg;

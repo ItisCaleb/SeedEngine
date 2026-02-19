@@ -59,6 +59,7 @@ PatchTessFactors PatchConstantFunction() {
 
 struct DS_OUT{
     float4 position : SV_Position;
+    float2 map_pos;
     float height;
     vec3 normal;
     vec4 fragPos;
@@ -113,7 +114,7 @@ DS_OUT tese(
     vec4 p0 = (p01 - p00) * u + p00;
     vec4 p1 = (p11 - p10) * u + p10;
     vec4 p = (p1 - p0) * v + p0;
-
+    out.map_pos = vec2(p.x, p.z);
     // displace point along normal
     p += vec4(0, out.height, 0 , 0);
     
@@ -127,13 +128,15 @@ DS_OUT tese(
     return out;
 }
 
+struct FS_OUT{
+    vec4 albedo: SV_Target0;
+    int4 position: SV_Target1;
+};
 
 [shader("fragment")]
-float4 frag(DS_OUT in){
+FS_OUT frag(DS_OUT in){
+    FS_OUT out;
     float h = (in.height + 128)/256.0f;
-    if(h < 0.01){
-        discard;
-    }
 
     vec3 light_out = gLights.u_light_ambient;
     vec3 view_dir = normalize(gCam.u_cam_pos - in.fragPos.xyz);
@@ -147,6 +150,11 @@ float4 frag(DS_OUT in){
             diffuse_sample, specular_sample, dir_light, view_dir,
             1, in.normal) * (1.0 - ShadowCalculation(prop.shadowMap, in.fragPos, in.view_depth, in.normal, dir_light));
     light_out *= vec3(h, h, h);;
+    out.albedo = vec4(light_out, 1.0);
 
-    return vec4(light_out, 1.0);
+    out.position = int4(
+        (int)(in.map_pos.x),
+        (int)(in.map_pos.y), 0, 0
+    );
+    return out; 
 }

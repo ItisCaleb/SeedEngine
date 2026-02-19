@@ -3,7 +3,6 @@
 #include <string>
 #include "project/project.h"
 #include <nlohmann/json.hpp>
-#include "editor_terrain.h"
 
 namespace Seed {
 class EditorGUI;
@@ -18,7 +17,6 @@ class Editor {
         static Editor* get_instance(){
             return instance;
         }
-        Ref<EditorTerrain> terrain;
 
         Editor();
         ~Editor() = default;

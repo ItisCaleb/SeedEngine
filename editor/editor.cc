@@ -49,9 +49,6 @@ int main(int, char **) {
 
     ResourceLoader *loader = ResourceLoader::get_instance();
     // auto sky = loader->load_async<Sky>("assets/sky.json");
-    loader->load_async<Image>("assets/iceland_heightmap.png",
-                              [&](Ref<Image> image) { editor->terrain.create(image); });
-
     // engine->get_world()->set_sky(sky->wait());
     // engine->get_world()->set_terrain(terrain->wait());
 

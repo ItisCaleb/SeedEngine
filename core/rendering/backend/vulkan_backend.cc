@@ -229,6 +229,7 @@ void RenderBackendVK::create_logical_device() {
     deviceFeatures2.pNext = &features12;
     deviceFeatures2.features.tessellationShader = true;
     deviceFeatures2.features.samplerAnisotropy = true;
+    deviceFeatures2.features.independentBlend = true;
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -1436,8 +1437,8 @@ void RenderBackendVK::handle_frame_update() {
     for (ImageUpdate &copy : image_copy_queue) {
         VkImageMemoryBarrier barrier{};
         HardwareTextureVk *texture = this->textures.get_or_null(copy.texture);
-        barrier = create_image_barrier(texture,
-                                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copy.face);
+        barrier = create_image_barrier(
+            texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copy.face);
         transfer_barriers.push_back(barrier);
         barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1632,15 +1633,23 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
     VkPipelineDepthStencilStateCreateInfo depthState =
         VulkanHelper::depth_stencil(pipeline->depth_state);
 
-    VkPipelineColorBlendAttachmentState blendAttachment =
-        VulkanHelper::blend_attachment(pipeline->blend_attachment);
+    std::vector<VkPipelineColorBlendAttachmentState> blendAttachments;
+    for (HardwareColorAttachmentVk &attchment :
+         render_target->color_attachments) {
+        VkPipelineColorBlendAttachmentState state =
+            VulkanHelper::blend_attachment(pipeline->blend_attachment);
+        if(attchment.image_format == VK_FORMAT_R16G16B16A16_SINT){
+            state.blendEnable = false;
+        }
+        blendAttachments.push_back(state);
+    }
     VkPipelineColorBlendStateCreateInfo colorBlending{};
     colorBlending.sType =
         VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.logicOp = VK_LOGIC_OP_COPY;  // Optional
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &blendAttachment;
+    colorBlending.attachmentCount = blendAttachments.size();
+    colorBlending.pAttachments = blendAttachments.data();
     colorBlending.blendConstants[0] = 0.0f;  // Optional
     colorBlending.blendConstants[1] = 0.0f;  // Optional
     colorBlending.blendConstants[2] = 0.0f;  // Optional
