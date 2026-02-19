@@ -22,12 +22,12 @@ DefaultStorage::DefaultStorage() {
     shadow_map_default_pipeline =
         RHI::alloc_pipeline(shadow_default_shader->get_handle(),
                             RenderRasterizerState{.cull_mode = Cullmode::FRONT},
-                            RenderDepthStencilState{.depth_on = true}, {});
+                            RenderDepthStencilState{}, {});
     shadow_map_terrain_pipeline =
         RHI::alloc_pipeline(shadow_terrain_shader->get_handle(),
                             RenderRasterizerState{.cull_mode = Cullmode::FRONT,
                                                   .patch_control_points = 4},
-                            RenderDepthStencilState{.depth_on = true}, {});
+                            RenderDepthStencilState{}, {});
 
     mesh_desc.add_type_attr<Vec3>(0);
     mesh_desc.add_type_attr<Vec3>(1);

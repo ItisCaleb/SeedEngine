@@ -53,6 +53,7 @@ class DefaultRenderer : public Renderer {
         VertexLayout aabb_desc;
         void prepare_lights();
         void prepare_meshes();
+        void depth_prepass(Viewport &viewport);
         void shadow_pass();
         void color_pass(Viewport &viewport);
         void debug_pass(Viewport &viewport);

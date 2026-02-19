@@ -106,14 +106,9 @@ class VulkanHelper {
             VkPipelineDepthStencilStateCreateInfo depth_stencil{};
             depth_stencil.sType =
                 VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-            depth_stencil.depthTestEnable = state.depth_on ? VK_TRUE : VK_FALSE;
-            depth_stencil.depthWriteEnable =
-                state.depth_on ? VK_TRUE : VK_FALSE;
             depth_stencil.maxDepthBounds = 1.0f;
             depth_stencil.stencilTestEnable =
                 state.stencil_on ? VK_TRUE : VK_FALSE;
-            depth_stencil.depthCompareOp =
-                compare_op[(u8)state.depth_compare_op];
             return depth_stencil;
         }
 
@@ -319,6 +314,10 @@ class VulkanHelper {
                 flag |= VK_IMAGE_ASPECT_STENCIL_BIT;
             }
             return flag;
+        }
+
+        inline static VkCompareOp compare(CompareOP op){
+            return compare_op[(u8)op];
         }
 };
 }  // namespace Seed

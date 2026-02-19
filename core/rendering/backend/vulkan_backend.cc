@@ -1392,14 +1392,13 @@ HardwareRenderTargetVk *RenderBackendVK::get_current_render_target() {
 
 VkPipeline RenderBackendVK::get_vk_pipeline(
     HardwarePipelineVk *pipeline, HardwareRenderTargetVk *render_target,
-    std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive) {
+    std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
+    bool draw_depth_only) {
     Hash _hash;
     _hash.update(&pipeline->rst_state.cull_mode);
     _hash.update(&pipeline->rst_state.poly_mode);
     _hash.update(&pipeline->rst_state.patch_control_points);
 
-    _hash.update(&pipeline->depth_state.depth_on);
-    _hash.update(&pipeline->depth_state.depth_compare_op);
     _hash.update(&pipeline->depth_state.stencil_on);
     _hash.update(&pipeline->depth_state.stencil_compare_op);
 
@@ -1409,6 +1408,7 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     _hash.update(&pipeline->blend_attachment.func.src_alpha);
     _hash.update(&pipeline->blend_attachment.func.dst_alpha);
     _hash.update(&primitive);
+    _hash.update(&draw_depth_only);
 
     /* since we usually don't create multiple shader/render target/layout with
      * same config */
@@ -1422,8 +1422,8 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     VkPipeline vk_pipeline;
     auto iter = pipeline_cache.find(hash);
     if (iter == pipeline_cache.end()) {
-        vk_pipeline =
-            create_vk_pipeline(pipeline, render_target, layouts, primitive);
+        vk_pipeline = create_vk_pipeline(pipeline, render_target, layouts,
+                                         primitive, draw_depth_only);
         pipeline_cache.emplace(hash, vk_pipeline);
     } else {
         vk_pipeline = iter->second;
@@ -1600,7 +1600,8 @@ void RenderBackendVK::transition_render_target(HardwareRenderTargetVk *rt,
 
 VkPipeline RenderBackendVK::create_vk_pipeline(
     HardwarePipelineVk *pipeline, HardwareRenderTargetVk *render_target,
-    std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive) {
+    std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
+    bool draw_depth_only) {
     VkPipeline graphicsPipeline;
     HardwareShaderVk *shader = this->shaders.get_or_null(pipeline->shader);
     if (!shader) {
@@ -1608,8 +1609,9 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
             "failed to create graphics pipeline! No shader provided");
     }
     std::vector<VkDynamicState> dynamicStates = {
-        VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR,
-        VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY};
+        VK_DYNAMIC_STATE_VIEWPORT,           VK_DYNAMIC_STATE_SCISSOR,
+        VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE,
+        VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE, VK_DYNAMIC_STATE_DEPTH_COMPARE_OP};
 
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -1702,7 +1704,7 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
         stageInfos.push_back(create_stage_info(
             "tese", tese, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT));
     }
-    if (frag) {
+    if (frag && !draw_depth_only) {
         stageInfos.push_back(
             create_stage_info("frag", frag, VK_SHADER_STAGE_FRAGMENT_BIT));
     }
@@ -1931,7 +1933,8 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     vkWaitForFences(device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX);
     // VmaTotalStatistics stats;
     // vmaCalculateStatistics(buffer_allocator, &stats);
-    // spdlog::debug("VMA usage total : {} bytes", stats.total.statistics.allocationBytes);
+    // spdlog::debug("VMA usage total : {} bytes",
+    // stats.total.statistics.allocationBytes);
     VkResult result = vkAcquireNextImageKHR(
         device, swap_chain.chain, UINT64_MAX, image_available_semaphore,
         VK_NULL_HANDLE, &swap_chain.next_index);
@@ -2237,14 +2240,15 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
         clear_rect.rect = scissor_rect;
         vkCmdSetScissor(render_cmd_buffer, 0, 1, &scissor_rect);
     }
-    if (viewport_set) {
+    if (viewport_set && viewport_rect.width > 0 && viewport_rect.height > 0) {
         if (current_render_target == -1) {
             viewport_rect.y = rt->h - viewport_rect.y;
             viewport_rect.height = -viewport_rect.height;
         }
         vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
     }
-    if (!attachments.empty()) {
+    if (!attachments.empty() && clear_rect.rect.extent.width > 0 &&
+        clear_rect.rect.extent.height > 0) {
         vkCmdClearAttachments(render_cmd_buffer, attachments.size(),
                               attachments.data(), 1, &clear_rect);
     }
@@ -2312,7 +2316,9 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                         get_current_render_target()->h - viewport_rect.y;
                     viewport_rect.height = -viewport_rect.height;
                 }
-                vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
+                if (viewport_rect.width > 0 && viewport_rect.height > 0) {
+                    vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
+                }
                 break;
             }
             case RenderDrawData::OpType::SCISSOR: {
@@ -2346,10 +2352,19 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
     }
     VkPrimitiveTopology primitive = VulkanHelper::primitive(draw_data->type);
 
-    VkPipeline vk_pipeline = get_vk_pipeline(pipeline, rt, layouts, primitive);
+    VkPipeline vk_pipeline = get_vk_pipeline(pipeline, rt, layouts, primitive,
+                                             draw_data->draw_depth_only);
 
     vkCmdBindPipeline(render_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                       vk_pipeline);
+    vkCmdSetDepthWriteEnable(render_cmd_buffer, draw_data->depth_write);
+    if (draw_data->depth_test_op == CompareOP::NEVER) {
+        vkCmdSetDepthTestEnable(render_cmd_buffer, false);
+    } else {
+        vkCmdSetDepthTestEnable(render_cmd_buffer, true);
+        vkCmdSetDepthCompareOp(render_cmd_buffer,
+                               VulkanHelper::compare(draw_data->depth_test_op));
+    }
 
     vkCmdBindVertexBuffers(render_cmd_buffer, 0, vertex.size(), vertex.data(),
                            vertex_offsets.data());

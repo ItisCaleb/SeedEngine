@@ -241,11 +241,11 @@ class RenderBackendVK : public RenderBackend {
         VkPipeline create_vk_pipeline(HardwarePipelineVk *pipeline,
                                       HardwareRenderTargetVk *render_target,
                                       std::vector<VertexLayout *> &layouts,
-                                      VkPrimitiveTopology primitive);
+                                      VkPrimitiveTopology primitive, bool draw_depth_only);
         VkPipeline get_vk_pipeline(HardwarePipelineVk *pipeline,
                                    HardwareRenderTargetVk *render_target,
                                    std::vector<VertexLayout *> &layouts,
-                                   VkPrimitiveTopology primitive);
+                                   VkPrimitiveTopology primitive, bool draw_depth_only);
         void create_render_pass(HardwareRenderTargetVk *render_target,
                                 bool is_swapchain);
         void create_framebuffer(HardwareRenderTargetVk *render_target);

@@ -13,7 +13,6 @@ using namespace Seed;
 
 TerrainGUI::TerrainGUI() {
     ResourceLoader *loader = ResourceLoader::get_instance();
-    // auto sky = loader->load_async<Sky>("assets/sky.json");
     loader->load_async<Image>("assets/iceland_heightmap.png",
                               [&](Ref<Image> image) { terrain.create(image); });
     auto rt = ref_cast<MultiRenderTarget>(
@@ -41,7 +40,7 @@ void TerrainGUI::update() {
     ImGui::Text("Viewport: %f %f %f %f", dim.x, dim.y, dim.w, dim.h);
     ImGui::Text("Viewport coord: %f %f", vp_coord.x, vp_coord.y);
     ImGui::Text("Viewport actual coord: %u %u", x, y);
-    auto terrain_coord = (i16*)terrain_pos_tex->pixel_repeat(x, y);
+    auto terrain_coord = (i16 *)terrain_pos_tex->pixel_repeat(x, y);
     ImGui::Text("Terrain coord: %d %d", terrain_coord[0], terrain_coord[1]);
 
     if (ImGui::Button("save terrain")) {

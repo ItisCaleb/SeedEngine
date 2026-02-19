@@ -181,6 +181,48 @@ void DefaultRenderer::preprocess() {
     debug_triangle_indices->update(drawer->triangle_indices);
 }
 
+void DefaultRenderer::depth_prepass(Viewport &viewport) {
+    RenderCommandDispatcher dp;
+    SSBOHandle visble_buffer = RenderEngine::get_instance()->visible_ssbo;
+    dp.begin_scope("Depth Pass", current_sort_key());
+    RenderStateDataBuilder color_state;
+    color_state.bind_render_target(RenderEngine::get_instance()
+                                       ->get_render_target("default")
+                                       ->get_handle());
+    color_state.set_scissor(viewport.get_actual_dimension(false));
+    color_state.set_viewport(&viewport);
+    dp.set_states(color_state, current_sort_key());
+
+    Ref<Material> last_material;
+    for (MeshInstance &mesh : opaque_meshes) {
+        if (mesh.visible_size == 0) continue;
+        RenderDrawDataBuilder mesh_builder;
+        Ref<Material> material = mesh.mesh->get_material();
+        DepthMode depth_mode = material->get_depth_state().depth_mode;
+        if (last_material != material) {
+            mesh_builder = dp.generate_render_data(material);
+            mesh_builder.bind_texture(material->get_texture_count(),
+                                      shadow_map.get_texture()->get_handle());
+            last_material = material;
+        }
+        mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
+        mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
+        mesh_builder.set_instance(mesh.visible_size);
+        mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
+        mesh_builder.set_depth_write(true);
+        /* alpha test need fragment shader */
+        if (mesh.mesh->get_material()->get_depth_state().depth_mode !=
+            DepthMode::ALPHA_TEST) {
+            mesh_builder.set_draw_depth_only(true);
+        }
+        mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
+
+        dp.render(mesh_builder, mesh.mesh->get_type(), material->get_pipeline(),
+                  current_sort_key());
+    }
+    dp.end_scope(next_sort_key());
+}
+
 void DefaultRenderer::shadow_pass() {
     RenderCommandDispatcher dp;
     dp.begin_scope("Shadow Pass", current_sort_key());
@@ -226,6 +268,13 @@ void DefaultRenderer::shadow_pass() {
             mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset[i]);
             mesh_builder.push_constant(sizeof(u32), &i);
             mesh_builder.set_instance(mesh.visible_size[i], 0);
+            mesh_builder.set_depth_write(true);
+            /* alpha test need fragment shader */
+            if (mesh.mesh->get_material()->get_depth_state().depth_mode !=
+                DepthMode::ALPHA_TEST) {
+                mesh_builder.set_draw_depth_only(true);
+            }
+            mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
             dp.render(mesh_builder, mesh.mesh->get_type(),
                       mesh.mesh->get_material()->get_shadow_pipeline(),
                       current_sort_key());
@@ -254,19 +303,21 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
     for (MeshInstance &mesh : opaque_meshes) {
         if (mesh.visible_size == 0) continue;
         RenderDrawDataBuilder mesh_builder;
-        if (last_material != mesh.mesh->get_material()) {
-            mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
-            mesh_builder.bind_texture(
-                mesh.mesh->get_material()->get_texture_count(),
-                shadow_map.get_texture()->get_handle());
-            last_material = mesh.mesh->get_material();
+        Ref<Material> material = mesh.mesh->get_material();;
+        DepthMode depth_mode = material->get_depth_state().depth_mode;
+        if (last_material != material) {
+            mesh_builder = dp.generate_render_data(material);
+            mesh_builder.bind_texture(material->get_texture_count(),
+                                      shadow_map.get_texture()->get_handle());
+            last_material = material;
         }
         mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.set_instance(mesh.visible_size);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
-        dp.render(mesh_builder, mesh.mesh->get_type(),
-                  mesh.mesh->get_material()->get_pipeline(),
+        mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
+
+        dp.render(mesh_builder, mesh.mesh->get_type(), material->get_pipeline(),
                   current_sort_key());
     }
 
@@ -283,8 +334,11 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
         mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
+        mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
+
         for (u32 i = 0; i < mesh.visible_size; i++) {
             mesh_builder.set_instance(1, i);
+
             dp.render(mesh_builder, mesh.mesh->get_type(),
                       mesh.mesh->get_material()->get_pipeline(),
                       current_sort_key(mesh.depth[i]));
@@ -296,6 +350,7 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
         RenderDrawDataBuilder sky_builder =
             dp.generate_render_data(ref_cast<Material>(sky->get_material()));
         sky_builder.bind_vertex_data(sky_vert);
+        sky_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
         dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
                   sky->get_material()->get_pipeline(), current_sort_key(1.0));
     }
@@ -329,6 +384,7 @@ void DefaultRenderer::process(Viewport &viewport) {
 
     RenderCommandDispatcher dp;
     dp.begin_scope("Default Rendering", current_sort_key());
+    depth_prepass(viewport);
     shadow_pass();
     color_pass(viewport);
     debug_pass(viewport);

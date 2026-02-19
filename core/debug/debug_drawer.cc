@@ -109,7 +109,7 @@ DebugDrawer::DebugDrawer() {
     RenderRasterizerState rst;
     rst.poly_mode = PolygonMode::FILL;
     RenderDepthStencilState depth;
-    depth.depth_on = true;
+    depth.depth_mode = DepthMode::OPAQUE;
     RenderBlendState blend;
     blend.func = BlendFunc::create(
         BlendFactor::SRC_COLOR, BlendFactor::ONE_MINUS_SRC_COLOR,

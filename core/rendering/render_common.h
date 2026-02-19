@@ -86,16 +86,21 @@ enum class CompareOP : u8 {
     ALWAYS
 };
 
+enum class DepthMode: u8 {
+    OPAQUE, ALPHA_TEST, TRANSPARENT
+};
+
 struct RenderRasterizerState {
         Cullmode cull_mode = Cullmode::NONE;
         u32 patch_control_points = 1;
         PolygonMode poly_mode = PolygonMode::FILL;
 };
 
+
+
 struct RenderDepthStencilState {
-        bool depth_on = false;
+        DepthMode depth_mode = DepthMode::OPAQUE;
         bool stencil_on = false;
-        CompareOP depth_compare_op = CompareOP::LESS;
         CompareOP stencil_compare_op = CompareOP::ALWAYS;
 };
 enum class BlendFactor {
@@ -151,5 +156,7 @@ enum class UpdateFrequence : u8 {
     PERFRAME, 
     /* Update per drawcall*/
     PERDRAW };
+
+
 
 #endif

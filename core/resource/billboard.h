@@ -12,7 +12,7 @@ class BillboardMaterial : public Material {
         BillboardMaterial(Ref<Texture> tex)
             : Material(DS::get_instance()->billboard_shader) {
             this->set_texture("u_billboard", tex);
-            this->depth_state.depth_on = true;
+            this->depth_state.depth_mode = DepthMode::ALPHA_TEST;
         }
 };
 

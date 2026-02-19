@@ -19,13 +19,25 @@ VS_OUT vert(float2 aPos, float2 aTexCoord){
     return out;
 }
 
+float3 ACESToneMapping(float3 color, float adapted_lum)
+{
+	const float A = 2.51f;
+	const float B = 0.03f;
+	const float C = 2.43f;
+	const float D = 0.59f;
+	const float E = 0.14f;
+
+	color *= adapted_lum;
+	return (color * (A * color + B)) / (color * (C * color + D) + E);
+}
+
 [shader("fragment")]
 float4 frag(VS_OUT in) : SV_Target0{
-    const float gamma = 1.0;
+    const float gamma = 2.2;
     vec3 hdrColor = prop.image.Sample(in.uv).rgb;
-    // // exposure tone mapping
-    // vec3 mapped =  hdrColor / (hdrColor + vec3(1.0));
-    // // gamma correction
+    // exposure tone mapping
+    vec3 mapped =  ACESToneMapping(hdrColor, 0.5);
+    // gamma correction
     // mapped = pow(mapped, vec3(1.0 / gamma));
-    return vec4(hdrColor, 1.0);
+    return vec4(mapped, 1.0);
 }

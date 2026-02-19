@@ -92,6 +92,9 @@ struct RenderDrawData {
         u32 vertex_offset = 0;
         PipelineHandle pipeline;
         RenderPrimitiveType type;
+        bool draw_depth_only = false;
+        bool depth_write = false;
+        CompareOP depth_test_op = CompareOP::NEVER;
         u32 operation_cnt = 0;
 };
 
@@ -161,6 +164,9 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
         void set_draw_vertex(u32 vertex_cnt, u32 vertex_offset);
         void set_draw_index(u32 index_cnt, u32 index_offset);
         void set_instance(u32 cnt, u32 instance_offset = 0);
+        void set_draw_depth_only(bool depth_only);
+        void set_depth_write(bool depth_write);
+        void set_depth_test(CompareOP compare);
 };
 
 enum StateClearFlag : u8 {

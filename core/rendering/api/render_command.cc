@@ -82,6 +82,21 @@ void RenderDrawDataBuilder::set_instance(u32 instance_cnt,
     data->instance_offset = instance_offset;
 }
 
+void RenderDrawDataBuilder::set_draw_depth_only(bool depth_only) {
+    RenderDrawData *data = this->get_data();
+    data->draw_depth_only = depth_only;
+}
+
+void RenderDrawDataBuilder::set_depth_write(bool depth_write) {
+    RenderDrawData *data = this->get_data();
+    data->depth_write = depth_write;
+}
+
+void RenderDrawDataBuilder::set_depth_test(CompareOP compare) {
+    RenderDrawData *data = this->get_data();
+    data->depth_test_op = compare;
+}
+
 void RenderStateDataBuilder::bind_render_target(RenderTargetHandle handle) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::BIND_RENDER_TARGET);
@@ -187,7 +202,7 @@ void *RenderCommandDispatcher::push_update_cmd(RenderStreamData &update_data,
 }
 
 void RenderCommandDispatcher::push_buffer(VertexHandle handle, u32 size,
-                                            void *data, u32 sort_key) {
+                                          void *data, u32 sort_key) {
     RenderStreamData update_data;
     update_data.type = RenderResourceType::VERTEX;
     update_data.handle = handle;
@@ -195,7 +210,7 @@ void RenderCommandDispatcher::push_buffer(VertexHandle handle, u32 size,
     push_update_cmd(update_data, sort_key, size, data);
 }
 void RenderCommandDispatcher::push_buffer(IndexHandle handle, u32 size,
-                                            void *data, u32 sort_key) {
+                                          void *data, u32 sort_key) {
     RenderStreamData update_data;
     update_data.type = RenderResourceType::INDEX;
     update_data.handle = handle;
@@ -203,7 +218,7 @@ void RenderCommandDispatcher::push_buffer(IndexHandle handle, u32 size,
     push_update_cmd(update_data, sort_key, size, data);
 }
 void RenderCommandDispatcher::push_buffer(ConstantHandle handle, u32 size,
-                                            void *data, u32 sort_key) {
+                                          void *data, u32 sort_key) {
     RenderStreamData update_data;
     update_data.type = RenderResourceType::CONSTANT;
     update_data.handle = handle;
@@ -211,7 +226,7 @@ void RenderCommandDispatcher::push_buffer(ConstantHandle handle, u32 size,
     push_update_cmd(update_data, sort_key, size, data);
 }
 void RenderCommandDispatcher::push_buffer(SSBOHandle handle, u32 size,
-                                            void *data, u32 sort_key) {
+                                          void *data, u32 sort_key) {
     RenderStreamData update_data;
     update_data.type = RenderResourceType::STORAGE_BUFFER;
     update_data.handle = handle;
