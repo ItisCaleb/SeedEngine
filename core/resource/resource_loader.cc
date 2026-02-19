@@ -127,7 +127,12 @@ Ref<Sky> ResourceLoader::_load(const std::string &path) {
     }
     sky.create(w, h, texture[0], texture[1], texture[2], texture[3], texture[4],
                texture[5]);
-
+    stbi_image_free(texture[0]);
+    stbi_image_free(texture[1]);
+    stbi_image_free(texture[2]);
+    stbi_image_free(texture[3]);
+    stbi_image_free(texture[4]);
+    stbi_image_free(texture[5]);
     return sky;
 }
 

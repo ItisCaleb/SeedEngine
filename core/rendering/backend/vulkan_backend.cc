@@ -661,6 +661,7 @@ void RenderBackendVK::push_image_update(TextureHandle handle, u32 layer,
     create_staging_buffer(&stagingBuffer, &stagingAllocation, size);
     vmaCopyMemoryToAllocation(buffer_allocator, data, stagingAllocation, 0,
                               size);
+    free(data);
     this->image_copy_queue.push_back(
         ImageUpdate{.staging_buffer = stagingBuffer,
                     .staging_allocation = stagingAllocation,
@@ -1638,7 +1639,7 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
          render_target->color_attachments) {
         VkPipelineColorBlendAttachmentState state =
             VulkanHelper::blend_attachment(pipeline->blend_attachment);
-        if(attchment.image_format == VK_FORMAT_R16G16B16A16_SINT){
+        if (attchment.image_format == VK_FORMAT_R16G16B16A16_SINT) {
             state.blendEnable = false;
         }
         blendAttachments.push_back(state);
@@ -1928,7 +1929,9 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
 
 void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     vkWaitForFences(device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX);
-
+    // VmaTotalStatistics stats;
+    // vmaCalculateStatistics(buffer_allocator, &stats);
+    // spdlog::debug("VMA usage total : {} bytes", stats.total.statistics.allocationBytes);
     VkResult result = vkAcquireNextImageKHR(
         device, swap_chain.chain, UINT64_MAX, image_available_semaphore,
         VK_NULL_HANDLE, &swap_chain.next_index);
