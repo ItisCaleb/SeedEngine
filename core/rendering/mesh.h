@@ -3,7 +3,7 @@
 #include "core/math/vec2.h"
 #include "core/math/vec3.h"
 #include "core/ref.h"
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/resource/material.h"
 #include "core/rendering/vertex_data.h"
 #include "core/collision/shape.h"

@@ -1,6 +1,6 @@
 #include "camera_entity.h"
 #include "core/input.h"
-#include "core/rendering/api/render_engine.h"
+#include "core/engine.h"
 #include <fmt/core.h>
 #include "core/math/utils.h"
 
@@ -38,7 +38,7 @@ void CameraEntity::update(f32 dt) {
 }
 
 CameraEntity::CameraEntity() {
-    this->cam = RenderEngine::get_instance()->get_cam();
+    this->cam = &SeedEngine::get_instance()->get_world()->get_camera();
     this->cam->set_position(Vec3{0, 20, 0});
     this->cam->set_perspective(45, 1.33, 0.1, 2000.0);
     Input::get_instance()->on_mouse_move(

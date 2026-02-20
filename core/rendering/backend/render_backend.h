@@ -1,7 +1,7 @@
 #ifndef _SEED_RENDER_BACKEND_H_
 #define _SEED_RENDER_BACKEND_H_
-#include "core/rendering/api/render_command.h"
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_command.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/handle.h"
 #include "core/allocator/linear_allocator.h"
 #include "core/rendering/shader_layout.h"

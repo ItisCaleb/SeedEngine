@@ -1,6 +1,6 @@
 #include "terrain_gui.h"
 #include <fmt/format.h>
-#include "core/rendering/api/render_engine.h"
+#include "core/rendering/rhi/render_engine.h"
 #include "core/input.h"
 #include "core/engine.h"
 #include "core/resource/image.h"

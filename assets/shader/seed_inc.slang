@@ -30,7 +30,6 @@ struct Camera {
 struct Matrices{
     mat4 u_projection;
     mat4 u_view;
-    mat4 u_screen_projection;
 }
 struct Light {
     vec3 position;
@@ -61,6 +60,8 @@ ConstantBuffer<Matrices> gMatrices;
 ConstantBuffer<Lights> gLights;
 [[vk::binding(11)]]
 ConstantBuffer<CSMShadow> gCSM;
+[[vk::binding(12)]]
+ConstantBuffer<mat4> gProj;
 
 
 

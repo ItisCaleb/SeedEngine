@@ -1,8 +1,8 @@
 #include "default_renderer.h"
 #include "core/rendering/light.h"
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/resource/resource_loader.h"
-#include "core/rendering/api/render_engine.h"
+#include "core/rendering/rhi/render_engine.h"
 #include "core/engine.h"
 #include <spdlog/spdlog.h>
 #include <vector>
@@ -35,11 +35,21 @@ void DefaultRenderer::init() {
     ResourceLoader *loader = ResourceLoader::get_instance();
     RenderCommandDispatcher dp;
     RenderStateDataBuilder builder;
+    post_mat.create(DS::get_instance()->post_shader);
+    auto rt = ref_cast<MultiRenderTarget>(
+        RenderEngine::get_instance()->get_render_target("default"));
+    post_mat->set_texture("image", rt->get_color(0).texture);
+    camera =
+        RHI::alloc_constant(sizeof(Vec3), UpdateFrequence::PERFRAME, nullptr);
+    mvp = RHI::alloc_constant(sizeof(Mat4) * 2, UpdateFrequence::PERFRAME,
+                              nullptr);
 
     u_lights = RHI::alloc_constant(sizeof(STB140Lights),
                                    UpdateFrequence::PERFRAME, nullptr);
     u_csm = RHI::alloc_constant(sizeof(CSMShadow), UpdateFrequence::PERFRAME,
                                 nullptr);
+    builder.bind_constant(camera, 8);
+    builder.bind_constant(mvp, 9);
     builder.bind_constant(u_lights, 10);
     builder.bind_constant(u_csm, 11);
     dp.set_states(builder, 0);
@@ -69,7 +79,7 @@ void DefaultRenderer::prepare_lights() {
     RenderCommandDispatcher dp;
     World *world = SeedEngine::get_instance()->get_world();
     DirectionalLight &dir_light = world->get_direction_light();
-    Camera *cam = RenderEngine::get_instance()->get_cam();
+    Camera &cam = world->get_camera();
 
     /* upload lights uniform*/
     STB140Lights *light_buf =
@@ -111,7 +121,7 @@ void DefaultRenderer::prepare_meshes() {
 
     World *world = SeedEngine::get_instance()->get_world();
 
-    Camera *cam = RenderEngine::get_instance()->get_cam();
+    Camera &cam = world->get_camera();
     DirectionalLight &dir_light = world->get_direction_light();
 
     MeshStorage *mesh_storage = MeshStorage::get_instance();
@@ -138,7 +148,7 @@ void DefaultRenderer::prepare_meshes() {
         ShadowMeshInstance &shadow_mesh =
             this->shadow_meshes.emplace_back(ShadowMeshInstance{.mesh = mesh});
 
-        const Frustum &cam_frustum = cam->get_frustum();
+        const Frustum &cam_frustum = cam.get_frustum();
         if (!instance.is_null()) {
             /* Use instancing */
 
@@ -169,12 +179,19 @@ void DefaultRenderer::prepare_meshes() {
 }
 
 void DefaultRenderer::preprocess() {
+    World *world = SeedEngine::get_instance()->get_world();
+    Camera &cam = world->get_camera();
+    Mat4 *matrices = (Mat4 *)RHI::alloc_heap(sizeof(Mat4) * 2);
+    Vec3 *cam_pos = (Vec3 *)RHI::alloc_heap(sizeof(Vec3));
+    matrices[0] = cam.projection_zero();
+    matrices[1] = cam.look_at();
+    *cam_pos = cam.get_position();
+    RHI::update_from_heap(camera, 0, sizeof(Vec3), cam_pos);
+    RHI::update_from_heap(mvp, 0, sizeof(Mat4) * 2, matrices);
     prepare_lights();
     prepare_meshes();
 
     DebugDrawer *drawer = DebugDrawer::get_instance();
-
-    World *world = SeedEngine::get_instance()->get_world();
 
     debug_line->update(drawer->line_vertices);
     debug_triangle->update(drawer->triangle_vertices);
@@ -303,7 +320,8 @@ void DefaultRenderer::color_pass(Viewport &viewport) {
     for (MeshInstance &mesh : opaque_meshes) {
         if (mesh.visible_size == 0) continue;
         RenderDrawDataBuilder mesh_builder;
-        Ref<Material> material = mesh.mesh->get_material();;
+        Ref<Material> material = mesh.mesh->get_material();
+        ;
         DepthMode depth_mode = material->get_depth_state().depth_mode;
         if (last_material != material) {
             mesh_builder = dp.generate_render_data(material);
@@ -379,6 +397,22 @@ void DefaultRenderer::debug_pass(Viewport &viewport) {
     }
 }
 
+void DefaultRenderer::post_pass() {
+    RenderCommandDispatcher dp;
+    dp.begin_scope("POST Rendering", current_sort_key());
+    RenderStateDataBuilder post_state;
+    auto rt = RenderEngine::get_instance()->get_render_target("window");
+    post_state.bind_render_target(rt->get_handle());
+    post_state.set_viewport(rt->get_viewport());
+
+    dp.set_states(post_state, current_sort_key());
+    auto builder = dp.generate_render_data(post_mat);
+    builder.bind_vertex_data(DS::get_instance()->quad_vertices);
+    dp.render(builder, RenderPrimitiveType::TRIANGLES, post_mat->get_pipeline(),
+              current_sort_key());
+    dp.end_scope(next_sort_key());
+}
+
 void DefaultRenderer::process(Viewport &viewport) {
     World *world = SeedEngine::get_instance()->get_world();
 
@@ -388,6 +422,7 @@ void DefaultRenderer::process(Viewport &viewport) {
     shadow_pass();
     color_pass(viewport);
     debug_pass(viewport);
+    post_pass();
     dp.end_scope(current_sort_key());
 }
 void DefaultRenderer::cleanup() {

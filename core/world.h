@@ -18,6 +18,7 @@ class World {
         Vec3 ambient_light;
         DirectionalLight direction_light;
         std::vector<PointLight> point_lights;
+        Camera camera;
 
     public:
         std::vector<Entity *> &get_entities();
@@ -26,7 +27,7 @@ class World {
         Vec3 get_ambient_light() { return ambient_light; }
         DirectionalLight &get_direction_light() { return direction_light; }
         std::vector<PointLight> &get_point_lights() { return point_lights; }
-
+        Camera &get_camera() { return camera; }
         void tick(f32 dt);
         void add_entity(Entity *entity);
         void set_terrain(Ref<Terrain> terrain);

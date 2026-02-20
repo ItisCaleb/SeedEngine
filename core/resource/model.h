@@ -1,6 +1,6 @@
 #ifndef _SEED_MODEL_H_
 #define _SEED_MODEL_H_
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/collision/shape.h"
 #include "core/resource/resource.h"
 #include "core/rendering/mesh.h"

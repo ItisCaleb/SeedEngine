@@ -1,7 +1,7 @@
 #ifndef _SEED_RENDER_TARGET_H_
 #define _SEED_RENDER_TARGET_H_
-#include "core/rendering/api/render_resource.h"
-#include "core/rendering/api/render_command.h"
+#include "core/rendering/rhi/render_resource.h"
+#include "core/rendering/rhi/render_command.h"
 #include "core/rendering/viewport.h"
 #include "core/resource/texture.h"
 #include "core/macro.h"

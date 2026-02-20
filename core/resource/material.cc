@@ -1,7 +1,7 @@
 #include "material.h"
 #include <spdlog/spdlog.h>
 #include "core/macro.h"
-#include "core/rendering/api/render_command.h"
+#include "core/rendering/rhi/render_command.h"
 
 namespace Seed {
 

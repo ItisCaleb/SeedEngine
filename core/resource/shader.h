@@ -1,7 +1,7 @@
 #ifndef _SEED_SHADER_H_
 #define _SEED_SHADER_H_
 
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/resource/resource.h"
 #include "core/rendering/shader_layout.h"
 

@@ -9,6 +9,6 @@ target_sources(seed PRIVATE
     viewport.cc
     light.cc
 )
-add_subdirectory(api)
+add_subdirectory(rhi)
 add_subdirectory(renderer)
 add_subdirectory(backend)

@@ -1,5 +1,5 @@
 #include "texture.h"
-#include "core/rendering/api/render_command.h"
+#include "core/rendering/rhi/render_command.h"
 
 namespace Seed {
 Texture::Texture(TextureType type, u32 w, u32 h, PixelFormat format,

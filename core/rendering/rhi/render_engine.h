@@ -4,7 +4,7 @@
 #include <queue>
 #include <vector>
 #include "core/rendering/camera.h"
-#include "core/rendering/api/render_command.h"
+#include "core/rendering/rhi/render_command.h"
 #include "core/rendering/backend/render_backend.h"
 #include "core/rendering/mesh.h"
 #include "core/resource/model.h"
@@ -13,7 +13,7 @@
 #include "core/rendering/viewport.h"
 #include "core/rendering/render_target.h"
 #include "core/rendering/mesh_storage.h"
-#include "core/rendering/api/shader_proxy.h"
+#include "core/rendering/rhi/shader_proxy.h"
 
 namespace Seed {
 class RenderEngine {
@@ -30,9 +30,7 @@ class RenderEngine {
         RenderBackend *device;
         MeshStorage *mesh_storage;
         ShaderProxy *shader_proxy;
-        ConstantHandle matrices_rc, cam_rc;
         SSBOHandle visible_ssbo;
-        Camera cam;
         std::vector<Layer> layers;
         std::unordered_map<std::string, Ref<RenderTarget>> render_targets;
         std::unordered_map<std::string, InstanceDataPool *> instance_pools;
@@ -48,7 +46,6 @@ class RenderEngine {
         void init();
         void process();
         RenderBackend *get_device();
-        Camera *get_cam();
         template <typename T, typename... Args>
         void register_renderer(u32 layer, Ref<RenderTarget> rt,
                                const Args &...args);

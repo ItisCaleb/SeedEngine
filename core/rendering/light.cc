@@ -3,12 +3,12 @@
 namespace Seed {
 
 void DirectionalLight::calculate_csm_lightspace(
-    Camera *cam, const std::vector<f32> &resolutions, CSMShadow &csm_data) {
+    Camera &cam, const std::vector<f32> &resolutions, CSMShadow &csm_data) {
     u32 splits = resolutions.size();
     const Vec3 up = Vec3{0, 1, 0};
 
-    Vec3 cam_front = cam->get_front();
-    Vec3 cam_pos = cam->get_position();
+    Vec3 cam_front = cam.get_front();
+    Vec3 cam_pos = cam.get_position();
 
     /* localspace w u v*/
     Vec3 w = Vec3{0, 0, 1};
@@ -17,7 +17,7 @@ void DirectionalLight::calculate_csm_lightspace(
     /* vup */
     Vec3 v = w.cross(u).norm();
     f32 lambda = shadow_lamdba;
-    f32 n0 = cam->frustum.near;
+    f32 n0 = cam.frustum.near;
     f32 f0 = 300;
     f32 near = n0;
 
@@ -40,10 +40,10 @@ void DirectionalLight::calculate_csm_lightspace(
         /* we calculate frusta sphere at local space */
         f32 far = lambda * n0 * powf((f0 / n0), i / (f32)splits) +
                   (1 - lambda) * (n0 + (i / (f32)splits) * (f0 - n0));
-        f32 n_r = near / n0 * cam->frustum.right;
-        f32 n_t = near / n0 * cam->frustum.top;
-        f32 f_r = far / n0 * cam->frustum.right;
-        f32 f_t = far / n0 * cam->frustum.top;
+        f32 n_r = near / n0 * cam.frustum.right;
+        f32 n_t = near / n0 * cam.frustum.top;
+        f32 f_r = far / n0 * cam.frustum.right;
+        f32 f_t = far / n0 * cam.frustum.top;
         Vec3 n_right = u * n_r;
         Vec3 n_top = v * n_t;
         Vec3 f_right = u * f_r;

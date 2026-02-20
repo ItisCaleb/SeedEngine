@@ -1,7 +1,7 @@
 #include "engine.h"
 #include <GLFW/glfw3.h>
 #include "input.h"
-#include "core/rendering/api/render_engine.h"
+#include "core/rendering/rhi/render_engine.h"
 #include "core/resource/resource_loader.h"
 #include "core/gui/gui_engine.h"
 #include "core/concurrency/thread_pool.h"

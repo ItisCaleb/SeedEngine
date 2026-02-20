@@ -1,7 +1,7 @@
 #ifndef _SEED_DEFAULT_RENDERER_H_
 #define _SEED_DEFAULT_RENDERER_H_
 #include "renderer.h"
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/rendering/vertex_data.h"
 #include "core/resource/model.h"
 #include "core/rendering/render_target.h"
@@ -32,6 +32,7 @@ class DefaultRenderer : public Renderer {
         std::vector<MeshInstance> transparent_meshes;
         std::vector<u32> visible_instances;
 
+        Ref<Material> post_mat;
         Ref<Material> debug_mat;
         Ref<VertexData> sky_vert;
         Ref<VertexData> debug_line;
@@ -41,6 +42,8 @@ class DefaultRenderer : public Renderer {
         /* Lighting */
         ShadowMap shadow_map;
         Ref<RenderTarget> shadow_map_rt;
+        ConstantHandle mvp;
+        ConstantHandle camera;
         ConstantHandle u_lights;
         ConstantHandle u_csm;
         Handle shadow_map_dir_handle[CSM_SPLITS];
@@ -57,6 +60,7 @@ class DefaultRenderer : public Renderer {
         void shadow_pass();
         void color_pass(Viewport &viewport);
         void debug_pass(Viewport &viewport);
+        void post_pass();
 
         void init() override;
         void preprocess() override;

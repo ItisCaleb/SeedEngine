@@ -14,6 +14,7 @@ class ImguiRenderer : public Renderer {
                 IndexHandle indices;
         };
         Ref<Material> font_mat;
+        ConstantHandle projection;
         ImguiData *get_imgui_data();
         Ref<Texture> create_font_texture();
 

@@ -1,5 +1,5 @@
 #include "opengl_backend.h"
-#include "core/rendering/api/render_engine.h"
+#include "core/rendering/rhi/render_engine.h"
 #include <spdlog/spdlog.h>
 #include "core/macro.h"
 #include "opengl_helper.h"

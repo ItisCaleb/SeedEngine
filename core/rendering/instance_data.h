@@ -2,7 +2,7 @@
 #define _SEED_INSTANCE_DATA_H_
 #include "core/ref.h"
 #include "core/transform.h"
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/rendering/camera.h"
 #include <set>
 #include <vector>

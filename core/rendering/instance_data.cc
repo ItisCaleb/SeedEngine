@@ -1,8 +1,8 @@
 #include "instance_data.h"
 #include "core/macro.h"
 #include "core/math/utils.h"
-#include "core/rendering/api/render_command.h"
-#include "core/rendering/api/render_engine.h"
+#include "core/rendering/rhi/render_command.h"
+#include "core/rendering/rhi/render_engine.h"
 #include "core/debug/debug_drawer.h"
 
 namespace Seed {

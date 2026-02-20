@@ -1,5 +1,5 @@
 #include "shader_proxy.h"
-#include "core/rendering/api/render_engine.h"
+#include "core/rendering/rhi/render_engine.h"
 // #include "core/rendering/backend/opengl_backend.h"
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/io/file.h"

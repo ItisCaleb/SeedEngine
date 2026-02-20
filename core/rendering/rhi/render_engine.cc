@@ -8,26 +8,11 @@
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
-#include "core/rendering/renderer/post_renderer.h"
 #include "core/macro.h"
 
 #include <spdlog/spdlog.h>
 
 namespace Seed {
-inline Mat4 RenderEngine::get_window_projection() {
-    f32 L = 0;
-    f32 R = current_window->get_width();
-    f32 T = 0;
-    f32 B = current_window->get_height();
-    const Mat4 ortho_projection = {
-        Vec4{2.0f / (R - L), 0.0f, 0.0f, 0.0f},
-        Vec4{0.0f, 2.0f / (T - B), 0.0f, 0.0f},
-        Vec4{0.0f, 0.0f, -1.0f, 0.0f},
-        Vec4{(R + L) / (L - R), (T + B) / (B - T), 0.0f, 1.0f},
-    };
-    return ortho_projection;
-}
-
 RenderEngine *RenderEngine::get_instance() { return instance; }
 
 void RenderEngine::bind_opengl(Window *window) {
@@ -82,12 +67,9 @@ RenderEngine::RenderEngine(Window *window) {
         new InstanceDataPool(sizeof(Vec4), 1024);
     this->instance_pools["BonesPool"] =
         new InstanceDataPool(sizeof(Vec4), 1024);
-    visible_ssbo = RHI::alloc_storage_buffer(sizeof(int) * 65536,
-                                             UpdateFrequence::PERFRAME, nullptr);
-    cam_rc =
-        RHI::alloc_constant(sizeof(Vec3), UpdateFrequence::PERFRAME, nullptr);
-    matrices_rc = RHI::alloc_constant(sizeof(Mat4) * 3,
-                                      UpdateFrequence::PERFRAME, nullptr);
+    visible_ssbo = RHI::alloc_storage_buffer(
+        sizeof(int) * 65536, UpdateFrequence::PERFRAME, nullptr);
+
     RenderCommandDispatcher dp;
     /* Bind engine default buffers */
     RenderStateDataBuilder builder;
@@ -98,8 +80,7 @@ RenderEngine::RenderEngine(Window *window) {
         this->instance_pools["TerrainDataPool"]->get_render_buffer(), 2);
     builder.bind_storage_buffer(
         this->instance_pools["BonesPool"]->get_render_buffer(), 3);
-    builder.bind_constant(cam_rc, 8);
-    builder.bind_constant(matrices_rc, 9);
+
     dp.set_states(builder, 0);
 }
 
@@ -127,15 +108,11 @@ void RenderEngine::init() {
 
     this->register_renderer<DefaultRenderer>(
         i++, ref_cast<RenderTarget>(post_target));
-    this->register_renderer<PostRenderer>(i++,
-                                          ref_cast<RenderTarget>(window_rt));
     this->register_renderer<ImguiRenderer>(i++,
                                            ref_cast<RenderTarget>(window_rt));
 }
 
 RenderBackend *RenderEngine::get_device() { return device; }
-
-Camera *RenderEngine::get_cam() { return &cam; }
 
 template <typename T, typename... Args>
 void RenderEngine::register_renderer(u32 layer, Ref<RenderTarget> rt,
@@ -159,14 +136,7 @@ void RenderEngine::process() {
         builder.clear(StateClearFlag::CLEAR_DEPTH);
         dp.set_states(builder, 0);
     }
-    Mat4 *matrices = (Mat4 *)RHI::alloc_heap(sizeof(Mat4) * 3);
-    Vec3 *cam_pos = (Vec3 *)RHI::alloc_heap(sizeof(Vec3));
-    matrices[0] = cam.projection_zero();
-    matrices[1] = cam.look_at();
-    matrices[2] = get_window_projection().transpose();
-    *cam_pos = this->cam.get_position();
-    RHI::update_from_heap(matrices_rc, 0, sizeof(Mat4) * 3, matrices);
-    RHI::update_from_heap(cam_rc, 0, sizeof(Vec3), cam_pos);
+
     for (Layer &layer : this->layers) {
         RenderCommandDispatcher layer_dp;
         {

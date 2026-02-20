@@ -18,7 +18,8 @@ void ImguiRenderer::init() {
                                    UpdateFrequence::PERDRAW, nullptr);
     bd->indices =
         RHI::alloc_index(std::vector<u16>(), UpdateFrequence::PERDRAW);
-
+    projection =
+        RHI::alloc_constant(sizeof(Mat4), UpdateFrequence::PERFRAME, nullptr);
     // Build texture atlas
     Ref<Texture> atlas = create_font_texture();
 
@@ -30,6 +31,10 @@ void ImguiRenderer::init() {
     font_mat.create(DS::get_instance()->gui_shader, RenderRasterizerState{},
                     RenderDepthStencilState{}, blend_state);
     font_mat->set_texture("u_texture", atlas);
+    RenderCommandDispatcher dp;
+    RenderStateDataBuilder builder;
+    builder.bind_constant(projection, 12);
+    dp.set_states(builder, 0);
 }
 
 Ref<Texture> ImguiRenderer::create_font_texture() {
@@ -66,6 +71,18 @@ void ImguiRenderer::process(Viewport &viewport) {
     RectF view_rect = viewport.get_actual_dimension();
     int fb_width = view_rect.w;
     int fb_height = view_rect.h;
+    f32 L = 0;
+    f32 R = fb_width;
+    f32 T = 0;
+    f32 B = fb_height;
+    const Mat4 ortho_projection = {
+        Vec4{2.0f / (R - L), 0.0f, 0.0f, 0.0f},
+        Vec4{0.0f, 2.0f / (T - B), 0.0f, 0.0f},
+        Vec4{0.0f, 0.0f, -1.0f, 0.0f},
+        Vec4{(R + L) / (L - R), (T + B) / (B - T), 0.0f, 1.0f},
+    };
+    Mat4 proj = ortho_projection.transpose();
+    RHI::update(projection, 0, sizeof(Mat4), &proj);
 
     if (fb_width <= 0 || fb_height <= 0) return;
 

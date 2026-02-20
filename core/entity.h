@@ -3,7 +3,7 @@
 #include "core/math/vec3.h"
 #include "core/math/mat4.h"
 #include "core/rendering/mesh.h"
-#include "core/rendering/api/render_command.h"
+#include "core/rendering/rhi/render_command.h"
 #include "core/physic/physic_body.h"
 #include "core/physic/physic_shape.h"
 #include "core/physic/physic_engine.h"
