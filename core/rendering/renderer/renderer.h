@@ -1,5 +1,5 @@
-#ifndef _SEED_RENDER_PASS_H_
-#define _SEED_RENDER_PASS_H_
+#ifndef _SEED_RENDERER_H_
+#define _SEED_RENDERER_H_
 #include "core/rendering/rhi/render_command.h"
 #include "core/rendering/viewport.h"
 #include <thread>
@@ -21,9 +21,9 @@ class Renderer {
         }
 
     private:
-        virtual void init() = 0;
+        virtual void init(Window *window) = 0;
         virtual void preprocess() = 0;
-        virtual void process(Viewport &viewport) = 0;
+        virtual void process() = 0;
         virtual void cleanup() = 0;
 
     public:

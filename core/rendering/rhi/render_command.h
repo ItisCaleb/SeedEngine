@@ -123,8 +123,10 @@ class DataBuilder {
             /* for debug */
             op_view.resize(data->operation_cnt);
             for (i32 i = 0; i < data->operation_cnt; i++) {
-                op_view[i] = (typename T::Operation *)((u64)data + sizeof(T) +
-                                   i * sizeof(typename T::Operation));
+                op_view[i] =
+                    (typename T::Operation *)((u64)data + sizeof(T) +
+                                              i * sizeof(
+                                                      typename T::Operation));
             }
             return dst;
         }
@@ -169,7 +171,8 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
         void set_depth_test(CompareOP compare);
 };
 
-enum StateClearFlag : u8 {
+typedef u32 StateClearFlag;
+enum StateClearFlagBits : u32 {
     CLEAR_COLOR = 1,
     CLEAR_DEPTH = 2,
     CLEAR_STENCIL = 4
@@ -187,7 +190,7 @@ struct RenderStateData {
         struct Operation {
                 OpType type;
                 union {
-                        RenderTargetHandle render_target_handle;
+                        RenderPassHandle render_pass_handle;
                         struct {
                                 RectF *view_rects;
                                 u32 counts;
@@ -211,8 +214,7 @@ class RenderStateDataBuilder : public DataBuilder<RenderStateData> {
         friend RenderCommandDispatcher;
 
     public:
-        void bind_render_target(RenderTargetHandle handle);
-        void bind_window();
+        void bind_render_pass(RenderPassHandle handle);
         void set_viewport(Viewport *viewport, bool flip_y = false);
         void set_viewports(std::vector<Viewport> &viewports,
                            bool flip_y = false);
@@ -240,30 +242,29 @@ class RenderCommandDispatcher {
         friend RenderDrawDataBuilder;
 
     private:
-        RectF viewport;
-        void *push_update_cmd(RenderStreamData &update_data, u32 sort_key,
-                              u64 size, void *data);
+        u8 layer = 0;
+        u8 seq = 0;
+        void *push_update_cmd(RenderStreamData &update_data, u64 size,
+                              void *data);
 
     public:
-        void begin_scope(const std::string &scope, u32 sort_key);
-        void end_scope(u32 sort_key);
+        void set_layer(u8 layer) { this->layer = layer; }
+        void set_seq(u8 seq) { this->seq = seq; }
+        void begin_scope(const std::string &scope);
+        void end_scope();
 
-        void set_states(RenderStateDataBuilder &builder, u32 sort_key);
+        void set_states(RenderStateDataBuilder &builder);
         /* Will copy data to a temporary buffer.*/
-        void push_buffer(VertexHandle handle, u32 size,
-                           void *data, u32 sort_key = 0);
-        void push_buffer(IndexHandle handle, u32 size, void *data,
-                           u32 sort_key = 0);
-        void push_buffer(ConstantHandle handle, u32 size,
-                           void *data, u32 sort_key = 0);
-        void push_buffer(SSBOHandle handled, u32 size, void *data,
-                           u32 sort_key = 0);
+        void push_buffer(VertexHandle handle, u32 size, void *data);
+        void push_buffer(IndexHandle handle, u32 size, void *data);
+        void push_buffer(ConstantHandle handle, u32 size, void *data);
+        void push_buffer(SSBOHandle handled, u32 size, void *data);
 
         /* will automatically fill material state and textures */
         RenderDrawDataBuilder generate_render_data(Ref<Material> mat);
 
         void render(RenderDrawDataBuilder &builder, RenderPrimitiveType type,
-                    PipelineHandle pipeline, u32 sort_key);
+                    PipelineHandle pipeline, f32 depth);
 
         RenderCommandDispatcher();
         ~RenderCommandDispatcher();

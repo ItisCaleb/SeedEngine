@@ -1,6 +1,7 @@
 #include "render_command.h"
 #include "render_engine.h"
 #include <spdlog/spdlog.h>
+#include "core/macro.h"
 
 namespace Seed {
 
@@ -97,16 +98,10 @@ void RenderDrawDataBuilder::set_depth_test(CompareOP compare) {
     data->depth_test_op = compare;
 }
 
-void RenderStateDataBuilder::bind_render_target(RenderTargetHandle handle) {
+void RenderStateDataBuilder::bind_render_pass(RenderPassHandle handle) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::BIND_RENDER_TARGET);
-    op->render_target_handle = handle;
-}
-
-void RenderStateDataBuilder::bind_window() {
-    RenderStateData::Operation *op =
-        alloc_operation(RenderStateData::OpType::BIND_RENDER_TARGET);
-    op->render_target_handle = NULL_HANDLE;
+    op->render_pass_handle = handle;
 }
 
 void RenderStateDataBuilder::set_viewport(Viewport *viewport, bool flip_y) {
@@ -150,7 +145,7 @@ void RenderStateDataBuilder::set_scissor(Viewport *viewport, bool flip_y) {
 void RenderStateDataBuilder::clear(StateClearFlag flag) {
     RenderStateData::Operation *op =
         alloc_operation(RenderStateData::OpType::CLEAR);
-    op->clear_flag |= flag;
+    op->clear_flag = flag;
 }
 
 void RenderStateDataBuilder::bind_constant(ConstantHandle handle, u32 base) {
@@ -167,26 +162,25 @@ void RenderStateDataBuilder::bind_storage_buffer(SSBOHandle handle, u32 base) {
     op->ssbo.base = base;
 }
 
-void RenderCommandDispatcher::begin_scope(const std::string &scope,
-                                          u32 sort_key) {
+void RenderCommandDispatcher::begin_scope(const std::string &scope) {
     RenderCommand cmd;
-    cmd.sort_key = sort_key;
+    cmd.sort_key = gen_sort_key(layer, seq, 0);
     cmd.type = RenderCommandType::BEGIN_SCOPE;
     RD->push_cmd(cmd, scope.size() + 1, (void *)scope.c_str());
 }
 
-void RenderCommandDispatcher::end_scope(u32 sort_key) {
+void RenderCommandDispatcher::end_scope() {
     RenderCommand cmd;
-    cmd.sort_key = sort_key;
+    cmd.sort_key = gen_sort_key(layer, seq + 1, 0);
+    ;
     cmd.type = RenderCommandType::END_SCOPE;
     RD->push_cmd(cmd);
 }
 
 void *RenderCommandDispatcher::push_update_cmd(RenderStreamData &update_data,
-                                               u32 sort_key, u64 size,
-                                               void *data = nullptr) {
+                                               u64 size, void *data = nullptr) {
     RenderCommand cmd;
-    cmd.sort_key = sort_key;
+    cmd.sort_key = gen_sort_key(layer, seq, 0);
     cmd.type = RenderCommandType::UPDATE;
 
     /* since updata data may not be filled immediately */
@@ -202,36 +196,36 @@ void *RenderCommandDispatcher::push_update_cmd(RenderStreamData &update_data,
 }
 
 void RenderCommandDispatcher::push_buffer(VertexHandle handle, u32 size,
-                                          void *data, u32 sort_key) {
+                                          void *data) {
     RenderStreamData update_data;
     update_data.type = RenderResourceType::VERTEX;
     update_data.handle = handle;
     update_data.size = size;
-    push_update_cmd(update_data, sort_key, size, data);
+    push_update_cmd(update_data, size, data);
 }
 void RenderCommandDispatcher::push_buffer(IndexHandle handle, u32 size,
-                                          void *data, u32 sort_key) {
+                                          void *data) {
     RenderStreamData update_data;
     update_data.type = RenderResourceType::INDEX;
     update_data.handle = handle;
     update_data.size = size;
-    push_update_cmd(update_data, sort_key, size, data);
+    push_update_cmd(update_data, size, data);
 }
 void RenderCommandDispatcher::push_buffer(ConstantHandle handle, u32 size,
-                                          void *data, u32 sort_key) {
+                                          void *data) {
     RenderStreamData update_data;
     update_data.type = RenderResourceType::CONSTANT;
     update_data.handle = handle;
     update_data.size = size;
-    push_update_cmd(update_data, sort_key, size, data);
+    push_update_cmd(update_data, size, data);
 }
 void RenderCommandDispatcher::push_buffer(SSBOHandle handle, u32 size,
-                                          void *data, u32 sort_key) {
+                                          void *data) {
     RenderStreamData update_data;
     update_data.type = RenderResourceType::STORAGE_BUFFER;
     update_data.handle = handle;
     update_data.size = size;
-    push_update_cmd(update_data, sort_key, size, data);
+    push_update_cmd(update_data, size, data);
 }
 
 RenderDrawDataBuilder RenderCommandDispatcher::generate_render_data(
@@ -243,19 +237,18 @@ RenderDrawDataBuilder RenderCommandDispatcher::generate_render_data(
     return builder;
 }
 
-void RenderCommandDispatcher::set_states(RenderStateDataBuilder &builder,
-                                         u32 sort_key) {
+void RenderCommandDispatcher::set_states(RenderStateDataBuilder &builder) {
     RenderCommand cmd;
-    cmd.sort_key = sort_key;
+    cmd.sort_key = gen_sort_key(layer, seq, 0);
     cmd.type = RenderCommandType::STATE;
     RD->push_cmd(cmd, builder.buffer.size(), builder.buffer.data());
 }
 
 void RenderCommandDispatcher::render(RenderDrawDataBuilder &builder,
                                      RenderPrimitiveType type,
-                                     PipelineHandle pipeline, u32 sort_key) {
+                                     PipelineHandle pipeline, f32 depth) {
     RenderCommand cmd;
-    cmd.sort_key = sort_key;
+    cmd.sort_key = gen_sort_key(layer, seq, depth);
     cmd.type = RenderCommandType::RENDER;
     RenderDrawData *draw_data = static_cast<RenderDrawData *>(
         RD->push_cmd(cmd, builder.buffer.size(), builder.buffer.data()));

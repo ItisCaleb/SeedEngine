@@ -75,10 +75,9 @@ struct HardwareColorAttachmentVk {
         TextureHandle texture_handle = NULL_HANDLE;
 };
 
-struct HardwareRenderTargetVk {
+struct HardwareRenderPassVk {
         std::vector<HardwareColorAttachmentVk> color_attachments;
         HardwareDepthStencilAttachmentVk depth_attachment;
-        bool depth_only;
         bool dirty = true;
         bool texture_changed = true;
         bool is_swapchain = false;
@@ -120,7 +119,7 @@ class RenderBackendVK : public RenderBackend {
         HandleIdOwner<HardwareTextureVk> textures;
         HandleOwner<HardwareShaderVk> shaders;
         HandleOwner<HardwarePipelineVk> pipelines;
-        HandleOwner<HardwareRenderTargetVk> render_targets;
+        HandleOwner<HardwareRenderPassVk> render_pass;
 
         struct DestroyResource {
                 RenderResourceType type;
@@ -236,20 +235,20 @@ class RenderBackendVK : public RenderBackend {
 
         void handle_frame_update();
         void handle_destroy();
-        void transition_render_target(HardwareRenderTargetVk *rt,
+        void transition_render_pass(HardwareRenderPassVk *rt,
                                       bool to_attachment);
         VkPipeline create_vk_pipeline(HardwarePipelineVk *pipeline,
-                                      HardwareRenderTargetVk *render_target,
+                                      HardwareRenderPassVk *render_target,
                                       std::vector<VertexLayout *> &layouts,
                                       VkPrimitiveTopology primitive, bool draw_depth_only);
         VkPipeline get_vk_pipeline(HardwarePipelineVk *pipeline,
-                                   HardwareRenderTargetVk *render_target,
+                                   HardwareRenderPassVk *render_target,
                                    std::vector<VertexLayout *> &layouts,
                                    VkPrimitiveTopology primitive, bool draw_depth_only);
-        void create_render_pass(HardwareRenderTargetVk *render_target,
+        void create_render_pass(HardwareRenderPassVk *render_target,
                                 bool is_swapchain);
-        void create_framebuffer(HardwareRenderTargetVk *render_target);
-        HardwareRenderTargetVk *get_current_render_target();
+        void create_framebuffer(HardwareRenderPassVk *render_target);
+        HardwareRenderPassVk *get_current_render_pass();
 
         VkShaderModule create_shader_module(const std::string &shader);
         bool pick_queue_family(VkPhysicalDevice device);
@@ -309,7 +308,7 @@ class RenderBackendVK : public RenderBackend {
             const RenderDepthStencilState &depth_state,
             const RenderBlendState &blend_state) override;
 
-        RenderTargetHandle alloc_render_target(bool depth_only) override;
+        RenderPassHandle alloc_render_pass() override;
 
         /* We'll use different method for updating different type of buffer */
         /* for STATIC we create a staging buffer to transfer */
@@ -321,9 +320,9 @@ class RenderBackendVK : public RenderBackend {
                     u32 h, void *data) override;
         void *map_buffer(RenderResourceType type, Handle handle) override;
         void *map_texture(TextureHandle handle) override;
-        void bind_depth_attachment(RenderTargetHandle handle,
+        void bind_depth_attachment(RenderPassHandle handle,
                                    TextureHandle texture, u32 face) override;
-        void bind_color_attachment(RenderTargetHandle handle, u8 slot,
+        void bind_color_attachment(RenderPassHandle handle, u8 slot,
                                    TextureHandle texture, u32 face) override;
         void dealloc(RenderResourceType type, Handle handle) override;
 

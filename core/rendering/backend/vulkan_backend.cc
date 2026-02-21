@@ -359,8 +359,8 @@ void RenderBackendVK::recreate_swapchain(Window *window) {
     for (u32 i = 0; i < swap_chain.render_targets.size(); i++) {
         dealloc(RenderResourceType::TEXTURE, swap_chain.textures[i]);
         if (i > 0) {
-            HardwareRenderTargetVk *rt =
-                this->render_targets.get_or_null(swap_chain.render_targets[i]);
+            HardwareRenderPassVk *rt =
+                this->render_pass.get_or_null(swap_chain.render_targets[i]);
             rt->render_pass_cache = nullptr;
         }
         dealloc(RenderResourceType::RENDER_TARGET,
@@ -402,7 +402,7 @@ void RenderBackendVK::create_image_views() {
 void RenderBackendVK::create_swapchain_framebuffer() {
     VkRenderPass render_pass = nullptr;
     for (u32 i = 0; i < this->swap_chain.textures.size(); i++) {
-        HardwareRenderTargetVk rt;
+        HardwareRenderPassVk rt;
         rt.is_swapchain = true;
         rt.color_attachments.push_back(HardwareColorAttachmentVk{
             .slot = 0,
@@ -418,7 +418,7 @@ void RenderBackendVK::create_swapchain_framebuffer() {
             rt.dirty = false;
         }
         create_framebuffer(&rt);
-        Handle handle = this->render_targets.insert(rt);
+        Handle handle = this->render_pass.insert(rt);
         this->swap_chain.render_targets.push_back(handle);
     }
     current_render_target = this->swap_chain.render_targets[0];
@@ -1243,13 +1243,11 @@ PipelineHandle RenderBackendVK::alloc_pipeline(
     return this->pipelines.insert(pipeline);
 }
 
-void RenderBackendVK::create_render_pass(HardwareRenderTargetVk *render_target,
+void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
                                          bool is_swapchain) {
     VkSubpassDescription subpass{};
     std::vector<VkAttachmentDescription> allAttachments;
-    std::vector<VkAttachmentDescription> colorAttachments;
     std::vector<VkAttachmentReference> colorRefs;
-    VkAttachmentDescription depthAttachment{};
     VkAttachmentReference depthRef{};
     u32 i = 0;
 
@@ -1277,7 +1275,6 @@ void RenderBackendVK::create_render_pass(HardwareRenderTargetVk *render_target,
             is_swapchain ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
                          : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        colorAttachments.push_back(colorAttachment);
         allAttachments.push_back(colorAttachment);
 
         VkAttachmentReference colorRef;
@@ -1287,6 +1284,7 @@ void RenderBackendVK::create_render_pass(HardwareRenderTargetVk *render_target,
         i++;
     }
     if (render_target->depth_attachment.texture_handle != NULL_HANDLE) {
+        VkAttachmentDescription depthAttachment{};
         depthAttachment.format = render_target->depth_attachment.image_format;
         depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         depthAttachment.loadOp = is_swapchain ? VK_ATTACHMENT_LOAD_OP_CLEAR
@@ -1308,6 +1306,7 @@ void RenderBackendVK::create_render_pass(HardwareRenderTargetVk *render_target,
         depthRef.attachment = i;
         depthRef.layout = depthAttachment.finalLayout;
         subpass.pDepthStencilAttachment = &depthRef;
+        i++;
     }
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = colorRefs.size();
@@ -1337,7 +1336,7 @@ void RenderBackendVK::create_render_pass(HardwareRenderTargetVk *render_target,
 }
 
 void RenderBackendVK::create_framebuffer(
-    HardwareRenderTargetVk *render_target) {
+    HardwareRenderPassVk *render_target) {
     if (!render_target->texture_changed) {
         return;
     }
@@ -1381,17 +1380,17 @@ void RenderBackendVK::create_framebuffer(
     }
 }
 
-HardwareRenderTargetVk *RenderBackendVK::get_current_render_target() {
+HardwareRenderPassVk *RenderBackendVK::get_current_render_pass() {
     if (current_render_target == -1) {
-        return this->render_targets.get_or_null(
+        return this->render_pass.get_or_null(
             this->swap_chain.render_targets[swap_chain.next_index]);
     } else {
-        return this->render_targets.get_or_null(current_render_target);
+        return this->render_pass.get_or_null(current_render_target);
     }
 }
 
 VkPipeline RenderBackendVK::get_vk_pipeline(
-    HardwarePipelineVk *pipeline, HardwareRenderTargetVk *render_target,
+    HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
     std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
     bool draw_depth_only) {
     Hash _hash;
@@ -1561,7 +1560,7 @@ void RenderBackendVK::handle_destroy() {
     }
 }
 
-void RenderBackendVK::transition_render_target(HardwareRenderTargetVk *rt,
+void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
                                                bool to_attachment) {
     /* we don't need swapchain to transition*/
     if (rt->is_swapchain) {
@@ -1599,7 +1598,7 @@ void RenderBackendVK::transition_render_target(HardwareRenderTargetVk *rt,
 }
 
 VkPipeline RenderBackendVK::create_vk_pipeline(
-    HardwarePipelineVk *pipeline, HardwareRenderTargetVk *render_target,
+    HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
     std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
     bool draw_depth_only) {
     VkPipeline graphicsPipeline;
@@ -1750,8 +1749,8 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
     return graphicsPipeline;
 }
 
-RenderTargetHandle RenderBackendVK::alloc_render_target(bool depth_only) {
-    return this->render_targets.insert({.depth_only = depth_only});
+RenderPassHandle RenderBackendVK::alloc_render_pass() {
+    return this->render_pass.insert({});
 }
 
 void RenderBackendVK::update(RenderResourceType type, Handle handle, u32 offset,
@@ -1818,9 +1817,9 @@ void *RenderBackendVK::map_texture(TextureHandle handle) {
     return texture->mapped_ptr;
 }
 
-void RenderBackendVK::bind_depth_attachment(RenderTargetHandle handle,
+void RenderBackendVK::bind_depth_attachment(RenderPassHandle handle,
                                             TextureHandle texture, u32 face) {
-    HardwareRenderTargetVk *rt = this->render_targets.get_or_null(handle);
+    HardwareRenderPassVk *rt = this->render_pass.get_or_null(handle);
     EXPECT_NOT_NULL_RET(rt);
     HardwareTextureVk *tex = this->textures.get_or_null(texture);
     EXPECT_NOT_NULL_RET(tex);
@@ -1832,9 +1831,9 @@ void RenderBackendVK::bind_depth_attachment(RenderTargetHandle handle,
         .texture_handle = texture};
 }
 
-void RenderBackendVK::bind_color_attachment(RenderTargetHandle handle, u8 slot,
+void RenderBackendVK::bind_color_attachment(RenderPassHandle handle, u8 slot,
                                             TextureHandle texture, u32 face) {
-    HardwareRenderTargetVk *rt = this->render_targets.get_or_null(handle);
+    HardwareRenderPassVk *rt = this->render_pass.get_or_null(handle);
     EXPECT_NOT_NULL_RET(rt);
     HardwareTextureVk *tex = this->textures.get_or_null(texture);
     EXPECT_NOT_NULL_RET(tex);
@@ -1863,7 +1862,7 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
     HardwareBufferVk *_buffer;
     HardwareTextureVk *_tex;
     HardwareShaderVk *_shader;
-    HardwareRenderTargetVk *_rt;
+    HardwareRenderPassVk *_rt;
     switch (type) {
         case RenderResourceType::VERTEX:
             _buffer = this->vertices.get_or_null(handle);
@@ -1916,13 +1915,13 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
             this->shaders.remove(handle);
             break;
         case RenderResourceType::RENDER_TARGET:
-            _rt = this->render_targets.get_or_null(handle);
+            _rt = this->render_pass.get_or_null(handle);
             EXPECT_NOT_NULL_RET(_rt);
             this->destroy_queue.push(DestroyResource{
                 .type = type,
                 .render_target = {.render_pass = _rt->render_pass_cache,
                                   .framebuffer = _rt->framebuffer_cache}});
-            this->render_targets.remove(handle);
+            this->render_pass.remove(handle);
             break;
         default:
             break;
@@ -1967,7 +1966,7 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = clears;
 
-    HardwareRenderTargetVk *rt = get_current_render_target();
+    HardwareRenderPassVk *rt = get_current_render_pass();
     create_render_pass(rt, false);
     create_framebuffer(rt);
     renderPassInfo.renderPass = rt->render_pass_cache;
@@ -2116,7 +2115,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
     VkViewport viewport_rect{};
     VkRect2D scissor_rect{};
     std::vector<VkClearAttachment> attachments;
-    HardwareRenderTargetVk *target_rt = nullptr;
+    HardwareRenderPassVk *target_rp = nullptr;
     Handle target_rt_handle;
     VkClearRect clear_rect{};
 
@@ -2164,19 +2163,19 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 break;
             }
             case RenderStateData::OpType::BIND_RENDER_TARGET: {
-                if (current_render_target == op->render_target_handle) {
+                if (current_render_target == op->render_pass_handle) {
                     break;
                 }
-                if (op->render_target_handle == -1) {
-                    target_rt = this->render_targets.get_or_null(
+                if (op->render_pass_handle == -1) {
+                    target_rp = this->render_pass.get_or_null(
                         this->swap_chain.render_targets[swap_chain.next_index]);
                 } else {
-                    target_rt = this->render_targets.get_or_null(
-                        op->render_target_handle);
+                    target_rp = this->render_pass.get_or_null(
+                        op->render_pass_handle);
                 }
-                EXPECT_NOT_NULL_BREAK(target_rt);
+                EXPECT_NOT_NULL_BREAK(target_rp);
 
-                target_rt_handle = op->render_target_handle;
+                target_rt_handle = op->render_pass_handle;
                 break;
             }
             case RenderStateData::OpType::BIND_CONSTANT: {
@@ -2206,31 +2205,31 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
         }
     }
 
-    if (target_rt) {
+    if (target_rp) {
         /* end old render pass */
         vkCmdEndRenderPass(render_cmd_buffer);
-        transition_render_target(get_current_render_target(), false);
+        transition_render_pass(get_current_render_pass(), false);
         current_render_target = target_rt_handle;
-        transition_render_target(get_current_render_target(), true);
-        create_render_pass(target_rt, false);
-        create_framebuffer(target_rt);
+        transition_render_pass(get_current_render_pass(), true);
+        create_render_pass(target_rp, false);
+        create_framebuffer(target_rp);
         /* begin new render pass*/
         const VkClearValue clears[] = {VkClearValue{.color = {0, 0, 0, 1}}};
 
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = target_rt->render_pass_cache;
-        renderPassInfo.framebuffer = target_rt->framebuffer_cache;
+        renderPassInfo.renderPass = target_rp->render_pass_cache;
+        renderPassInfo.framebuffer = target_rp->framebuffer_cache;
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.clearValueCount = 1;
         renderPassInfo.pClearValues = clears;
         renderPassInfo.renderArea.extent =
-            VkExtent2D{.width = target_rt->w, .height = target_rt->h};
+            VkExtent2D{.width = target_rp->w, .height = target_rp->h};
 
         vkCmdBeginRenderPass(render_cmd_buffer, &renderPassInfo,
                              VK_SUBPASS_CONTENTS_INLINE);
     }
-    HardwareRenderTargetVk *rt = get_current_render_target();
+    HardwareRenderPassVk *rt = get_current_render_pass();
 
     clear_rect.rect.extent.width = rt->w;
     clear_rect.rect.extent.height = rt->h;
@@ -2313,7 +2312,7 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                 viewport_rect.height = op->view_rect.h;
                 if (current_render_target == -1) {
                     viewport_rect.y =
-                        get_current_render_target()->h - viewport_rect.y;
+                        get_current_render_pass()->h - viewport_rect.y;
                     viewport_rect.height = -viewport_rect.height;
                 }
                 if (viewport_rect.width > 0 && viewport_rect.height > 0) {
@@ -2342,7 +2341,7 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                 break;
         }
     }
-    HardwareRenderTargetVk *rt = get_current_render_target();
+    HardwareRenderPassVk *rt = get_current_render_pass();
 
     VkDescriptorSet globalSet =
         get_descriptor_set(shader->set_layouts[0], global_bindings);

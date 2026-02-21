@@ -37,7 +37,7 @@ typedef TypedHandle<ConstantTag> ConstantHandle;
 typedef TypedHandle<SSBOTag> SSBOHandle;
 typedef TypedHandle<ShaderTag> ShaderHandle;
 typedef TypedHandle<PipelineTag> PipelineHandle;
-typedef TypedHandle<RenderTargetTag> RenderTargetHandle;
+typedef TypedHandle<RenderTargetTag> RenderPassHandle;
 
 namespace RHI {
 
@@ -58,11 +58,11 @@ IndexHandle alloc_index(const std::vector<u32> &indices,
                         UpdateFrequence frequence);
 
 [[nodiscard]]
-ConstantHandle alloc_constant(u32 size, UpdateFrequence frequence, void *data);
+ConstantHandle alloc_constant(u32 size, UpdateFrequence frequence, void *data = nullptr);
 
 [[nodiscard]]
 SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
-                                void *data);
+                                void *data = nullptr);
 
 [[nodiscard]]
 TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
@@ -83,7 +83,7 @@ PipelineHandle alloc_pipeline(ShaderHandle shader,
                               const RenderBlendState &blend_state);
 
 [[nodiscard]]
-RenderTargetHandle alloc_render_target(bool depth_only);
+RenderPassHandle alloc_renderpass();
 
 void *alloc_heap(u32 size);
 
@@ -115,9 +115,9 @@ void update_from_heap(ConstantHandle handle, u32 offset, u32 size, void *data);
 /* these commands will be execute at start of frame */
 void update_from_heap(SSBOHandle handle, u32 offset, u32 size, void *data);
 
-void bind_depth_attachment(RenderTargetHandle handle, TextureHandle texture,
+void bind_depth_attachment(RenderPassHandle handle, TextureHandle texture,
                            u32 face);
-void bind_color_attachment(RenderTargetHandle handle, u8 slot,
+void bind_color_attachment(RenderPassHandle handle, u8 slot,
                            TextureHandle texture, u32 face);
 
 void *map_buffer(VertexHandle handle);
@@ -133,7 +133,7 @@ void dealloc(ShaderHandle handle);
 void dealloc(ConstantHandle handle);
 void dealloc(PipelineHandle handle);
 void dealloc(SSBOHandle handle);
-void dealloc(RenderTargetHandle handle);
+void dealloc(RenderPassHandle handle);
 
 };  // namespace RHI
 }  // namespace Seed

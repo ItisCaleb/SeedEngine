@@ -67,100 +67,37 @@ RenderEngine::RenderEngine(Window *window) {
         new InstanceDataPool(sizeof(Vec4), 1024);
     this->instance_pools["BonesPool"] =
         new InstanceDataPool(sizeof(Vec4), 1024);
-    visible_ssbo = RHI::alloc_storage_buffer(
-        sizeof(int) * 65536, UpdateFrequence::PERFRAME, nullptr);
-
-    RenderCommandDispatcher dp;
-    /* Bind engine default buffers */
-    RenderStateDataBuilder builder;
-    builder.bind_storage_buffer(visible_ssbo, 0);
-    builder.bind_storage_buffer(
-        this->instance_pools["TransformDataPool"]->get_render_buffer(), 1);
-    builder.bind_storage_buffer(
-        this->instance_pools["TerrainDataPool"]->get_render_buffer(), 2);
-    builder.bind_storage_buffer(
-        this->instance_pools["BonesPool"]->get_render_buffer(), 3);
-
-    dp.set_states(builder, 0);
 }
 
 void RenderEngine::init() {
     u32 i = 1;
-    Ref<WindowRenderTarget> window_rt;
-    Ref<MultiRenderTarget> post_target;
-
-    u32 res_w = current_window->get_width() * 2;
-    u32 res_h = current_window->get_height() * 2;
-
-    Ref<Texture> color_tex(TextureType::TEXTURE_2D, res_w, res_h,
-                           PixelFormat::RGBA16F, nullptr);
-    Ref<Texture> depth_tex(
-        TextureType::TEXTURE_2D, res_w, res_h, PixelFormat::D32S8, nullptr,
-        SamplerProperty{.min_filter = SamplerFilter::NEAREST,
-                        .mag_filter = SamplerFilter::NEAREST});
-
-    window_rt.create(current_window);
-    post_target.create(Viewport(Vec2{(f32)res_w, (f32)res_h}));
-    post_target->bind_color(0, color_tex);
-    post_target->bind_depth(depth_tex);
-    this->render_targets["default"] = ref_cast<RenderTarget>(post_target);
-    this->render_targets["window"] = ref_cast<RenderTarget>(window_rt);
-
-    this->register_renderer<DefaultRenderer>(
-        i++, ref_cast<RenderTarget>(post_target));
-    this->register_renderer<ImguiRenderer>(i++,
-                                           ref_cast<RenderTarget>(window_rt));
+    this->register_renderer<DefaultRenderer>(i++);
+    this->register_renderer<ImguiRenderer>(i++);
 }
 
 RenderBackend *RenderEngine::get_device() { return device; }
 
 template <typename T, typename... Args>
-void RenderEngine::register_renderer(u32 layer, Ref<RenderTarget> rt,
-                                     const Args &...args) {
+void RenderEngine::register_renderer(u32 layer, const Args &...args) {
     static_assert(std::is_base_of<Renderer, T>::value,
                   "T must be a derived class of Renderer.");
-    Renderer *renderer = static_cast<Renderer *>(new T(args...));
-    this->layers.push_back(Layer(rt, renderer));
+    Renderer *renderer =
+        static_cast<Renderer *>(new T(args...));
+    this->renderers.push_back(renderer);
     renderer->set_layer(layer);
-    renderer->init();
+    renderer->init(current_window);
 }
 
 void RenderEngine::process() {
-    RenderCommandDispatcher dp;
-    for (auto &iter : this->render_targets) {
-        RenderStateDataBuilder builder;
-        builder.bind_render_target(iter.second->get_handle());
-        builder.set_scissor(iter.second->get_viewport());
-        builder.set_viewport(iter.second->get_viewport());
-        builder.clear(StateClearFlag::CLEAR_COLOR);
-        builder.clear(StateClearFlag::CLEAR_DEPTH);
-        dp.set_states(builder, 0);
-    }
-
-    for (Layer &layer : this->layers) {
-        RenderCommandDispatcher layer_dp;
-        {
-            RenderStateDataBuilder builder;
-            builder.set_viewport(layer.rt->get_viewport());
-            builder.bind_render_target(layer.rt->get_handle());
-            layer_dp.set_states(builder, layer.renderer->current_sort_key());
-        }
-        layer.renderer->preprocess();
-        layer.renderer->process(*layer.rt->get_viewport());
+    for (Renderer *rd : this->renderers) {
+        rd->preprocess();
+        rd->process();
     }
 
     this->device->process();
-    for (Layer &layer : this->layers) {
-        layer.renderer->cleanup();
+    for (Renderer *rd : this->renderers) {
+        rd->cleanup();
     }
-}
-
-Ref<RenderTarget> RenderEngine::get_render_target(const std::string &name) {
-    auto iter = this->render_targets.find(name);
-    if (iter != this->render_targets.end()) {
-        return iter->second;
-    }
-    return Ref<RenderTarget>();
 }
 
 InstanceDataPool *RenderEngine::get_instance_pool(const std::string &name) {
