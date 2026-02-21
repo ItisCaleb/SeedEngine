@@ -7,16 +7,15 @@
 #include "core/gui/gui_engine.h"
 #include "editor_gui.h"
 #include "core/resource/resource_loader.h"
-#include "terrain_gui.h"
 #include "editor_camera.h"
 #include "editor.h"
-#include "editor_terrain.h"
 #include "editor_storage.h"
 
-using namespace Seed;
+namespace Seed {
+Editor *gEditor = nullptr;
 
 Editor::Editor() {
-    instance = this;
+    gEditor = this;
     Ref<File> cache = File::open(".seed_cache", "rb");
     if (cache.is_valid()) {
         project_cache = cache->read_json();
@@ -24,6 +23,9 @@ Editor::Editor() {
             this->current_project = Project::load(project_cache["last_open"]);
         }
     }
+    new EditorStorage;
+    GuiEngine::get_instance()->add_gui(new EditorGUI);
+    terrain_editor.init();
 }
 
 void Editor::set_last_open(std::string &path) {
@@ -31,23 +33,26 @@ void Editor::set_last_open(std::string &path) {
     project_cache["last_open"] = path;
     cache->write_str(project_cache.dump());
 }
+}  // namespace Seed
+
 // Main code
 int main(int, char **) {
     NFD_Init();
     // Main loop
     Seed::SeedEngine *engine = new Seed::SeedEngine(60.0f);
+    RenderEngine *render_engine = RenderEngine::get_instance();
     Editor *editor = new Editor;
-    new EditorStorage;
+
     bool show_demo_window = true;
 
     // ImGui::ShowDemoWindow(&show_demo_window);
-    GuiEngine::get_instance()->add_gui(new ModelGUI);
-    GuiEngine::get_instance()->add_gui(new TerrainGUI);
-    GuiEngine::get_instance()->add_gui(new EditorGUI);
+    // GuiEngine::get_instance()->add_gui(new ModelGUI);
+    // GuiEngine::get_instance()->add_gui(new TerrainGUI);
 
     engine->get_world()->add_entity<EditorCamera>();
-
     ResourceLoader *loader = ResourceLoader::get_instance();
+    render_engine->set_renderer_enable(render_engine->get_default_renderer(),
+                                       false);
     // auto sky = loader->load_async<Sky>("assets/sky.json");
     // engine->get_world()->set_sky(sky->wait());
     // engine->get_world()->set_terrain(terrain->wait());

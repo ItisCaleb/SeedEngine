@@ -13,7 +13,6 @@ EditorTerrainMaterial::EditorTerrainMaterial(Ref<Texture> height_map)
     this->set_texture("height_map", height_map);
     this->raster_state = {.cull_mode = Cullmode::FRONT,
                           .patch_control_points = 4};
-    this->depth_state = {.depth_on = true};
 }
 
 Ref<Texture> EditorTerrainMaterial::get_height_map() {
@@ -124,10 +123,8 @@ EditorTerrain::EditorTerrain(Ref<Image> height_map) {
         }
     }
     this->instances->upload();
-    MeshStorage::get_instance()->add_mesh(
-        this->mesh, ref_cast<InstanceData>(this->instances));
 }
 EditorTerrain::~EditorTerrain() {
-    MeshStorage::get_instance()->remove_mesh(this->mesh);
+    
 }
 }  // namespace Seed

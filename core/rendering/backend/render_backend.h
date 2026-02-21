@@ -1,7 +1,7 @@
 #ifndef _SEED_RENDER_BACKEND_H_
 #define _SEED_RENDER_BACKEND_H_
-#include "core/rendering/api/render_command.h"
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_command.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/handle.h"
 #include "core/allocator/linear_allocator.h"
 #include "core/rendering/shader_layout.h"
@@ -66,16 +66,16 @@ class RenderBackend {
             ShaderHandle shader, const RenderRasterizerState &rst_state,
             const RenderDepthStencilState &depth_state,
             const RenderBlendState &blend_state) = 0;
-        virtual RenderTargetHandle alloc_render_target(bool depth_only) = 0;
+        virtual RenderPassHandle alloc_render_pass() = 0;
         virtual void update(RenderResourceType type, Handle handle, u32 offset,
                             u32 size, void *data) = 0;
         virtual void update(TextureHandle handle, u32 layer, u32 offx, u32 offy,
                             u32 w, u32 h, void *data) = 0;
         virtual void *map_buffer(RenderResourceType type, Handle handle) = 0;
         virtual void *map_texture(TextureHandle handle) = 0;
-        virtual void bind_depth_attachment(RenderTargetHandle handle,
+        virtual void bind_depth_attachment(RenderPassHandle handle,
                                            TextureHandle texture, u32 face) = 0;
-        virtual void bind_color_attachment(RenderTargetHandle handle, u8 slot,
+        virtual void bind_color_attachment(RenderPassHandle handle, u8 slot,
                                            TextureHandle texture, u32 face) = 0;
         virtual void dealloc(RenderResourceType type, Handle handle) = 0;
 

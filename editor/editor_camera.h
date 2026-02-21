@@ -3,7 +3,7 @@
 #include "core/entity.h"
 #include "core/rendering/camera.h"
 #include "core/input.h"
-#include "core/rendering/api/render_engine.h"
+#include "core/rendering/rhi/render_engine.h"
 
 using namespace Seed;
 
@@ -48,7 +48,7 @@ class EditorCamera : public Entity {
 
         };
         EditorCamera() {
-            this->cam = RenderEngine::get_instance()->get_cam();
+            this->cam = &SeedEngine::get_instance()->get_world()->get_camera();
             this->cam->set_position(Vec3{0, 750, 1000});
             this->cam->set_front(0, -50);
             this->cam->set_perspective(45, 1.33, 0.1, 10000.0);
@@ -58,11 +58,9 @@ class EditorCamera : public Entity {
                             MouseEvent::RIGHT)) {
                         return;
                     }
-                    auto vp = Seed::RenderEngine::get_instance()
-                                  ->get_render_target("default")
-                                  ->get_viewport();
-                    auto coord1 = vp->to_viewport_coord(x, y);
-                    auto coord2 = vp->to_viewport_coord(last_x, last_y);
+                    auto vp = SeedEngine::get_instance()->get_window()->get_viewport();
+                    auto coord1 = vp.to_viewport_coord(x, y);
+                    auto coord2 = vp.to_viewport_coord(last_x, last_y);
 
                     f32 x_off = coord1.x - coord2.x;
                     f32 y_off = coord2.y - coord1.y;

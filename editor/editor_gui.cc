@@ -17,13 +17,8 @@ using namespace ImGui;
 
 #define PROJECT_LOADED (Editor::instance->current_project != nullptr)
 
-bool create_new_project;
-std::string project_name_input;
-std::string project_path_input;
-std::string project_error;
-float main_menu_height;
-
 void EditorGUI::main_menu() {
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     BeginMainMenuBar();
     main_menu_height = GetFrameHeight();
     if (BeginMenu("File")) {
@@ -38,10 +33,9 @@ void EditorGUI::main_menu() {
             nfdopendialogu8args_t args = {0};
             nfdresult_t r = NFD_OpenDialogU8_With(&path, &args);
             if (r == NFD_OKAY) {
-                Editor::instance->current_project = Project::load(path);
-                if (Editor::instance->current_project) {
-                    Editor::instance->set_last_open(
-                        Editor::instance->current_project->path);
+                gEditor->current_project = Project::load(path);
+                if (gEditor->current_project) {
+                    gEditor->set_last_open(gEditor->current_project->path);
                 }
             }
         }
@@ -49,6 +43,7 @@ void EditorGUI::main_menu() {
     };
 
     EndMainMenuBar();
+    ImGui::PopStyleVar();
     if (create_new_project) {
         create_project();
     }
@@ -70,9 +65,9 @@ void EditorGUI::create_project() {
             Project *project = new Project();
             project->name = project_name_input;
             project->path = project_path_input;
-            Editor::instance->current_project = project;
+            gEditor->current_project = project;
             project->save();
-            Editor::instance->set_last_open(project->path);
+            gEditor->set_last_open(project->path);
             create_new_project = false;
         }
     }
@@ -87,36 +82,35 @@ void EditorGUI::create_project() {
     End();
 }
 
-void EditorGUI::character_database() {}
-
-void EditorGUI::editor_left_panel() {
+void EditorGUI::main_panel() {
     Window *window = SeedEngine::get_instance()->get_window();
     SetNextWindowPos(ImVec2(0, main_menu_height), ImGuiCond_Always);
-
+    SetNextWindowSize(
+        ImVec2(window->get_width(), window->get_height() - main_menu_height));
     ImGui::Begin("LeftPanel", nullptr,
                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-                     ImGuiWindowFlags_NoScrollWithMouse);
+                     ImGuiWindowFlags_NoScrollWithMouse |
+                     ImGuiWindowFlags_NoBringToFrontOnFocus);
+    if (ImGui::BeginTabBar("##TabBar")) {
+        if (ImGui::BeginTabItem("Assest viewer")) {
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Terrain editor")) {
+            gEditor->terrain_editor.update();
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
 
-    static int currentTab = -1;
-    const VerticalIconTab kTabs[] = {
-        {"S", "Settings", [] {}},
-        {"T", "NPCs", [&] { this->character_database(); }},
-        {"S", "Scripts", [] { ImGui::Text("Script editor"); }},
-        {"P", "Profile", [] { ImGui::Text("User profile"); }},
-    };
-
-    drawLVerticalIconTabs(kTabs, IM_ARRAYSIZE(kTabs), currentTab);
-    End();
+    ImGui::End();
 }
 
 void EditorGUI::update() {
     static bool b = true;
     PushFont((ImFont *)font);
     main_menu();
-    if (PROJECT_LOADED) {
-        editor_left_panel();
-    }
+    main_panel();
     ShowDemoWindow(&b);
     PopFont();
 }

@@ -2,7 +2,7 @@
 #include "core/resource/default_storage.h"
 #include "core/physic/physic_engine.h"
 #include "core/concurrency/thread_pool.h"
-#include "core/rendering/api/render_engine.h"
+#include "core/rendering/rhi/render_engine.h"
 #include <math.h>
 #include <deque>
 #include <cfloat>
@@ -20,7 +20,6 @@ TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
     this->set_texture("terrain_shadowMap", DS::get_instance()->black_texture);
     this->raster_state = {.cull_mode = Cullmode::FRONT,
                           .patch_control_points = 4};
-    this->depth_state = {.depth_on = true};
 }
 void TerrainMaterial::set_height_map(Ref<Texture> height_map) {
     this->set_texture("height_map", height_map);
@@ -81,7 +80,7 @@ void TerrainInstanceData::frustum_culling(const Frustum &frustum,
 }
 TerrainInstanceData::TerrainInstanceData()
     : InstanceData(
-          RenderEngine::get_instance()->get_instance_pool("TerrainDataPool")) {}
+          RenderEngine::get_instance()->get_instance_pool(TERRAIN_POOL_NAME)) {}
 
 void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
                            u32 half_width, u32 half_depth) {

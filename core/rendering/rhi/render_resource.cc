@@ -65,9 +65,8 @@ PipelineHandle alloc_pipeline(ShaderHandle shader,
         shader, rst_state, depth_state, blend_state);
 }
 
-RenderTargetHandle alloc_render_target(bool depth_only) {
-    return RenderEngine::get_instance()->get_device()->alloc_render_target(
-        depth_only);
+RenderPassHandle alloc_renderpass() {
+    return RenderEngine::get_instance()->get_device()->alloc_render_pass();
 }
 
 void *alloc_heap(u32 size) { return malloc(size); }
@@ -151,12 +150,12 @@ void update_from_heap(SSBOHandle handle, u32 offset, u32 size, void *data) {
     RenderEngine::get_instance()->get_device()->update(
         RenderResourceType::STORAGE_BUFFER, handle, offset, size, data);
 }
-void bind_depth_attachment(RenderTargetHandle handle, TextureHandle texture,
+void bind_depth_attachment(RenderPassHandle handle, TextureHandle texture,
                            u32 face) {
     RenderEngine::get_instance()->get_device()->bind_depth_attachment(
         handle, texture, face);
 }
-void bind_color_attachment(RenderTargetHandle handle, u8 slot,
+void bind_color_attachment(RenderPassHandle handle, u8 slot,
                            TextureHandle texture, u32 face) {
     RenderEngine::get_instance()->get_device()->bind_color_attachment(
         handle, slot, texture, face);
@@ -210,7 +209,7 @@ void dealloc(SSBOHandle handle) {
         RenderResourceType::STORAGE_BUFFER, handle);
 }
 
-void dealloc(RenderTargetHandle handle) {
+void dealloc(RenderPassHandle handle) {
     RenderEngine::get_instance()->get_device()->dealloc(
         RenderResourceType::RENDER_TARGET, handle);
 }

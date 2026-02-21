@@ -4,35 +4,26 @@
 #include "core/engine.h"
 
 namespace Seed {
-void ImguiRenderer::init() {
+void ImguiRenderer::init(Window *window) {
     instance = this;
     ImGuiIO &io = ImGui::GetIO();
     IMGUI_CHECKVERSION();
     IM_ASSERT(io.BackendRendererUserData == nullptr &&
               "Already initialized a renderer backend!");
-    ImguiData *bd = IM_NEW(ImguiData)();
-    io.BackendRendererUserData = (void *)bd;
     io.BackendRendererName = "imgui_impl_seed";
 
-    bd->vertex = RHI::alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0,
-                                   UpdateFrequence::PERDRAW, nullptr);
-    bd->indices =
-        RHI::alloc_index(std::vector<u16>(), UpdateFrequence::PERDRAW);
-
+    fd.vertex = RHI::alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0,
+                                  UpdateFrequence::PERDRAW, nullptr);
+    fd.indices = RHI::alloc_index(std::vector<u16>(), UpdateFrequence::PERDRAW);
+    fd.projection =
+        RHI::alloc_constant(sizeof(Mat4), UpdateFrequence::PERFRAME, nullptr);
     // Build texture atlas
-    Ref<Texture> atlas = create_font_texture();
+    create_font_material();
 
-    RenderBlendState blend_state = {
-        .blend_on = true,
-        .func = BlendFunc::create(
-            BlendFactor::SRC_ALPHA, BlendFactor::ONE_MINUS_SRC_ALPHA,
-            BlendFactor::ONE, BlendFactor::ONE_MINUS_SRC_ALPHA)};
-    font_mat.create(DS::get_instance()->gui_shader, RenderRasterizerState{},
-                    RenderDepthStencilState{}, blend_state);
-    font_mat->set_texture("u_texture", atlas);
+    gui_pass.setup(window);
 }
 
-Ref<Texture> ImguiRenderer::create_font_texture() {
+void ImguiRenderer::create_font_material() {
     ImGuiIO &io = ImGui::GetIO();
 
     u8 *pixels;
@@ -40,32 +31,52 @@ Ref<Texture> ImguiRenderer::create_font_texture() {
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
     Ref<Texture> font_tex(TextureType::TEXTURE_2D, width, height,
                           PixelFormat::RGBA, pixels);
-    return font_tex;
+    RenderBlendState blend_state = {
+        .blend_on = true,
+        .func = BlendFunc::create(
+            BlendFactor::SRC_ALPHA, BlendFactor::ONE_MINUS_SRC_ALPHA,
+            BlendFactor::ONE, BlendFactor::ONE_MINUS_SRC_ALPHA)};
+    io.Fonts->SetTexID((ImTextureID)(u64)font_tex->get_handle());
+    fd.font_material.create(DS::get_instance()->gui_shader,
+                            RenderRasterizerState{}, RenderDepthStencilState{},
+                            blend_state);
+    fd.font_material->set_texture("u_texture", font_tex);
 }
 
 void ImguiRenderer::new_frame() {
     ImGuiIO &io = ImGui::GetIO();
     if (!io.Fonts->IsBuilt()) {
-        Ref<Texture> atlas = create_font_texture();
-        font_mat->set_texture_unit(0, atlas);
+        create_font_material();
     }
 }
 
 void ImguiRenderer::preprocess() {}
 
-ImguiRenderer::ImguiData *ImguiRenderer::get_imgui_data() {
-    return ImGui::GetCurrentContext()
-               ? (ImguiData *)ImGui::GetIO().BackendRendererUserData
-               : nullptr;
+void ImguiRenderer::_process(RenderCommandDispatcher &dp) {
+    RenderStateDataBuilder builder;
+    builder.bind_constant(fd.projection, 12);
+    dp.set_states(builder);
+    gui_pass.draw(dp, fd);
 }
-void ImguiRenderer::process(Viewport &viewport) {
-    RenderCommandDispatcher dp;
-    dp.begin_scope("Imgui", current_sort_key());
+void ImguiRenderer::cleanup() {}
+void ImguiRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
+                                     Viewport &viewport, FrameData &fd) {
     ImDrawData *draw_data = ImGui::GetDrawData();
-    ImguiData *bd = get_imgui_data();
     RectF view_rect = viewport.get_actual_dimension();
     int fb_width = view_rect.w;
     int fb_height = view_rect.h;
+    f32 L = 0;
+    f32 R = fb_width;
+    f32 T = 0;
+    f32 B = fb_height;
+    const Mat4 ortho_projection = {
+        Vec4{2.0f / (R - L), 0.0f, 0.0f, 0.0f},
+        Vec4{0.0f, 2.0f / (T - B), 0.0f, 0.0f},
+        Vec4{0.0f, 0.0f, -1.0f, 0.0f},
+        Vec4{(R + L) / (L - R), (T + B) / (B - T), 0.0f, 1.0f},
+    };
+    Mat4 proj = ortho_projection.transpose();
+    RHI::update(fd.projection, 0, sizeof(Mat4), &proj);
 
     if (fb_width <= 0 || fb_height <= 0) return;
 
@@ -73,32 +84,29 @@ void ImguiRenderer::process(Viewport &viewport) {
     ImVec2 clip_off =
         draw_data->DisplayPos;  // (0,0) unless using multi-viewports
     ImVec2 clip_scale =
-        draw_data->FramebufferScale;  // (1,1) unless using retina display which
-                                      // are often (2,2)
+        draw_data->FramebufferScale;  // (1,1) unless using retina display
+                                      // which are often (2,2)
     for (int n = 0; n < draw_data->CmdListsCount; n++) {
         const ImDrawList *draw_list = draw_data->CmdLists[n];
         u32 vtx_buffer_size =
             draw_list->VtxBuffer.Size * (int)sizeof(ImDrawVert);
         u32 idx_buffer_size =
             draw_list->IdxBuffer.Size * (int)sizeof(ImDrawIdx);
-        dp.push_buffer(bd->vertex, vtx_buffer_size, draw_list->VtxBuffer.Data,
-                       current_sort_key());
-        dp.push_buffer(bd->indices, idx_buffer_size, draw_list->IdxBuffer.Data,
-                       current_sort_key());
+        dp.push_buffer(fd.vertex, vtx_buffer_size, draw_list->VtxBuffer.Data);
+        dp.push_buffer(fd.indices, idx_buffer_size, draw_list->IdxBuffer.Data);
 
         for (int cmd_i = 0; cmd_i < draw_list->CmdBuffer.Size; cmd_i++) {
             const ImDrawCmd *pcmd = &draw_list->CmdBuffer[cmd_i];
             if (pcmd->UserCallback != nullptr) {
                 // User callback, registered via ImDrawList::AddCallback()
-                // (ImDrawCallback_ResetRenderState is a special callback value
-                // used by the user to request the renderer to reset render
-                // state.)
-                if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
-                    this->preprocess();
-                else
+                // (ImDrawCallback_ResetRenderState is a special callback
+                // value used by the user to request the renderer to reset
+                // render state.)
+                if (pcmd->UserCallback != ImDrawCallback_ResetRenderState)
                     pcmd->UserCallback(draw_list, pcmd);
             } else {
-                // Project scissor/clipping rectangles into framebuffer space
+                // Project scissor/clipping rectangles into framebuffer
+                // space
                 ImVec2 clip_min((pcmd->ClipRect.x - clip_off.x) * clip_scale.x,
                                 (pcmd->ClipRect.y - clip_off.y) * clip_scale.y);
                 ImVec2 clip_max((pcmd->ClipRect.z - clip_off.x) * clip_scale.x,
@@ -109,28 +117,23 @@ void ImguiRenderer::process(Viewport &viewport) {
                 if (clip_max.y > fb_height) clip_max.y = (float)fb_height;
                 if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
                     continue;
-                RenderDrawDataBuilder builder =
-                    dp.generate_render_data(this->font_mat);
+                RenderDrawDataBuilder builder;
+                builder.bind_texture(0, pcmd->TextureId);
                 builder.set_viewport(view_rect.x, view_rect.y, fb_width,
                                      fb_height);
                 builder.set_scissor(clip_min.x, clip_min.y,
                                     clip_max.x - clip_min.x,
                                     clip_max.y - clip_min.y);
-                builder.bind_vertex(bd->vertex);
+                builder.bind_vertex(fd.vertex);
                 builder.bind_description(&DS::get_instance()->gui_desc);
-                builder.bind_index(bd->indices);
+                builder.bind_index(fd.indices);
                 builder.set_draw_vertex(draw_list->VtxBuffer.Size,
                                         pcmd->VtxOffset);
                 builder.set_draw_index(pcmd->ElemCount, pcmd->IdxOffset);
                 dp.render(builder, RenderPrimitiveType::TRIANGLES,
-                          font_mat->get_pipeline(), current_sort_key());
+                          fd.font_material->get_pipeline(), 0);
             }
         }
     }
-    dp.end_scope(next_sort_key());
-    RenderStateDataBuilder builder;
-    builder.set_scissor(view_rect.x, view_rect.y, fb_width, fb_height);
-    dp.set_states(builder, current_sort_key());
 }
-void ImguiRenderer::cleanup() { this->seq = 0; }
 }  // namespace Seed

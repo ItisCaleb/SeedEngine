@@ -5,7 +5,7 @@
 #include "core/debug/debug_drawer.h"
 #include "core/macro.h"
 #include "core/engine.h"
-#include "core/rendering/api/render_engine.h"
+#include "core/rendering/rhi/render_engine.h"
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
 
 namespace Seed {
@@ -199,16 +199,16 @@ void JoltDebugRenderer::DrawGeometry(
     float inLODScaleSq, JPH::ColorArg inModelColor,
     const GeometryRef &inGeometry, ECullMode inCullMode,
     ECastShadow inCastShadow, EDrawMode inDrawMode) {
-    auto cam = RenderEngine::get_instance()->get_cam();
+    auto cam = SeedEngine::get_instance()->get_world()->get_camera();
     auto aabb = inGeometry->mBounds;
     aabb.mMin = inModelMatrix * aabb.mMin;
     aabb.mMax = inModelMatrix * aabb.mMax;
-    if (aabb.GetSqDistanceTo(to_jolt(cam->get_position())) > 10000 ||
-        !cam->get_frustum().within_frustum(from_jolt(aabb))) {
+    if (aabb.GetSqDistanceTo(to_jolt(cam.get_position())) > 10000 ||
+        !cam.get_frustum().within_frustum(from_jolt(aabb))) {
         return;
     }
 
-    const LOD &lod = inGeometry->GetLOD(to_jolt(cam->get_position()),
+    const LOD &lod = inGeometry->GetLOD(to_jolt(cam.get_position()),
                                         inWorldSpaceBounds, inLODScaleSq);
     const BatchImpl *batch =
         static_cast<const BatchImpl *>(lod.mTriangleBatch.GetPtr());

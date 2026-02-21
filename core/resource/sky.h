@@ -9,8 +9,6 @@ class SkyMaterial : public Material {
         SkyMaterial(Ref<Texture> cube_map)
             : Material(DS::get_instance()->sky_shader) {
             this->set_texture("skybox", cube_map);
-            this->depth_state.depth_on = true;
-            this->depth_state.depth_compare_op = CompareOP::LESS_OR_EQUAL;
         }
 };
 

@@ -3,25 +3,35 @@
 #include "renderer.h"
 #include "core/resource/texture.h"
 #include "core/resource/material.h"
+#include "core/rendering/render_pass.h"
 namespace Seed {
 class ImguiRenderer : public Renderer {
-        friend RenderEngine;
-
     private:
         inline static ImguiRenderer *instance = nullptr;
-        struct ImguiData {
+        void create_font_material();
+        struct FrameData {
+                Ref<Material> font_material;
+                ConstantHandle projection;
                 VertexHandle vertex;
                 IndexHandle indices;
+        } fd;
+        Window *window;
+        class GUIPass : public WindowRenderPass<FrameData> {
+            public:
+                void setup(Window *window) {
+                    this->set_name("Imgui Pass");
+                    this->set_window(window);
+                }
+                void execute(RenderCommandDispatcher &dp, Viewport &viewport,
+                             FrameData &fd) override;
         };
-        Ref<Material> font_mat;
-        ImguiData *get_imgui_data();
-        Ref<Texture> create_font_texture();
+        GUIPass gui_pass;
 
+        void _process(RenderCommandDispatcher &dp) override;
     public:
-        void init() override;
+        void init(Window *window) override;
         void new_frame();
         void preprocess() override;
-        void process(Viewport &viewport) override;
         void cleanup() override;
         static ImguiRenderer *get_instance() { return instance; }
 };

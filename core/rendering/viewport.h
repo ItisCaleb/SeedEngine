@@ -1,7 +1,6 @@
 #ifndef _SEED_VIEWPORT_H_
 #define _SEED_VIEWPORT_H_
 #include "core/types.h"
-#include "core/window.h"
 #include "core/collision/shape.h"
 #include "core/math/utils.h"
 #include "core/math/vec2.h"
@@ -18,7 +17,9 @@ class Viewport {
             set_dimension(dimension);
         }
 
-        Viewport(Vec2 size) : size(size) { set_dimension(RectF{0, 0, 1, 1}); }
+        Viewport(Vec2 size, bool flip_y = false) : size(size) { set_dimension(RectF{0, 0, 1, 1}, flip_y); }
+
+        Viewport(u32 w, u32 h, bool flip_y = false) : Viewport(Vec2{(f32)w, (f32)h}, flip_y) {}
 
         void set_dimension(RectF dim, bool flip_y = false);
 
@@ -39,18 +40,6 @@ class Viewport {
         Vec2 to_viewport_coord(Vec2 pos);
 };
 
-class WindowViewport : public Viewport {
-    private:
-        Window *window;
-
-    public:
-        WindowViewport(Window *window, RectF dimension)
-            : Viewport(dimension, Vec2{0, 0}), window(window) {}
-        WindowViewport(Window *window, f32 x, f32 y, f32 w, f32 h)
-            : WindowViewport(window, RectF{x, y, w, h}) {}
-        WindowViewport(Window *window) : WindowViewport(window, 0, 0, 1, 1) {}
-        RectF get_actual_dimension(bool flip = false) override;
-};
 }  // namespace Seed
 
 #endif

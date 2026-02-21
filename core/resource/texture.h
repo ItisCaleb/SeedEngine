@@ -1,6 +1,6 @@
 #ifndef _SEED_TEXTURE_H_
 #define _SEED_TEXTURE_H_
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/resource/resource.h"
 
 namespace Seed {

@@ -2,7 +2,7 @@
 #define _SEED_MATERIAL_H_
 
 #include "core/math/vec3.h"
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/resource/texture.h"
 #include "core/resource/resource.h"
 #include "core/resource/shader.h"
@@ -68,7 +68,7 @@ class BaseMaterial : public Material {
             this->set_texture(name_map[DIFFUSE], DS::get_instance()->white_texture);
             this->set_texture(name_map[SPECULAR], DS::get_instance()->white_texture);
             this->set_texture(name_map[NORMAl], DS::get_instance()->white_texture);
-            depth_state = {.depth_on = true};
+            depth_state = {.depth_mode = DepthMode::OPAQUE};
             this->shadow_pipeline =
                 DS::get_instance()->shadow_map_default_pipeline;
         }

@@ -64,7 +64,7 @@ class DirectionalLight : public Light {
 
         inline Vec3 get_direction() { return dir; }
         inline void set_direction(const Vec3 &dir) { this->dir = dir; }
-        void calculate_csm_lightspace(Camera *cam,
+        void calculate_csm_lightspace(Camera &cam,
                                       const std::vector<f32> &resolutions,
                                       CSMShadow &csm_data);
 

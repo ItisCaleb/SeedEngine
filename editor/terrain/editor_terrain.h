@@ -27,6 +27,12 @@ class EditorTerrain : public Resource {
     public:
         EditorTerrain(Ref<Image> height_map);
         Ref<MappableTexture> get_heightmap() { return heightmap_texture; }
+        Ref<Mesh> get_mesh(){
+            return mesh;
+        }
+        Ref<TerrainInstanceData> get_instances(){
+            return instances;
+        }
         ~EditorTerrain();
 };
 }  // namespace Seed

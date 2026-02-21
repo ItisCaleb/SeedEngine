@@ -1,6 +1,6 @@
 #ifndef _SEED_SHADOW_MAP_H_
 #define _SEED_SHADOW_MAP_H_
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/handle.h"
 #include "core/collision/shape.h"
 #include "core/resource/texture.h"

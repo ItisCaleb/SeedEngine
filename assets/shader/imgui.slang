@@ -1,5 +1,6 @@
 import seed_inc;
 
+
 struct VS_OUT{
     float2 uv;
     float4 color;
@@ -15,7 +16,7 @@ ParameterBlock<Property> prop;
 [shader("vertex")]
 VS_OUT vert(vec2 aPos, vec2 aUV, vec4 aColor){
     VS_OUT out;
-    out.sv_position = gMatrices.u_screen_projection * vec4(aPos.xy,0,1);
+    out.sv_position = gProj * vec4(aPos.xy,0,1);
     out.uv = aUV;
     out.color = aColor;
     return out;

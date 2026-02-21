@@ -1,5 +1,5 @@
 #include "opengl_backend.h"
-#include "core/rendering/api/render_engine.h"
+#include "core/rendering/rhi/render_engine.h"
 #include <spdlog/spdlog.h>
 #include "core/macro.h"
 #include "opengl_helper.h"
@@ -791,13 +791,13 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
         switch (type) {
             case RenderStateData::OpType::CLEAR: {
                 GLuint clear_flag = 0;
-                if (op->clear_flag & StateClearFlag::CLEAR_COLOR) {
+                if (op->clear_flag & StateClearFlagBits::CLEAR_COLOR) {
                     clear_flag |= GL_COLOR_BUFFER_BIT;
                 }
-                if (op->clear_flag & StateClearFlag::CLEAR_DEPTH) {
+                if (op->clear_flag & StateClearFlagBits::CLEAR_DEPTH) {
                     clear_flag |= GL_DEPTH_BUFFER_BIT;
                 }
-                if (op->clear_flag & StateClearFlag::CLEAR_STENCIL) {
+                if (op->clear_flag & StateClearFlagBits::CLEAR_STENCIL) {
                     clear_flag |= GL_STENCIL_BUFFER_BIT;
                 }
                 glClear(clear_flag);
@@ -815,14 +815,14 @@ void RenderBackendGL::handle_state(RenderCommand &cmd) {
                 break;
             }
             case RenderStateData::OpType::BIND_RENDER_TARGET: {
-                if (op->render_target_handle.type ==
+                if (op->render_pass_handle.type ==
                     RenderResourceType::UNINITIALIZE) {
                     glBindFramebuffer(GL_FRAMEBUFFER, 0);
                     last_fbo = 0;
                     break;
                 }
                 HardwareRenderTargetGL *render_target =
-                    this->render_targets.get_or_null(op->render_target_handle.handle);
+                    this->render_targets.get_or_null(op->render_pass_handle.handle);
                 EXPECT_NOT_NULL_BREAK(render_target);
 
                 glBindFramebuffer(GL_FRAMEBUFFER, render_target->fbo);

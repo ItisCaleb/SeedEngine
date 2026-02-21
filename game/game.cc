@@ -1,6 +1,6 @@
 #include "core/engine.h"
 #include "core/resource/resource_loader.h"
-#include "core/rendering/api/render_engine.h"
+#include "core/rendering/rhi/render_engine.h"
 #include "camera_entity.h"
 #include <spdlog/spdlog.h>
 #include "core/concurrency/thread_pool.h"
@@ -65,17 +65,17 @@ class DebugGUI : public GUI {
                                     (float *)(void *)&light_dir, -1.0f, 1.0f)) {
                 world->get_direction_light().set_direction(light_dir);
             }
-            auto cam = RenderEngine::get_instance()->get_cam();
-            auto cam_pos = cam->get_position();
+            auto cam = world->get_camera();
+            auto cam_pos = cam.get_position();
             ImGui::Text("%.2f %.2f %.2f", cam_pos.x, cam_pos.y, cam_pos.z);
             ImGui::Text("FPS: %.2f", SeedEngine::get_instance()->get_fps());
             // ImGui::SliderFloat("CSM Lambda", &Camera::shadow_lamdba, 0, 1.0);
             if (ImGui::Button("ortho")) {
-                cam->set_ortho(-10, 10, -10, 10, -100, 100);
+                cam.set_ortho(-10, 10, -10, 10, -100, 100);
                 // set position from origin
                 Vec3 pos_dir = Vec3{-0.5, -0.5, 0};
-                cam->set_position(-pos_dir);
-                cam->set_front(pos_dir);
+                cam.set_position(-pos_dir);
+                cam.set_front(pos_dir);
             }
             if (ImGui::Button("Terrain vertex")) {
                 auto mat = world->get_terrain()->get_material();

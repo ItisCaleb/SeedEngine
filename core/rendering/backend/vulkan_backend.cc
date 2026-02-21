@@ -75,6 +75,14 @@ RenderBackendVK::RenderBackendVK(Window *window) {
     vmaImportVulkanFunctionsFromVolk(&createInfo, &funcInfos);
     createInfo.pVulkanFunctions = &funcInfos;
     vmaCreateAllocator(&createInfo, &buffer_allocator);
+    dummy_constant =
+        this->alloc_constant(1, nullptr, UpdateFrequence::PERFRAME);
+    dummy_ssbo =
+        this->alloc_storage_buffer(1, nullptr, UpdateFrequence::PERFRAME);
+    u8 *data = (u8*)malloc(1);
+    data[0] = 0;
+    dummy_texture = this->alloc_texture(TextureType::TEXTURE_2D, 1, 1,
+                                        PixelFormat::R, {}, data);
 }
 
 RenderBackendVK::~RenderBackendVK() {
@@ -359,8 +367,8 @@ void RenderBackendVK::recreate_swapchain(Window *window) {
     for (u32 i = 0; i < swap_chain.render_targets.size(); i++) {
         dealloc(RenderResourceType::TEXTURE, swap_chain.textures[i]);
         if (i > 0) {
-            HardwareRenderTargetVk *rt =
-                this->render_targets.get_or_null(swap_chain.render_targets[i]);
+            HardwareRenderPassVk *rt =
+                this->render_pass.get_or_null(swap_chain.render_targets[i]);
             rt->render_pass_cache = nullptr;
         }
         dealloc(RenderResourceType::RENDER_TARGET,
@@ -402,7 +410,7 @@ void RenderBackendVK::create_image_views() {
 void RenderBackendVK::create_swapchain_framebuffer() {
     VkRenderPass render_pass = nullptr;
     for (u32 i = 0; i < this->swap_chain.textures.size(); i++) {
-        HardwareRenderTargetVk rt;
+        HardwareRenderPassVk rt;
         rt.is_swapchain = true;
         rt.color_attachments.push_back(HardwareColorAttachmentVk{
             .slot = 0,
@@ -418,7 +426,7 @@ void RenderBackendVK::create_swapchain_framebuffer() {
             rt.dirty = false;
         }
         create_framebuffer(&rt);
-        Handle handle = this->render_targets.insert(rt);
+        Handle handle = this->render_pass.insert(rt);
         this->swap_chain.render_targets.push_back(handle);
     }
     current_render_target = this->swap_chain.render_targets[0];
@@ -661,6 +669,7 @@ void RenderBackendVK::push_image_update(TextureHandle handle, u32 layer,
     create_staging_buffer(&stagingBuffer, &stagingAllocation, size);
     vmaCopyMemoryToAllocation(buffer_allocator, data, stagingAllocation, 0,
                               size);
+    free(data);
     this->image_copy_queue.push_back(
         ImageUpdate{.staging_buffer = stagingBuffer,
                     .staging_allocation = stagingAllocation,
@@ -726,7 +735,7 @@ void RenderBackendVK::stream_buffer(HardwareBufferVk *buffer, u64 size,
 }
 
 VkDescriptorSet RenderBackendVK::get_descriptor_set(
-    VkDescriptorSetLayout layout, std::vector<Binding> &bindings) {
+    DescriptorSetLayout *layout, std::vector<Binding> &bindings) {
     Hash _hash;
     for (auto &binding : bindings) {
         _hash.update(&binding.binding_point);
@@ -743,7 +752,7 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptor_pool;
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &layout;
+    allocInfo.pSetLayouts = &layout->vk_layout;
 
     VkDescriptorSet set{};
     if (vkAllocateDescriptorSets(device, &allocInfo, &set) != VK_SUCCESS) {
@@ -754,50 +763,61 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
     std::vector<VkDescriptorBufferInfo> bufferInfos;
     std::vector<VkDescriptorImageInfo> imageInfos;
 
-    writes.reserve(bindings.size());
-    bufferInfos.reserve(bindings.size());
-    imageInfos.reserve(bindings.size());
+    writes.reserve(layout->set.bindings.size());
+    bufferInfos.reserve(layout->set.bindings.size());
+    imageInfos.reserve(layout->set.bindings.size());
 
-    for (auto &binding : bindings) {
+    for (ShaderBinding &shader_binding : layout->set.bindings) {
+        auto it = std::find_if(bindings.begin(), bindings.end(), [&](auto &b) {
+            return b.binding_point == shader_binding.binding_point;
+        });
+
         VkWriteDescriptorSet write{};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write.dstSet = set;
-        write.dstBinding = binding.binding_point;
+        write.dstBinding = shader_binding.binding_point;
         write.dstArrayElement = 0;
         write.descriptorCount = 1;
 
-        if (binding.type == RenderResourceType::CONSTANT) {
-            HardwareBufferVk *constant =
-                this->constants.get_or_null(binding.handle);
+        if (shader_binding.type == ShaderResourceType::UBO) {
+            HardwareBufferVk *constant = nullptr;
+            if (it != bindings.end())
+                constant = this->constants.get_or_null(it->handle);
+            if (!constant)
+                constant = this->constants.get_or_null(dummy_constant);
             VkDescriptorBufferInfo info{};
             info.buffer = constant->buffer;
             info.offset = 0;
             info.range = VK_WHOLE_SIZE;
-
             bufferInfos.push_back(info);
 
             write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
             write.pBufferInfo = &bufferInfos.back();
-        } else if (binding.type == RenderResourceType::STORAGE_BUFFER) {
-            HardwareBufferVk *storage_buffer =
-                this->ssbos.get_or_null(binding.handle);
+        } else if (shader_binding.type == ShaderResourceType::SSBO) {
+            HardwareBufferVk *storage_buffer = nullptr;
+            if (it != bindings.end())
+                storage_buffer = this->ssbos.get_or_null(it->handle);
+            if (!storage_buffer)
+                storage_buffer = this->ssbos.get_or_null(dummy_ssbo);
+
             VkDescriptorBufferInfo info{};
             info.buffer = storage_buffer->buffer;
             info.offset = 0;
             info.range = VK_WHOLE_SIZE;
-
             bufferInfos.push_back(info);
 
             write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
             write.pBufferInfo = &bufferInfos.back();
-        } else if (binding.type == RenderResourceType::TEXTURE) {
-            HardwareTextureVk *texture =
-                this->textures.get_or_null(binding.handle);
+        } else if (shader_binding.type == ShaderResourceType::SAMPLER) {
+            HardwareTextureVk *texture = nullptr;
+            if (it != bindings.end())
+                texture = this->textures.get_or_null(it->handle);
+            if (!texture) texture = this->textures.get_or_null(dummy_texture);
+
             VkDescriptorImageInfo info{};
             info.imageView = texture->view;
             info.sampler = texture->sampler;
             info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
             imageInfos.push_back(info);
 
             write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -817,14 +837,23 @@ void RenderBackendVK::bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
     VkDescriptorSet set =
         get_descriptor_set(shader->set_layouts[binding], bindings);
     std::vector<u32> offsets;
-    for (Binding &binding : bindings) {
-        if (binding.type == RenderResourceType::CONSTANT) {
-            HardwareBufferVk *constant =
-                this->constants.get_or_null(binding.handle);
+    for (ShaderBinding &binding : shader->set_layouts[binding]->set.bindings) {
+        auto it = std::find_if(bindings.begin(), bindings.end(), [&](auto &b) {
+            return b.binding_point == binding.binding_point;
+        });
+        if (binding.type == ShaderResourceType::UBO) {
+            HardwareBufferVk *constant = nullptr;
+            if (it != bindings.end())
+                constant = this->constants.get_or_null(it->handle);
+            if (!constant)
+                constant = this->constants.get_or_null(dummy_constant);
             offsets.push_back(constant->next_offset);
-        } else if (binding.type == RenderResourceType::STORAGE_BUFFER) {
-            HardwareBufferVk *storage_buffer =
-                this->ssbos.get_or_null(binding.handle);
+        } else if (binding.type == ShaderResourceType::SSBO) {
+            HardwareBufferVk *storage_buffer = nullptr;
+            if (it != bindings.end())
+                storage_buffer = this->ssbos.get_or_null(it->handle);
+            if (!storage_buffer)
+                storage_buffer = this->ssbos.get_or_null(dummy_ssbo);
             offsets.push_back(storage_buffer->next_offset);
         }
     }
@@ -1163,7 +1192,7 @@ void RenderBackendVK::setup_shader_layout(ShaderHandle handle,
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     std::vector<VkPushConstantRange> ranges;
 
-    std::vector<VkDescriptorSetLayout> set_layouts;
+    std::vector<DescriptorSetLayout *> set_layouts;
     for (const ShaderBindingSet &set : shader_layout.get_binding_sets()) {
         VkDescriptorSetLayout set_layout;
         std::vector<VkDescriptorSetLayoutBinding> bindings;
@@ -1184,7 +1213,7 @@ void RenderBackendVK::setup_shader_layout(ShaderHandle handle,
         u64 hash = _hash.digest();
         auto iter = descriptor_layout_cache.find(hash);
         if (iter != descriptor_layout_cache.end()) {
-            set_layouts.push_back(iter->second);
+            set_layouts.push_back(&iter->second);
             continue;
         }
         VkDescriptorSetLayoutCreateInfo layoutInfo{};
@@ -1196,8 +1225,9 @@ void RenderBackendVK::setup_shader_layout(ShaderHandle handle,
                                         &set_layout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create descriptor set layout!");
         }
-        descriptor_layout_cache.emplace(hash, set_layout);
-        set_layouts.push_back(set_layout);
+        auto _iter = descriptor_layout_cache.emplace(
+            hash, DescriptorSetLayout{.vk_layout = set_layout, .set = set});
+        set_layouts.push_back(&_iter.first->second);
     }
     /* bindings */
 
@@ -1210,10 +1240,14 @@ void RenderBackendVK::setup_shader_layout(ShaderHandle handle,
         ranges.push_back(_range);
         i++;
     }
+    std::vector<VkDescriptorSetLayout> vk_set_layouts;
+    for (DescriptorSetLayout *layout : set_layouts) {
+        vk_set_layouts.push_back(layout->vk_layout);
+    };
 
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = set_layouts.size();
-    pipelineLayoutInfo.pSetLayouts = set_layouts.data();
+    pipelineLayoutInfo.setLayoutCount = vk_set_layouts.size();
+    pipelineLayoutInfo.pSetLayouts = vk_set_layouts.data();
     pipelineLayoutInfo.pushConstantRangeCount = ranges.size();
     pipelineLayoutInfo.pPushConstantRanges = ranges.data();
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr,
@@ -1242,13 +1276,11 @@ PipelineHandle RenderBackendVK::alloc_pipeline(
     return this->pipelines.insert(pipeline);
 }
 
-void RenderBackendVK::create_render_pass(HardwareRenderTargetVk *render_target,
+void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
                                          bool is_swapchain) {
     VkSubpassDescription subpass{};
     std::vector<VkAttachmentDescription> allAttachments;
-    std::vector<VkAttachmentDescription> colorAttachments;
     std::vector<VkAttachmentReference> colorRefs;
-    VkAttachmentDescription depthAttachment{};
     VkAttachmentReference depthRef{};
     u32 i = 0;
 
@@ -1276,7 +1308,6 @@ void RenderBackendVK::create_render_pass(HardwareRenderTargetVk *render_target,
             is_swapchain ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
                          : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        colorAttachments.push_back(colorAttachment);
         allAttachments.push_back(colorAttachment);
 
         VkAttachmentReference colorRef;
@@ -1286,6 +1317,7 @@ void RenderBackendVK::create_render_pass(HardwareRenderTargetVk *render_target,
         i++;
     }
     if (render_target->depth_attachment.texture_handle != NULL_HANDLE) {
+        VkAttachmentDescription depthAttachment{};
         depthAttachment.format = render_target->depth_attachment.image_format;
         depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         depthAttachment.loadOp = is_swapchain ? VK_ATTACHMENT_LOAD_OP_CLEAR
@@ -1307,6 +1339,7 @@ void RenderBackendVK::create_render_pass(HardwareRenderTargetVk *render_target,
         depthRef.attachment = i;
         depthRef.layout = depthAttachment.finalLayout;
         subpass.pDepthStencilAttachment = &depthRef;
+        i++;
     }
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = colorRefs.size();
@@ -1335,8 +1368,7 @@ void RenderBackendVK::create_render_pass(HardwareRenderTargetVk *render_target,
     }
 }
 
-void RenderBackendVK::create_framebuffer(
-    HardwareRenderTargetVk *render_target) {
+void RenderBackendVK::create_framebuffer(HardwareRenderPassVk *render_target) {
     if (!render_target->texture_changed) {
         return;
     }
@@ -1380,25 +1412,24 @@ void RenderBackendVK::create_framebuffer(
     }
 }
 
-HardwareRenderTargetVk *RenderBackendVK::get_current_render_target() {
+HardwareRenderPassVk *RenderBackendVK::get_current_render_pass() {
     if (current_render_target == -1) {
-        return this->render_targets.get_or_null(
+        return this->render_pass.get_or_null(
             this->swap_chain.render_targets[swap_chain.next_index]);
     } else {
-        return this->render_targets.get_or_null(current_render_target);
+        return this->render_pass.get_or_null(current_render_target);
     }
 }
 
 VkPipeline RenderBackendVK::get_vk_pipeline(
-    HardwarePipelineVk *pipeline, HardwareRenderTargetVk *render_target,
-    std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive) {
+    HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
+    std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
+    bool draw_depth_only) {
     Hash _hash;
     _hash.update(&pipeline->rst_state.cull_mode);
     _hash.update(&pipeline->rst_state.poly_mode);
     _hash.update(&pipeline->rst_state.patch_control_points);
 
-    _hash.update(&pipeline->depth_state.depth_on);
-    _hash.update(&pipeline->depth_state.depth_compare_op);
     _hash.update(&pipeline->depth_state.stencil_on);
     _hash.update(&pipeline->depth_state.stencil_compare_op);
 
@@ -1408,6 +1439,7 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     _hash.update(&pipeline->blend_attachment.func.src_alpha);
     _hash.update(&pipeline->blend_attachment.func.dst_alpha);
     _hash.update(&primitive);
+    _hash.update(&draw_depth_only);
 
     /* since we usually don't create multiple shader/render target/layout with
      * same config */
@@ -1421,8 +1453,8 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     VkPipeline vk_pipeline;
     auto iter = pipeline_cache.find(hash);
     if (iter == pipeline_cache.end()) {
-        vk_pipeline =
-            create_vk_pipeline(pipeline, render_target, layouts, primitive);
+        vk_pipeline = create_vk_pipeline(pipeline, render_target, layouts,
+                                         primitive, draw_depth_only);
         pipeline_cache.emplace(hash, vk_pipeline);
     } else {
         vk_pipeline = iter->second;
@@ -1560,8 +1592,8 @@ void RenderBackendVK::handle_destroy() {
     }
 }
 
-void RenderBackendVK::transition_render_target(HardwareRenderTargetVk *rt,
-                                               bool to_attachment) {
+void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
+                                             bool to_attachment) {
     /* we don't need swapchain to transition*/
     if (rt->is_swapchain) {
         return;
@@ -1598,8 +1630,9 @@ void RenderBackendVK::transition_render_target(HardwareRenderTargetVk *rt,
 }
 
 VkPipeline RenderBackendVK::create_vk_pipeline(
-    HardwarePipelineVk *pipeline, HardwareRenderTargetVk *render_target,
-    std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive) {
+    HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
+    std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
+    bool draw_depth_only) {
     VkPipeline graphicsPipeline;
     HardwareShaderVk *shader = this->shaders.get_or_null(pipeline->shader);
     if (!shader) {
@@ -1607,8 +1640,9 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
             "failed to create graphics pipeline! No shader provided");
     }
     std::vector<VkDynamicState> dynamicStates = {
-        VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR,
-        VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY};
+        VK_DYNAMIC_STATE_VIEWPORT,           VK_DYNAMIC_STATE_SCISSOR,
+        VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE,
+        VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE, VK_DYNAMIC_STATE_DEPTH_COMPARE_OP};
 
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -1638,7 +1672,7 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
          render_target->color_attachments) {
         VkPipelineColorBlendAttachmentState state =
             VulkanHelper::blend_attachment(pipeline->blend_attachment);
-        if(attchment.image_format == VK_FORMAT_R16G16B16A16_SINT){
+        if (attchment.image_format == VK_FORMAT_R16G16B16A16_SINT) {
             state.blendEnable = false;
         }
         blendAttachments.push_back(state);
@@ -1701,7 +1735,7 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
         stageInfos.push_back(create_stage_info(
             "tese", tese, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT));
     }
-    if (frag) {
+    if (frag && !draw_depth_only) {
         stageInfos.push_back(
             create_stage_info("frag", frag, VK_SHADER_STAGE_FRAGMENT_BIT));
     }
@@ -1747,8 +1781,8 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
     return graphicsPipeline;
 }
 
-RenderTargetHandle RenderBackendVK::alloc_render_target(bool depth_only) {
-    return this->render_targets.insert({.depth_only = depth_only});
+RenderPassHandle RenderBackendVK::alloc_render_pass() {
+    return this->render_pass.insert({});
 }
 
 void RenderBackendVK::update(RenderResourceType type, Handle handle, u32 offset,
@@ -1815,9 +1849,9 @@ void *RenderBackendVK::map_texture(TextureHandle handle) {
     return texture->mapped_ptr;
 }
 
-void RenderBackendVK::bind_depth_attachment(RenderTargetHandle handle,
+void RenderBackendVK::bind_depth_attachment(RenderPassHandle handle,
                                             TextureHandle texture, u32 face) {
-    HardwareRenderTargetVk *rt = this->render_targets.get_or_null(handle);
+    HardwareRenderPassVk *rt = this->render_pass.get_or_null(handle);
     EXPECT_NOT_NULL_RET(rt);
     HardwareTextureVk *tex = this->textures.get_or_null(texture);
     EXPECT_NOT_NULL_RET(tex);
@@ -1829,9 +1863,9 @@ void RenderBackendVK::bind_depth_attachment(RenderTargetHandle handle,
         .texture_handle = texture};
 }
 
-void RenderBackendVK::bind_color_attachment(RenderTargetHandle handle, u8 slot,
+void RenderBackendVK::bind_color_attachment(RenderPassHandle handle, u8 slot,
                                             TextureHandle texture, u32 face) {
-    HardwareRenderTargetVk *rt = this->render_targets.get_or_null(handle);
+    HardwareRenderPassVk *rt = this->render_pass.get_or_null(handle);
     EXPECT_NOT_NULL_RET(rt);
     HardwareTextureVk *tex = this->textures.get_or_null(texture);
     EXPECT_NOT_NULL_RET(tex);
@@ -1860,7 +1894,7 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
     HardwareBufferVk *_buffer;
     HardwareTextureVk *_tex;
     HardwareShaderVk *_shader;
-    HardwareRenderTargetVk *_rt;
+    HardwareRenderPassVk *_rt;
     switch (type) {
         case RenderResourceType::VERTEX:
             _buffer = this->vertices.get_or_null(handle);
@@ -1913,13 +1947,13 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
             this->shaders.remove(handle);
             break;
         case RenderResourceType::RENDER_TARGET:
-            _rt = this->render_targets.get_or_null(handle);
+            _rt = this->render_pass.get_or_null(handle);
             EXPECT_NOT_NULL_RET(_rt);
             this->destroy_queue.push(DestroyResource{
                 .type = type,
                 .render_target = {.render_pass = _rt->render_pass_cache,
                                   .framebuffer = _rt->framebuffer_cache}});
-            this->render_targets.remove(handle);
+            this->render_pass.remove(handle);
             break;
         default:
             break;
@@ -1928,7 +1962,10 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
 
 void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     vkWaitForFences(device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX);
-
+    // VmaTotalStatistics stats;
+    // vmaCalculateStatistics(buffer_allocator, &stats);
+    // spdlog::debug("VMA usage total : {} bytes",
+    // stats.total.statistics.allocationBytes);
     VkResult result = vkAcquireNextImageKHR(
         device, swap_chain.chain, UINT64_MAX, image_available_semaphore,
         VK_NULL_HANDLE, &swap_chain.next_index);
@@ -1961,7 +1998,7 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = clears;
 
-    HardwareRenderTargetVk *rt = get_current_render_target();
+    HardwareRenderPassVk *rt = get_current_render_pass();
     create_render_pass(rt, false);
     create_framebuffer(rt);
     renderPassInfo.renderPass = rt->render_pass_cache;
@@ -2110,8 +2147,9 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
     VkViewport viewport_rect{};
     VkRect2D scissor_rect{};
     std::vector<VkClearAttachment> attachments;
-    HardwareRenderTargetVk *target_rt = nullptr;
+    HardwareRenderPassVk *target_rp = nullptr;
     Handle target_rt_handle;
+    std::vector<Binding> bindings;
     VkClearRect clear_rect{};
 
     for (i32 i = 0; i < state_data->operation_cnt; i++) {
@@ -2158,37 +2196,36 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 break;
             }
             case RenderStateData::OpType::BIND_RENDER_TARGET: {
-                if (current_render_target == op->render_target_handle) {
+                if (current_render_target == op->render_pass_handle) {
                     break;
                 }
-                if (op->render_target_handle == -1) {
-                    target_rt = this->render_targets.get_or_null(
+                if (op->render_pass_handle == -1) {
+                    target_rp = this->render_pass.get_or_null(
                         this->swap_chain.render_targets[swap_chain.next_index]);
                 } else {
-                    target_rt = this->render_targets.get_or_null(
-                        op->render_target_handle);
+                    target_rp =
+                        this->render_pass.get_or_null(op->render_pass_handle);
                 }
-                EXPECT_NOT_NULL_BREAK(target_rt);
+                EXPECT_NOT_NULL_BREAK(target_rp);
 
-                target_rt_handle = op->render_target_handle;
+                target_rt_handle = op->render_pass_handle;
                 break;
             }
             case RenderStateData::OpType::BIND_CONSTANT: {
                 HardwareBufferVk *constant =
                     this->constants.get_or_null(op->constant.handle);
                 EXPECT_NOT_NULL_BREAK(constant);
-                this->global_bindings.push_back(
-                    Binding{.type = RenderResourceType::CONSTANT,
-                            .handle = op->constant.handle,
-                            .resource_id = op->constant.handle,
-                            .binding_point = op->constant.base});
+                bindings.push_back(Binding{.type = RenderResourceType::CONSTANT,
+                                           .handle = op->constant.handle,
+                                           .resource_id = op->constant.handle,
+                                           .binding_point = op->constant.base});
                 break;
             }
             case RenderStateData::OpType::BIND_STORAGE_BUFFER: {
                 HardwareBufferVk *ssbo =
                     this->ssbos.get_or_null(op->ssbo.handle);
                 EXPECT_NOT_NULL_BREAK(ssbo);
-                this->global_bindings.push_back(
+                bindings.push_back(
                     Binding{.type = RenderResourceType::STORAGE_BUFFER,
                             .handle = op->ssbo.handle,
                             .resource_id = op->ssbo.handle,
@@ -2199,32 +2236,35 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 break;
         }
     }
+    if (bindings.size() > 0) {
+        this->global_bindings = bindings;
+    }
 
-    if (target_rt) {
+    if (target_rp) {
         /* end old render pass */
         vkCmdEndRenderPass(render_cmd_buffer);
-        transition_render_target(get_current_render_target(), false);
+        transition_render_pass(get_current_render_pass(), false);
         current_render_target = target_rt_handle;
-        transition_render_target(get_current_render_target(), true);
-        create_render_pass(target_rt, false);
-        create_framebuffer(target_rt);
+        transition_render_pass(get_current_render_pass(), true);
+        create_render_pass(target_rp, false);
+        create_framebuffer(target_rp);
         /* begin new render pass*/
         const VkClearValue clears[] = {VkClearValue{.color = {0, 0, 0, 1}}};
 
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = target_rt->render_pass_cache;
-        renderPassInfo.framebuffer = target_rt->framebuffer_cache;
+        renderPassInfo.renderPass = target_rp->render_pass_cache;
+        renderPassInfo.framebuffer = target_rp->framebuffer_cache;
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.clearValueCount = 1;
         renderPassInfo.pClearValues = clears;
         renderPassInfo.renderArea.extent =
-            VkExtent2D{.width = target_rt->w, .height = target_rt->h};
+            VkExtent2D{.width = target_rp->w, .height = target_rp->h};
 
         vkCmdBeginRenderPass(render_cmd_buffer, &renderPassInfo,
                              VK_SUBPASS_CONTENTS_INLINE);
     }
-    HardwareRenderTargetVk *rt = get_current_render_target();
+    HardwareRenderPassVk *rt = get_current_render_pass();
 
     clear_rect.rect.extent.width = rt->w;
     clear_rect.rect.extent.height = rt->h;
@@ -2234,14 +2274,15 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
         clear_rect.rect = scissor_rect;
         vkCmdSetScissor(render_cmd_buffer, 0, 1, &scissor_rect);
     }
-    if (viewport_set) {
+    if (viewport_set && viewport_rect.width > 0 && viewport_rect.height > 0) {
         if (current_render_target == -1) {
             viewport_rect.y = rt->h - viewport_rect.y;
             viewport_rect.height = -viewport_rect.height;
         }
         vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
     }
-    if (!attachments.empty()) {
+    if (!attachments.empty() && clear_rect.rect.extent.width > 0 &&
+        clear_rect.rect.extent.height > 0) {
         vkCmdClearAttachments(render_cmd_buffer, attachments.size(),
                               attachments.data(), 1, &clear_rect);
     }
@@ -2306,10 +2347,12 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                 viewport_rect.height = op->view_rect.h;
                 if (current_render_target == -1) {
                     viewport_rect.y =
-                        get_current_render_target()->h - viewport_rect.y;
+                        get_current_render_pass()->h - viewport_rect.y;
                     viewport_rect.height = -viewport_rect.height;
                 }
-                vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
+                if (viewport_rect.width > 0 && viewport_rect.height > 0) {
+                    vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
+                }
                 break;
             }
             case RenderDrawData::OpType::SCISSOR: {
@@ -2333,7 +2376,7 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                 break;
         }
     }
-    HardwareRenderTargetVk *rt = get_current_render_target();
+    HardwareRenderPassVk *rt = get_current_render_pass();
 
     VkDescriptorSet globalSet =
         get_descriptor_set(shader->set_layouts[0], global_bindings);
@@ -2343,10 +2386,19 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
     }
     VkPrimitiveTopology primitive = VulkanHelper::primitive(draw_data->type);
 
-    VkPipeline vk_pipeline = get_vk_pipeline(pipeline, rt, layouts, primitive);
+    VkPipeline vk_pipeline = get_vk_pipeline(pipeline, rt, layouts, primitive,
+                                             draw_data->draw_depth_only);
 
     vkCmdBindPipeline(render_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                       vk_pipeline);
+    vkCmdSetDepthWriteEnable(render_cmd_buffer, draw_data->depth_write);
+    if (draw_data->depth_test_op == CompareOP::NEVER) {
+        vkCmdSetDepthTestEnable(render_cmd_buffer, false);
+    } else {
+        vkCmdSetDepthTestEnable(render_cmd_buffer, true);
+        vkCmdSetDepthCompareOp(render_cmd_buffer,
+                               VulkanHelper::compare(draw_data->depth_test_op));
+    }
 
     vkCmdBindVertexBuffers(render_cmd_buffer, 0, vertex.size(), vertex.data(),
                            vertex_offsets.data());

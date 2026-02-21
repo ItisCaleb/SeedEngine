@@ -4,63 +4,62 @@
 #include <queue>
 #include <vector>
 #include "core/rendering/camera.h"
-#include "core/rendering/api/render_command.h"
+#include "core/rendering/rhi/render_command.h"
 #include "core/rendering/backend/render_backend.h"
 #include "core/rendering/mesh.h"
 #include "core/resource/model.h"
 #include "core/rendering/renderer/renderer.h"
 #include "core/window.h"
 #include "core/rendering/viewport.h"
-#include "core/rendering/render_target.h"
 #include "core/rendering/mesh_storage.h"
-#include "core/rendering/api/shader_proxy.h"
+#include "core/rendering/rhi/shader_proxy.h"
 
 namespace Seed {
-class RenderEngine {
-        friend DefaultRenderer;
+#define TRANSFORM_POOL_NAME "TransformDataPool"
+#define TERRAIN_POOL_NAME "TerrainDataPool"
+#define BONE_POOL_NAME "BonePool"
 
+class RenderEngine {
     private:
-        struct Layer {
-                Ref<RenderTarget> rt;
-                Renderer *renderer;
-                Layer(Ref<RenderTarget> rt, Renderer *rd)
-                    : rt(rt), renderer(rd) {}
+        struct RendererLayer{
+            u8 layer;
+            bool enabled;
+            Renderer *renderer;
         };
         inline static RenderEngine *instance = nullptr;
         RenderBackend *device;
         MeshStorage *mesh_storage;
         ShaderProxy *shader_proxy;
-        ConstantHandle matrices_rc, cam_rc;
-        SSBOHandle visible_ssbo;
-        Camera cam;
-        std::vector<Layer> layers;
-        std::unordered_map<std::string, Ref<RenderTarget>> render_targets;
+        std::vector<RendererLayer> renderers;
         std::unordered_map<std::string, InstanceDataPool *> instance_pools;
+        Renderer *default_renderer;
+        Renderer *imgui_renderer;
 
         Window *current_window;
         void bind_opengl(Window *window);
         void bind_vulken(Window *window);
-
-        Mat4 get_window_projection();
 
     public:
         static RenderEngine *get_instance();
         void init();
         void process();
         RenderBackend *get_device();
-        Camera *get_cam();
-        template <typename T, typename... Args>
-        void register_renderer(u32 layer, Ref<RenderTarget> rt,
-                               const Args &...args);
+        void register_renderer(u8 layer, Renderer *renderer);
         Window *get_current_window() { return current_window; }
-        Ref<RenderTarget> get_render_target(const std::string &name);
         InstanceDataPool *get_instance_pool(const std::string &name);
 
         /* if not null, layout will be filled */
         ShaderHandle compile_shader(const std::string &path,
                                     const std::string &shader,
                                     ShaderLayout *layout);
-
+        Renderer *get_default_renderer(){
+            return default_renderer;
+        }
+        Renderer *get_imgui_renderer(){
+            return imgui_renderer;
+        }
+        void set_renderer_layer(Renderer *renderer, u8 layer);
+        void set_renderer_enable(Renderer *renderer, bool enable);
         RenderEngine(Window *window);
         ~RenderEngine();
 };

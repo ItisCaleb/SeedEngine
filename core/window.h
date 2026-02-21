@@ -1,6 +1,7 @@
 #ifndef _SEED_WINDOW_H_
 #define _SEED_WINDOW_H_
 #include "core/types.h"
+#include "core/rendering/viewport.h"
 #include <string>
 
 namespace Seed {
@@ -21,6 +22,9 @@ class Window {
         }
         void create();
         void resize(u32 width, u32 height);
+        Viewport get_viewport(){
+            return Viewport(w, h);
+        }
         Window(u32 w, u32 h, const std::string &title);
         ~Window();
 };

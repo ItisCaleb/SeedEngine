@@ -5,12 +5,20 @@
 
 namespace Seed {
 
+class AssetViewer {
+
+};
+
 class EditorGUI : public GUI {
     private:
+        bool create_new_project = false;
+        std::string project_name_input;
+        std::string project_path_input;
+        std::string project_error;
+        float main_menu_height;
         void *font;
         void main_menu();
-        void editor_left_panel();
-        void character_database();
+        void main_panel();
 
         /* popup */
         void create_project();

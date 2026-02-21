@@ -7,6 +7,7 @@ namespace Seed {
 EditorStorage::EditorStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
-    editor_terrain_shader = loader->load<Shader>("assets/shader/editor_terrain.slang");
+    editor_terrain_shader =
+        loader->load<Shader>("assets/shader/editor_terrain.slang");
 }
 }  // namespace Seed

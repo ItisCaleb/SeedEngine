@@ -1,6 +1,6 @@
 #ifndef _SEED_VERTEX_DATA_H_
 #define _SEED_VERTEX_DATA_H_
-#include "core/rendering/api/render_resource.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/rendering/vertex_layout.h"
 #include "core/ref.h"
 #include <spdlog/spdlog.h>
