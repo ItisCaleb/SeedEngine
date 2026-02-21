@@ -10,6 +10,7 @@
 #include "core/gui/gui.h"
 #include "core/gui/gui_engine.h"
 #include "core/rendering/shadow_map.h"
+#include "core/input.h"
 
 using namespace Seed;
 
@@ -92,6 +93,52 @@ class DebugGUI : public GUI {
         };
 };
 
+class InputGUI : public GUI {
+public:
+    // 必須確保與基底類別簽署一致
+    void update() override {
+        ImGui::Begin("Input Settings");
+
+        auto input = Seed::Input::get_instance();
+        if (!input) {
+            ImGui::Text("No Input Instance");
+            ImGui::End();
+            return;
+        }
+
+        static std::string waiting_for_action = "";
+
+        // 這裡列出你想要自定義的按鍵
+        // 注意：這裡假設你的 Input 類別已經有了 bindings 映射表
+        // 如果沒有，請參考下方的「應急方案」
+        for (auto& [action_name, bound_code] : input->bindings) {
+            ImGui::Text("%-15s", action_name.c_str());
+            ImGui::SameLine();
+
+            std::string label = (waiting_for_action == action_name) 
+                                ? "Press any key..." 
+                                : fmt::format("Key: {}", (char)bound_code);
+
+            if (ImGui::Button(label.c_str(), ImVec2(150, 0))) {
+                waiting_for_action = action_name;
+            }
+
+            if (waiting_for_action == action_name) {
+                // 遍歷常用 KeyCode
+                for (int i = (int)KeyCode::SPACE; i <= (int)KeyCode::QUOTELEFT; i++) {
+                    if (ImGui::IsKeyPressed((ImGuiKey)i)) {
+                        bound_code = static_cast<KeyCode>(i);
+                        waiting_for_action = "";
+                        break;
+                    }
+                }
+                if (ImGui::IsKeyPressed(ImGuiKey_Escape)) waiting_for_action = "";
+            }
+        }
+        ImGui::End();
+    }
+};
+
 int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
     ResourceLoader *loader = ResourceLoader::get_instance();
@@ -146,7 +193,9 @@ int main(void) {
             }
         });
 
+    // load gui
     GuiEngine::get_instance()->add_gui(new DebugGUI);
+    GuiEngine::get_instance()->add_gui(new InputGUI);
     World *world = engine->get_world();
     world->get_point_lights().push_back(
         PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});

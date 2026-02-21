@@ -10,6 +10,7 @@
 #include "terrain_gui.h"
 #include "editor_camera.h"
 #include "editor.h"
+#include "editor/input_gui.h"
 
 using namespace Seed;
 
@@ -41,6 +42,7 @@ int main(int, char **) {
     GuiEngine::get_instance()->add_gui(new ModelGUI);
     GuiEngine::get_instance()->add_gui(new TerrainGUI);
     GuiEngine::get_instance()->add_gui(new EditorGUI);
+    GuiEngine::get_instance()->add_gui(new InputGUI);
 
     engine->get_world()->add_entity<EditorCamera>();
 

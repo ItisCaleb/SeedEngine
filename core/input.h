@@ -2,6 +2,7 @@
 #define _SEED_INPUT_H_
 #include <set>
 #include <functional>
+#include <map>
 #include "core/types.h"
 #include "core/input_handler.h"
 #include "core/math/vec2.h"
@@ -89,6 +90,13 @@ class Input {
         bool should_capture_mouse = true;
 
     public:
+        std::map<std::string, KeyCode> bindings = {
+            {"Move Up", KeyCode::W},
+            {"Move Down", KeyCode::S},
+            {"Move Left", KeyCode::A},
+            {"Move Right", KeyCode::D},
+            {"Reset", KeyCode::R}
+        };
         static Input *get_instance();
         void reset_input();
         bool is_key_pressed(KeyCode code);
@@ -97,6 +105,12 @@ class Input {
         bool is_mouse_clicked(MouseEvent e);
         void mouse_click(MouseEvent e);
         void set_capture_mouse(bool on) { should_capture_mouse = on; }
+        bool is_action_pressed(const std::string& action) {
+            if (bindings.find(action) != bindings.end()) {
+                return is_key_pressed(bindings[action]);
+            }
+            return false;
+        }
         Vec2 get_mouse_pos() { return Vec2{last_x, last_y}; }
         Input();
         ~Input();
