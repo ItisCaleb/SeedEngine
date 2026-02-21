@@ -20,10 +20,6 @@ void ImguiRenderer::init(Window *window) {
     // Build texture atlas
     create_font_material();
 
-    RenderCommandDispatcher dp;
-    RenderStateDataBuilder builder;
-    builder.bind_constant(fd.projection, 12);
-    dp.set_states(builder);
     gui_pass.setup(window);
 }
 
@@ -40,6 +36,7 @@ void ImguiRenderer::create_font_material() {
         .func = BlendFunc::create(
             BlendFactor::SRC_ALPHA, BlendFactor::ONE_MINUS_SRC_ALPHA,
             BlendFactor::ONE, BlendFactor::ONE_MINUS_SRC_ALPHA)};
+    io.Fonts->SetTexID((ImTextureID)(u64)font_tex->get_handle());
     fd.font_material.create(DS::get_instance()->gui_shader,
                             RenderRasterizerState{}, RenderDepthStencilState{},
                             blend_state);
@@ -55,12 +52,13 @@ void ImguiRenderer::new_frame() {
 
 void ImguiRenderer::preprocess() {}
 
-void ImguiRenderer::process() {
-    RenderCommandDispatcher dp;
-    dp.set_layer(1);
+void ImguiRenderer::_process(RenderCommandDispatcher &dp) {
+    RenderStateDataBuilder builder;
+    builder.bind_constant(fd.projection, 12);
+    dp.set_states(builder);
     gui_pass.draw(dp, fd);
 }
-void ImguiRenderer::cleanup() { this->seq = 0; }
+void ImguiRenderer::cleanup() {}
 void ImguiRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
                                      Viewport &viewport, FrameData &fd) {
     ImDrawData *draw_data = ImGui::GetDrawData();
@@ -119,8 +117,8 @@ void ImguiRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
                 if (clip_max.y > fb_height) clip_max.y = (float)fb_height;
                 if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
                     continue;
-                RenderDrawDataBuilder builder =
-                    dp.generate_render_data(fd.font_material);
+                RenderDrawDataBuilder builder;
+                builder.bind_texture(0, pcmd->TextureId);
                 builder.set_viewport(view_rect.x, view_rect.y, fb_width,
                                      fb_height);
                 builder.set_scissor(clip_min.x, clip_min.y,

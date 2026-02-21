@@ -12,7 +12,6 @@ namespace Seed {
 class DefaultRenderer : public Renderer {
         friend RenderEngine;
 
-    public:
     private:
         inline static const u32 CSM_SPLITS = 4;
 
@@ -114,7 +113,7 @@ class DefaultRenderer : public Renderer {
 
         void init(Window *window) override;
         void preprocess() override;
-        void process() override;
+        void _process(RenderCommandDispatcher &dp) override;
         void cleanup() override;
 };
 }  // namespace Seed

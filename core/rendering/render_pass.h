@@ -3,6 +3,7 @@
 #include "core/rendering/viewport.h"
 #include "core/resource/texture.h"
 #include "core/rendering/rhi/render_command.h"
+#include "core/window.h"
 
 namespace Seed {
 
@@ -18,13 +19,13 @@ class RenderPass {
     protected:
         RenderPassHandle handle;
         Viewport viewport;
-        u32 clear_flag;
+        u32 clear_flag = 0;
         std::string name;
         /* if there is no attachment, we use swap chain as attachment */
         std::vector<Attachment> color_attachments;
         Attachment depth_stencil_attachment;
         virtual void execute(RenderCommandDispatcher &dp, Viewport &viewport,
-                             T &fb) = 0;
+                             T &fd) = 0;
 
     public:
         RenderPass() : viewport(0, 0) { handle = RHI::alloc_renderpass(); }

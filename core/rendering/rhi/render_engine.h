@@ -15,14 +15,25 @@
 #include "core/rendering/rhi/shader_proxy.h"
 
 namespace Seed {
+#define TRANSFORM_POOL_NAME "TransformDataPool"
+#define TERRAIN_POOL_NAME "TerrainDataPool"
+#define BONE_POOL_NAME "BonePool"
+
 class RenderEngine {
     private:
+        struct RendererLayer{
+            u8 layer;
+            bool enabled;
+            Renderer *renderer;
+        };
         inline static RenderEngine *instance = nullptr;
         RenderBackend *device;
         MeshStorage *mesh_storage;
         ShaderProxy *shader_proxy;
-        std::vector<Renderer *> renderers;
+        std::vector<RendererLayer> renderers;
         std::unordered_map<std::string, InstanceDataPool *> instance_pools;
+        Renderer *default_renderer;
+        Renderer *imgui_renderer;
 
         Window *current_window;
         void bind_opengl(Window *window);
@@ -33,8 +44,7 @@ class RenderEngine {
         void init();
         void process();
         RenderBackend *get_device();
-        template <typename T, typename... Args>
-        void register_renderer(u32 layer, const Args &...args);
+        void register_renderer(u8 layer, Renderer *renderer);
         Window *get_current_window() { return current_window; }
         InstanceDataPool *get_instance_pool(const std::string &name);
 
@@ -42,7 +52,14 @@ class RenderEngine {
         ShaderHandle compile_shader(const std::string &path,
                                     const std::string &shader,
                                     ShaderLayout *layout);
-
+        Renderer *get_default_renderer(){
+            return default_renderer;
+        }
+        Renderer *get_imgui_renderer(){
+            return imgui_renderer;
+        }
+        void set_renderer_layer(Renderer *renderer, u8 layer);
+        void set_renderer_enable(Renderer *renderer, bool enable);
         RenderEngine(Window *window);
         ~RenderEngine();
 };

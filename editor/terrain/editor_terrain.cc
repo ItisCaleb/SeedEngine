@@ -123,10 +123,8 @@ EditorTerrain::EditorTerrain(Ref<Image> height_map) {
         }
     }
     this->instances->upload();
-    MeshStorage::get_instance()->add_mesh(
-        this->mesh, ref_cast<InstanceData>(this->instances));
 }
 EditorTerrain::~EditorTerrain() {
-    MeshStorage::get_instance()->remove_mesh(this->mesh);
+    
 }
 }  // namespace Seed

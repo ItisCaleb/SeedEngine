@@ -159,5 +159,5 @@ void TransformInstanceData::frustum_culling(const Frustum &frustum,
 
 TransformInstanceData::TransformInstanceData()
     : InstanceData(RenderEngine::get_instance()->get_instance_pool(
-          "TransformDataPool")) {}
+          TRANSFORM_POOL_NAME)) {}
 }  // namespace Seed

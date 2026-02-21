@@ -56,29 +56,16 @@ void DefaultRenderer::init(Window *window) {
                                              UpdateFrequence::PERFRAME);
 
     transform_ssbo =
-        engine->get_instance_pool("TransformDataPool")->get_render_buffer();
+        engine->get_instance_pool(TRANSFORM_POOL_NAME)->get_render_buffer();
     terrain_ssbo =
-        engine->get_instance_pool("TerrainDataPool")->get_render_buffer();
-    bone_ssbo = engine->get_instance_pool("BonesPool")->get_render_buffer();
+        engine->get_instance_pool(TERRAIN_POOL_NAME)->get_render_buffer();
+    bone_ssbo = engine->get_instance_pool(BONE_POOL_NAME)->get_render_buffer();
     camera = RHI::alloc_constant(sizeof(Vec3), UpdateFrequence::PERFRAME);
     mvp = RHI::alloc_constant(sizeof(Mat4) * 2, UpdateFrequence::PERFRAME);
     u_lights =
         RHI::alloc_constant(sizeof(STB140Lights), UpdateFrequence::PERFRAME);
     u_csm = RHI::alloc_constant(sizeof(CSMShadow), UpdateFrequence::PERFRAME);
 
-    RenderCommandDispatcher dp;
-    RenderStateDataBuilder builder;
-    builder.bind_storage_buffer(visible_ssbo, 0);
-    builder.bind_storage_buffer(transform_ssbo, 1);
-    builder.bind_storage_buffer(terrain_ssbo, 2);
-    builder.bind_storage_buffer(bone_ssbo, 3);
-    builder.bind_constant(camera, 8);
-    builder.bind_constant(mvp, 9);
-    builder.bind_constant(u_lights, 10);
-    builder.bind_constant(u_csm, 11);
-
-    dp.set_states(builder);
-    
     fd.sky_vert.create(&DS::get_instance()->sky_desc,
                        (sizeof(skyboxVertices) / sizeof(Vec3)), skyboxVertices,
                        UpdateFrequence::STATIC);
@@ -210,13 +197,22 @@ void DefaultRenderer::preprocess() {
     fd.debug_line->update(drawer->line_vertices);
     fd.debug_triangle->update(drawer->triangle_vertices);
     fd.debug_triangle_indices->update(drawer->triangle_indices);
+
+    RenderCommandDispatcher dp;
+    RenderStateDataBuilder builder;
+    builder.bind_storage_buffer(visible_ssbo, 0);
+    builder.bind_storage_buffer(transform_ssbo, 1);
+    builder.bind_storage_buffer(terrain_ssbo, 2);
+    builder.bind_storage_buffer(bone_ssbo, 3);
+    builder.bind_constant(camera, 8);
+    builder.bind_constant(mvp, 9);
+    builder.bind_constant(u_lights, 10);
+    builder.bind_constant(u_csm, 11);
+
+    dp.set_states(builder);
 }
 
-void DefaultRenderer::process() {
-    RenderCommandDispatcher dp;
-    /* bind constants */
-    dp.set_layer(0);
-
+void DefaultRenderer::_process(RenderCommandDispatcher &dp) {
     dp.begin_scope("Default Rendering");
     dp.set_seq(0);
     shadow_pass.draw(dp, fd);
@@ -232,7 +228,6 @@ void DefaultRenderer::cleanup() {
     this->fd.shadow_meshes.clear();
 
     entity_aabb.clear();
-    this->seq = 0;
 }
 
 void DefaultRenderer::ShadowPass::execute(RenderCommandDispatcher &dp,

@@ -6,8 +6,6 @@
 #include "core/rendering/render_pass.h"
 namespace Seed {
 class ImguiRenderer : public Renderer {
-        friend RenderEngine;
-
     private:
         inline static ImguiRenderer *instance = nullptr;
         void create_font_material();
@@ -29,11 +27,11 @@ class ImguiRenderer : public Renderer {
         };
         GUIPass gui_pass;
 
+        void _process(RenderCommandDispatcher &dp) override;
     public:
         void init(Window *window) override;
         void new_frame();
         void preprocess() override;
-        void process() override;
         void cleanup() override;
         static ImguiRenderer *get_instance() { return instance; }
 };

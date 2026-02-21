@@ -11,17 +11,6 @@
 
 using namespace Seed;
 
-TerrainGUI::TerrainGUI() {
-    // ResourceLoader *loader = ResourceLoader::get_instance();
-    // loader->load_async<Image>("assets/iceland_heightmap.png",
-    //                           [&](Ref<Image> image) { terrain.create(image); });
-    // auto rt = ref_cast<MultiRenderTarget>(
-    //     RenderEngine::get_instance()->get_render_target("default"));
-    // auto rect = rt->get_viewport()->get_actual_dimension();
-    // terrain_pos_tex.create(TextureType::TEXTURE_2D, rect.w, rect.h,
-    //                        PixelFormat::RGBA16I, nullptr);
-    // rt->bind_color(1, ref_cast<Texture>(terrain_pos_tex));
-}
 
 void TerrainGUI::update() {
     // ImGui::Begin("Terrain");

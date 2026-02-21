@@ -48,6 +48,30 @@ static const std::vector<std::string> DEFAULT_INCLUDE_PATHS = {
     "assets/shader",
 };
 
+void RenderEngine::set_renderer_layer(Renderer *renderer, u8 layer) {
+    if (!renderer) {
+        return;
+    }
+    for (RendererLayer &_layer : this->renderers) {
+        if (_layer.renderer == renderer) {
+            _layer.layer = layer;
+            return;
+        }
+    }
+}
+
+void RenderEngine::set_renderer_enable(Renderer *renderer, bool enable) {
+    if (!renderer) {
+        return;
+    }
+    for (RendererLayer &_layer : this->renderers) {
+        if (_layer.renderer == renderer) {
+            _layer.enabled = false;
+            return;
+        }
+    }
+}
+
 RenderEngine::RenderEngine(Window *window) {
     instance = this;
     spdlog::info("Initializing Rendering engine");
@@ -61,42 +85,42 @@ RenderEngine::RenderEngine(Window *window) {
     this->shader_proxy = new ShaderProxy(DEFAULT_INCLUDE_PATHS);
     this->mesh_storage = new MeshStorage;
     this->current_window = window;
-    this->instance_pools["TransformDataPool"] =
+    this->instance_pools[TRANSFORM_POOL_NAME] =
         new InstanceDataPool(sizeof(Mat4), 65536);
-    this->instance_pools["TerrainDataPool"] =
+    this->instance_pools[TERRAIN_POOL_NAME] =
         new InstanceDataPool(sizeof(Vec4), 1024);
-    this->instance_pools["BonesPool"] =
+    this->instance_pools[BONE_POOL_NAME] =
         new InstanceDataPool(sizeof(Vec4), 1024);
 }
 
 void RenderEngine::init() {
-    u32 i = 1;
-    this->register_renderer<DefaultRenderer>(i++);
-    this->register_renderer<ImguiRenderer>(i++);
+    default_renderer = new DefaultRenderer;
+    imgui_renderer = new ImguiRenderer;
+    this->register_renderer(0, default_renderer);
+    this->register_renderer(10, imgui_renderer);
 }
 
 RenderBackend *RenderEngine::get_device() { return device; }
 
-template <typename T, typename... Args>
-void RenderEngine::register_renderer(u32 layer, const Args &...args) {
-    static_assert(std::is_base_of<Renderer, T>::value,
-                  "T must be a derived class of Renderer.");
-    Renderer *renderer =
-        static_cast<Renderer *>(new T(args...));
-    this->renderers.push_back(renderer);
-    renderer->set_layer(layer);
+void RenderEngine::register_renderer(u8 layer, Renderer *renderer) {
+    this->renderers.push_back(
+        RendererLayer{.layer = layer, .enabled = true, .renderer = renderer});
     renderer->init(current_window);
 }
 
 void RenderEngine::process() {
-    for (Renderer *rd : this->renderers) {
-        rd->preprocess();
-        rd->process();
+    for (RendererLayer &layer : this->renderers) {
+        if (layer.enabled) {
+            layer.renderer->preprocess();
+            layer.renderer->process(layer.layer);
+        }
     }
 
     this->device->process();
-    for (Renderer *rd : this->renderers) {
-        rd->cleanup();
+    for (RendererLayer &layer : this->renderers) {
+        if (layer.enabled) {
+            layer.renderer->cleanup();
+        }
     }
 }
 

@@ -48,35 +48,33 @@ class EditorCamera : public Entity {
 
         };
         EditorCamera() {
-            // this->cam = RenderEngine::get_instance()->ge();
-            // this->cam->set_position(Vec3{0, 750, 1000});
-            // this->cam->set_front(0, -50);
-            // this->cam->set_perspective(45, 1.33, 0.1, 10000.0);
-            // Input::get_instance()->on_mouse_move(
-            //     [=](f32 last_x, f32 last_y, f32 x, f32 y) {
-            //         if (!Input::get_instance()->is_mouse_clicked(
-            //                 MouseEvent::RIGHT)) {
-            //             return;
-            //         }
-            //         auto vp = Seed::RenderEngine::get_instance()
-            //                       ->get_render_target("default")
-            //                       ->get_viewport();
-            //         auto coord1 = vp->to_viewport_coord(x, y);
-            //         auto coord2 = vp->to_viewport_coord(last_x, last_y);
+            this->cam = &SeedEngine::get_instance()->get_world()->get_camera();
+            this->cam->set_position(Vec3{0, 750, 1000});
+            this->cam->set_front(0, -50);
+            this->cam->set_perspective(45, 1.33, 0.1, 10000.0);
+            Input::get_instance()->on_mouse_move(
+                [=](f32 last_x, f32 last_y, f32 x, f32 y) {
+                    if (!Input::get_instance()->is_mouse_clicked(
+                            MouseEvent::RIGHT)) {
+                        return;
+                    }
+                    auto vp = SeedEngine::get_instance()->get_window()->get_viewport();
+                    auto coord1 = vp.to_viewport_coord(x, y);
+                    auto coord2 = vp.to_viewport_coord(last_x, last_y);
 
-            //         f32 x_off = coord1.x - coord2.x;
-            //         f32 y_off = coord2.y - coord1.y;
-            //         f32 sensitivity = 1000;
-            //         x_off *= sensitivity;
-            //         y_off *= sensitivity;
-            //         Vec3 front = cam->get_front();
-            //         front.y = 0;
-            //         front = front.norm();
-            //         Vec3 pos = cam->get_position();
-            //         pos -= front * y_off;
-            //         pos -= front.cross(cam->get_up()) * x_off;
-            //         cam->set_position(pos);
-            //     });
+                    f32 x_off = coord1.x - coord2.x;
+                    f32 y_off = coord2.y - coord1.y;
+                    f32 sensitivity = 1000;
+                    x_off *= sensitivity;
+                    y_off *= sensitivity;
+                    Vec3 front = cam->get_front();
+                    front.y = 0;
+                    front = front.norm();
+                    Vec3 pos = cam->get_position();
+                    pos -= front * y_off;
+                    pos -= front.cross(cam->get_up()) * x_off;
+                    cam->set_position(pos);
+                });
         }
         ~EditorCamera();
 };

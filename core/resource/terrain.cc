@@ -80,7 +80,7 @@ void TerrainInstanceData::frustum_culling(const Frustum &frustum,
 }
 TerrainInstanceData::TerrainInstanceData()
     : InstanceData(
-          RenderEngine::get_instance()->get_instance_pool("TerrainDataPool")) {}
+          RenderEngine::get_instance()->get_instance_pool(TERRAIN_POOL_NAME)) {}
 
 void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
                            u32 half_width, u32 half_depth) {

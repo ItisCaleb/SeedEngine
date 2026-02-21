@@ -44,15 +44,4 @@ Vec2 Viewport::to_viewport_coord(Vec2 pos) {
     return to_viewport_coord(pos.x, pos.y);
 }
 
-RectF WindowViewport::get_actual_dimension(bool flip_y) {
-    u32 actual_w = window->get_width();
-    u32 actual_h = window->get_height();
-    f32 y = flip_y ? (f32)actual_w - (actual_w * dimension.y) -
-                         (actual_w * dimension.h)
-                   : (actual_w * dimension.y);
-    return RectF{.x = (actual_w * dimension.x),
-                 .y = (actual_h * dimension.y),
-                 .w = (actual_w * dimension.w),
-                 .h = (actual_h * dimension.h)};
-}
 }  // namespace Seed

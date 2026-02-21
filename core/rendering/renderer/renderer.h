@@ -1,36 +1,23 @@
 #ifndef _SEED_RENDERER_H_
 #define _SEED_RENDERER_H_
 #include "core/rendering/rhi/render_command.h"
-#include "core/rendering/viewport.h"
+#include "core/rendering/render_pass.h"
+#include "core/window.h"
 #include <thread>
 
 namespace Seed {
-class RenderEngine;
 class Renderer {
-        friend RenderEngine;
-
-    protected:
-        u8 layer;
-        u8 seq = 0;
-        std::mutex mu;
-
-        u32 next_sort_key() {
-            std::lock_guard<std::mutex> lock(mu);
-            seq++;
-            return current_sort_key();
-        }
-
-    private:
-        virtual void init(Window *window) = 0;
-        virtual void preprocess() = 0;
-        virtual void process() = 0;
-        virtual void cleanup() = 0;
+        virtual void _process(RenderCommandDispatcher &dp) = 0;
 
     public:
-        inline u32 current_sort_key(f32 depth = 0) {
-            return gen_sort_key(layer, seq, depth);
+        virtual void init(Window *window) = 0;
+        virtual void preprocess() = 0;
+        void process(u8 layer) {
+            RenderCommandDispatcher dp;
+            dp.set_layer(layer);
+            _process(dp);
         }
-        void set_layer(u32 layer) { this->layer = layer; }
+        virtual void cleanup() = 0;
 };
 
 }  // namespace Seed

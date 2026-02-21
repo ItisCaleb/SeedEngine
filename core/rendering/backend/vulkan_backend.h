@@ -1,6 +1,7 @@
 #ifndef _SEED_VULKAN_BACKEND_H_
 #define _SEED_VULKAN_BACKEND_H_
 #include "render_backend.h"
+#include "core/window.h"
 #include "core/container/freelist.h"
 #include "core/handle.h"
 #include <map>
@@ -45,13 +46,18 @@ struct HardwareTextureVk {
         void *mapped_ptr = nullptr;
 };
 
+struct DescriptorSetLayout {
+        VkDescriptorSetLayout vk_layout;
+        ShaderBindingSet set;
+};
+
 struct HardwareShaderVk {
         std::string vertex_src;
         std::string geo_src;
         std::string tess_ctrl_src;
         std::string tess_eval_src;
         std::string fragment_src;
-        std::vector<VkDescriptorSetLayout> set_layouts;
+        std::vector<DescriptorSetLayout*> set_layouts;
         VkPipelineLayout layout;
 };
 
@@ -188,11 +194,14 @@ class RenderBackendVK : public RenderBackend {
         std::vector<HardwareBufferVk *> streams_to_reset;
 
         std::unordered_map<u64, VkPipeline> pipeline_cache;
-        std::unordered_map<u64, VkDescriptorSetLayout> descriptor_layout_cache;
+        std::unordered_map<u64, DescriptorSetLayout> descriptor_layout_cache;
         std::unordered_map<u64, VkDescriptorSet> descriptor_set_cache;
 
         /* we'll assume global binding */
         /* won't be destroyed at all */
+        ConstantHandle dummy_constant;
+        SSBOHandle dummy_ssbo;
+        TextureHandle dummy_texture;
         std::vector<Binding> global_bindings;
 
 /* vulkan setup */
@@ -236,15 +245,17 @@ class RenderBackendVK : public RenderBackend {
         void handle_frame_update();
         void handle_destroy();
         void transition_render_pass(HardwareRenderPassVk *rt,
-                                      bool to_attachment);
+                                    bool to_attachment);
         VkPipeline create_vk_pipeline(HardwarePipelineVk *pipeline,
                                       HardwareRenderPassVk *render_target,
                                       std::vector<VertexLayout *> &layouts,
-                                      VkPrimitiveTopology primitive, bool draw_depth_only);
+                                      VkPrimitiveTopology primitive,
+                                      bool draw_depth_only);
         VkPipeline get_vk_pipeline(HardwarePipelineVk *pipeline,
                                    HardwareRenderPassVk *render_target,
                                    std::vector<VertexLayout *> &layouts,
-                                   VkPrimitiveTopology primitive, bool draw_depth_only);
+                                   VkPrimitiveTopology primitive,
+                                   bool draw_depth_only);
         void create_render_pass(HardwareRenderPassVk *render_target,
                                 bool is_swapchain);
         void create_framebuffer(HardwareRenderPassVk *render_target);
@@ -261,7 +272,7 @@ class RenderBackendVK : public RenderBackend {
         void reallocate_buffer(HardwareBufferVk *buffer, u64 size);
         void stream_buffer(HardwareBufferVk *buffer, u64 size, u64 alignment,
                            void *data);
-        VkDescriptorSet get_descriptor_set(VkDescriptorSetLayout layout,
+        VkDescriptorSet get_descriptor_set(DescriptorSetLayout *layout,
                                            std::vector<Binding> &bindings);
         void bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
                                  std::vector<Binding> &bindings);
