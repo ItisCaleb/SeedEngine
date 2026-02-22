@@ -95,7 +95,6 @@ class DebugGUI : public GUI {
 
 class InputGUI : public GUI {
 public:
-    // 必須確保與基底類別簽署一致
     void update() override {
         ImGui::Begin("Input Settings");
 
@@ -108,9 +107,6 @@ public:
 
         static std::string waiting_for_action = "";
 
-        // 這裡列出你想要自定義的按鍵
-        // 注意：這裡假設你的 Input 類別已經有了 bindings 映射表
-        // 如果沒有，請參考下方的「應急方案」
         for (auto& [action_name, bound_code] : input->bindings) {
             ImGui::Text("%-15s", action_name.c_str());
             ImGui::SameLine();
@@ -124,7 +120,6 @@ public:
             }
 
             if (waiting_for_action == action_name) {
-                // 遍歷常用 KeyCode
                 for (int i = (int)KeyCode::SPACE; i <= (int)KeyCode::QUOTELEFT; i++) {
                     if (ImGui::IsKeyPressed((ImGuiKey)i)) {
                         bound_code = static_cast<KeyCode>(i);
