@@ -82,7 +82,7 @@ SeedEngine::SeedEngine(f32 target_fps) {
         exit(1);
     }
 
-    window = new Window(1260, 768, "Ave Mujica");
+    window = new Window(1960, 1024, "Ave Mujica");
     init_systems();
 
     this->frame_limit = 1 / target_fps;

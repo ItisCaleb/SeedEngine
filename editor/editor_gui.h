@@ -5,10 +5,6 @@
 
 namespace Seed {
 
-class AssetViewer {
-
-};
-
 class EditorGUI : public GUI {
     private:
         bool create_new_project = false;

@@ -94,6 +94,7 @@ void EditorGUI::main_panel() {
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
     if (ImGui::BeginTabBar("##TabBar")) {
         if (ImGui::BeginTabItem("Assest viewer")) {
+            gEditor->asset_viewer.update();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Terrain editor")) {

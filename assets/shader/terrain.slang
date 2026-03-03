@@ -144,7 +144,7 @@ float terrain_shadowmapping(vec2 uv, float angle){
 [shader("fragment")]
 float4 frag(DS_OUT in){
     float h = (in.height + 128)/256.0f;
-    if(h < 0.01){
+    if(h < 0.1){
         discard;
     }
 

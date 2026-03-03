@@ -17,6 +17,7 @@ class Project {
 
     public:
         static Project *load(const std::string &path);
+        std::string get_asset_dir();
 };
 }  // namespace Seed
 

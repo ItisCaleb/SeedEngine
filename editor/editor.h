@@ -4,6 +4,7 @@
 #include "project/project.h"
 #include <nlohmann/json.hpp>
 #include "editor/terrain/terrain_editor.h"
+#include "editor/asset/asset_viewer.h"
 
 namespace Seed {
 class EditorGUI;
@@ -15,7 +16,10 @@ class Editor {
 
     public:
         TerrainEditor terrain_editor;
-
+        AssetViewer asset_viewer;
+        Project *project(){
+            return current_project;
+        }
         Editor();
         ~Editor() = default;
 };

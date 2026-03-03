@@ -32,8 +32,8 @@ Vec3 skyboxVertices[] = {
 
 void DefaultRenderer::init(Window *window) {
     RenderEngine *engine = RenderEngine::get_instance();
-    u32 res_w = window->get_width() * 2;
-    u32 res_h = window->get_height() * 2;
+    u32 res_w = window->get_width();
+    u32 res_h = window->get_height();
     Ref<Texture> color_tex(TextureType::TEXTURE_2D, res_w, res_h,
                            PixelFormat::RGBA16F, nullptr);
     Ref<Texture> depth_tex(

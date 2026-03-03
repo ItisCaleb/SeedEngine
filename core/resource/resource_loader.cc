@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <type_traits>
 #include <nlohmann/json.hpp>
+#include "core/serialize/json_impl.h"
 
 #include "core/resource/model.h"
 #include "core/resource/terrain.h"
@@ -41,60 +42,69 @@ template <>
 Ref<Model> ResourceLoader::_load(const std::string &path) {
     Ref<Model> model;
     Ref<File> file = File::open(path, "rb");
+    auto model_info = file->read_json();
+    std::string bin_path = model_info["bin_file"];
+    Ref<File> bin_file = File::open(bin_path, "rb");
+
     std::vector<Ref<Mesh>> meshs;
     std::vector<i32> mesh_mats;
     std::vector<Ref<BaseMaterial>> materials;
-    std::map<i32, Ref<Texture>> texture_map;
+    std::vector<Ref<Texture>> textures;
     std::string magic = file->read_str(strlen(model_file_magic));
-    if (memcmp(magic.c_str(), model_file_magic, strlen(model_file_magic)) !=
-        0) {
-        spdlog::warn("Can't load model file '{}'", path);
-        return model;
-    }
-    ModelHeader model_header;
-    file->read(&model_header);
-    for (int i = 0; i < model_header.mesh_count; i++) {
-        std::vector<ModelVertex> vertices;
+    auto jmeshs = model_info["meshes"];
+    for (auto &jmesh : jmeshs) {
         std::vector<u32> indices;
-        MeshHeader mesh_header;
-        file->read(&mesh_header);
-        file->read_vector(vertices, mesh_header.vertex_size);
-        file->read_vector(indices, mesh_header.index_size);
-        meshs.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
-                                  indices, mesh_header.bounding_box));
-        mesh_mats.push_back(mesh_header.material_id);
+        if (jmesh["has_bone"]) {
+            std::vector<SkeletonVertex> vertices;
+            bin_file->read_vector(vertices, jmesh["vertex_count"]);
+            bin_file->read_vector(indices, jmesh["index_count"]);
+            meshs.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
+                                      indices, (AABB)jmesh["bounding_box"]));
+        } else {
+            std::vector<ModelVertex> vertices;
+            bin_file->read_vector(vertices, jmesh["vertex_count"]);
+            bin_file->read_vector(indices, jmesh["index_count"]);
+            meshs.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
+                                      indices, (AABB)jmesh["bounding_box"]));
+        }
+
+        mesh_mats.push_back(jmesh["material_id"]);
     }
 
     std::filesystem::path dir = path;
     std::string directory = dir.parent_path().string();
-    for (int i = 0; i < model_header.texture_count; i++) {
-        TextureField tex_field;
-        file->read(&tex_field);
-        std::string tex_path = file->read_str(tex_field.path_length);
-        Ref<Texture> tex =
-            load<Texture>(fmt::format("{}/{}", directory, tex_path));
+    auto jtextures = model_info["textures"];
+    for (auto &jtexture : jtextures) {
+        Ref<Texture> tex = load<Texture>(
+            fmt::format("{}/{}", directory, (std::string)jtexture));
         if (tex.is_valid()) {
-            texture_map[i] = tex;
+            textures.push_back(tex);
         }
     }
-    for (int i = 0; i < model_header.material_count; i++) {
-        MaterialField mat_field;
+
+    auto jmaterials = model_info["materials"];
+    for (auto &jmaterial : jmaterials) {
         Ref<BaseMaterial> mat;
         mat.create();
-        file->read(&mat_field);
-        mat->set_texture_map(BaseMaterial::DIFFUSE,
-                             texture_map[mat_field.diffuse_map]);
-        mat->set_texture_map(BaseMaterial::SPECULAR,
-                             texture_map[mat_field.specular_map]);
-        mat->set_texture_map(BaseMaterial::NORMAl,
-                             texture_map[mat_field.normal_map]);
+        if (jmaterial["diffuse"] != -1) {
+            mat->set_texture_map(BaseMaterial::DIFFUSE,
+                                 textures[jmaterial["diffuse"]]);
+        }
+        if (jmaterial["specular"] != -1) {
+            mat->set_texture_map(BaseMaterial::SPECULAR,
+                                 textures[jmaterial["specular"]]);
+        }
+        if (jmaterial["normal"] != -1) {
+            mat->set_texture_map(BaseMaterial::NORMAl,
+                                 textures[jmaterial["normal"]]);
+        }
         RenderBlendState blend_state;
-        blend_state.blend_on = mat_field.opacity != 1.0;
+        blend_state.blend_on = jmaterial["opacity"] != 1.0;
         materials.push_back(mat);
     }
     for (int i = 0; i < meshs.size(); i++) {
         i32 id = mesh_mats[i];
-        if (id == -1) id = 2;
+        if (id == -1) id = 0;
         meshs[i]->set_material(ref_cast<Material>(materials[id]));
     }
     model.create(meshs);

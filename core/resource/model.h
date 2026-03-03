@@ -19,6 +19,15 @@ struct ModelVertex {
         Vec2 tex_coord;
 };
 
+struct SkeletonVertex {
+        Vec3 position;
+        Vec3 normal;
+        Vec3 tangent;
+        Vec2 tex_coord;
+        u32 bone_ids[4];
+        f32 bond_weights[4];
+};
+
 class Model : public Resource {
         friend RenderEngine;
         friend DefaultRenderer;

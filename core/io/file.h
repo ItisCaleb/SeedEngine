@@ -5,11 +5,15 @@
 #include <stdio.h>
 #include <vector>
 #include <string>
-#include <fmt/format.h>
-#include <spdlog/spdlog.h>
 #include <filesystem>
 #include <nlohmann/json.hpp>
 namespace Seed {
+
+#ifdef _WIN32
+#define SPLITOR "\\"
+#else
+#define SPLITOR "/"
+#endif
 
 class File : public RefCounted {
     private:
@@ -21,73 +25,53 @@ class File : public RefCounted {
         u64 write_cnt;
 
     public:
-        static Ref<File> open(const std::string &path,
-                              const char *mode = "rb") {
-            Ref<File> file;
-            std::string fullpath = std::filesystem::absolute(path).string();
-            FILE *f = fopen(fullpath.c_str(), mode);
-            if (!f) {
-                SPDLOG_WARN("Can't open file '{}'", fullpath);
-                return file;
-            }
-            fseek(f, 0L, SEEK_END);
-            u64 sz = ftell(f);
-            fseek(f, 0L, SEEK_SET);
-            file.create();
-            file->file = f;
-            file->path = path;
-            file->full_path = fullpath;
-            file->file_size = sz;
-            file->read_cnt = 0;
-            return file;
-        }
-        std::string read_str(size_t size = SIZE_MAX) {
-            std::string data;
-            if (file && read_cnt < file_size) {
-                if (size > file_size) {
-                    size = file_size;
-                }
-                read_cnt += size;
-                data.resize(size);
-                fread((void *)data.c_str(), 1, size, file);
-            }
-            return data;
-        }
+        static Ref<File> open(const std::string &path, const char *mode = "rb");
+        std::string read_str(size_t size = SIZE_MAX);
+
+        void read(void *data, size_t size);
 
         template <typename T>
         void read(T *data) {
-            if (data == nullptr) return;
             size_t size = sizeof(T);
-
-            if (file && read_cnt < file_size) {
-                read_cnt += size;
-                fread((void *)data, 1, size, file);
-            }
+            read(data, size);
         }
 
-        nlohmann::json read_json() { return nlohmann::json::parse(file); }
+        nlohmann::json read_json();
 
         template <typename T>
         void read_vector(std::vector<T> &vec, u32 cnt) {
             size_t ele_size = sizeof(T);
             vec.resize(cnt);
-            if (file && read_cnt < file_size) {
-                read_cnt += cnt * ele_size;
-
-                fread((void *)vec.data(), 1, cnt * ele_size, file);
-            }
+            read(vec.data(), cnt * ele_size);
         }
 
-        size_t write(void *data, size_t size) {
-            return fwrite(data, 1, size, file);
-        }
+        size_t write(void *data, size_t size);
 
-        size_t write_str(const std::string &str) const {
-            return fwrite(str.data(), 1, str.size(), file);
-        }
+        size_t write_str(const std::string &str) const;
+
+        void copy_to(const std::string &path) const;
 
         const std::string &get_path() const { return this->path; }
         const std::string &get_fullpath() const { return this->path; }
+        const std::string get_filename() const {
+            std::string_view view(this->path);
+            view = view.substr(view.find_last_of(SPLITOR));
+            return std::string(view);
+        }
+
+        const std::string get_filename_without_ext() const {
+            std::string_view view(this->path);
+            view = view.substr(view.find_last_of(SPLITOR));
+            view = view.substr(0, view.find_last_of("."));
+            return std::string(view);
+        }
+
+        const std::string get_directory() {
+            std::string_view view(this->path);
+            auto f = view.find_last_of(SPLITOR);
+            view = view.substr(0, f);
+            return std::string(view);
+        }
 
         ~File() {
             if (file) {

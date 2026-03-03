@@ -60,7 +60,7 @@ class ResourceLoader {
             async_rc.create();
             async_rc->work_id = ThreadPool::get_instance()->add_work(
                 [=](void *) mutable {
-                    async_rc->resource = _load<T>(path);
+                    async_rc->resource = load<T>(path);
                     async_rc->loaded = true;
                     if (callback) {
                         callback(async_rc->resource);

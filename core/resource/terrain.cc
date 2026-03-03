@@ -20,6 +20,7 @@ TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
     this->set_texture("terrain_shadowMap", DS::get_instance()->black_texture);
     this->raster_state = {.cull_mode = Cullmode::FRONT,
                           .patch_control_points = 4};
+    this->depth_state = {.depth_mode = DepthMode::ALPHA_TEST};
 }
 void TerrainMaterial::set_height_map(Ref<Texture> height_map) {
     this->set_texture("height_map", height_map);
