@@ -184,14 +184,14 @@ class RenderBackendVK : public RenderBackend {
         };
 
         /* delay destroy to end of frame */
-        std::queue<DestroyResource> destroy_queue;
-        std::queue<StaticBufferUpdate> static_buffer_update_queue;
-        std::queue<DynamicBufferUpdate> dynamic_buffer_update_queue;
+        RingBuffer<DestroyResource> destroy_queue;
+        RingBuffer<StaticBufferUpdate> static_buffer_update_queue;
+        RingBuffer<DynamicBufferUpdate> dynamic_buffer_update_queue;
 
-        std::vector<ImageUpdate> image_copy_queue;
-        std::vector<TextureHandle> mappable_image_transition_queue;
+        RingBuffer<ImageUpdate> image_copy_queue;
+        RingBuffer<TextureHandle> mappable_image_transition_queue;
 
-        std::vector<HardwareBufferVk *> streams_to_reset;
+        RingBuffer<HardwareBufferVk *> streams_to_reset;
 
         std::unordered_map<u64, VkPipeline> pipeline_cache;
         std::unordered_map<u64, DescriptorSetLayout> descriptor_layout_cache;

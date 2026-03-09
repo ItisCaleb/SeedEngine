@@ -79,7 +79,7 @@ RenderBackendVK::RenderBackendVK(Window *window) {
         this->alloc_constant(1, nullptr, UpdateFrequence::PERFRAME);
     dummy_ssbo =
         this->alloc_storage_buffer(1, nullptr, UpdateFrequence::PERFRAME);
-    u8 *data = (u8*)malloc(1);
+    u8 *data = (u8 *)malloc(1);
     data[0] = 0;
     dummy_texture = this->alloc_texture(TextureType::TEXTURE_2D, 1, 1,
                                         PixelFormat::R, {}, data);
@@ -670,7 +670,7 @@ void RenderBackendVK::push_image_update(TextureHandle handle, u32 layer,
     vmaCopyMemoryToAllocation(buffer_allocator, data, stagingAllocation, 0,
                               size);
     free(data);
-    this->image_copy_queue.push_back(
+    this->image_copy_queue.push(
         ImageUpdate{.staging_buffer = stagingBuffer,
                     .staging_allocation = stagingAllocation,
                     .texture = handle,
@@ -731,7 +731,7 @@ void RenderBackendVK::stream_buffer(HardwareBufferVk *buffer, u64 size,
     buffer->last_offset = buffer->next_offset;
     size = (size + alignment - 1) & ~(alignment - 1);
     buffer->next_offset += size;
-    streams_to_reset.push_back(buffer);
+    streams_to_reset.push(buffer);
 }
 
 VkDescriptorSet RenderBackendVK::get_descriptor_set(
@@ -950,7 +950,7 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
         create_staging_buffer(&stagingBuffer, &stagingAllocation, size);
         vmaCopyMemoryToAllocation(buffer_allocator, data, stagingAllocation, 0,
                                   size);
-        this->image_copy_queue.push_back(ImageUpdate{
+        this->image_copy_queue.push(ImageUpdate{
             .staging_buffer = stagingBuffer,
             .texture = handle,
             .face = 0,
@@ -1044,7 +1044,7 @@ TextureHandle RenderBackendVK::alloc_mappable_texture(
                                                   .memory = allocation,
                                                   .layouts = layouts,
                                                   .mapped_ptr = mapped_ptr});
-    mappable_image_transition_queue.push_back(handle);
+    mappable_image_transition_queue.push(handle);
     return handle;
 }
 
@@ -1476,20 +1476,21 @@ void RenderBackendVK::handle_frame_update() {
         barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         shader_barriers.push_back(barrier);
     }
-    for (TextureHandle handle : mappable_image_transition_queue) {
+    while (!mappable_image_transition_queue.is_empty()) {
+        TextureHandle handle = mappable_image_transition_queue.peek();
         HardwareTextureVk *texture = this->textures.get_or_null(handle);
         shader_barriers.push_back(create_image_barrier(
             texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0));
+        mappable_image_transition_queue.pop();
     }
-    mappable_image_transition_queue.clear();
 
     vkCmdPipelineBarrier(render_cmd_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                          VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
                          nullptr, transfer_barriers.size(),
                          transfer_barriers.data());
 
-    while (!static_buffer_update_queue.empty()) {
-        StaticBufferUpdate &copy = static_buffer_update_queue.front();
+    while (!static_buffer_update_queue.is_empty()) {
+        StaticBufferUpdate &copy = static_buffer_update_queue.peek();
         VkBufferCopy _copy{};
         _copy.srcOffset = 0;
         _copy.dstOffset = copy.offset;
@@ -1505,8 +1506,8 @@ void RenderBackendVK::handle_frame_update() {
     }
 
     std::vector<VmaAllocation> allocations_to_flush;
-    while (!dynamic_buffer_update_queue.empty()) {
-        DynamicBufferUpdate &copy = dynamic_buffer_update_queue.front();
+    while (!dynamic_buffer_update_queue.is_empty()) {
+        DynamicBufferUpdate &copy = dynamic_buffer_update_queue.peek();
         memcpy((void *)((u64)copy.target_buffer + copy.offset), copy.data,
                copy.size);
         free(copy.data);
@@ -1514,7 +1515,8 @@ void RenderBackendVK::handle_frame_update() {
                            copy.size);
         dynamic_buffer_update_queue.pop();
     }
-    for (ImageUpdate &copy : image_copy_queue) {
+    while (!image_copy_queue.is_empty()) {
+        ImageUpdate &copy = image_copy_queue.peek();
         VkBufferImageCopy _copy{};
         HardwareTextureVk *texture = this->textures.get_or_null(copy.texture);
 
@@ -1538,17 +1540,17 @@ void RenderBackendVK::handle_frame_update() {
                             .mapped = false,
                             .buffer = {.buffer = copy.staging_buffer,
                                        .memory = copy.staging_allocation}});
+        image_copy_queue.pop();
     }
     vkCmdPipelineBarrier(render_cmd_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
                          VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 0,
                          nullptr, shader_barriers.size(),
                          shader_barriers.data());
-    image_copy_queue.clear();
 }
 
 void RenderBackendVK::handle_destroy() {
-    while (!destroy_queue.empty()) {
-        DestroyResource &destroy = destroy_queue.front();
+    while (!destroy_queue.is_empty()) {
+        DestroyResource &destroy = destroy_queue.peek();
         switch (destroy.type) {
             case RenderResourceType::VERTEX:
             case RenderResourceType::INDEX:
@@ -1978,7 +1980,7 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     vkResetFences(device, 1, &in_flight_fence);
 
     vkResetCommandBuffer(render_cmd_buffer, 0);
-    //handle_destroy();
+    // handle_destroy();
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -2058,11 +2060,12 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
-    for (HardwareBufferVk *buffer : this->streams_to_reset) {
+    while (!this->streams_to_reset.is_empty()) {
+        HardwareBufferVk *buffer = this->streams_to_reset.peek();
+        this->streams_to_reset.pop();
         buffer->next_offset = 0;
         buffer->last_offset = 0;
     }
-    this->streams_to_reset.clear();
 }
 
 void RenderBackendVK::swap_buffer() {

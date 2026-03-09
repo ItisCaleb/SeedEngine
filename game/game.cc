@@ -145,12 +145,14 @@ int main(void) {
                 rc->insert_transform(tf);
             }
         });
-    auto man = loader->load<SkeletonModel>("test_project/assets/man.json");
-    Entity *ent = new Entity(Vec3{0, 0, 0});
-    ent->get_transform()->set_scale(Vec3{0.1, 0.1, 0.1});
-    ent->bind_skeleton_model(man);
-    ent->play_animation("Take 001");
-    engine->get_world()->add_entity(ent);
+    auto man = loader->load_async<SkeletonModel>(
+        "test_project/assets/man.json", [=](Ref<SkeletonModel> rc) {
+            Entity *ent = new Entity(Vec3{0, 0, 0});
+            ent->get_transform()->set_scale(Vec3{0.1, 0.1, 0.1});
+            ent->bind_skeleton_model(rc);
+            ent->play_animation("Take 001");
+            engine->get_world()->add_entity(ent);
+        });
 
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     World *world = engine->get_world();
