@@ -925,8 +925,8 @@ void RenderBackendGL::handle_render(RenderCommand &cmd) {
             case RenderDrawData::OpType::PUSH_CONSTANT: {
                 HardwareBufferGL *pc = ubos.get_or_null(push_constant.handle);
                 glBindBuffer(GL_UNIFORM_BUFFER, pc->handle);
-                glBufferData(GL_UNIFORM_BUFFER, op->constant.size,
-                             op->constant.data, GL_DYNAMIC_DRAW);
+                glBufferData(GL_UNIFORM_BUFFER, op->push_constant.size,
+                             op->push_constant.data, GL_DYNAMIC_DRAW);
                 glBindBuffer(GL_UNIFORM_BUFFER, 0);
                 break;
             }

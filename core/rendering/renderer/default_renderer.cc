@@ -268,6 +268,7 @@ void DefaultRenderer::ShadowPass::execute(RenderCommandDispatcher &dp,
             mesh_builder.push_constant(i + 1);
             mesh_builder.set_instance(mesh.visible_size[i], 0);
             mesh_builder.set_depth_write(true);
+            mesh_builder.set_depth_clamp(true);
             /* alpha test need fragment shader */
             if (mesh.mesh->get_material()->get_depth_state().depth_mode !=
                 DepthMode::ALPHA_TEST) {

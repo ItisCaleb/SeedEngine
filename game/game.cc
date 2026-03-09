@@ -61,6 +61,7 @@ class DebugGUI : public GUI {
             auto world = Seed::SeedEngine::get_instance()->get_world();
             ImGui::Begin("Debug");
             light_dir = world->get_direction_light().get_direction();
+            static f32 shadow_lambda = world->get_direction_light().get_csm_lamda();
             if (ImGui::SliderFloat3("Direction Light",
                                     (float *)(void *)&light_dir, -1.0f, 1.0f)) {
                 world->get_direction_light().set_direction(light_dir);
@@ -69,6 +70,8 @@ class DebugGUI : public GUI {
             auto cam_pos = cam.get_position();
             ImGui::Text("%.2f %.2f %.2f", cam_pos.x, cam_pos.y, cam_pos.z);
             ImGui::Text("FPS: %.2f", SeedEngine::get_instance()->get_fps());
+            ImGui::SliderFloat("Shadow Lambda", &shadow_lambda, 0, 1.0);
+            world->get_direction_light().set_csm_lamda(shadow_lambda);
             // ImGui::SliderFloat("CSM Lambda", &Camera::shadow_lamdba, 0, 1.0);
             if (ImGui::Button("ortho")) {
                 cam.set_ortho(-10, 10, -10, 10, -100, 100);

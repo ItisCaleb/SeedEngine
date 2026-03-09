@@ -57,7 +57,7 @@ struct HardwareShaderVk {
         std::string tess_ctrl_src;
         std::string tess_eval_src;
         std::string fragment_src;
-        std::vector<DescriptorSetLayout*> set_layouts;
+        std::vector<DescriptorSetLayout *> set_layouts;
         VkPipelineLayout layout;
 };
 
@@ -250,12 +250,12 @@ class RenderBackendVK : public RenderBackend {
                                       HardwareRenderPassVk *render_target,
                                       std::vector<VertexLayout *> &layouts,
                                       VkPrimitiveTopology primitive,
-                                      bool draw_depth_only);
+                                      bool draw_depth_only, bool depth_clamp);
         VkPipeline get_vk_pipeline(HardwarePipelineVk *pipeline,
                                    HardwareRenderPassVk *render_target,
                                    std::vector<VertexLayout *> &layouts,
                                    VkPrimitiveTopology primitive,
-                                   bool draw_depth_only);
+                                   bool draw_depth_only, bool depth_clamp);
         void create_render_pass(HardwareRenderPassVk *render_target,
                                 bool is_swapchain);
         void create_framebuffer(HardwareRenderPassVk *render_target);

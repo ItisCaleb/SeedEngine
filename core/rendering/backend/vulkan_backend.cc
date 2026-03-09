@@ -1424,7 +1424,7 @@ HardwareRenderPassVk *RenderBackendVK::get_current_render_pass() {
 VkPipeline RenderBackendVK::get_vk_pipeline(
     HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
     std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
-    bool draw_depth_only) {
+    bool draw_depth_only, bool depth_clamp) {
     Hash _hash;
     _hash.update(&pipeline->rst_state.cull_mode);
     _hash.update(&pipeline->rst_state.poly_mode);
@@ -1440,6 +1440,7 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     _hash.update(&pipeline->blend_attachment.func.dst_alpha);
     _hash.update(&primitive);
     _hash.update(&draw_depth_only);
+    _hash.update(&depth_clamp);
 
     /* since we usually don't create multiple shader/render target/layout with
      * same config */
@@ -1454,7 +1455,7 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     auto iter = pipeline_cache.find(hash);
     if (iter == pipeline_cache.end()) {
         vk_pipeline = create_vk_pipeline(pipeline, render_target, layouts,
-                                         primitive, draw_depth_only);
+                                         primitive, draw_depth_only, depth_clamp);
         pipeline_cache.emplace(hash, vk_pipeline);
     } else {
         vk_pipeline = iter->second;
@@ -1634,7 +1635,7 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
 VkPipeline RenderBackendVK::create_vk_pipeline(
     HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
     std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
-    bool draw_depth_only) {
+    bool draw_depth_only, bool depth_clamp) {
     VkPipeline graphicsPipeline;
     HardwareShaderVk *shader = this->shaders.get_or_null(pipeline->shader);
     if (!shader) {
@@ -1668,6 +1669,7 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
         VulkanHelper::rasterizer(pipeline->rst_state);
     VkPipelineDepthStencilStateCreateInfo depthState =
         VulkanHelper::depth_stencil(pipeline->depth_state);
+    rasterState.depthClampEnable = depth_clamp;
 
     std::vector<VkPipelineColorBlendAttachmentState> blendAttachments;
     for (HardwareColorAttachmentVk &attchment :
@@ -2303,7 +2305,7 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
     HardwareIndexVk *index = nullptr;
 
     std::vector<VertexLayout *> layouts;
-    std::vector<Binding> texture_bindings;
+    std::vector<Binding> local_bindings;
     HardwarePipelineVk *pipeline =
         this->pipelines.get_or_null(draw_data->pipeline);
     EXPECT_NOT_NULL_RET(pipeline);
@@ -2333,10 +2335,21 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                     this->textures.get_or_null(op->texture.texture_handle);
                 i32 id = this->textures.get_id(op->texture.texture_handle);
                 EXPECT_NOT_NULL_BREAK(tex);
-                texture_bindings.push_back(
+                local_bindings.push_back(
                     Binding{.type = RenderResourceType::TEXTURE,
                             .handle = op->texture.texture_handle,
                             .resource_id = id,
+                            .binding_point = op->texture.unit});
+                break;
+            }
+            case RenderDrawData::OpType::BIND_CONSTANT: {
+                HardwareBufferVk *constant =
+                    this->constants.get_or_null(op->constant_handle);
+                EXPECT_NOT_NULL_BREAK(constant);
+                local_bindings.push_back(
+                    Binding{.type = RenderResourceType::TEXTURE,
+                            .handle = op->texture.texture_handle,
+                            .resource_id = op->constant_handle,
                             .binding_point = op->texture.unit});
                 break;
             }
@@ -2370,9 +2383,9 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
             case RenderDrawData::OpType::PUSH_CONSTANT: {
                 vkCmdPushConstants(render_cmd_buffer, shader->layout,
                                    VK_SHADER_STAGE_ALL_GRAPHICS,
-                                   push_constant_offset, op->constant.size,
-                                   op->constant.data);
-                push_constant_offset += op->constant.size;
+                                   push_constant_offset, op->push_constant.size,
+                                   op->push_constant.data);
+                push_constant_offset += op->push_constant.size;
                 break;
             }
             default:
@@ -2385,12 +2398,13 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
         get_descriptor_set(shader->set_layouts[0], global_bindings);
     bind_descriptor_set(shader, 0, global_bindings);
     if (shader->set_layouts.size() > 1) {
-        bind_descriptor_set(shader, 1, texture_bindings);
+        bind_descriptor_set(shader, 1, local_bindings);
     }
     VkPrimitiveTopology primitive = VulkanHelper::primitive(draw_data->type);
 
-    VkPipeline vk_pipeline = get_vk_pipeline(pipeline, rt, layouts, primitive,
-                                             draw_data->draw_depth_only);
+    VkPipeline vk_pipeline =
+        get_vk_pipeline(pipeline, rt, layouts, primitive,
+                        draw_data->draw_depth_only, draw_data->depth_clamp);
 
     vkCmdBindPipeline(render_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                       vk_pipeline);
