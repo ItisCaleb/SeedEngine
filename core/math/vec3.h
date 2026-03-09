@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include "core/types.h"
+#include "core/math/utils.h"
 
 namespace Seed {
 struct Vec3 {
@@ -117,6 +118,10 @@ struct Vec3 {
             } else {
                 return b;
             }
+        }
+
+        static Vec3 lerp(const Vec3 &a, const Vec3 &b, f32 t) {
+            return a + (b - a) * clampf(t, 0.0, 1.0);
         }
 };
 

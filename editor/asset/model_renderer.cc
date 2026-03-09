@@ -36,7 +36,7 @@ void ModelRenderer::preprocess() {
     fd.screen_h = screen_tex->get_height();
     /* check instance mesh size > 0 */
     if (instance.is_null() ||
-        !instance.is_null() && instance->get_size() == 0) {
+        !instance.is_null() && instance->size() == 0) {
         return;
     }
     Camera *cam = &SeedEngine::get_instance()->get_world()->get_camera();

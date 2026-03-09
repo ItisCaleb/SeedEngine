@@ -86,7 +86,7 @@ class DebugGUI : public GUI {
                     state.poly_mode = PolygonMode::FILL;
                 }
 
-                //mat->set_rasterizer_state(state);
+                // mat->set_rasterizer_state(state);
             }
             ImGui::End();
         };
@@ -127,7 +127,7 @@ int main(void) {
     auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
     auto sky = loader->load_async<Sky>("assets/sky.json");
     auto backpack = loader->load_async<Model>(
-        "assets/backpack/test.mdl", [=](Ref<Model> rc) {
+        "test_project/assets/backpack.json", [=](Ref<Model> rc) {
             for (i32 i = 0; i < 10; i++) {
                 Entity *ent = new Entity(Vec3{(f32)i * 5, 20, (f32)-i});
                 ent->bind_model(rc);
@@ -145,6 +145,12 @@ int main(void) {
                 rc->insert_transform(tf);
             }
         });
+    auto man = loader->load<SkeletonModel>("test_project/assets/man.json");
+    Entity *ent = new Entity(Vec3{0, 0, 0});
+    ent->get_transform()->set_scale(Vec3{0.1, 0.1, 0.1});
+    ent->bind_skeleton_model(man);
+    ent->play_animation("Take 001");
+    engine->get_world()->add_entity(ent);
 
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     World *world = engine->get_world();

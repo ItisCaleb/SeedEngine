@@ -89,8 +89,12 @@ inline vec4 GetTerrain(uint id){
     return gTerrain[gVisible[id + gPC.visible_index]];
 }
 
-inline mat4 GetBone(uint id){
+inline mat4 GetSkeletonTransform(uint id){
     return gBones[gVisible[id + gPC.visible_index]];
+}
+
+inline mat4 GetSkeletonBone(uint id, uint bone_id){
+    return gBones[gVisible[id + gPC.visible_index] + 1 + bone_id];
 }
 
 inline mat4 GetLightSpace(){

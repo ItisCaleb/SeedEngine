@@ -44,4 +44,26 @@ Model::~Model() {
     }
 }
 
+SkeletonModel::SkeletonModel(const std::vector<Ref<Mesh>> &meshes,
+                             Ref<Skeleton> skeleton)
+    : meshes(std::move(meshes)) {
+    instances.create(skeleton);
+    this->skeleton = skeleton;
+    for (Ref<Mesh> mesh : meshes) {
+        MeshStorage::get_instance()->add_mesh(
+            mesh, ref_cast<InstanceData>(instances));
+    }
+}
+
+void SkeletonModel::insert_instance(Ref<Transform> transform,
+                                    Ref<AnimationState> state) {
+    this->instances->insert_instance(transform, state);
+}
+
+SkeletonModel::~SkeletonModel() {
+    for (Ref<Mesh> mesh : meshes) {
+        MeshStorage::get_instance()->remove_mesh(mesh);
+    }
+}
+
 }  // namespace Seed

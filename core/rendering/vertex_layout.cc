@@ -8,18 +8,6 @@ void VertexLayout::add_attr(u8 layout_num, VertexAttributeType type, u32 size,
                            .size = size,
                            .should_normalized = should_normalized});
 
-    u32 type_size = 1;
-    switch (type) {
-        case VertexAttributeType::UNSIGNED_BYTE:
-            type_size = 1;
-            break;
-        case VertexAttributeType::FLOAT:
-        case VertexAttributeType::INT:
-        case VertexAttributeType::UNSIGNED:
-        default:
-            type_size = 4;
-            break;
-    }
-    this->stride += size * type_size;
+    this->stride += size * this->attrs.back().get_type_size();
 }
 }  // namespace Seed

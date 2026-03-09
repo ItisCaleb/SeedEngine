@@ -97,7 +97,7 @@ AABB EditorModel::calculateAABB(const std::vector<SkeletonVertex> &vertices) {
     return AABB{Vec3{x2 - w, y2 - h, z2 - d}, Vec3{w, h, d}};
 }
 
-i32 EditorModel::get_bone_id(const std::string &name) {
+i16 EditorModel::get_bone_id(const std::string &name) {
     auto iter = bone_map.find(name);
     if (iter == bone_map.end()) {
         return -1;
@@ -152,26 +152,28 @@ void EditorModel::processBoneMesh(aiMesh *mesh, const aiScene *scene) {
         } else {
             vertex.tex_coord = {0, 0};
         }
+        for(u32 j = 0;j<4;j++){
+            vertex.bone_ids[j] = 0;
+            vertex.bone_weights[j] = 0.0f;
+        }
         vertices.push_back(vertex);
     }
     vertice_weights.resize(vertices.size());
     if (mesh->mBones) {
         for (u32 i = 0; i < mesh->mNumBones; i++) {
             aiBone *bone = mesh->mBones[i];
-            i32 bone_id = get_bone_id(bone->mName.C_Str());
-            if (bone_id == -1) {
-                bone_id = bones.size();
-                this->bone_map[bone->mName.C_Str()] = bone_id;
-                bones.push_back(
-                    Bone{.name = bone->mName.C_Str(),
-                         .offset_matrix = from_assimp(bone->mOffsetMatrix)});
-            }
+            i16 bone_id = get_bone_id(bone->mName.C_Str());
+            this->bones[bone_id].offset_matrix =
+                from_assimp(bone->mOffsetMatrix);
 
             for (u32 j = 0; j < bone->mNumWeights; j++) {
                 u32 vertex_id = bone->mWeights[j].mVertexId;
-                vertices[vertex_id].bone_ids[vertice_weights[vertex_id]] =
-                    (u32)bone_id;
-                vertices[vertex_id].bond_weights[vertice_weights[vertex_id]] =
+                u32 weight_count = vertice_weights[vertex_id];
+                if (weight_count >= 4) {
+                    continue;
+                }
+                vertices[vertex_id].bone_ids[weight_count] = (u16)bone_id;
+                vertices[vertex_id].bone_weights[weight_count] =
                     bone->mWeights[j].mWeight;
                 vertice_weights[vertex_id]++;
             }
@@ -224,46 +226,103 @@ void EditorModel::processNode(aiNode *node, const aiScene *scene) {
     }
 }
 
+void EditorModel::processAnimation(const aiScene *scene) {
+    for (u32 i = 0; i < scene->mNumAnimations; i++) {
+        aiAnimation *_anim = scene->mAnimations[i];
+        EditorAnimation &anim =
+            this->animations.emplace_back(EditorAnimation{});
+        anim.name = _anim->mName.C_Str();
+        anim.duration = _anim->mDuration;
+        anim.clips.reserve(_anim->mNumChannels);
+        for (u32 j = 0; j < _anim->mNumChannels; j++) {
+            aiNodeAnim *channel = _anim->mChannels[j];
+            i16 bone_id = get_bone_id(channel->mNodeName.C_Str());
+            anim.clips.push_back(AnimationClip{.bone_id = (u16)bone_id});
+            AnimationClip &clip = anim.clips.back();
+            clip.position_keys.reserve(channel->mNumPositionKeys);
+            clip.rotation_keys.reserve(channel->mNumRotationKeys);
+            clip.scaling_keys.reserve(channel->mNumScalingKeys);
+            for (u32 k = 0; k < channel->mNumPositionKeys; k++) {
+                clip.position_keys.push_back(PositionKey{
+                    .position_time = channel->mPositionKeys[k].mTime,
+                    .position = from_assimp(channel->mPositionKeys[k].mValue)});
+            }
+            for (u32 k = 0; k < channel->mNumRotationKeys; k++) {
+                clip.rotation_keys.push_back(RotationKey{
+                    .rotation_time = channel->mRotationKeys[k].mTime,
+                    .rotation = from_assimp(channel->mRotationKeys[k].mValue)});
+            }
+            for (u32 k = 0; k < channel->mNumScalingKeys; k++) {
+                clip.scaling_keys.push_back(ScalingKey{
+                    .scaling_time = channel->mScalingKeys[k].mTime,
+                    .scaling = from_assimp(channel->mScalingKeys[k].mValue)});
+            }
+        }
+    }
+}
+
+void EditorModel::processBoneHierachy(aiNode *node, const aiScene *scene,
+                                      u16 parent_id) {
+    std::string name = node->mName.C_Str();
+    bool is_bone = this->bone_names.count(name) > 0;
+    if (is_bone) {
+        Bone bone = Bone{
+            .name = name,
+            .parent = (u16)parent_id,
+        };
+        parent_id = this->bones.size();
+        this->bone_map[name] = parent_id;
+        this->bones.push_back(bone);
+    }
+    for (int i = 0; i < node->mNumChildren; i++) {
+        processBoneHierachy(node->mChildren[i], scene, parent_id);
+    }
+}
+
+void EditorModel::collectBoneNames(aiNode *node, const aiScene *scene) {
+    for (int i = 0; i < node->mNumMeshes; i++) {
+        aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
+        if (mesh->mBones) {
+            for (u32 i = 0; i < mesh->mNumBones; i++) {
+                aiBone *bone = mesh->mBones[i];
+                this->bone_names.insert(bone->mName.C_Str());
+            }
+        }
+    }
+    for (int i = 0; i < node->mNumChildren; i++) {
+        collectBoneNames(node->mChildren[i], scene);
+    }
+}
+
 EditorModel::EditorModel(const std::string &path) {
     Assimp::Importer importer;
-    const aiScene *scene = importer.ReadFile(
-        path, aiProcess_CalcTangentSpace | aiProcess_GenNormals |
-                  aiProcess_Triangulate | aiProcess_OptimizeGraph |
-                  aiProcess_OptimizeMeshes | aiProcess_JoinIdenticalVertices |
-                  aiProcess_SortByPType);
+    this->origin_path = path;
+    u32 assimp_flag = aiProcess_CalcTangentSpace | aiProcess_GenNormals |
+                      aiProcess_Triangulate | aiProcess_OptimizeGraph |
+                      aiProcess_OptimizeMeshes |
+                      aiProcess_JoinIdenticalVertices | aiProcess_SortByPType;
+    std::string_view view(path);
+    view = view.substr(view.find_last_of(".") + 1);
+    std::string extension = std::string(view);
+    if (extension == "gltf") {
+        assimp_flag |= aiProcess_FlipUVs;
+    }
+
+    const aiScene *scene = importer.ReadFile(path, assimp_flag);
 
     // If the import failed, report it
     if (!scene) {
         spdlog::error("Can't load Model from {}", path);
         return;
     }
+    collectBoneNames(scene->mRootNode, scene);
+    processBoneHierachy(scene->mRootNode, scene, 0);
     processNode(scene->mRootNode, scene);
-    for (u32 i = 0; i < scene->mNumAnimations; i++) {
-        aiAnimation *_anim = scene->mAnimations[i];
-        Animation &anim = this->animations.emplace_back(Animation{});
-        anim.name = _anim->mName.C_Str();
-        anim.duration = _anim->mDuration;
-        anim.frames.reserve(_anim->mNumChannels);
-        for (u32 j = 0; j < _anim->mNumChannels; j++) {
-            aiNodeAnim *channel = _anim->mChannels[j];
-            i32 bone_id = get_bone_id(channel->mNodeName.C_Str());
-            anim.frames.push_back({});
-            std::vector<Animation::KeyFrame> &frame = anim.frames.back();
-            frame.reserve(channel->mNumPositionKeys);
-            for (u32 k = 0; k < channel->mNumPositionKeys; k++) {
-                frame.push_back(Animation::KeyFrame{
-                    .position_time = channel->mPositionKeys[k].mTime,
-                    .position = from_assimp(channel->mPositionKeys[k].mValue),
-                    .rotation_time = channel->mRotationKeys[k].mTime,
-                    .rotation = from_assimp(channel->mRotationKeys[k].mValue),
-                    .scaling_time = channel->mScalingKeys[k].mTime,
-                    .scaling = from_assimp(channel->mScalingKeys[k].mValue)});
-            }
-        }
-    }
+    processAnimation(scene);
+
     fmt::println("{}", scene->mNumMeshes);
     std::filesystem::path dir = path;
-    directory = dir.parent_path().filename().string();
+    origin_dir = dir.parent_path();
 }
 
 template <typename json_type>
@@ -275,18 +334,25 @@ inline void to_json(json_type &j, const ::Material &m) {
 }
 
 void EditorModel::dump(const std::string &dir) {
-    Ref<File> f = File::open(fmt::format("{}/{}.json", dir, directory), "wb");
-    Ref<File> bin_f = File::open(fmt::format("{}/{}.bin", dir, directory), "wb");
+    std::string name = origin_dir.filename().string();
+    Ref<File> f = File::open(fmt::format("{}/{}.json", dir, name), "wb");
+    Ref<File> bin_f = File::open(fmt::format("{}/{}.bin", dir, name), "wb");
+    for (auto &texture : this->textures) {
+        Ref<File> t =
+            File::open(fmt::format("{}/{}", origin_dir.string(), texture));
+        t->copy_to(fmt::format("{}/{}", dir, t->get_filename()));
+        texture = t->get_filename();
+    }
 
     nlohmann::ordered_json j;
-    j["name"] = dir;
+    j["name"] = name;
     j["type"] = "model";
     j["textures"] = this->textures;
     j["materials"] = this->materials;
+    j["bin_file"] = name + ".bin";
     j["meshes"] = nlohmann::json::array();
-    j["bones"] = nlohmann::json::array();
+    j["bones"] = {};
     j["animations"] = nlohmann::json::array();
-    j["bin_file"] = dir + ".bin";
 
     u64 offset = 0;
     for (auto &mesh : this->meshes) {
@@ -298,14 +364,11 @@ void EditorModel::dump(const std::string &dir) {
         mesh_j["has_bone"] = false;
         mesh_j["bin_offset"] = offset;
 
-        u64 bytes_size = mesh.vertices.size() * sizeof(ModelVertex) +
-                         mesh.indices.size() * sizeof(u32);
-        mesh_j["bin_size"] = bytes_size;
-        bin_f->write(mesh.vertices.data(),
-                     mesh.vertices.size() * sizeof(ModelVertex));
-        bin_f->write(mesh.indices.data(), mesh.indices.size() * sizeof(u32));
+        u64 _offset = offset;
+        offset += bin_f->write(mesh.vertices);
+        offset += bin_f->write(mesh.indices);
+        mesh_j["bin_size"] = offset - _offset;
         j["meshes"].push_back(mesh_j);
-        offset += bytes_size;
     }
 
     for (auto &mesh : this->bone_meshes) {
@@ -316,36 +379,49 @@ void EditorModel::dump(const std::string &dir) {
         mesh_j["bounding_box"] = calculateAABB(mesh.vertices);
         mesh_j["has_bone"] = true;
         mesh_j["bin_offset"] = offset;
-
-        u64 bytes_size = mesh.vertices.size() * sizeof(SkeletonVertex) +
-                         mesh.indices.size() * sizeof(u32);
-        mesh_j["bin_size"] = bytes_size;
-        bin_f->write(mesh.vertices.data(),
-                     mesh.vertices.size() * sizeof(SkeletonVertex));
-        bin_f->write(mesh.indices.data(), mesh.indices.size() * sizeof(u32));
+        u64 _offset = offset;
+        offset += bin_f->write(mesh.vertices);
+        offset += bin_f->write(mesh.indices);
+        mesh_j["bin_size"] = offset - _offset;
         j["meshes"].push_back(mesh_j);
-        offset += bytes_size;
     }
 
-    for (auto &bone : this->bones) {
-        nlohmann::ordered_json bone_j;
-        bone_j["name"] = bone.name;
-        bone_j["bin_offset"] = offset;
-        offset += bin_f->write(&bone.offset_matrix, sizeof(Mat4));
-        j["bones"].push_back(bone_j);
+    if (!this->bones.empty()) {
+        j["bones"]["bin_offset"] = offset;
+        j["bones"]["bin_size"] = this->bones.size() * sizeof(Mat4);
+        j["bones"]["names"] = nlohmann::json::array();
+        j["bones"]["parents"] = nlohmann::json::array();
+        for (auto &bone : this->bones) {
+            j["bones"]["names"].push_back(bone.name);
+            j["bones"]["parents"].push_back(bone.parent);
+            offset += bin_f->write(&bone.offset_matrix);
+        }
     }
 
     for (auto &animation : this->animations) {
         nlohmann::ordered_json animation_j;
         animation_j["name"] = animation.name;
         animation_j["duration"] = animation.duration;
+        animation_j["clip_count"] = animation.clips.size();
         animation_j["bin_offset"] = offset;
-        for (auto &key_frame : animation.frames) {
-            offset +=
-                bin_f->write(key_frame.data(),
-                             key_frame.size() * sizeof(Animation::KeyFrame));
-            animation_j["key_frames"].push_back(key_frame.size());
+        u64 _offset = offset;
+        for (auto &clip : animation.clips) {
+            struct ClipInfo {
+                    u16 bone_id;
+                    u16 position_key_count;
+                    u16 rotation_key_count;
+                    u16 scaling_key_count;
+            } clip_info;
+            clip_info.bone_id = clip.bone_id;
+            clip_info.position_key_count = clip.position_keys.size();
+            clip_info.rotation_key_count = clip.rotation_keys.size();
+            clip_info.scaling_key_count = clip.scaling_keys.size();
+            offset += bin_f->write(&clip_info);
+            offset += bin_f->write(clip.position_keys);
+            offset += bin_f->write(clip.rotation_keys);
+            offset += bin_f->write(clip.scaling_keys);
         }
+        animation_j["bin_size"] = offset - _offset;
         j["animations"].push_back(animation_j);
     }
     f->write_str(j.dump(2));

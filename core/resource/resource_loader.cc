@@ -1,5 +1,6 @@
 #include "resource_loader.h"
 #include "core/io/file.h"
+#include "core/io/dir.h"
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include "core/resource/model_file.h"
@@ -42,15 +43,15 @@ template <>
 Ref<Model> ResourceLoader::_load(const std::string &path) {
     Ref<Model> model;
     Ref<File> file = File::open(path, "rb");
+    Ref<Dir> dir = Dir::open(file->get_directory());
     auto model_info = file->read_json();
     std::string bin_path = model_info["bin_file"];
-    Ref<File> bin_file = File::open(bin_path, "rb");
+    Ref<File> bin_file = dir->open_file(bin_path, "rb");
 
     std::vector<Ref<Mesh>> meshs;
     std::vector<i32> mesh_mats;
     std::vector<Ref<BaseMaterial>> materials;
     std::vector<Ref<Texture>> textures;
-    std::string magic = file->read_str(strlen(model_file_magic));
     auto jmeshs = model_info["meshes"];
     for (auto &jmesh : jmeshs) {
         std::vector<u32> indices;
@@ -58,8 +59,9 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
             std::vector<SkeletonVertex> vertices;
             bin_file->read_vector(vertices, jmesh["vertex_count"]);
             bin_file->read_vector(indices, jmesh["index_count"]);
-            meshs.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
-                                      indices, (AABB)jmesh["bounding_box"]));
+            meshs.push_back(Ref<Mesh>(&DS::get_instance()->skeleton_mesh_desc,
+                                      vertices, indices,
+                                      (AABB)jmesh["bounding_box"]));
         } else {
             std::vector<ModelVertex> vertices;
             bin_file->read_vector(vertices, jmesh["vertex_count"]);
@@ -71,12 +73,9 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
         mesh_mats.push_back(jmesh["material_id"]);
     }
 
-    std::filesystem::path dir = path;
-    std::string directory = dir.parent_path().string();
     auto jtextures = model_info["textures"];
     for (auto &jtexture : jtextures) {
-        Ref<Texture> tex = load<Texture>(
-            fmt::format("{}/{}", directory, (std::string)jtexture));
+        Ref<Texture> tex = load<Texture>(dir->concat(jtexture));
         if (tex.is_valid()) {
             textures.push_back(tex);
         }
@@ -107,7 +106,121 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
         if (id == -1) id = 0;
         meshs[i]->set_material(ref_cast<Material>(materials[id]));
     }
+
     model.create(meshs);
+    return model;
+}
+
+template <>
+Ref<SkeletonModel> ResourceLoader::_load(const std::string &path) {
+    Ref<SkeletonModel> model;
+    Ref<File> file = File::open(path, "rb");
+    Ref<Dir> dir = Dir::open(file->get_directory());
+    auto model_info = file->read_json();
+    std::string bin_path = model_info["bin_file"];
+    Ref<File> bin_file = dir->open_file(bin_path, "rb");
+
+    std::vector<Ref<Mesh>> meshs;
+    std::vector<i32> mesh_mats;
+    std::vector<Ref<BaseMaterial>> materials;
+    std::vector<Ref<Texture>> textures;
+    Ref<Skeleton> skeleton;
+    skeleton.create();
+    auto jmeshs = model_info["meshes"];
+    for (auto &jmesh : jmeshs) {
+        std::vector<u32> indices;
+        if (jmesh["has_bone"]) {
+            std::vector<SkeletonVertex> vertices;
+            bin_file->read_vector(vertices, jmesh["vertex_count"]);
+            bin_file->read_vector(indices, jmesh["index_count"]);
+            meshs.push_back(Ref<Mesh>(&DS::get_instance()->skeleton_mesh_desc,
+                                      vertices, indices,
+                                      (AABB)jmesh["bounding_box"]));
+        } else {
+            std::vector<ModelVertex> vertices;
+            bin_file->read_vector(vertices, jmesh["vertex_count"]);
+            bin_file->read_vector(indices, jmesh["index_count"]);
+            meshs.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
+                                      indices, (AABB)jmesh["bounding_box"]));
+        }
+
+        mesh_mats.push_back(jmesh["material_id"]);
+    }
+
+    if (model_info.contains("bones")) {
+        auto jbones = model_info["bones"];
+        u64 bin_offset = jbones["bin_offset"];
+        u32 bone_cnt = (u64)jbones["bin_size"] / sizeof(Mat4);
+        skeleton->bones.resize(bone_cnt);
+        bin_file->read_vector(skeleton->bones, bone_cnt);
+        skeleton->bone_parents = jbones["parents"].get<std::vector<u16>>();
+    }
+
+    auto jtextures = model_info["textures"];
+    for (auto &jtexture : jtextures) {
+        Ref<Texture> tex = load<Texture>(dir->concat(jtexture));
+        if (tex.is_valid()) {
+            textures.push_back(tex);
+        }
+    }
+
+    auto jmaterials = model_info["materials"];
+    for (auto &jmaterial : jmaterials) {
+        Ref<BaseMaterial> mat;
+        mat.create(DS::get_instance()->skeleton_mesh_shader);
+        if (jmaterial["diffuse"] != -1) {
+            mat->set_texture_map(BaseMaterial::DIFFUSE,
+                                 textures[jmaterial["diffuse"]]);
+        }
+        if (jmaterial["specular"] != -1) {
+            mat->set_texture_map(BaseMaterial::SPECULAR,
+                                 textures[jmaterial["specular"]]);
+        }
+        if (jmaterial["normal"] != -1) {
+            mat->set_texture_map(BaseMaterial::NORMAl,
+                                 textures[jmaterial["normal"]]);
+        }
+        RenderBlendState blend_state;
+        blend_state.blend_on = jmaterial["opacity"] != 1.0;
+        materials.push_back(mat);
+    }
+    for (int i = 0; i < meshs.size(); i++) {
+        i32 id = mesh_mats[i];
+        if (id == -1) id = 0;
+        meshs[i]->set_material(ref_cast<Material>(materials[id]));
+    }
+
+    model.create(meshs, skeleton);
+
+    auto janimations = model_info["animations"];
+    for (auto &janimation : janimations) {
+        struct ClipInfo {
+                u16 bone_id;
+                u16 position_key_count;
+                u16 rotation_key_count;
+                u16 scaling_key_count;
+        } clip_info;
+        Ref<Animation> animation;
+        animation.create();
+        animation->name = janimation["name"];
+        animation->duration = janimation["duration"];
+        u32 clip_count = janimation["clip_count"];
+        animation->clips.reserve(clip_count);
+        for (u32 i = 0; i < clip_count; i++) {
+            bin_file->read(&clip_info);
+            animation->clips.push_back({});
+            AnimationClip &clip = animation->clips.back();
+            clip.bone_id = clip_info.bone_id;
+            bin_file->read_vector(clip.position_keys,
+                                  clip_info.position_key_count);
+            bin_file->read_vector(clip.rotation_keys,
+                                  clip_info.rotation_key_count);
+            bin_file->read_vector(clip.scaling_keys,
+                                  clip_info.scaling_key_count);
+        }
+        model->add_animation(animation);
+    }
+
     return model;
 }
 
@@ -167,9 +280,7 @@ template <>
 Ref<Image> ResourceLoader::_load(const std::string &path) {
     Ref<Image> image;
     int w, h, comp;
-    stbi_set_flip_vertically_on_load(true);
     void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
-    stbi_set_flip_vertically_on_load(false);
 
     if (!data) {
         spdlog::warn("Can't load image from {}", path);
@@ -192,7 +303,7 @@ Ref<Terrain> ResourceLoader::_load(const std::string &path) {
 template <>
 Ref<Billboard> ResourceLoader::_load(const std::string &path) {
     Ref<Billboard> billboard;
-    Ref<Image> image = _load<Image>(path);
+    Ref<Texture> image = _load<Texture>(path);
     billboard.create(image);
     return billboard;
 }

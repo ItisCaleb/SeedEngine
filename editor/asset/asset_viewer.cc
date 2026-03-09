@@ -2,6 +2,7 @@
 #include <imgui.h>
 #include <nfd.h>
 #include "editor/editor.h"
+#include "core/misc/uuid.h"
 
 namespace Seed {
 void AssetViewer::init() {}
@@ -22,9 +23,6 @@ void AssetViewer::update() {
     if (ImGui::Button("Dump model")) {
         if (current_model != nullptr) {
             current_model->dump(gEditor->project()->get_asset_dir());
-            std::string path = 
-                fmt::format("{}/test.mdl", current_model->directory);
-
             // ResourceLoader *loader = ResourceLoader::get_instance();
             // loader->load_async<Seed::Model>(path, [=](Ref<Seed::Model> rc) {
             //     // ModelEntity *ent = new ModelEntity(Vec3{0, 0, -5}, rc);
@@ -33,6 +31,10 @@ void AssetViewer::update() {
             //     // engine->get_world()->add_model_entity(ent);
             // });
         }
+    }
+    if(ImGui::Button("Generate UUID")){
+        UUID uuid = UUID::generate();
+        fmt::println("uuid: {}", uuid.to_string());
     }
     if (current_model != nullptr) {
         ImGui::Text("mesh count: %zu", current_model->meshes.size());

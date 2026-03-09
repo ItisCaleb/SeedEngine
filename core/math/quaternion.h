@@ -13,7 +13,7 @@ namespace Seed {
 struct Quaternion {
         f32 w, x, y, z;
 
-        Quaternion operator+(const Quaternion &b) {
+        Quaternion operator+(const Quaternion &b) const {
             return Quaternion{w + b.w, x + b.x, y + b.y, z + b.z};
         }
 
@@ -24,7 +24,18 @@ struct Quaternion {
             z += b.z;
         }
 
-        Quaternion operator*(const Quaternion &b) {
+        Quaternion operator-(const Quaternion &b) const {
+            return Quaternion{w - b.w, x - b.x, y - b.y, z - b.z};
+        }
+
+        void operator-=(const Quaternion &b) {
+            w -= b.w;
+            x -= b.x;
+            y -= b.y;
+            z -= b.z;
+        }
+
+        Quaternion operator*(const Quaternion &b) const {
             return Quaternion{w * b.w - x * b.x - y * b.y - z * b.z,
                               w * b.x + x * b.w + y * b.z - z * b.y,
                               w * b.y + x * b.z + y * b.w + z * b.x,
@@ -38,25 +49,30 @@ struct Quaternion {
             z = w * b.z + x * b.y - y * b.x + z * b.w;
         }
 
-        Quaternion operator*(f32 s) {
+        Quaternion operator*(f32 s) const {
             return Quaternion{w * s, x * s, y * s, z * s};
         }
 
-        Quaternion operator/(f32 s) {
+        Quaternion operator/(f32 s) const {
             return Quaternion{w / s, x / s, y / s, z / s};
         }
 
-        Quaternion conjugate() { return Quaternion{w, -x, -y, -z}; }
+        /* rotate the quaternion 180 degree */
+        Quaternion conjugate() const { return Quaternion{w, -x, -y, -z}; }
 
-        Quaternion inverse() { return conjugate() / length_square(); }
-        Quaternion norm() {
+        Quaternion inverse() const { return conjugate() / length_square(); }
+        Quaternion norm() const {
             f32 len = length();
             return Quaternion{w / len, x / len, y / len, z / len};
         }
 
-        f32 length_square() { return w * w + x * x + y * y + z * z; }
+        f32 dot(const Quaternion &b) const {
+            return w * b.w + x * b.x + y * b.y + z * b.z;
+        }
 
-        f32 length() { return sqrtf(length_square()); }
+        f32 length_square() const { return w * w + x * x + y * y + z * z; }
+
+        f32 length() const { return sqrtf(length_square()); }
 
         Vec3 to_euler() {
             return Vec3{
@@ -85,6 +101,21 @@ struct Quaternion {
         }
 
         inline static Quaternion identity() { return Quaternion{1, 0, 0, 0}; }
+
+        static Quaternion lerp(const Quaternion &a, const Quaternion &b,
+                               f32 t) {
+            return a + (b - a) * clampf(t, 0.0, 1.0);
+        }
+
+        static Quaternion nlerp(const Quaternion &a, const Quaternion &b,
+                                f32 t) {
+            f32 dot = a.dot(b);
+            if (dot < 0) {
+                return lerp(a, b.conjugate(), t).norm();
+            } else {
+                return lerp(a, b, t).norm();
+            }
+        }
 };
 
 }  // namespace Seed

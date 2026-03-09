@@ -8,6 +8,7 @@ DefaultStorage::DefaultStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
     mesh_shader = loader->load<Shader>("assets/shader/default.slang");
+    skeleton_mesh_shader = loader->load<Shader>("assets/shader/default_skeleton.slang");
     sky_shader = loader->load<Shader>("assets/shader/sky.slang");
     terrain_shader = loader->load<Shader>("assets/shader/terrain.slang");
 
@@ -33,6 +34,13 @@ DefaultStorage::DefaultStorage() {
     mesh_desc.add_type_attr<Vec3>(1);
     mesh_desc.add_type_attr<Vec3>(2);
     mesh_desc.add_type_attr<Vec2>(3);
+
+    skeleton_mesh_desc.add_type_attr<Vec3>(0);
+    skeleton_mesh_desc.add_type_attr<Vec3>(1);
+    skeleton_mesh_desc.add_type_attr<Vec3>(2);
+    skeleton_mesh_desc.add_type_attr<Vec2>(3);
+    skeleton_mesh_desc.add_attr(4, VertexAttributeType::USHORT, 4);
+    skeleton_mesh_desc.add_attr(5, VertexAttributeType::FLOAT, 4);
 
     sky_desc.add_type_attr<Vec3>(0);
 

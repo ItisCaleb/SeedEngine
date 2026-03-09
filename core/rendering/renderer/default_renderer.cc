@@ -59,7 +59,7 @@ void DefaultRenderer::init(Window *window) {
         engine->get_instance_pool(TRANSFORM_POOL_NAME)->get_render_buffer();
     terrain_ssbo =
         engine->get_instance_pool(TERRAIN_POOL_NAME)->get_render_buffer();
-    bone_ssbo = engine->get_instance_pool(BONE_POOL_NAME)->get_render_buffer();
+    bone_ssbo = engine->get_instance_pool(SKELETON_POOL_NAME)->get_render_buffer();
     camera = RHI::alloc_constant(sizeof(Vec3), UpdateFrequence::PERFRAME);
     mvp = RHI::alloc_constant(sizeof(Mat4) * 2, UpdateFrequence::PERFRAME);
     u_lights =
@@ -134,7 +134,7 @@ void DefaultRenderer::prepare_meshes() {
         AABB bounding_box = mesh->get_bounding_box();
 
         /* check instance mesh size > 0 */
-        if (!instance.is_null() && instance->get_size() == 0) {
+        if (!instance.is_null() && instance->size() == 0) {
             continue;
         }
 

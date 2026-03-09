@@ -14,6 +14,8 @@ class DefaultStorage {
     public:
         Ref<Shader> sky_shader;
         Ref<Shader> mesh_shader;
+        Ref<Shader> skeleton_mesh_shader;
+
         Ref<Shader> gui_shader;
         Ref<Shader> terrain_shader;
         Ref<Shader> debug_shader;
@@ -27,6 +29,7 @@ class DefaultStorage {
 
         VertexLayout terrain_desc;
         VertexLayout mesh_desc;
+        VertexLayout skeleton_mesh_desc;
         VertexLayout sky_desc;
         VertexLayout gui_desc;
         VertexLayout quad_desc;

@@ -156,6 +156,18 @@ class VulkanHelper {
                     if (cnt == 3) format = VK_FORMAT_R32G32B32_UINT;
                     if (cnt == 4) format = VK_FORMAT_R32G32B32A32_UINT;
                     break;
+                case VertexAttributeType::SHORT:
+                    if (cnt == 1) format = VK_FORMAT_R16_SINT;
+                    if (cnt == 2) format = VK_FORMAT_R16G16_SINT;
+                    if (cnt == 3) format = VK_FORMAT_R16G16B16_SINT;
+                    if (cnt == 4) format = VK_FORMAT_R16G16B16A16_SINT;
+                    break;
+                case VertexAttributeType::USHORT:
+                    if (cnt == 1) format = VK_FORMAT_R16_UINT;
+                    if (cnt == 2) format = VK_FORMAT_R16G16_UINT;
+                    if (cnt == 3) format = VK_FORMAT_R16G16B16_UINT;
+                    if (cnt == 4) format = VK_FORMAT_R16G16B16A16_UINT;
+                    break;
                 case VertexAttributeType::UNSIGNED_BYTE:
                     if (should_normalize) {
                         if (cnt == 1) format = VK_FORMAT_R8_UNORM;
@@ -178,17 +190,6 @@ class VulkanHelper {
             return format;
         };
 
-        inline static u32 attr_size(VertexAttributeType type) {
-            switch (type) {
-                case VertexAttributeType::UNSIGNED_BYTE:
-                    return 1;
-                case VertexAttributeType::UNSIGNED:
-                case VertexAttributeType::INT:
-                case VertexAttributeType::FLOAT:
-                default:
-                    return 4;
-            }
-        };
 
         inline static void vertex_layout(
             VertexLayout *layout, u32 binding,
@@ -208,7 +209,7 @@ class VulkanHelper {
                 _attr_desc.offset = offset;
                 _attr_desc.format =
                     attr_format(desc.type, desc.size, desc.should_normalized);
-                offset += attr_size(desc.type) * desc.size;
+                offset += desc.get_type_size() * desc.size;
                 attr_desc.push_back(_attr_desc);
             }
             binding_desc.push_back(_binding_desc);
@@ -316,7 +317,7 @@ class VulkanHelper {
             return flag;
         }
 
-        inline static VkCompareOp compare(CompareOP op){
+        inline static VkCompareOp compare(CompareOP op) {
             return compare_op[(u8)op];
         }
 };

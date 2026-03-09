@@ -57,17 +57,22 @@ class Material : public Resource {
 
 class BaseMaterial : public Material {
     private:
-        inline static const char* name_map[] = {
-            "u_diffuse", "u_specular", "u_normal"
-        };
+        inline static const char *name_map[] = {"u_diffuse", "u_specular",
+                                                "u_normal"};
+
     public:
         enum TextureMapType : u8 { DIFFUSE = 0, SPECULAR, NORMAl, MAX };
 
         f32 shiness;
-        BaseMaterial() : Material(DS::get_instance()->mesh_shader) {
-            this->set_texture(name_map[DIFFUSE], DS::get_instance()->white_texture);
-            this->set_texture(name_map[SPECULAR], DS::get_instance()->white_texture);
-            this->set_texture(name_map[NORMAl], DS::get_instance()->white_texture);
+        BaseMaterial() : BaseMaterial(DS::get_instance()->mesh_shader) {}
+
+        BaseMaterial(Ref<Shader> shader) : Material(shader) {
+            this->set_texture(name_map[DIFFUSE],
+                              DS::get_instance()->white_texture);
+            this->set_texture(name_map[SPECULAR],
+                              DS::get_instance()->white_texture);
+            this->set_texture(name_map[NORMAl],
+                              DS::get_instance()->white_texture);
             depth_state = {.depth_mode = DepthMode::OPAQUE};
             this->shadow_pipeline =
                 DS::get_instance()->shadow_map_default_pipeline;

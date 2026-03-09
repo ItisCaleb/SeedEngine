@@ -19,14 +19,16 @@ class Entity {
         Ref<Transform> transform;
         PhysicBody body;
         Ref<Model> model;
-
+        Ref<SkeletonModel> skeleton_model;
+        Ref<AnimationState> state;
     public:
         Ref<Transform> get_transform() { return transform; }
         void create_body(PhysicShape &shape, PhysicBodyType type);
         void remove_body();
         void bind_model(Ref<Model> model);
-        virtual void update(f32 dt) {}
-
+        void bind_skeleton_model(Ref<SkeletonModel> model);
+        virtual void update(f32 dt);
+        void play_animation(const std::string &name);
         Entity(Vec3 position);
         Entity();
         ~Entity();

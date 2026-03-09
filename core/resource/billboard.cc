@@ -2,8 +2,8 @@
 #include "core/rendering/mesh_storage.h"
 
 namespace Seed {
-Billboard::Billboard(Ref<Image> image) {
-    material.create(image->create_texture());
+Billboard::Billboard(Ref<Texture> texture) {
+    material.create(texture);
     instances.create();
     billboard_mesh.create(DS::get_instance()->quad_vertices,
                           ref_cast<Material>(material),

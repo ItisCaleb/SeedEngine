@@ -9,13 +9,39 @@
 #include <vector>
 
 namespace Seed {
-enum class VertexAttributeType : u8 { FLOAT, INT, UNSIGNED, UNSIGNED_BYTE };
+enum class VertexAttributeType : u8 {
+    FLOAT,
+    INT,
+    UNSIGNED,
+    SHORT,
+    USHORT,
+    UNSIGNED_BYTE
+};
 
 struct VertexAttribute {
         u8 layout_num;
         VertexAttributeType type = VertexAttributeType::FLOAT;
         u32 size;
         bool should_normalized = false;
+        u32 get_type_size() const {
+            u32 type_size = 1;
+            switch (type) {
+                case VertexAttributeType::UNSIGNED_BYTE:
+                    type_size = 1;
+                    break;
+                case VertexAttributeType::SHORT:
+                case VertexAttributeType::USHORT:
+                    type_size = 2;
+                    break;
+                case VertexAttributeType::FLOAT:
+                case VertexAttributeType::INT:
+                case VertexAttributeType::UNSIGNED:
+                default:
+                    type_size = 4;
+                    break;
+            }
+            return type_size;
+        }
 };
 
 class VertexLayout {

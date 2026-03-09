@@ -1,5 +1,5 @@
 {
-  "name": "C:\\Users\\happy\\Project\\SeedEngine\\test_project/assets/",
+  "name": "backpack",
   "type": "model",
   "textures": [
     "diffuse.jpg",
@@ -14,6 +14,7 @@
       "opacity": 1.0
     }
   ],
+  "bin_file": "backpack.bin",
   "meshes": [
     {
       "vertex_count": 53465,
@@ -36,7 +37,6 @@
       "bin_size": 3167344
     }
   ],
-  "bones": [],
-  "animations": [],
-  "bin_file": "C:\\Users\\happy\\Project\\SeedEngine\\test_project/assets/.bin"
+  "bones": null,
+  "animations": []
 }

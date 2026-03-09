@@ -17,7 +17,7 @@
 namespace Seed {
 #define TRANSFORM_POOL_NAME "TransformDataPool"
 #define TERRAIN_POOL_NAME "TerrainDataPool"
-#define BONE_POOL_NAME "BonePool"
+#define SKELETON_POOL_NAME "SkeletonInstancePool"
 
 class RenderEngine {
     private:

@@ -10,4 +10,6 @@ target_sources(seed PRIVATE
     shader.cc
     billboard.cc
     mappable_texture.cc
+    animation.cc
+    skeleton.cc
 )

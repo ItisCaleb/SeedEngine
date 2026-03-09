@@ -1978,7 +1978,7 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     vkResetFences(device, 1, &in_flight_fence);
 
     vkResetCommandBuffer(render_cmd_buffer, 0);
-    handle_destroy();
+    //handle_destroy();
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
