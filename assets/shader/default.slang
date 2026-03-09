@@ -28,8 +28,9 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_
     // For right handed system,
     // after view transformation, the depth is always negative
     // So we negate it
-    out.view_depth = -(gMatrices.u_view * worldPos).z;
-    out.sv_position = gMatrices.u_projection * gMatrices.u_view * worldPos;
+    Camera cam = GetCamera();
+    out.view_depth = -(cam.u_view * worldPos).z;
+    out.sv_position = cam.u_projection * cam.u_view * worldPos;
 
     mat3 TBN_to_world = mat3(1.0);
     if(length(aNormal) > 0.01){
@@ -45,7 +46,7 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_
     out.texCoord = aTexCoord;
 
     out.fragPos = TBN_to_tangent * worldPos.xyz;
-    out.view_pos = TBN_to_tangent * gCam.u_cam_pos;
+    out.view_pos = TBN_to_tangent * cam.u_cam_pos;
     out.tangent_dir_light = TBN_to_tangent * (gLights.u_dir_light.position);
 
     // for (int i = 0; i < 8; i++) {

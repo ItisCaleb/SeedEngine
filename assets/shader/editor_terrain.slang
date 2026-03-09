@@ -119,7 +119,9 @@ DS_OUT tese(
     //https://stackoverflow.com/questions/49640250/calculate-normals-from-heightmap
     out.normal = normalize(vec3(lh - rh, 2, dh - uh));
     out.fragPos = p;
-    out.position = gMatrices.u_projection * gMatrices.u_view * p;
+
+    Camera cam = GetCamera();
+    out.position = cam.u_projection * cam.u_view * p;
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     return out;

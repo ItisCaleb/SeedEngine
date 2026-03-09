@@ -10,7 +10,6 @@
 namespace Seed {
 
 struct CSMShadow {
-        Mat4 light_space_mat[4];
         RectF shadow_uv[4];
         f32 fars[4];
         f32 units[4];
@@ -65,8 +64,8 @@ class DirectionalLight : public Light {
         inline Vec3 get_direction() { return dir; }
         inline void set_direction(const Vec3 &dir) { this->dir = dir; }
         void calculate_csm_lightspace(Camera &cam,
-                                      const std::vector<f32> &resolutions,
-                                      CSMShadow &csm_data);
+                                      const std::vector<f32> &resolutions, CSMShadow &csm_data,
+                                      Camera::ShaderCamera *light_space_cam);
 
         void set_csm_lamda(f32 lamda) { this->shadow_lamdba = lamda; }
         f32 get_csm_lamda() { return shadow_lamdba; }

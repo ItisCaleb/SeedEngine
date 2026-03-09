@@ -15,7 +15,6 @@ namespace Seed {
 
 TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
     : Material(DS::get_instance()->terrain_shader) {
-    this->shadow_pipeline = DS::get_instance()->shadow_map_terrain_pipeline;
     this->set_texture("height_map", height_map);
     this->set_texture("terrain_shadowMap", DS::get_instance()->black_texture);
     this->raster_state = {.cull_mode = Cullmode::FRONT,

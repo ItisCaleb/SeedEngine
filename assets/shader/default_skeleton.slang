@@ -28,23 +28,26 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint4 aBoneI
     // For right handed system,
     // after view transformation, the depth is always negative
     // So we negate it
+    Camera cam = GetCamera();
 
     vec4 totalPos = vec4(0.0f);
+    vec3 skinnedNormal = vec3(0.0f);
     for(int i = 0;i<4;i++){
         if(aBoneIds[i] == -1) continue;
-        vec4 localPos = GetSkeletonBone(id, aBoneIds[i]) * vec4(aPos, 1.0);
-        totalPos += localPos * aWeights[i];
-                
+        mat4 bone_mat = GetSkeletonBone(id, aBoneIds[i]);
+        totalPos += bone_mat * vec4(aPos, 1.0) * aWeights[i];
+        mat3 normal_mat = mat3(bone_mat);
+        skinnedNormal += normal_mat * aNormal * aWeights[i];
     }
     vec4 worldPos = aModel * totalPos;
-    out.view_depth = -(gMatrices.u_view * worldPos).z;
+    out.view_depth = -(cam.u_view * worldPos).z;
 
-    out.sv_position = gMatrices.u_projection * gMatrices.u_view * worldPos;
+    out.sv_position = cam.u_projection * cam.u_view * worldPos;
 
     mat3 TBN_to_world = mat3(1.0);
-    if(length(aNormal) > 0.01){
+    if(length(skinnedNormal) > 0.01){
         vec3 T = normalize((aModel * vec4(aTangent.xyz, 0.0)).xyz);
-        vec3 N = normalize((aModel * vec4(aNormal, 0.0)).xyz);
+        vec3 N = normalize((aModel * vec4(skinnedNormal, 0.0)).xyz);
         T = normalize(T - dot(T, N) * N);  // Gram-Schmidt
         vec3 B = cross(N, T);
         TBN_to_world = mat3(T, B, N);
@@ -55,7 +58,7 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint4 aBoneI
     out.texCoord = aTexCoord;
 
     out.fragPos = TBN_to_tangent * worldPos.xyz;
-    out.view_pos = TBN_to_tangent * gCam.u_cam_pos;
+    out.view_pos = TBN_to_tangent * cam.u_cam_pos;
     out.tangent_dir_light = TBN_to_tangent * (gLights.u_dir_light.position);
 
     // for (int i = 0; i < 8; i++) {

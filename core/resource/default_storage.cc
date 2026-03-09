@@ -13,22 +13,8 @@ DefaultStorage::DefaultStorage() {
     terrain_shader = loader->load<Shader>("assets/shader/terrain.slang");
 
     post_shader = loader->load<Shader>("assets/shader/post.slang");
-    shadow_default_shader =
-        loader->load<Shader>("assets/shader/shadow_default.slang");
-    shadow_terrain_shader =
-        loader->load<Shader>("assets/shader/shadow_terrain.slang");
     billboard_shader = loader->load<Shader>("assets/shader/billboard.slang");
     gui_shader = loader->load<Shader>("assets/shader/imgui.slang");
-
-    shadow_map_default_pipeline =
-        RHI::alloc_pipeline(shadow_default_shader->get_handle(),
-                            RenderRasterizerState{.cull_mode = Cullmode::FRONT},
-                            RenderDepthStencilState{}, {});
-    shadow_map_terrain_pipeline =
-        RHI::alloc_pipeline(shadow_terrain_shader->get_handle(),
-                            RenderRasterizerState{.cull_mode = Cullmode::FRONT,
-                                                  .patch_control_points = 4},
-                            RenderDepthStencilState{}, {});
 
     mesh_desc.add_type_attr<Vec3>(0);
     mesh_desc.add_type_attr<Vec3>(1);

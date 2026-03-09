@@ -8,7 +8,8 @@ struct VS_OUT{
 [shader("vertex")]
 VS_OUT vert(float2 aPos, float4 aColor){
     VS_OUT out;
-    out.sv_position = gMatrices.u_projection * gMatrices.u_view * vec4(aPos, 1.0);
+    Camera cam = GetCamera();
+    out.sv_position = cam.u_projection * cam.u_view * vec4(aPos, 1.0);
     out.color = aColor;
     return out;
 }

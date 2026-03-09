@@ -16,7 +16,6 @@ class Material : public Resource {
         u16 id;
         std::unordered_map<u32, Ref<Texture>> textures;
         PipelineHandle pipeline = NULL_HANDLE;
-        PipelineHandle shadow_pipeline = NULL_HANDLE;
         Ref<Shader> shader;
         RenderRasterizerState raster_state;
         RenderDepthStencilState depth_state;
@@ -38,7 +37,6 @@ class Material : public Resource {
         RenderBlendState get_blend_state() { return blend_state; }
 
         PipelineHandle get_pipeline();
-        PipelineHandle get_shadow_pipeline() { return shadow_pipeline; }
         u16 get_id() { return id; }
         virtual void bind_states(RenderDrawDataBuilder &builder);
         inline static u16 last_id = 0;
@@ -74,8 +72,6 @@ class BaseMaterial : public Material {
             this->set_texture(name_map[NORMAl],
                               DS::get_instance()->white_texture);
             depth_state = {.depth_mode = DepthMode::OPAQUE};
-            this->shadow_pipeline =
-                DS::get_instance()->shadow_map_default_pipeline;
         }
         void set_texture_map(TextureMapType type, Ref<Texture> tex) {
             this->set_texture(name_map[type], tex);
