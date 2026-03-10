@@ -8,7 +8,8 @@ DefaultStorage::DefaultStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
     mesh_shader = loader->load<Shader>("assets/shader/default.slang");
-    skeleton_mesh_shader = loader->load<Shader>("assets/shader/default_skeleton.slang");
+    skeleton_mesh_shader =
+        loader->load<Shader>("assets/shader/default_skeleton.slang");
     sky_shader = loader->load<Shader>("assets/shader/sky.slang");
     terrain_shader = loader->load<Shader>("assets/shader/terrain.slang");
 
@@ -56,5 +57,8 @@ DefaultStorage::DefaultStorage() {
     u8 black_color[] = {0, 0, 0, 255};
     black_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,
                          black_color);
+    u8 normal_color[] = {128, 128, 255, 255};
+    normal_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,
+                          normal_color);
 }
 }  // namespace Seed

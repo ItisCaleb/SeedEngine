@@ -70,7 +70,7 @@ class BaseMaterial : public Material {
             this->set_texture(name_map[SPECULAR],
                               DS::get_instance()->white_texture);
             this->set_texture(name_map[NORMAl],
-                              DS::get_instance()->white_texture);
+                              DS::get_instance()->normal_texture);
             depth_state = {.depth_mode = DepthMode::OPAQUE};
         }
         void set_texture_map(TextureMapType type, Ref<Texture> tex) {

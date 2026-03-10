@@ -49,6 +49,7 @@ void DefaultRenderer::init(Window *window) {
     shadow_pass.setup(fd.shadow_map);
     color_pass.setup(color_tex, depth_tex);
     post_pass.setup(window);
+    debug_pass.setup(color_tex, depth_tex);
 
     fd.post_mat.create(DS::get_instance()->post_shader);
     fd.post_mat->set_texture("image", color_tex);
@@ -218,7 +219,10 @@ void DefaultRenderer::_process(RenderCommandDispatcher &dp) {
     dp.set_seq(1);
     color_pass.draw(dp, fd);
     dp.set_seq(2);
+    debug_pass.draw(dp, fd);
+    dp.set_seq(3);
     post_pass.draw(dp, fd);
+
     dp.end_scope();
 }
 void DefaultRenderer::cleanup() {

@@ -4,6 +4,7 @@
 #include "core/rendering/rhi/render_command.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/debug/debug_drawer.h"
+#include "core/engine.h"
 
 namespace Seed {
 
@@ -147,7 +148,10 @@ void TransformInstanceData::frustum_culling(const Frustum &frustum,
         AABB aabb = transform->translate_AABB(bounding_box);
         /* frustum culling */
         if (frustum.within_frustum(aabb)) {
-            // drawer->draw_aabb(aabb);
+            if (SeedEngine::get_instance()->get_debug_flag() &
+                EngineConfig::BOUNDING_BOX) {
+                drawer->draw_aabb(aabb);
+            }
             /* push instance indices */
             instance_ids.push_back(i);
             depths.push_back(

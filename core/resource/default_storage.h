@@ -21,11 +21,10 @@ class DefaultStorage {
         Ref<Shader> debug_shader;
         Ref<Shader> post_shader;
         Ref<Shader> decal_shader;
-        Ref<Shader> shadow_default_shader;
-        Ref<Shader> shadow_terrain_shader;
         Ref<Shader> billboard_shader;
         Ref<Texture> white_texture;
         Ref<Texture> black_texture;
+        Ref<Texture> normal_texture;
 
         VertexLayout terrain_desc;
         VertexLayout mesh_desc;

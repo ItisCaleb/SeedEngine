@@ -67,8 +67,10 @@ JoltBackend::JoltBackend() {
 
 void JoltBackend::process() {
     system.Update(1.0f / 60, 1, temp_allocator, job_system);
-    JPH::BodyManager::DrawSettings setting;
-    // system.DrawBodies(setting, JPH::DebugRenderer::sInstance);
+    if (SeedEngine::get_instance()->get_debug_flag() & EngineConfig::PHYSIC) {
+        JPH::BodyManager::DrawSettings setting;
+        system.DrawBodies(setting, JPH::DebugRenderer::sInstance);
+    }
 }
 
 void JoltBackend::query_position(PhysicBody &body, Vec3 &position) {}

@@ -238,6 +238,7 @@ void RenderBackendVK::create_logical_device() {
     deviceFeatures2.features.tessellationShader = true;
     deviceFeatures2.features.samplerAnisotropy = true;
     deviceFeatures2.features.independentBlend = true;
+    deviceFeatures2.features.depthClamp = true;
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
