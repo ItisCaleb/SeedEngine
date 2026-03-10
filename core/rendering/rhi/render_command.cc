@@ -38,8 +38,8 @@ void RenderDrawDataBuilder::bind_index_data(Ref<IndexData> data, u32 offset) {
 void RenderDrawDataBuilder::push_constant(u32 size, void *data) {
     RenderDrawData::Operation *op =
         alloc_operation(RenderDrawData::OpType::PUSH_CONSTANT);
-    op->constant.data = RD->alloc(size, data);
-    op->constant.size = size;
+    op->push_constant.data = RD->alloc(size, data);
+    op->push_constant.size = size;
 }
 
 void RenderDrawDataBuilder::bind_texture(u32 unit, TextureHandle handle) {
@@ -96,6 +96,11 @@ void RenderDrawDataBuilder::set_depth_write(bool depth_write) {
 void RenderDrawDataBuilder::set_depth_test(CompareOP compare) {
     RenderDrawData *data = this->get_data();
     data->depth_test_op = compare;
+}
+
+void RenderDrawDataBuilder::set_depth_clamp(bool depth_clamp) {
+    RenderDrawData *data = this->get_data();
+    data->depth_clamp = depth_clamp;
 }
 
 void RenderStateDataBuilder::bind_render_pass(RenderPassHandle handle) {

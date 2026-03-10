@@ -159,6 +159,12 @@ const Frustum &Camera::get_frustum() {
 
 Vec3 Camera::to_world_pos(Vec2 pos) { return {}; }
 
+void Camera::fill_shader_camera(ShaderCamera *camera) {
+    camera->position = Vec4{position.x, position.y, position.z, 1};
+    camera->projection = projection_zero();
+    camera->view = look_at();
+}
+
 Camera::Camera(Vec3 pos, Vec3 up, Vec3 front)
     : position(pos), up(up), front(front.norm()) {}
 

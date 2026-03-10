@@ -119,7 +119,9 @@ DS_OUT tese(
     //https://stackoverflow.com/questions/49640250/calculate-normals-from-heightmap
     out.normal = normalize(vec3(lh - rh, 2, dh - uh));
     out.fragPos = p;
-    out.position = gMatrices.u_projection * gMatrices.u_view * p;
+
+    Camera cam = GetCamera();
+    out.position = cam.u_projection * cam.u_view * p;
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     return out;
@@ -135,18 +137,18 @@ FS_OUT frag(DS_OUT in){
     FS_OUT out;
     float h = (in.height + 128)/256.0f;
 
-    // vec3 light_out = gLights.u_light_ambient;
-    // vec3 view_dir = normalize(gCam.u_cam_pos - in.fragPos.xyz);
-    // vec3 diffuse_sample = vec3(1,1,1);
-    // vec3 specular_sample = vec3(1,1,1);
-    // vec3 dir_light = -normalize(vec3(gLights.u_dir_light.position));
-    // float c = dir_light.y;
-    // // direction
-    // light_out +=
-    //     calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
-    //         diffuse_sample, specular_sample, dir_light, view_dir,
-    //         1, in.normal);
-    vec3 light_out = vec3(h, h, h);
+    vec3 light_out = vec3(0.3, 0.3, 0.3);
+    vec3 view_dir = normalize(vec3(0.3,0.3,0.3));
+    vec3 diffuse_sample = vec3(1,1,1);
+    vec3 specular_sample = vec3(1,1,1);
+    vec3 dir_light = -normalize(vec3(0.3,0.3,0.3));
+    float c = dir_light.y;
+    // direction
+    light_out +=
+        calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
+            diffuse_sample, specular_sample, dir_light, view_dir,
+            1, in.normal);
+    light_out *= vec3(h, h, h);;
     out.albedo = vec4(light_out, 1.0);
 
     out.position = int4(

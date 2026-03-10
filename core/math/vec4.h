@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include "core/types.h"
+#include "core/math/utils.h"
 
 namespace Seed {
 struct Vec4 {
@@ -17,7 +18,7 @@ struct Vec4 {
 
         const f32 &operator[](i32 axis) const { return this->coord[axis]; }
 
-        Vec4 operator+(const Vec4 &b) {
+        Vec4 operator+(const Vec4 &b) const {
             return Vec4{x + b.x, y + b.y, z + b.z, w + b.w};
         }
 
@@ -28,11 +29,11 @@ struct Vec4 {
             w += b.w;
         }
 
-        Vec4 operator-(const Vec4 &b) {
+        Vec4 operator-(const Vec4 &b) const {
             return Vec4{x - b.x, y - b.y, z - b.z, w - b.w};
         }
 
-        Vec4 operator-() { return Vec4{-x, -y, -z, -w}; }
+        Vec4 operator-() const { return Vec4{-x, -y, -z, -w}; }
 
         void operator-=(const Vec4 &b) {
             x -= b.x;
@@ -41,7 +42,9 @@ struct Vec4 {
             w -= b.w;
         }
 
-        Vec4 operator*(const f32 s) { return Vec4{x * s, y * s, z * s, w * s}; }
+        Vec4 operator*(const f32 s) const {
+            return Vec4{x * s, y * s, z * s, w * s};
+        }
 
         void operator*=(const f32 s) {
             x *= s;
@@ -50,7 +53,9 @@ struct Vec4 {
             w *= s;
         }
 
-        Vec4 operator/(const f32 s) { return Vec4{x / s, y / s, z / s, w / s}; }
+        Vec4 operator/(const f32 s) const {
+            return Vec4{x / s, y / s, z / s, w / s};
+        }
 
         void operator/=(const f32 s) {
             x /= s;
@@ -59,27 +64,33 @@ struct Vec4 {
             w /= s;
         }
 
-        Vec4 operator*(const Vec4 &b) {
+        Vec4 operator*(const Vec4 &b) const {
             return Vec4{x * b.x, y * b.y, z * b.z, w * b.w};
         }
 
-        bool operator==(const Vec4 &b) {
+        bool operator==(const Vec4 &b) const {
             return x == b.x && y == b.y && z == b.z && w == b.w;
         }
 
-        Vec4 cross(const Vec4 &b) {
+        Vec4 cross(const Vec4 &b) const {
             return Vec4{y * b.z - z * b.y, z * b.x - x * b.z,
                         x * b.y - y * b.x};
         }
 
-        f32 length() { return sqrtf(x * x + y * y + z * z + w * w); }
+        f32 length() const { return sqrtf(x * x + y * y + z * z + w * w); }
 
-        Vec4 norm(const Vec4 &b) {
+        Vec4 norm(const Vec4 &b) const {
             f32 len = length();
             return Vec4{x / len, y / len, z / len, w / len};
         }
 
-        f32 dot(const Vec4 &b) { return x * b.x + y * b.y + z * b.z + w * b.w; }
+        f32 dot(const Vec4 &b) const {
+            return x * b.x + y * b.y + z * b.z + w * b.w;
+        }
+
+        static Vec4 lerp(const Vec4 &a, const Vec4 &b, f32 t) {
+            return a + (b - a) * clampf(t, 0.0, 1.0);
+        }
 };
 
 }  // namespace Seed

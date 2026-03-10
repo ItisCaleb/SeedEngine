@@ -57,7 +57,7 @@ struct HardwareShaderVk {
         std::string tess_ctrl_src;
         std::string tess_eval_src;
         std::string fragment_src;
-        std::vector<DescriptorSetLayout*> set_layouts;
+        std::vector<DescriptorSetLayout *> set_layouts;
         VkPipelineLayout layout;
 };
 
@@ -184,14 +184,14 @@ class RenderBackendVK : public RenderBackend {
         };
 
         /* delay destroy to end of frame */
-        std::queue<DestroyResource> destroy_queue;
-        std::queue<StaticBufferUpdate> static_buffer_update_queue;
-        std::queue<DynamicBufferUpdate> dynamic_buffer_update_queue;
+        RingBuffer<DestroyResource> destroy_queue;
+        RingBuffer<StaticBufferUpdate> static_buffer_update_queue;
+        RingBuffer<DynamicBufferUpdate> dynamic_buffer_update_queue;
 
-        std::vector<ImageUpdate> image_copy_queue;
-        std::vector<TextureHandle> mappable_image_transition_queue;
+        RingBuffer<ImageUpdate> image_copy_queue;
+        RingBuffer<TextureHandle> mappable_image_transition_queue;
 
-        std::vector<HardwareBufferVk *> streams_to_reset;
+        RingBuffer<HardwareBufferVk *> streams_to_reset;
 
         std::unordered_map<u64, VkPipeline> pipeline_cache;
         std::unordered_map<u64, DescriptorSetLayout> descriptor_layout_cache;
@@ -250,12 +250,12 @@ class RenderBackendVK : public RenderBackend {
                                       HardwareRenderPassVk *render_target,
                                       std::vector<VertexLayout *> &layouts,
                                       VkPrimitiveTopology primitive,
-                                      bool draw_depth_only);
+                                      bool draw_depth_only, bool depth_clamp);
         VkPipeline get_vk_pipeline(HardwarePipelineVk *pipeline,
                                    HardwareRenderPassVk *render_target,
                                    std::vector<VertexLayout *> &layouts,
                                    VkPrimitiveTopology primitive,
-                                   bool draw_depth_only);
+                                   bool draw_depth_only, bool depth_clamp);
         void create_render_pass(HardwareRenderPassVk *render_target,
                                 bool is_swapchain);
         void create_framebuffer(HardwareRenderPassVk *render_target);

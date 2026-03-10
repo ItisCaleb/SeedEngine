@@ -2,16 +2,50 @@
 #define _SEED_RING_BUFFER_H_
 #include "core/types.h"
 #include <vector>
+#include <atomic>
 
 namespace Seed {
 template <typename T>
 class RingBuffer {
     private:
         u32 cap;
-        u32 head = 0, tail = 0;
+        std::atomic<u32> head = 0, tail = 0;
         std::vector<T> data;
 
     public:
+        template <typename K>
+        class Iterator {
+                std::vector<K> &data;
+                u32 cap;
+                u32 cur;
+
+            public:
+                Iterator(std::vector<K> &data, u32 cur, u32 cap)
+                    : data(data), cur(cur), cap(cap) {}
+
+                K &operator*() { return data[cur]; }
+                K *operator->() { return &data[cur]; }
+
+                Iterator<K> &operator++() {
+                    cur = (cur + 1) % cap;
+                    return *this;
+                }
+                Iterator<K> operator++(int) {
+                    Iterator<K> tmp = *this;
+                    cur = (cur + 1) % cap;
+                    return tmp;
+                }
+
+                bool operator==(const Iterator<K> &other) const {
+                    return data.data() == other.data.data() && cur == other.cur;
+                }
+                bool operator!=(const Iterator<K> &other) const {
+                    return data.data() != other.data.data() || cur != other.cur;
+                }
+        };
+
+        Iterator<T> begin() { return Iterator<T>(data, head, cap); }
+        Iterator<T> end() { return Iterator<T>(data, tail, cap); }
         u32 size() { return (tail - head + cap) % cap; }
 
         bool is_empty() { return this->size() == 0; }
@@ -40,9 +74,12 @@ class RingBuffer {
             }
             head = (head + 1) % cap;
         }
-
+        void resize(u32 cap) {
+            this->data.resize(cap);
+            this->cap = cap;
+        }
         RingBuffer(u32 cap) : cap(cap) { this->data.resize(cap); }
-        RingBuffer() : RingBuffer(32) {}
+        RingBuffer() : RingBuffer(256) {}
         RingBuffer(RingBuffer &&rb)
             : data(std::move(rb.data)),
               cap(rb.cap),

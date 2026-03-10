@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include "core/types.h"
+#include "core/math/utils.h"
 
 namespace Seed {
 struct Vec2 {
@@ -16,55 +17,59 @@ struct Vec2 {
         f32 &operator[](i32 axis) { return this->coord[axis]; }
         const f32 &operator[](i32 axis) const { return this->coord[axis]; }
 
-        Vec2 operator+(const Vec2 &b) { return Vec2{x + b.x, y + b.y}; }
+        Vec2 operator+(const Vec2 &b) const { return Vec2{x + b.x, y + b.y}; }
 
         void operator+=(const Vec2 &b) {
             x += b.x;
             y += b.y;
         }
 
-        Vec2 operator-(const Vec2 &b) { return Vec2{x - b.x, y - b.y}; }
+        Vec2 operator-(const Vec2 &b) const { return Vec2{x - b.x, y - b.y}; }
 
-        Vec2 operator-() { return Vec2{-x, -y}; }
+        Vec2 operator-() const { return Vec2{-x, -y}; }
 
         void operator-=(const Vec2 &b) {
             x -= b.x;
             y -= b.y;
         }
 
-        Vec2 operator*(const f32 s) { return Vec2{x * s, y * s}; }
+        Vec2 operator*(const f32 s) const { return Vec2{x * s, y * s}; }
 
         void operator*=(const f32 s) {
             x *= s;
             y *= s;
         }
 
-        Vec2 operator/(const f32 s) { return Vec2{x / s, y / s}; }
+        Vec2 operator/(const f32 s) const { return Vec2{x / s, y / s}; }
 
         void operator/=(const f32 s) {
             x /= s;
             y /= s;
         }
 
-        Vec2 operator*(const Vec2 &b) { return Vec2{x * b.x, y * b.y}; }
+        Vec2 operator*(const Vec2 &b) const { return Vec2{x * b.x, y * b.y}; }
 
         bool operator==(const Vec2 &b) { return x == b.x && y == b.y; }
 
-        f32 length() { return sqrtf(x * x + y * y); }
+        f32 length() const { return sqrtf(x * x + y * y); }
 
-        f32 length_sqr() { return x * x + y * y; }
+        f32 length_sqr() const { return x * x + y * y; }
 
-        f32 dot(const Vec2 &b) { return x * b.x + y * b.y; }
+        f32 dot(const Vec2 &b) const { return x * b.x + y * b.y; }
 
-        Vec2 norm(const Vec2 &b) {
+        Vec2 norm(const Vec2 &b) const {
             f32 len = length();
             return Vec2{x / len, y / len};
         }
 
-        Vec2 rotate(f32 rad) {
+        Vec2 rotate(f32 rad) const {
             f32 c = cosf(rad);
             f32 s = sinf(rad);
             return Vec2{c * x - s * y, s * x + c * y};
+        }
+
+        static Vec2 lerp(const Vec2 &a, const Vec2 &b, f32 t) {
+            return a + (b - a) * clampf(t, 0.0, 1.0);
         }
 };
 

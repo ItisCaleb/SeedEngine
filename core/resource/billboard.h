@@ -23,7 +23,7 @@ class Billboard : public Resource {
         Ref<Mesh> billboard_mesh;
 
     public:
-        Billboard(Ref<Image> image);
+        Billboard(Ref<Texture> texture);
         void insert_transform(Ref<Transform> transform);
         void remove_transform(Ref<Transform> transform);
         ~Billboard();

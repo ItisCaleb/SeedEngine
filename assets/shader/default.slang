@@ -3,8 +3,9 @@ import seed_inc;
 
 struct VS_OUT{
     vec2 texCoord;
-    vec3 fragPos;
-    vec3 view_pos;
+    vec3 frag_pos;
+    vec3 tangent_frag_pos;
+    vec3 tangent_view_pos;
     float view_depth;
     vec3 tangent_dir_light;
     // vec3 tangent_pos_light[8];
@@ -28,13 +29,16 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_
     // For right handed system,
     // after view transformation, the depth is always negative
     // So we negate it
-    out.view_depth = -(gMatrices.u_view * worldPos).z;
-    out.sv_position = gMatrices.u_projection * gMatrices.u_view * worldPos;
+    Camera cam = GetCamera();
+    out.view_depth = -(cam.u_view * worldPos).z;
+    out.sv_position = cam.u_projection * cam.u_view * worldPos;
 
     mat3 TBN_to_world = mat3(1.0);
     if(length(aNormal) > 0.01){
-        vec3 T = normalize((aModel * vec4(aTangent.xyz, 0.0)).xyz);
-        vec3 N = normalize((aModel * vec4(aNormal, 0.0)).xyz);
+        mat3 modelNormalMat = mat3(aModel);
+
+        vec3 T = normalize(modelNormalMat * aTangent);
+        vec3 N = normalize(modelNormalMat * aNormal);
         T = normalize(T - dot(T, N) * N);  // Gram-Schmidt
         vec3 B = cross(N, T);
         TBN_to_world = mat3(T, B, N);
@@ -44,8 +48,9 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_
 
     out.texCoord = aTexCoord;
 
-    out.fragPos = TBN_to_tangent * worldPos.xyz;
-    out.view_pos = TBN_to_tangent * gCam.u_cam_pos;
+    out.frag_pos = worldPos.xyz;
+    out.tangent_frag_pos = TBN_to_tangent * worldPos.xyz;
+    out.tangent_view_pos = TBN_to_tangent * cam.u_cam_pos;
     out.tangent_dir_light = TBN_to_tangent * (gLights.u_dir_light.position);
 
     // for (int i = 0; i < 8; i++) {
@@ -64,17 +69,19 @@ float4 frag(VS_OUT in){
     vec3 light_out = prop.u_diffuse.Sample(in.texCoord).rgb * gLights.u_light_ambient;
     vec3 normal = prop.u_normal.Sample(in.texCoord).rgb;
     normal = normalize(normal * 2.0 - 1.0);   
-    vec3 view_dir = normalize(in.view_pos - in.fragPos);
+    vec3 view_dir = normalize(in.tangent_view_pos - in.tangent_frag_pos);
     vec3 diffuse_sample = prop.u_diffuse.Sample(in.texCoord).xyz;
     vec3 specular_sample = prop.u_specular.Sample(in.texCoord).xyz;
     vec3 dir_light = -normalize(in.tangent_dir_light);
     // direction
+    float dir_shadow = (1.0 - ShadowCalculation(prop.shadowMap,
+         vec4(in.frag_pos, 1.0), in.view_depth, normal, dir_light));
     light_out +=
         calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
                          diffuse_sample, specular_sample,
                                 dir_light, view_dir,
-                                1, normal) *
-                                (1.0 - ShadowCalculation(prop.shadowMap, vec4(in.fragPos, 1.0), in.view_depth, normal, dir_light));
+                                1, normal) * dir_shadow;
+
 
     // for (int i = 0; i < 8; i++) {
     //     Light light = gLights.u_point_lights[i];

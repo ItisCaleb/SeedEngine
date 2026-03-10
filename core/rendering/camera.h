@@ -30,6 +30,11 @@ class Camera {
         void calculate_dirty();
 
     public:
+        struct ShaderCamera{
+            alignas(16) Vec4 position;
+            Mat4 projection;
+            Mat4 view;
+        };
         void set_position(Vec3 pos);
         Vec3 get_position();
         void set_up(Vec3 up);
@@ -50,6 +55,7 @@ class Camera {
 
         Mat4 projection_zero();
         Vec3 to_world_pos(Vec2 pos);
+        void fill_shader_camera(ShaderCamera *camera);
 
         Camera(Vec3 pos, Vec3 up, Vec3 front);
         Camera();

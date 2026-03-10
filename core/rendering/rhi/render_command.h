@@ -62,6 +62,7 @@ struct RenderDrawData {
             BIND_DESC,
             BIND_INDEX,
             BIND_TEXTURE,
+            BIND_CONSTANT,
             PUSH_CONSTANT,
             VIEWPORT,
             SCISSOR
@@ -71,6 +72,7 @@ struct RenderDrawData {
                 union {
                         VertexHandle vertex_handle;
                         IndexHandle index_handle;
+                        ConstantHandle constant_handle;
                         struct {
                                 u32 unit;
                                 TextureHandle texture_handle;
@@ -78,7 +80,7 @@ struct RenderDrawData {
                         struct {
                                 void *data;
                                 u32 size;
-                        } constant;
+                        } push_constant;
                         VertexLayout *vertex_desc;
                         RectF view_rect;
                         RectF scissor_rect;
@@ -94,6 +96,7 @@ struct RenderDrawData {
         RenderPrimitiveType type;
         bool draw_depth_only = false;
         bool depth_write = false;
+        bool depth_clamp = false;
         CompareOP depth_test_op = CompareOP::NEVER;
         u32 operation_cnt = 0;
 };
@@ -161,6 +164,12 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
         void bind_texture(u32 unit, TextureHandle handle);
         void bind_description(VertexLayout *desc);
         void push_constant(u32 size, void *data);
+
+        template <typename T>
+        void push_constant(T data) {
+            this->push_constant(sizeof(T), &data);
+        }
+
         void set_viewport(f32 x, f32 y, f32 width, f32 height);
         void set_scissor(f32 x, f32 y, f32 width, f32 height);
         void set_draw_vertex(u32 vertex_cnt, u32 vertex_offset);
@@ -169,6 +178,7 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
         void set_draw_depth_only(bool depth_only);
         void set_depth_write(bool depth_write);
         void set_depth_test(CompareOP compare);
+        void set_depth_clamp(bool depth_clamp);
 };
 
 typedef u32 StateClearFlag;

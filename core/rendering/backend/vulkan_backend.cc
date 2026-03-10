@@ -79,7 +79,7 @@ RenderBackendVK::RenderBackendVK(Window *window) {
         this->alloc_constant(1, nullptr, UpdateFrequence::PERFRAME);
     dummy_ssbo =
         this->alloc_storage_buffer(1, nullptr, UpdateFrequence::PERFRAME);
-    u8 *data = (u8*)malloc(1);
+    u8 *data = (u8 *)malloc(1);
     data[0] = 0;
     dummy_texture = this->alloc_texture(TextureType::TEXTURE_2D, 1, 1,
                                         PixelFormat::R, {}, data);
@@ -238,6 +238,7 @@ void RenderBackendVK::create_logical_device() {
     deviceFeatures2.features.tessellationShader = true;
     deviceFeatures2.features.samplerAnisotropy = true;
     deviceFeatures2.features.independentBlend = true;
+    deviceFeatures2.features.depthClamp = true;
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -670,7 +671,7 @@ void RenderBackendVK::push_image_update(TextureHandle handle, u32 layer,
     vmaCopyMemoryToAllocation(buffer_allocator, data, stagingAllocation, 0,
                               size);
     free(data);
-    this->image_copy_queue.push_back(
+    this->image_copy_queue.push(
         ImageUpdate{.staging_buffer = stagingBuffer,
                     .staging_allocation = stagingAllocation,
                     .texture = handle,
@@ -731,7 +732,7 @@ void RenderBackendVK::stream_buffer(HardwareBufferVk *buffer, u64 size,
     buffer->last_offset = buffer->next_offset;
     size = (size + alignment - 1) & ~(alignment - 1);
     buffer->next_offset += size;
-    streams_to_reset.push_back(buffer);
+    streams_to_reset.push(buffer);
 }
 
 VkDescriptorSet RenderBackendVK::get_descriptor_set(
@@ -950,7 +951,7 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
         create_staging_buffer(&stagingBuffer, &stagingAllocation, size);
         vmaCopyMemoryToAllocation(buffer_allocator, data, stagingAllocation, 0,
                                   size);
-        this->image_copy_queue.push_back(ImageUpdate{
+        this->image_copy_queue.push(ImageUpdate{
             .staging_buffer = stagingBuffer,
             .texture = handle,
             .face = 0,
@@ -1044,7 +1045,7 @@ TextureHandle RenderBackendVK::alloc_mappable_texture(
                                                   .memory = allocation,
                                                   .layouts = layouts,
                                                   .mapped_ptr = mapped_ptr});
-    mappable_image_transition_queue.push_back(handle);
+    mappable_image_transition_queue.push(handle);
     return handle;
 }
 
@@ -1424,7 +1425,7 @@ HardwareRenderPassVk *RenderBackendVK::get_current_render_pass() {
 VkPipeline RenderBackendVK::get_vk_pipeline(
     HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
     std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
-    bool draw_depth_only) {
+    bool draw_depth_only, bool depth_clamp) {
     Hash _hash;
     _hash.update(&pipeline->rst_state.cull_mode);
     _hash.update(&pipeline->rst_state.poly_mode);
@@ -1440,6 +1441,7 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     _hash.update(&pipeline->blend_attachment.func.dst_alpha);
     _hash.update(&primitive);
     _hash.update(&draw_depth_only);
+    _hash.update(&depth_clamp);
 
     /* since we usually don't create multiple shader/render target/layout with
      * same config */
@@ -1454,7 +1456,7 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     auto iter = pipeline_cache.find(hash);
     if (iter == pipeline_cache.end()) {
         vk_pipeline = create_vk_pipeline(pipeline, render_target, layouts,
-                                         primitive, draw_depth_only);
+                                         primitive, draw_depth_only, depth_clamp);
         pipeline_cache.emplace(hash, vk_pipeline);
     } else {
         vk_pipeline = iter->second;
@@ -1476,20 +1478,21 @@ void RenderBackendVK::handle_frame_update() {
         barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         shader_barriers.push_back(barrier);
     }
-    for (TextureHandle handle : mappable_image_transition_queue) {
+    while (!mappable_image_transition_queue.is_empty()) {
+        TextureHandle handle = mappable_image_transition_queue.peek();
         HardwareTextureVk *texture = this->textures.get_or_null(handle);
         shader_barriers.push_back(create_image_barrier(
             texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0));
+        mappable_image_transition_queue.pop();
     }
-    mappable_image_transition_queue.clear();
 
     vkCmdPipelineBarrier(render_cmd_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                          VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
                          nullptr, transfer_barriers.size(),
                          transfer_barriers.data());
 
-    while (!static_buffer_update_queue.empty()) {
-        StaticBufferUpdate &copy = static_buffer_update_queue.front();
+    while (!static_buffer_update_queue.is_empty()) {
+        StaticBufferUpdate &copy = static_buffer_update_queue.peek();
         VkBufferCopy _copy{};
         _copy.srcOffset = 0;
         _copy.dstOffset = copy.offset;
@@ -1505,8 +1508,8 @@ void RenderBackendVK::handle_frame_update() {
     }
 
     std::vector<VmaAllocation> allocations_to_flush;
-    while (!dynamic_buffer_update_queue.empty()) {
-        DynamicBufferUpdate &copy = dynamic_buffer_update_queue.front();
+    while (!dynamic_buffer_update_queue.is_empty()) {
+        DynamicBufferUpdate &copy = dynamic_buffer_update_queue.peek();
         memcpy((void *)((u64)copy.target_buffer + copy.offset), copy.data,
                copy.size);
         free(copy.data);
@@ -1514,7 +1517,8 @@ void RenderBackendVK::handle_frame_update() {
                            copy.size);
         dynamic_buffer_update_queue.pop();
     }
-    for (ImageUpdate &copy : image_copy_queue) {
+    while (!image_copy_queue.is_empty()) {
+        ImageUpdate &copy = image_copy_queue.peek();
         VkBufferImageCopy _copy{};
         HardwareTextureVk *texture = this->textures.get_or_null(copy.texture);
 
@@ -1538,17 +1542,17 @@ void RenderBackendVK::handle_frame_update() {
                             .mapped = false,
                             .buffer = {.buffer = copy.staging_buffer,
                                        .memory = copy.staging_allocation}});
+        image_copy_queue.pop();
     }
     vkCmdPipelineBarrier(render_cmd_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
                          VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 0,
                          nullptr, shader_barriers.size(),
                          shader_barriers.data());
-    image_copy_queue.clear();
 }
 
 void RenderBackendVK::handle_destroy() {
-    while (!destroy_queue.empty()) {
-        DestroyResource &destroy = destroy_queue.front();
+    while (!destroy_queue.is_empty()) {
+        DestroyResource &destroy = destroy_queue.peek();
         switch (destroy.type) {
             case RenderResourceType::VERTEX:
             case RenderResourceType::INDEX:
@@ -1632,7 +1636,7 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
 VkPipeline RenderBackendVK::create_vk_pipeline(
     HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
     std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
-    bool draw_depth_only) {
+    bool draw_depth_only, bool depth_clamp) {
     VkPipeline graphicsPipeline;
     HardwareShaderVk *shader = this->shaders.get_or_null(pipeline->shader);
     if (!shader) {
@@ -1666,6 +1670,7 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
         VulkanHelper::rasterizer(pipeline->rst_state);
     VkPipelineDepthStencilStateCreateInfo depthState =
         VulkanHelper::depth_stencil(pipeline->depth_state);
+    rasterState.depthClampEnable = depth_clamp;
 
     std::vector<VkPipelineColorBlendAttachmentState> blendAttachments;
     for (HardwareColorAttachmentVk &attchment :
@@ -1978,7 +1983,7 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     vkResetFences(device, 1, &in_flight_fence);
 
     vkResetCommandBuffer(render_cmd_buffer, 0);
-    handle_destroy();
+    // handle_destroy();
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -2058,11 +2063,12 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
-    for (HardwareBufferVk *buffer : this->streams_to_reset) {
+    while (!this->streams_to_reset.is_empty()) {
+        HardwareBufferVk *buffer = this->streams_to_reset.peek();
+        this->streams_to_reset.pop();
         buffer->next_offset = 0;
         buffer->last_offset = 0;
     }
-    this->streams_to_reset.clear();
 }
 
 void RenderBackendVK::swap_buffer() {
@@ -2300,7 +2306,7 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
     HardwareIndexVk *index = nullptr;
 
     std::vector<VertexLayout *> layouts;
-    std::vector<Binding> texture_bindings;
+    std::vector<Binding> local_bindings;
     HardwarePipelineVk *pipeline =
         this->pipelines.get_or_null(draw_data->pipeline);
     EXPECT_NOT_NULL_RET(pipeline);
@@ -2330,10 +2336,21 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                     this->textures.get_or_null(op->texture.texture_handle);
                 i32 id = this->textures.get_id(op->texture.texture_handle);
                 EXPECT_NOT_NULL_BREAK(tex);
-                texture_bindings.push_back(
+                local_bindings.push_back(
                     Binding{.type = RenderResourceType::TEXTURE,
                             .handle = op->texture.texture_handle,
                             .resource_id = id,
+                            .binding_point = op->texture.unit});
+                break;
+            }
+            case RenderDrawData::OpType::BIND_CONSTANT: {
+                HardwareBufferVk *constant =
+                    this->constants.get_or_null(op->constant_handle);
+                EXPECT_NOT_NULL_BREAK(constant);
+                local_bindings.push_back(
+                    Binding{.type = RenderResourceType::TEXTURE,
+                            .handle = op->texture.texture_handle,
+                            .resource_id = op->constant_handle,
                             .binding_point = op->texture.unit});
                 break;
             }
@@ -2367,9 +2384,9 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
             case RenderDrawData::OpType::PUSH_CONSTANT: {
                 vkCmdPushConstants(render_cmd_buffer, shader->layout,
                                    VK_SHADER_STAGE_ALL_GRAPHICS,
-                                   push_constant_offset, op->constant.size,
-                                   op->constant.data);
-                push_constant_offset += op->constant.size;
+                                   push_constant_offset, op->push_constant.size,
+                                   op->push_constant.data);
+                push_constant_offset += op->push_constant.size;
                 break;
             }
             default:
@@ -2382,12 +2399,13 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
         get_descriptor_set(shader->set_layouts[0], global_bindings);
     bind_descriptor_set(shader, 0, global_bindings);
     if (shader->set_layouts.size() > 1) {
-        bind_descriptor_set(shader, 1, texture_bindings);
+        bind_descriptor_set(shader, 1, local_bindings);
     }
     VkPrimitiveTopology primitive = VulkanHelper::primitive(draw_data->type);
 
-    VkPipeline vk_pipeline = get_vk_pipeline(pipeline, rt, layouts, primitive,
-                                             draw_data->draw_depth_only);
+    VkPipeline vk_pipeline =
+        get_vk_pipeline(pipeline, rt, layouts, primitive,
+                        draw_data->draw_depth_only, draw_data->depth_clamp);
 
     vkCmdBindPipeline(render_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                       vk_pipeline);

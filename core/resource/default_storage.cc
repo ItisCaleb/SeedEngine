@@ -8,31 +8,26 @@ DefaultStorage::DefaultStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
     mesh_shader = loader->load<Shader>("assets/shader/default.slang");
+    skeleton_mesh_shader =
+        loader->load<Shader>("assets/shader/default_skeleton.slang");
     sky_shader = loader->load<Shader>("assets/shader/sky.slang");
     terrain_shader = loader->load<Shader>("assets/shader/terrain.slang");
 
     post_shader = loader->load<Shader>("assets/shader/post.slang");
-    shadow_default_shader =
-        loader->load<Shader>("assets/shader/shadow_default.slang");
-    shadow_terrain_shader =
-        loader->load<Shader>("assets/shader/shadow_terrain.slang");
     billboard_shader = loader->load<Shader>("assets/shader/billboard.slang");
     gui_shader = loader->load<Shader>("assets/shader/imgui.slang");
-
-    shadow_map_default_pipeline =
-        RHI::alloc_pipeline(shadow_default_shader->get_handle(),
-                            RenderRasterizerState{.cull_mode = Cullmode::FRONT},
-                            RenderDepthStencilState{}, {});
-    shadow_map_terrain_pipeline =
-        RHI::alloc_pipeline(shadow_terrain_shader->get_handle(),
-                            RenderRasterizerState{.cull_mode = Cullmode::FRONT,
-                                                  .patch_control_points = 4},
-                            RenderDepthStencilState{}, {});
 
     mesh_desc.add_type_attr<Vec3>(0);
     mesh_desc.add_type_attr<Vec3>(1);
     mesh_desc.add_type_attr<Vec3>(2);
     mesh_desc.add_type_attr<Vec2>(3);
+
+    skeleton_mesh_desc.add_type_attr<Vec3>(0);
+    skeleton_mesh_desc.add_type_attr<Vec3>(1);
+    skeleton_mesh_desc.add_type_attr<Vec3>(2);
+    skeleton_mesh_desc.add_type_attr<Vec2>(3);
+    skeleton_mesh_desc.add_attr(4, VertexAttributeType::USHORT, 4);
+    skeleton_mesh_desc.add_attr(5, VertexAttributeType::FLOAT, 4);
 
     sky_desc.add_type_attr<Vec3>(0);
 
@@ -62,5 +57,8 @@ DefaultStorage::DefaultStorage() {
     u8 black_color[] = {0, 0, 0, 255};
     black_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,
                          black_color);
+    u8 normal_color[] = {128, 128, 255, 255};
+    normal_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,
+                          normal_color);
 }
 }  // namespace Seed

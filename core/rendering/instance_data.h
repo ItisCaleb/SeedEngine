@@ -43,7 +43,7 @@ class InstanceData : public RefCounted {
 
     public:
         virtual void upload() = 0;
-        virtual u32 get_size() = 0;
+        virtual u32 size() = 0;
         virtual void frustum_culling(const Frustum &frustum,
                                      const AABB &bounding_box,
                                      std::vector<u32> &instance_ids,
@@ -58,7 +58,7 @@ class TransformInstanceData : public InstanceData {
 
     public:
         const std::set<Ref<Transform>> &get_transforms() { return transforms; }
-        u32 get_size() override { return transforms.size(); }
+        u32 size() override { return transforms.size(); }
         void insert_transform(Ref<Transform> transform);
         void remove_transform(Ref<Transform> transform);
         void upload() override;

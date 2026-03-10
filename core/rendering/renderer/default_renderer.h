@@ -34,7 +34,6 @@ class DefaultRenderer : public Renderer {
         SSBOHandle transform_ssbo;
         SSBOHandle terrain_ssbo;
         SSBOHandle bone_ssbo;
-        ConstantHandle mvp;
         ConstantHandle camera;
         ConstantHandle u_lights;
         ConstantHandle u_csm;

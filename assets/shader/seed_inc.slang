@@ -9,8 +9,8 @@ StructuredBuffer<uint> gVisible;
 
 struct PushConstant {
     uint visible_index;
-    /* used by CSM */
-    uint split;
+    /* current camera to use */
+    uint camera;
 }
 [[vk_push_constant]]
 ConstantBuffer<PushConstant> gPC;
@@ -26,11 +26,10 @@ StructuredBuffer<mat4> gBones;
 
 struct Camera {
     vec3 u_cam_pos;
-}
-struct Matrices{
     mat4 u_projection;
     mat4 u_view;
 }
+
 struct Light {
     vec3 position;
     vec3 diffuse;
@@ -45,7 +44,6 @@ struct Lights {
 
 struct CSMShadow
 {
-    mat4 u_lightspaces[4];
     vec4 u_shadow_uv[4];
     vec4 u_far;
     vec4 u_shadow_unit;
@@ -53,9 +51,7 @@ struct CSMShadow
 
 
 [[vk::binding(8)]]
-ConstantBuffer<Camera> gCam;
-[[vk::binding(9)]]
-ConstantBuffer<Matrices> gMatrices;
+ConstantBuffer<Camera[8]> gCam;
 [[vk::binding(10)]]
 ConstantBuffer<Lights> gLights;
 [[vk::binding(11)]]
@@ -89,13 +85,18 @@ inline vec4 GetTerrain(uint id){
     return gTerrain[gVisible[id + gPC.visible_index]];
 }
 
-inline mat4 GetBone(uint id){
+inline mat4 GetSkeletonTransform(uint id){
     return gBones[gVisible[id + gPC.visible_index]];
 }
 
-inline mat4 GetLightSpace(){
-    return gCSM.u_lightspaces[gPC.split];
+inline mat4 GetSkeletonBone(uint id, uint bone_id){
+    return gBones[gVisible[id + gPC.visible_index] + 1 + bone_id];
 }
+
+inline Camera GetCamera(){
+    return gCam[gPC.camera];
+}
+
 
 vec3 calculate_light(vec3 diffuse, vec3 specular, vec3 diffuse_sample, vec3 specular_sample, vec3 light_dir, vec3 view_dir,
                      float d, vec3 n) {
@@ -150,9 +151,11 @@ float ShadowCalculation(Sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 
 {
     int casacade_idx = SelectCasacade(frag_z);
     if(casacade_idx == 3) return 0.0;
+    /* index 0 is main camera */
+    Camera cam = gCam[1 + casacade_idx];
     vec3 n = normalize(normal);
     vec4 offset = gCSM.u_shadow_unit[casacade_idx] * vec4(shadow_pos_offset(shadow_map, dot(n, light_dir), n, 2), 0.0);
-    vec4 lightspace_fragpos = gCSM.u_lightspaces[casacade_idx] * (frag_pos + offset);
+    vec4 lightspace_fragpos = cam.u_projection * cam.u_view * (frag_pos + offset);
     // perform perspective divide
     vec3 projCoords = lightspace_fragpos.xyz / lightspace_fragpos.w;
     //vec2 depth_duv = recieve_plane_bias_uv(projCoords);

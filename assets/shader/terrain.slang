@@ -117,12 +117,12 @@ DS_OUT tese(
 
     // displace point along normal
     p += vec4(0, out.height, 0 , 0);
-    
+    Camera cam = GetCamera();
     //https://stackoverflow.com/questions/49640250/calculate-normals-from-heightmap
     out.normal = normalize(vec3(lh - rh, 2, dh - uh));
     out.fragPos = p;
-    out.view_depth = -(gMatrices.u_view * p).z;
-    out.position = gMatrices.u_projection * gMatrices.u_view * p;
+    out.view_depth = -(cam.u_view * p).z;
+    out.position = cam.u_projection * cam.u_view * p;
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     return out;
@@ -144,12 +144,13 @@ float terrain_shadowmapping(vec2 uv, float angle){
 [shader("fragment")]
 float4 frag(DS_OUT in){
     float h = (in.height + 128)/256.0f;
-    if(h < 0.01){
+    if(h < 0.1){
         discard;
     }
 
     vec3 light_out = gLights.u_light_ambient;
-    vec3 view_dir = normalize(gCam.u_cam_pos - in.fragPos.xyz);
+    Camera cam = GetCamera();
+    vec3 view_dir = normalize(cam.u_cam_pos - in.fragPos.xyz);
     vec3 diffuse_sample = vec3(1,1,1);
     vec3 specular_sample = vec3(1,1,1);
     vec3 dir_light = -normalize(vec3(gLights.u_dir_light.position));
@@ -172,7 +173,7 @@ float4 frag(DS_OUT in){
     //         light_dir, view_dir, d, in.normal);
     // }
     light_out *= vec3(h, h, h);
-    float dist = length(gCam.u_cam_pos - in.fragPos.xyz);
+    float dist = length(cam.u_cam_pos - in.fragPos.xyz);
     float fog_factor = clamp((dist - 700) / 100, 0.0, 0.95);
     vec3 final_color = lerp(light_out, vec3(0.48, 0.80, 0.80), fog_factor);
 

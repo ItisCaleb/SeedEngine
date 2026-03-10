@@ -1,14 +1,15 @@
 import seed_inc;
 
 struct VS_OUT{
-    float4 color;
-    float4 sv_position : SV_Position;
+    vec4 color;
+    vec4 sv_position : SV_Position;
 }
 
 [shader("vertex")]
-VS_OUT vert(float2 aPos, float4 aColor){
+VS_OUT vert(vec3 aPos, vec4 aColor){
     VS_OUT out;
-    out.sv_position = gMatrices.u_projection * gMatrices.u_view * vec4(aPos, 1.0);
+    Camera cam = GetCamera();
+    out.sv_position = cam.u_projection * cam.u_view * vec4(aPos, 1.0);
     out.color = aColor;
     return out;
 }

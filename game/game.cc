@@ -13,46 +13,6 @@
 
 using namespace Seed;
 
-static const Vec3 CUBE[] = {
-    /* down-left */
-    {-0.5f, -0.5f, -0.5f},
-    /* down-right */
-    {0.5f, -0.5f, -0.5f},
-    /* top-right */
-    {0.5f, 0.5f, -0.5f},
-    /* top-left */
-    {-0.5f, 0.5f, -0.5f},
-    /* down-left */
-    {-0.5f, -0.5f, 0.5f},
-    /* down-right */
-    {0.5f, -0.5f, 0.5f},
-    /* top-right */
-    {0.5f, 0.5f, 0.5f},
-    /* top-left */
-    {-0.5f, 0.5f, 0.5f},
-};
-
-static const u32 CUBE_INDICE[6][6] = {
-    // Vertices according to faces
-    /* front */
-    {0, 1, 2, 2, 3, 0},
-    /* back */
-    {5, 4, 7, 7, 6, 5},
-    /* left */
-    {4, 0, 3, 3, 7, 4},
-    /* right */
-    {1, 5, 6, 6, 2, 1},
-    /* down */
-    {4, 0, 1, 1, 5, 4},
-    /* top */
-    {3, 2, 6, 6, 7, 3}};
-
-static const Vec3 CUBE_NORMAL[] = {0.0f,  0.0f,  -1.0f, 0.0f, 0.0f, 1.0f,
-                                   -1.0f, 0.0f,  0.0f,  1.0f, 0.0f, 0.0f,
-                                   0.0f,  -1.0f, 0.0f,  0.0f, 1.0f, 0.0f};
-
-static const Vec2 CUBE_TEX[] = {0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-                                1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
 static Vec3 light_dir;
 
 class DebugGUI : public GUI {
@@ -61,6 +21,7 @@ class DebugGUI : public GUI {
             auto world = Seed::SeedEngine::get_instance()->get_world();
             ImGui::Begin("Debug");
             light_dir = world->get_direction_light().get_direction();
+            static f32 shadow_lambda = world->get_direction_light().get_csm_lamda();
             if (ImGui::SliderFloat3("Direction Light",
                                     (float *)(void *)&light_dir, -1.0f, 1.0f)) {
                 world->get_direction_light().set_direction(light_dir);
@@ -69,6 +30,8 @@ class DebugGUI : public GUI {
             auto cam_pos = cam.get_position();
             ImGui::Text("%.2f %.2f %.2f", cam_pos.x, cam_pos.y, cam_pos.z);
             ImGui::Text("FPS: %.2f", SeedEngine::get_instance()->get_fps());
+            ImGui::SliderFloat("Shadow Lambda", &shadow_lambda, 0, 1.0);
+            world->get_direction_light().set_csm_lamda(shadow_lambda);
             // ImGui::SliderFloat("CSM Lambda", &Camera::shadow_lamdba, 0, 1.0);
             if (ImGui::Button("ortho")) {
                 cam.set_ortho(-10, 10, -10, 10, -100, 100);
@@ -86,7 +49,7 @@ class DebugGUI : public GUI {
                     state.poly_mode = PolygonMode::FILL;
                 }
 
-                //mat->set_rasterizer_state(state);
+                // mat->set_rasterizer_state(state);
             }
             ImGui::End();
         };
@@ -96,38 +59,10 @@ int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
     ResourceLoader *loader = ResourceLoader::get_instance();
 
-    std::vector<ModelVertex> vertices;
-    std::vector<u32> indices;
-
-    // for (int i = 0; i < 6; i++) {
-    //     for (int j = 0; j < 6; j++) {
-    //         vertices.push_back(
-    //             ModelVertex{CUBE[CUBE_INDICE[i][j]], CUBE_NORMAL[i],
-    //             CUBE_TEX[j]});
-    //     }
-    // }
-
-    for (int i = 0; i < 36; i++) {
-        indices.push_back(i);
-    }
-
-    // Mesh mesh(vertices, indices);
-    // std::vector<Mesh> meshs = {mesh};
-
-    // Ref<Model> model = Model::create(meshs, mats, {});
-    //  for (int i = -100; i < 100; i++) {
-    //      for (int j = -100; j < 100; j++) {
-    //          ModelEntity *ent = new ModelEntity(Vec3{(f32)i, (f32)j, 0},
-    //          mesh); ent->set_material(mat); ent->set_scale({0.1, 0.1, 0.1});
-    //          engine->get_world()->add_entity(ent);
-    //          engine->get_world()->add_model_entity(ent);
-    //      }
-    //  }
-
     auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
     auto sky = loader->load_async<Sky>("assets/sky.json");
     auto backpack = loader->load_async<Model>(
-        "assets/backpack/test.mdl", [=](Ref<Model> rc) {
+        "test_project/assets/backpack.json", [=](Ref<Model> rc) {
             for (i32 i = 0; i < 10; i++) {
                 Entity *ent = new Entity(Vec3{(f32)i * 5, 20, (f32)-i});
                 ent->bind_model(rc);
@@ -144,6 +79,14 @@ int main(void) {
                 tf->set_position(-i, 20, i);
                 rc->insert_transform(tf);
             }
+        });
+    auto man = loader->load_async<SkeletonModel>(
+        "test_project/assets/man.json", [=](Ref<SkeletonModel> rc) {
+            Entity *ent = new Entity(Vec3{0, 0, 0});
+            ent->get_transform()->set_scale(Vec3{0.1, 0.1, 0.1});
+            ent->bind_skeleton_model(rc);
+            ent->play_animation("Take 001");
+            engine->get_world()->add_entity(ent);
         });
 
     GuiEngine::get_instance()->add_gui(new DebugGUI);

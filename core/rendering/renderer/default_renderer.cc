@@ -32,8 +32,8 @@ Vec3 skyboxVertices[] = {
 
 void DefaultRenderer::init(Window *window) {
     RenderEngine *engine = RenderEngine::get_instance();
-    u32 res_w = window->get_width() * 2;
-    u32 res_h = window->get_height() * 2;
+    u32 res_w = window->get_width();
+    u32 res_h = window->get_height();
     Ref<Texture> color_tex(TextureType::TEXTURE_2D, res_w, res_h,
                            PixelFormat::RGBA16F, nullptr);
     Ref<Texture> depth_tex(
@@ -49,6 +49,7 @@ void DefaultRenderer::init(Window *window) {
     shadow_pass.setup(fd.shadow_map);
     color_pass.setup(color_tex, depth_tex);
     post_pass.setup(window);
+    debug_pass.setup(color_tex, depth_tex);
 
     fd.post_mat.create(DS::get_instance()->post_shader);
     fd.post_mat->set_texture("image", color_tex);
@@ -59,9 +60,10 @@ void DefaultRenderer::init(Window *window) {
         engine->get_instance_pool(TRANSFORM_POOL_NAME)->get_render_buffer();
     terrain_ssbo =
         engine->get_instance_pool(TERRAIN_POOL_NAME)->get_render_buffer();
-    bone_ssbo = engine->get_instance_pool(BONE_POOL_NAME)->get_render_buffer();
-    camera = RHI::alloc_constant(sizeof(Vec3), UpdateFrequence::PERFRAME);
-    mvp = RHI::alloc_constant(sizeof(Mat4) * 2, UpdateFrequence::PERFRAME);
+    bone_ssbo =
+        engine->get_instance_pool(SKELETON_POOL_NAME)->get_render_buffer();
+    camera = RHI::alloc_constant(sizeof(Camera::ShaderCamera) * 8,
+                                 UpdateFrequence::PERFRAME);
     u_lights =
         RHI::alloc_constant(sizeof(STB140Lights), UpdateFrequence::PERFRAME);
     u_csm = RHI::alloc_constant(sizeof(CSMShadow), UpdateFrequence::PERFRAME);
@@ -83,6 +85,10 @@ void DefaultRenderer::prepare_lights() {
     DirectionalLight &dir_light = world->get_direction_light();
     Camera &cam = world->get_camera();
 
+    /* fill main camera */
+    Camera::ShaderCamera *cams = (Camera::ShaderCamera *)RHI::alloc_heap(
+        sizeof(Camera::ShaderCamera) * 8);
+    cam.fill_shader_camera(&cams[0]);
     /* upload lights uniform*/
     STB140Lights *light_buf =
         (STB140Lights *)RHI::alloc_heap(sizeof(STB140Lights));
@@ -110,13 +116,15 @@ void DefaultRenderer::prepare_lights() {
                 .get_actual_dimension()
                 .h);
     }
-    dir_light.calculate_csm_lightspace(cam, resolutions, *csm_data);
+    /* fill cams[1 ~ 4] to CSM */
+    dir_light.calculate_csm_lightspace(cam, resolutions, *csm_data, &cams[1]);
     for (u32 i = 0; i < CSM_SPLITS; i++) {
         csm_data->shadow_uv[i] =
             fd.shadow_map.query_uv(fd.shadow_map_dir_handle[i]);
     }
 
     RHI::update_from_heap(u_csm, 0, sizeof(CSMShadow), csm_data);
+    RHI::update_from_heap(camera, 0, sizeof(Camera::ShaderCamera) * 8, cams);
 }
 
 void DefaultRenderer::prepare_meshes() {
@@ -134,7 +142,7 @@ void DefaultRenderer::prepare_meshes() {
         AABB bounding_box = mesh->get_bounding_box();
 
         /* check instance mesh size > 0 */
-        if (!instance.is_null() && instance->get_size() == 0) {
+        if (!instance.is_null() && instance->size() == 0) {
             continue;
         }
 
@@ -181,14 +189,7 @@ void DefaultRenderer::prepare_meshes() {
 
 void DefaultRenderer::preprocess() {
     World *world = SeedEngine::get_instance()->get_world();
-    Camera &cam = world->get_camera();
-    Mat4 *matrices = (Mat4 *)RHI::alloc_heap(sizeof(Mat4) * 2);
-    Vec3 *cam_pos = (Vec3 *)RHI::alloc_heap(sizeof(Vec3));
-    matrices[0] = cam.projection_zero();
-    matrices[1] = cam.look_at();
-    *cam_pos = cam.get_position();
-    RHI::update_from_heap(camera, 0, sizeof(Vec3), cam_pos);
-    RHI::update_from_heap(mvp, 0, sizeof(Mat4) * 2, matrices);
+
     prepare_lights();
     prepare_meshes();
 
@@ -205,7 +206,6 @@ void DefaultRenderer::preprocess() {
     builder.bind_storage_buffer(terrain_ssbo, 2);
     builder.bind_storage_buffer(bone_ssbo, 3);
     builder.bind_constant(camera, 8);
-    builder.bind_constant(mvp, 9);
     builder.bind_constant(u_lights, 10);
     builder.bind_constant(u_csm, 11);
 
@@ -219,7 +219,10 @@ void DefaultRenderer::_process(RenderCommandDispatcher &dp) {
     dp.set_seq(1);
     color_pass.draw(dp, fd);
     dp.set_seq(2);
+    debug_pass.draw(dp, fd);
+    dp.set_seq(3);
     post_pass.draw(dp, fd);
+
     dp.end_scope();
 }
 void DefaultRenderer::cleanup() {
@@ -252,9 +255,6 @@ void DefaultRenderer::ShadowPass::execute(RenderCommandDispatcher &dp,
 
     Ref<Material> last_material;
     for (ShadowMeshInstance &mesh : fd.shadow_meshes) {
-        if (mesh.mesh->get_material()->get_shadow_pipeline() == NULL_HANDLE)
-            continue;
-
         RenderDrawDataBuilder mesh_builder;
         if (last_material != mesh.mesh->get_material()) {
             mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
@@ -268,10 +268,11 @@ void DefaultRenderer::ShadowPass::execute(RenderCommandDispatcher &dp,
             if (mesh.visible_size[i] == 0) continue;
             shadow_map_state.set_viewport(&shadow_map_vps[i], true);
             dp.set_states(shadow_map_state);
-            mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset[i]);
-            mesh_builder.push_constant(sizeof(u32), &i);
+            mesh_builder.push_constant(mesh.visible_offset[i]);
+            mesh_builder.push_constant(i + 1);
             mesh_builder.set_instance(mesh.visible_size[i], 0);
             mesh_builder.set_depth_write(true);
+            mesh_builder.set_depth_clamp(true);
             /* alpha test need fragment shader */
             if (mesh.mesh->get_material()->get_depth_state().depth_mode !=
                 DepthMode::ALPHA_TEST) {
@@ -279,7 +280,7 @@ void DefaultRenderer::ShadowPass::execute(RenderCommandDispatcher &dp,
             }
             mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
             dp.render(mesh_builder, mesh.mesh->get_type(),
-                      mesh.mesh->get_material()->get_shadow_pipeline(), 0);
+                      mesh.mesh->get_material()->get_pipeline(), 0);
             shadow_map_state.reset();
             mesh_builder.rollback();
             mesh_builder.rollback();
@@ -304,7 +305,8 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
                     fd.shadow_map.get_texture()->get_handle());
                 last_material = material;
             }
-            mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
+            mesh_builder.push_constant(mesh.visible_offset);
+            mesh_builder.push_constant(0);
             mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
             mesh_builder.set_instance(mesh.visible_size);
             mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
@@ -334,7 +336,8 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
                 fd.shadow_map.get_texture()->get_handle());
             last_material = material;
         }
-        mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
+        mesh_builder.push_constant(mesh.visible_offset);
+        mesh_builder.push_constant(0);
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.set_instance(mesh.visible_size);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
@@ -354,7 +357,9 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
                 fd.shadow_map.get_texture()->get_handle());
             last_material = mesh.mesh->get_material();
         }
-        mesh_builder.push_constant(sizeof(u32), &mesh.visible_offset);
+        mesh_builder.push_constant(mesh.visible_offset);
+        mesh_builder.push_constant(0);
+
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
         mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
@@ -371,6 +376,8 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
     if (sky.is_valid()) {
         RenderDrawDataBuilder sky_builder =
             dp.generate_render_data(ref_cast<Material>(sky->get_material()));
+        sky_builder.push_constant(0);
+        sky_builder.push_constant(0);
         sky_builder.bind_vertex_data(fd.sky_vert);
         sky_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
         dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,

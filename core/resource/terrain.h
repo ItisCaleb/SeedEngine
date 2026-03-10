@@ -37,7 +37,7 @@ class TerrainInstanceData : public InstanceData {
 
     public:
         void insert_terrain_data(const TerrainInstance &instance);
-        u32 get_size() override { return instances.size(); }
+        u32 size() override { return instances.size(); }
         void upload() override;
 
         void frustum_culling(const Frustum &frustum, const AABB &bounding_box,

@@ -7,6 +7,12 @@
 #include "window.h"
 
 namespace Seed {
+
+struct EngineConfig {
+        enum DebugFlag: u8 { NONE, BOUNDING_BOX, FRUSTUM, MODEL_NORMAL, PHYSIC };
+        DebugFlag debug_flag = DebugFlag::NONE;
+};
+
 class SeedEngine {
     private:
         inline static SeedEngine *instance = nullptr;
@@ -15,6 +21,7 @@ class SeedEngine {
         Window *window;
         World *world;
         f32 last_fps;
+        EngineConfig config;
         void init_systems();
 
     public:
@@ -24,6 +31,12 @@ class SeedEngine {
         World *get_world() { return world; }
         Window *get_window() { return window; }
         f32 get_fps() { return last_fps; }
+        void set_debug_flag(EngineConfig::DebugFlag flag) {
+            this->config.debug_flag = flag;
+        }
+        EngineConfig::DebugFlag get_debug_flag() const {
+            return this->config.debug_flag;
+        }
 
         SeedEngine(f32 target_fps = 60.0);
         ~SeedEngine();

@@ -1,6 +1,6 @@
 
 #include <stdio.h>
-#include "resource.h"
+#include "editor/asset/model_loader.h"
 #include <nfd.h>
 #include <fmt/format.h>
 #include "core/engine.h"
@@ -26,6 +26,7 @@ Editor::Editor() {
     new EditorStorage;
     GuiEngine::get_instance()->add_gui(new EditorGUI);
     terrain_editor.init();
+    asset_viewer.init();
 }
 
 void Editor::set_last_open(std::string &path) {
