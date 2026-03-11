@@ -33,6 +33,12 @@ class EditorTerrain : public Resource {
         Ref<TerrainInstanceData> get_instances(){
             return instances;
         }
+        u32 get_width(){
+            return width;
+        }
+        u32 get_height(){
+            return depth;
+        }
         ~EditorTerrain();
 };
 }  // namespace Seed

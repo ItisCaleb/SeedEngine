@@ -9,9 +9,12 @@ class TerrainEditor {
     private:
         Ref<Texture> screen_texture;
         Ref<Texture> screen_depth;
+        Ref<MappableTexture> picking_texture;
         Camera camera;
         Ref<EditorTerrain> current_terrain;
         TerrainEditorRenderer *renderer;
+        u32 screen_width = 1024;
+        u32 screen_height = 768;
 
     public:
         void init();

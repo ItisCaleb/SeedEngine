@@ -47,8 +47,6 @@ int main(int, char **) {
     bool show_demo_window = true;
 
     // ImGui::ShowDemoWindow(&show_demo_window);
-    // GuiEngine::get_instance()->add_gui(new ModelGUI);
-    // GuiEngine::get_instance()->add_gui(new TerrainGUI);
 
     engine->get_world()->add_entity<EditorCamera>();
     ResourceLoader *loader = ResourceLoader::get_instance();

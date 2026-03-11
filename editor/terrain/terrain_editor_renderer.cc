@@ -5,19 +5,17 @@
 
 namespace Seed {
 TerrainEditorRenderer::TerrainEditorRenderer(Ref<Texture> screen_texture,
-                                             Ref<Texture> screen_depth) {
+                                             Ref<Texture> screen_depth, Ref<MappableTexture> picking_texture) {
     this->screen_tex = screen_texture;
     this->screen_depth = screen_depth;
+    this->picking_tex = picking_texture;
 }
 
 void TerrainEditorRenderer::init(Window *window) {
-    picking_tex.create(TextureType::TEXTURE_2D, screen_tex->get_width(),
-                       screen_depth->get_height(), PixelFormat::RGBA16I,
-                       nullptr);
     color_pass.setup(screen_tex, screen_depth, picking_tex);
     visible_ssbo = RHI::alloc_storage_buffer(sizeof(int) * 1024,
                                              UpdateFrequence::PERFRAME);
-    mvp = RHI::alloc_constant(sizeof(Mat4) * 2, UpdateFrequence::PERFRAME);
+    camera = RHI::alloc_constant(sizeof(Mat4) * 2, UpdateFrequence::PERFRAME);
 
     terrain_ssbo = RenderEngine::get_instance()
                        ->get_instance_pool(TERRAIN_POOL_NAME)
@@ -40,11 +38,10 @@ void TerrainEditorRenderer::preprocess() {
         return;
     }
     Camera *cam = &SeedEngine::get_instance()->get_world()->get_camera();
-    Mat4 *matrices = (Mat4 *)RHI::alloc_heap(sizeof(Mat4) * 2);
+    Camera::ShaderCamera *matrices = (Camera::ShaderCamera*)RHI::alloc_heap(sizeof(Camera::ShaderCamera));
 
-    matrices[0] = cam->projection_zero();
-    matrices[1] = cam->look_at();
-    RHI::update_from_heap(mvp, 0, sizeof(Mat4) * 2, matrices);
+    cam->fill_shader_camera(matrices);
+    RHI::update_from_heap(camera, 0, sizeof(Camera::ShaderCamera), matrices);
     const Frustum &cam_frustum = cam->get_frustum();
 
     /* Use instancing */
@@ -60,7 +57,7 @@ void TerrainEditorRenderer::_process(RenderCommandDispatcher &dp) {
     RenderStateDataBuilder builder;
     builder.bind_storage_buffer(visible_ssbo, 0);
     builder.bind_storage_buffer(terrain_ssbo, 2);
-    builder.bind_constant(mvp, 9);
+    builder.bind_constant(camera, 8);
     dp.set_states(builder);
     color_pass.draw(dp, fd);
 }

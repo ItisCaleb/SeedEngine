@@ -13,7 +13,7 @@ void Input::on_mouse_move(
     this->drag_func = cb;
 }
 
-void mouse_click(MouseEvent e) {}
+void Input::mouse_click(MouseEvent e) {}
 
 bool Input::is_mouse_clicked(MouseEvent e) { return mouse_pressed.count(e); }
 
