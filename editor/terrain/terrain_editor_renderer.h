@@ -19,7 +19,7 @@ class TerrainEditorRenderer : public Renderer {
         Ref<Texture> screen_depth;
         SSBOHandle visible_ssbo;
         SSBOHandle terrain_ssbo;
-        ConstantHandle mvp;
+        ConstantHandle camera;
 
         class ColorPass : public RenderPass<FrameData> {
             public:
@@ -42,7 +42,7 @@ class TerrainEditorRenderer : public Renderer {
 
     public:
         TerrainEditorRenderer(Ref<Texture> screen_texture,
-                              Ref<Texture> screen_depth);
+                              Ref<Texture> screen_depth, Ref<MappableTexture> picking_texture);
         void init(Window *window) override;
         void preprocess() override;
         void _process(RenderCommandDispatcher &dp) override;
