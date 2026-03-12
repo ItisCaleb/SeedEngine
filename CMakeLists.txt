@@ -19,6 +19,7 @@ add_library(seed STATIC)
 
 target_include_directories(seed PUBLIC .)
 
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -44,6 +45,7 @@ find_package(Vulkan REQUIRED)
 find_package(volk CONFIG REQUIRED)
 find_package(slang CONFIG REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+find_package(OpenXR CONFIG REQUIRED)
 set_target_properties(Jolt::Jolt PROPERTIES CPP_RTTI_ENABLED ON)
 
 target_link_libraries(seed PUBLIC 
@@ -63,6 +65,16 @@ target_link_libraries(seed PUBLIC
     slang::slang
     GPUOpen::VulkanMemoryAllocator
 )
+
+
+if(BUILD_XR)
+    add_library(seed_xr STATIC)
+    target_link_libraries(seed_xr PUBLIC 
+        OpenXR::headers
+        OpenXR::openxr_loader)
+    target_include_directories(seed_xr PUBLIC .)
+    target_link_libraries(seed PUBLIC seed_xr)
+endif()
 target_compile_definitions(seed PRIVATE
         $<$<CONFIG:Debug>:VULKAN_DEBUG>
 

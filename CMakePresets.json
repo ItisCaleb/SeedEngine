@@ -19,6 +19,13 @@
         }
       },
       {
+        "name": "xr",
+        "inherits": ["default"],
+        "cacheVariables": {
+          "BUILD_XR": true
+        }
+      },
+      {
         "name": "install",
         "inherits": ["default"],
         "cacheVariables": {
@@ -39,6 +46,12 @@
         "configurePreset": "default",
         "jobs": 4,
         "targets":["seed", "app"]
+      },
+      {
+        "name": "xr",
+        "configurePreset": "xr",
+        "jobs": 4,
+        "targets":["seed_xr", "seed", "app"]
       },
       {
         "name": "editor",

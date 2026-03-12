@@ -4,6 +4,7 @@
     "fmt",
     "glad",
     "glfw3",
+    "openxr-loader",
     {
       "name": "imgui",
       "features": [

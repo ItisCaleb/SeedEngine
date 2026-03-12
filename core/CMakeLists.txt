@@ -20,3 +20,7 @@ add_subdirectory(debug)
 add_subdirectory(physic)
 add_subdirectory(misc)
 add_subdirectory(io)
+
+if(BUILD_XR)
+    add_subdirectory(xr)
+endif()

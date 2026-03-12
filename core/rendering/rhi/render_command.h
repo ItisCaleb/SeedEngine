@@ -3,9 +3,7 @@
 #include "render_resource.h"
 #include "core/rendering/vertex_data.h"
 #include "core/rendering/vertex_layout.h"
-#include "core/resource/material.h"
 #include "core/rendering/render_common.h"
-#include "core/collision/shape.h"
 #include "core/rendering/viewport.h"
 #include <queue>
 #include <stack>
@@ -247,6 +245,7 @@ struct RenderStreamData {
         }
 };
 
+class Material;
 class RenderCommandQueue;
 class RenderCommandDispatcher {
         friend RenderDrawDataBuilder;
