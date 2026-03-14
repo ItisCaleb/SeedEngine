@@ -83,6 +83,15 @@ class VulkanHelper {
             VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
             VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
             VK_PRIMITIVE_TOPOLOGY_POINT_LIST, VK_PRIMITIVE_TOPOLOGY_PATCH_LIST};
+        inline static VkSampleCountFlagBits sample_bit[] = {
+            VK_SAMPLE_COUNT_1_BIT,
+            VK_SAMPLE_COUNT_2_BIT,
+            VK_SAMPLE_COUNT_4_BIT,
+            VK_SAMPLE_COUNT_8_BIT,
+            VK_SAMPLE_COUNT_16_BIT,
+            VK_SAMPLE_COUNT_32_BIT,
+            VK_SAMPLE_COUNT_64_BIT,
+        };
 
     public:
         inline static VkPipelineRasterizationStateCreateInfo rasterizer(
@@ -189,7 +198,6 @@ class VulkanHelper {
             }
             return format;
         };
-
 
         inline static void vertex_layout(
             VertexLayout *layout, u32 binding,
@@ -319,6 +327,10 @@ class VulkanHelper {
 
         inline static VkCompareOp compare(CompareOP op) {
             return compare_op[(u8)op];
+        }
+
+        inline static VkSampleCountFlagBits sample_count(MSAAType type) {
+            return sample_bit[(u8)type];
         }
 };
 }  // namespace Seed

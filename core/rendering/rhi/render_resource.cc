@@ -34,10 +34,10 @@ ConstantHandle alloc_constant(u32 size, UpdateFrequence frequence, void *data) {
         size, data, frequence);
 }
 
-TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
+TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format, MSAAType msaa_type,
                             const void *data, const SamplerProperty &property) {
     return RenderEngine::get_instance()->get_device()->alloc_texture(
-        type, w, h, format, property, data);
+        type, w, h, format, msaa_type, property, data);
 }
 
 TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h, PixelFormat format,

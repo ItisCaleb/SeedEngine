@@ -28,7 +28,10 @@ class Texture : public Resource {
                 const u8 *image_data);
         Texture(TextureType type, u32 w, u32 h, PixelFormat format,
                 const u8 *image_data, const SamplerProperty &property);
-        
+        Texture(TextureType type, u32 w, u32 h, PixelFormat format,
+                MSAAType msaa_type, const u8 *image_data,
+                const SamplerProperty &property);
+
         ~Texture();
 };
 }  // namespace Seed

@@ -35,9 +35,11 @@ void DefaultRenderer::init(Window *window) {
     u32 res_w = window->get_width();
     u32 res_h = window->get_height();
     Ref<Texture> color_tex(TextureType::TEXTURE_2D, res_w, res_h,
-                           PixelFormat::RGBA16F, nullptr);
+                           PixelFormat::RGBA16F, MSAAType::SAMPLE_COUNT_4,
+                           nullptr, SamplerProperty{});
     Ref<Texture> depth_tex(
-        TextureType::TEXTURE_2D, res_w, res_h, PixelFormat::D32S8, nullptr,
+        TextureType::TEXTURE_2D, res_w, res_h, PixelFormat::D32S8,
+        MSAAType::SAMPLE_COUNT_4, nullptr,
         SamplerProperty{.min_filter = SamplerFilter::NEAREST,
                         .mag_filter = SamplerFilter::NEAREST});
 
@@ -142,7 +144,7 @@ void DefaultRenderer::prepare_meshes() {
         AABB bounding_box = mesh->get_bounding_box();
 
         /* check instance mesh size > 0 */
-        if (!instance.is_null() && instance->size() == 0) {
+        if (instance.is_null() || instance->size() == 0) {
             continue;
         }
 
@@ -154,24 +156,23 @@ void DefaultRenderer::prepare_meshes() {
             color_mesh = &this->fd.opaque_meshes.emplace_back(
                 MeshInstance{.mesh = mesh});
         }
-        ShadowMeshInstance &shadow_mesh = this->fd.shadow_meshes.emplace_back(
-            ShadowMeshInstance{.mesh = mesh});
 
         const Frustum &cam_frustum = cam.get_frustum();
-        if (!instance.is_null()) {
-            /* Use instancing */
+        if (uploaded_instance.find(instance.ptr()) == uploaded_instance.end()) {
+            uploaded_instance.insert(instance.ptr());
+            instance->upload();
+        }
+        color_mesh->visible_offset = visible_instances.size();
+        instance->frustum_culling(cam_frustum, bounding_box, visible_instances,
+                                  color_mesh->depth);
+        color_mesh->visible_size =
+            visible_instances.size() - color_mesh->visible_offset;
 
-            if (uploaded_instance.find(instance.ptr()) ==
-                uploaded_instance.end()) {
-                uploaded_instance.insert(instance.ptr());
-                instance->upload();
-            }
-            color_mesh->visible_offset = visible_instances.size();
-            instance->frustum_culling(cam_frustum, bounding_box,
-                                      visible_instances, color_mesh->depth);
-            color_mesh->visible_size =
-                visible_instances.size() - color_mesh->visible_offset;
-            u32 last_size = 0;
+        /* check mesh cast shadow */
+        if (mesh->get_material()->do_cast_shadow()) {
+            ShadowMeshInstance &shadow_mesh =
+                this->fd.shadow_meshes.emplace_back(
+                    ShadowMeshInstance{.mesh = mesh});
             for (u32 i = 0; i < CSM_SPLITS; i++) {
                 shadow_mesh.visible_offset.push_back(visible_instances.size());
                 instance->frustum_culling(dir_light.get_frustum(i),
@@ -300,9 +301,11 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
             DepthMode depth_mode = material->get_depth_state().depth_mode;
             if (last_material != material) {
                 mesh_builder = dp.generate_render_data(material);
-                mesh_builder.bind_texture(
-                    material->get_texture_count(),
-                    fd.shadow_map.get_texture()->get_handle());
+                if (material->do_receive_shadow()) {
+                    mesh_builder.bind_texture(
+                        material->get_texture_count(),
+                        fd.shadow_map.get_texture()->get_handle());
+                }
                 last_material = material;
             }
             mesh_builder.push_constant(mesh.visible_offset);

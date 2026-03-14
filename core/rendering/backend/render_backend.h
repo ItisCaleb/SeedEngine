@@ -30,9 +30,12 @@ enum class RenderBackendType { OPENGL, VULKAN };
 
 class RenderBackend {
     protected:
-        RenderCommandQueue cmd_queue[2];
-        std::atomic<int> current_queue = 0;
-        std::shared_mutex queue_lock;
+        inline static const u32 FRAMES_IN_FLIGHT = 3;
+        RenderCommandQueue cmd_queue[FRAMES_IN_FLIGHT];
+        std::atomic<int> current_frame = 0;
+        u32 get_current_frame_index() {
+            return current_frame % FRAMES_IN_FLIGHT;
+        }
 
     public:
         RenderBackend() = default;
@@ -40,6 +43,7 @@ class RenderBackend {
         virtual RenderBackendType get_type() = 0;
         virtual TextureHandle alloc_texture(TextureType type, u32 w, u32 h,
                                             PixelFormat format,
+                                            MSAAType msaa_type,
                                             const SamplerProperty &property,
                                             const void *data) = 0;
         virtual TextureHandle alloc_mappable_texture(

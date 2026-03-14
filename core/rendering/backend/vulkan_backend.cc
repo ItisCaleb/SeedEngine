@@ -81,8 +81,9 @@ RenderBackendVK::RenderBackendVK(Window *window) {
         this->alloc_storage_buffer(1, nullptr, UpdateFrequence::PERFRAME);
     u8 *data = (u8 *)malloc(1);
     data[0] = 0;
-    dummy_texture = this->alloc_texture(TextureType::TEXTURE_2D, 1, 1,
-                                        PixelFormat::R, {}, data);
+    dummy_texture =
+        this->alloc_texture(TextureType::TEXTURE_2D, 1, 1, PixelFormat::R,
+                            MSAAType::SAMPLE_COUNT_1, {}, data);
 }
 
 RenderBackendVK::~RenderBackendVK() {
@@ -451,9 +452,12 @@ void RenderBackendVK::create_command_buffer() {
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 2;
 
-    if (vkAllocateCommandBuffers(device, &allocInfo, &render_cmd_buffer) !=
-        VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate command buffers!");
+    for (u32 i = 0; i < FRAMES_IN_FLIGHT; i++) {
+        if (vkAllocateCommandBuffers(device, &allocInfo,
+                                     &frames[i].render_cmd_buffer) !=
+            VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate command buffers!");
+        }
     }
 }
 
@@ -496,11 +500,14 @@ void RenderBackendVK::create_sync_objects() {
         swap_chain.semaphore.push_back(semaphore);
     }
 
-    if (vkCreateSemaphore(device, &semaphoreInfo, nullptr,
-                          &image_available_semaphore) != VK_SUCCESS ||
-        vkCreateFence(device, &fenceInfo, nullptr, &in_flight_fence) !=
-            VK_SUCCESS) {
-        throw std::runtime_error("failed to create semaphores!");
+    for (u32 i = 0; i < FRAMES_IN_FLIGHT; i++) {
+        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr,
+                              &frames[i].image_available_semaphore) !=
+                VK_SUCCESS ||
+            vkCreateFence(device, &fenceInfo, nullptr,
+                          &frames[i].in_flight_fence) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create semaphores!");
+        }
     }
 }
 
@@ -686,7 +693,7 @@ void RenderBackendVK::push_buffer_destroy(RenderResourceType type,
                                           VkBuffer buffer,
                                           VmaAllocation allocation,
                                           bool mapped) {
-    this->destroy_queue.push(
+    this->destroy_list.push_back(
         DestroyResource{.type = type,
                         .mapped = mapped,
                         .buffer = {.buffer = buffer, .memory = allocation}});
@@ -727,12 +734,36 @@ void RenderBackendVK::reallocate_buffer(HardwareBufferVk *buffer, u64 size) {
 
 void RenderBackendVK::stream_buffer(HardwareBufferVk *buffer, u64 size,
                                     u64 alignment, void *data) {
+    Frame &frame = frames[get_current_frame_index()];
+    u64 aligned_size = (size + alignment - 1) & ~(alignment - 1);
+
+    if (buffer->tail + aligned_size > buffer->size) {
+        if (aligned_size < buffer->head) {
+            /* check if there is empty space at start */
+            vmaCopyMemoryToAllocation(buffer_allocator, data, buffer->memory, 0,
+                                      size);
+            u64 waste = buffer->size - buffer->tail;
+            buffer->current = 0;
+            buffer->tail = aligned_size;
+            frame.usages.push_back(Frame::StreamBufferUsage{
+                .buffer = buffer, .size = waste + aligned_size});
+            return;
+        } else {
+            /* else reallocate */
+            reallocate_buffer(buffer, (buffer->tail + aligned_size) * 2);
+        }
+    } else if (buffer->head > buffer->tail &&
+               buffer->tail + aligned_size > buffer->head) {
+        /* we append data to end */
+        buffer->tail = buffer->size + buffer->tail;
+        reallocate_buffer(buffer, buffer->size * 2);
+    }
     vmaCopyMemoryToAllocation(buffer_allocator, data, buffer->memory,
-                              buffer->next_offset, size);
-    buffer->last_offset = buffer->next_offset;
-    size = (size + alignment - 1) & ~(alignment - 1);
-    buffer->next_offset += size;
-    streams_to_reset.push(buffer);
+                              buffer->tail, size);
+    buffer->current = buffer->tail;
+    buffer->tail += aligned_size;
+    frame.usages.push_back(
+        Frame::StreamBufferUsage{.buffer = buffer, .size = aligned_size});
 }
 
 VkDescriptorSet RenderBackendVK::get_descriptor_set(
@@ -835,6 +866,8 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
 
 void RenderBackendVK::bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
                                           std::vector<Binding> &bindings) {
+    Frame &frame = frames[get_current_frame_index()];
+
     VkDescriptorSet set =
         get_descriptor_set(shader->set_layouts[binding], bindings);
     std::vector<u32> offsets;
@@ -848,30 +881,33 @@ void RenderBackendVK::bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
                 constant = this->constants.get_or_null(it->handle);
             if (!constant)
                 constant = this->constants.get_or_null(dummy_constant);
-            offsets.push_back(constant->next_offset);
+            offsets.push_back(constant->current);
         } else if (binding.type == ShaderResourceType::SSBO) {
             HardwareBufferVk *storage_buffer = nullptr;
             if (it != bindings.end())
                 storage_buffer = this->ssbos.get_or_null(it->handle);
             if (!storage_buffer)
                 storage_buffer = this->ssbos.get_or_null(dummy_ssbo);
-            offsets.push_back(storage_buffer->next_offset);
+            offsets.push_back(storage_buffer->current);
         }
     }
 
-    vkCmdBindDescriptorSets(render_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            shader->layout, binding, 1, &set, offsets.size(),
-                            offsets.data());
+    vkCmdBindDescriptorSets(frame.render_cmd_buffer,
+                            VK_PIPELINE_BIND_POINT_GRAPHICS, shader->layout,
+                            binding, 1, &set, offsets.size(), offsets.data());
 }
 
 TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
                                              PixelFormat format,
+                                             MSAAType msaa_type,
                                              const SamplerProperty &property,
                                              const void *data) {
     VkImage image;
     VkImageView image_view;
     VkSampler sampler;
     VkImageCreateInfo imageInfo{};
+    VkImage msaa_image = nullptr;
+    VkImageView msaa_view = nullptr;
 
     bool is_depth = VulkanHelper::is_depth(format);
     bool is_stencil = VulkanHelper::is_stencil(format);
@@ -908,6 +944,7 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
     VmaAllocation allocation;
+    VmaAllocation msaa_allocation = nullptr;
     vmaCreateImage(buffer_allocator, &imageInfo, &allocInfo, &image,
                    &allocation, nullptr);
 
@@ -932,15 +969,39 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
         throw std::runtime_error("failed to create texture sampler!");
     }
 
-    TextureHandle handle = this->textures.insert({.w = w,
-                                                  .h = h,
-                                                  .type = type,
-                                                  .format = format,
-                                                  .image = image,
-                                                  .view = image_view,
-                                                  .sampler = sampler,
-                                                  .memory = allocation,
-                                                  .layouts = layouts});
+    if (msaa_type != MSAAType::SAMPLE_COUNT_1) {
+        imageInfo.samples = VulkanHelper::sample_count(msaa_type);
+        imageInfo.mipLevels = 1;
+        if (is_stencil || is_depth) {
+            imageInfo.usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
+                              VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+        } else {
+            imageInfo.usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
+                              VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        }
+        vmaCreateImage(buffer_allocator, &imageInfo, &allocInfo, &msaa_image,
+                       &msaa_allocation, nullptr);
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.image = msaa_image;
+        vkCreateImageView(device, &viewInfo, nullptr, &msaa_view);
+    }
+
+    TextureHandle handle = this->textures.insert({
+        .w = w,
+        .h = h,
+        .type = type,
+        .format = format,
+        .image = image,
+        .view = image_view,
+        .sampler = sampler,
+        .memory = allocation,
+        .sample_count = imageInfo.samples,
+        .msaa_image = msaa_image,
+        .msaa_view = msaa_view,
+        .msaa_memory = msaa_allocation,
+        .layouts = layouts,
+    });
 
     /* upload using staging buffer */
     /* we don't updload cubemap here */
@@ -1283,6 +1344,7 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
     std::vector<VkAttachmentDescription> allAttachments;
     std::vector<VkAttachmentReference> colorRefs;
     VkAttachmentReference depthRef{};
+    std::vector<VkAttachmentReference> resolveRefs;
     u32 i = 0;
 
     if (!render_target->dirty) {
@@ -1311,6 +1373,18 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
 
         allAttachments.push_back(colorAttachment);
 
+        if (render_target->sample_count != VK_SAMPLE_COUNT_1_BIT) {
+            VkAttachmentReference resolveRef;
+            resolveRef.attachment = i;
+            resolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            resolveRefs.push_back(resolveRef);
+            i++;
+
+            /* msaa attachment */
+            colorAttachment.samples = render_target->sample_count;
+            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            allAttachments.push_back(colorAttachment);
+        }
         VkAttachmentReference colorRef;
         colorRef.attachment = i;
         colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1336,7 +1410,18 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
         depthAttachment.finalLayout = depthAttachment.initialLayout;
 
         allAttachments.push_back(depthAttachment);
+        if (render_target->sample_count != VK_SAMPLE_COUNT_1_BIT) {
+            VkAttachmentReference resolveRef;
+            resolveRef.attachment = i;
+            resolveRef.layout = depthAttachment.finalLayout;
+            resolveRefs.push_back(resolveRef);
+            i++;
 
+            /* msaa attachment */
+            depthAttachment.samples = render_target->sample_count;
+            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            allAttachments.push_back(depthAttachment);
+        }
         depthRef.attachment = i;
         depthRef.layout = depthAttachment.finalLayout;
         subpass.pDepthStencilAttachment = &depthRef;
@@ -1345,13 +1430,15 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = colorRefs.size();
     subpass.pColorAttachments = colorRefs.data();
+    subpass.pResolveAttachments = resolveRefs.data();
 
     VkSubpassDependency dependency{};
     dependency.srcSubpass = 0;
     dependency.dstSubpass = 0;
     dependency.srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
     dependency.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-    dependency.srcAccessMask = 0;
+    dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                               VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
     VkRenderPassCreateInfo renderPassInfo{};
@@ -1392,6 +1479,9 @@ void RenderBackendVK::create_framebuffer(HardwareRenderPassVk *render_target) {
         attachments.push_back(texture->view);
         width = std::max(texture->w, framebufferInfo.width);
         height = std::max(texture->h, framebufferInfo.height);
+        if (render_target->sample_count != VK_SAMPLE_COUNT_1_BIT) {
+            attachments.push_back(texture->msaa_view);
+        }
     }
     if (render_target->depth_attachment.texture_handle != NULL_HANDLE) {
         HardwareTextureVk *texture = this->textures.get_or_null(
@@ -1399,6 +1489,9 @@ void RenderBackendVK::create_framebuffer(HardwareRenderPassVk *render_target) {
         attachments.push_back(texture->view);
         width = std::max(texture->w, framebufferInfo.width);
         height = std::max(texture->h, framebufferInfo.height);
+        if (render_target->sample_count != VK_SAMPLE_COUNT_1_BIT) {
+            attachments.push_back(texture->msaa_view);
+        }
     }
     framebufferInfo.width = width;
     framebufferInfo.height = height;
@@ -1425,7 +1518,8 @@ HardwareRenderPassVk *RenderBackendVK::get_current_render_pass() {
 VkPipeline RenderBackendVK::get_vk_pipeline(
     HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
     std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
-    bool draw_depth_only, bool depth_clamp) {
+    VkSampleCountFlagBits sample_count, bool draw_depth_only,
+    bool depth_clamp) {
     Hash _hash;
     _hash.update(&pipeline->rst_state.cull_mode);
     _hash.update(&pipeline->rst_state.poly_mode);
@@ -1440,6 +1534,7 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     _hash.update(&pipeline->blend_attachment.func.src_alpha);
     _hash.update(&pipeline->blend_attachment.func.dst_alpha);
     _hash.update(&primitive);
+    _hash.update(&sample_count);
     _hash.update(&draw_depth_only);
     _hash.update(&depth_clamp);
 
@@ -1455,8 +1550,9 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     VkPipeline vk_pipeline;
     auto iter = pipeline_cache.find(hash);
     if (iter == pipeline_cache.end()) {
-        vk_pipeline = create_vk_pipeline(pipeline, render_target, layouts,
-                                         primitive, draw_depth_only, depth_clamp);
+        vk_pipeline =
+            create_vk_pipeline(pipeline, render_target, layouts, primitive,
+                               sample_count, draw_depth_only, depth_clamp);
         pipeline_cache.emplace(hash, vk_pipeline);
     } else {
         vk_pipeline = iter->second;
@@ -1467,6 +1563,7 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
 void RenderBackendVK::handle_frame_update() {
     std::vector<VkImageMemoryBarrier> transfer_barriers;
     std::vector<VkImageMemoryBarrier> shader_barriers;
+    Frame &frame = frames[get_current_frame_index()];
 
     for (ImageUpdate &copy : image_copy_queue) {
         VkImageMemoryBarrier barrier{};
@@ -1486,10 +1583,10 @@ void RenderBackendVK::handle_frame_update() {
         mappable_image_transition_queue.pop();
     }
 
-    vkCmdPipelineBarrier(render_cmd_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
-                         nullptr, transfer_barriers.size(),
-                         transfer_barriers.data());
+    vkCmdPipelineBarrier(
+        frame.render_cmd_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr,
+        transfer_barriers.size(), transfer_barriers.data());
 
     while (!static_buffer_update_queue.is_empty()) {
         StaticBufferUpdate &copy = static_buffer_update_queue.peek();
@@ -1497,9 +1594,9 @@ void RenderBackendVK::handle_frame_update() {
         _copy.srcOffset = 0;
         _copy.dstOffset = copy.offset;
         _copy.size = copy.size;
-        vkCmdCopyBuffer(render_cmd_buffer, copy.staging_buffer,
+        vkCmdCopyBuffer(frame.render_cmd_buffer, copy.staging_buffer,
                         copy.target_buffer, 1, &_copy);
-        this->destroy_queue.push(
+        this->destroy_list.push_back(
             DestroyResource{.type = RenderResourceType::VERTEX,
                             .mapped = false,
                             .buffer = {.buffer = copy.staging_buffer,
@@ -1534,25 +1631,30 @@ void RenderBackendVK::handle_frame_update() {
 
         _copy.imageOffset = {(i32)copy.offx, (i32)copy.offy, 0};
         _copy.imageExtent = {copy.w, copy.h, 1};
-        vkCmdCopyBufferToImage(render_cmd_buffer, copy.staging_buffer,
+        vkCmdCopyBufferToImage(frame.render_cmd_buffer, copy.staging_buffer,
                                texture->image,
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &_copy);
-        this->destroy_queue.push(
+        this->destroy_list.push_back(
             DestroyResource{.type = RenderResourceType::VERTEX,
                             .mapped = false,
                             .buffer = {.buffer = copy.staging_buffer,
                                        .memory = copy.staging_allocation}});
         image_copy_queue.pop();
     }
-    vkCmdPipelineBarrier(render_cmd_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 0,
-                         nullptr, shader_barriers.size(),
-                         shader_barriers.data());
+    vkCmdPipelineBarrier(
+        frame.render_cmd_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 0, nullptr,
+        shader_barriers.size(), shader_barriers.data());
 }
 
 void RenderBackendVK::handle_destroy() {
-    while (!destroy_queue.is_empty()) {
-        DestroyResource &destroy = destroy_queue.peek();
+    for (auto it = destroy_list.begin(); it != destroy_list.end();) {
+        DestroyResource &destroy = *it;
+        if (destroy.frame_count < FRAMES_IN_FLIGHT) {
+            destroy.frame_count++;
+            it++;
+            continue;
+        }
         switch (destroy.type) {
             case RenderResourceType::VERTEX:
             case RenderResourceType::INDEX:
@@ -1592,7 +1694,7 @@ void RenderBackendVK::handle_destroy() {
             default:
                 break;
         }
-        destroy_queue.pop();
+        it = destroy_list.erase(it);
     }
 }
 
@@ -1618,17 +1720,60 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
     }
     std::vector<VkImageMemoryBarrier> barriers;
     for (HardwareColorAttachmentVk &attachment : rt->color_attachments) {
-        barriers.push_back(create_image_barrier(
-            this->textures.get_or_null(attachment.texture_handle),
-            target_color_layout, 0));
+        HardwareTextureVk *tex =
+            this->textures.get_or_null(attachment.texture_handle);
+        /* we'll only transition msaa for first time*/
+        if (tex->msaa_image != nullptr &&
+            tex->layouts[0] == VK_IMAGE_LAYOUT_UNDEFINED) {
+            VkImageMemoryBarrier msaa_barrier{};
+            msaa_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            msaa_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            msaa_barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            msaa_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            msaa_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            msaa_barrier.image = tex->msaa_image;
+            msaa_barrier.subresourceRange.aspectMask =
+                VulkanHelper::aspect_flag(tex->format);
+            msaa_barrier.subresourceRange.baseMipLevel = 0;
+            msaa_barrier.subresourceRange.levelCount = 1;
+            msaa_barrier.subresourceRange.baseArrayLayer = 0;
+            msaa_barrier.subresourceRange.layerCount = 1;
+            barriers.push_back(msaa_barrier);
+        }
+        barriers.push_back(create_image_barrier(tex, target_color_layout, 0));
     }
     if (rt->depth_attachment.texture_handle != NULL_HANDLE) {
-        barriers.push_back(create_image_barrier(
-            this->textures.get_or_null(rt->depth_attachment.texture_handle),
-            target_depth_layout, 0));
+        HardwareTextureVk *depth_tex =
+            this->textures.get_or_null(rt->depth_attachment.texture_handle);
+        if (depth_tex->msaa_image != nullptr &&
+            depth_tex->layouts[0] == VK_IMAGE_LAYOUT_UNDEFINED) {
+            VkImageMemoryBarrier msaa_barrier{};
+            msaa_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            msaa_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            msaa_barrier.newLayout =
+                (rt->depth_attachment.is_stencil &&
+                 rt->depth_attachment.is_depth)
+                    ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                : rt->depth_attachment.is_depth
+                    ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+                    : VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
+            msaa_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            msaa_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            msaa_barrier.image = depth_tex->msaa_image;
+            msaa_barrier.subresourceRange.aspectMask =
+                VulkanHelper::aspect_flag(depth_tex->format);
+            msaa_barrier.subresourceRange.baseMipLevel = 0;
+            msaa_barrier.subresourceRange.levelCount = 1;
+            msaa_barrier.subresourceRange.baseArrayLayer = 0;
+            msaa_barrier.subresourceRange.layerCount = 1;
+            barriers.push_back(msaa_barrier);
+        }
+        barriers.push_back(
+            create_image_barrier(depth_tex, target_depth_layout, 0));
     }
-
-    vkCmdPipelineBarrier(render_cmd_buffer, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+    Frame &frame = frames[get_current_frame_index()];
+    vkCmdPipelineBarrier(frame.render_cmd_buffer,
+                         VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
                          VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 0,
                          nullptr, barriers.size(), barriers.data());
 }
@@ -1636,7 +1781,8 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
 VkPipeline RenderBackendVK::create_vk_pipeline(
     HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
     std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
-    bool draw_depth_only, bool depth_clamp) {
+    VkSampleCountFlagBits sample_count, bool draw_depth_only,
+    bool depth_clamp) {
     VkPipeline graphicsPipeline;
     HardwareShaderVk *shader = this->shaders.get_or_null(pipeline->shader);
     if (!shader) {
@@ -1698,7 +1844,7 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
     multisampling.sType =
         VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampling.rasterizationSamples = sample_count;
     multisampling.minSampleShading = 1.0f;           // Optional
     multisampling.pSampleMask = nullptr;             // Optional
     multisampling.alphaToCoverageEnable = VK_FALSE;  // Optional
@@ -1860,6 +2006,8 @@ void RenderBackendVK::bind_depth_attachment(RenderPassHandle handle,
     EXPECT_NOT_NULL_RET(rt);
     HardwareTextureVk *tex = this->textures.get_or_null(texture);
     EXPECT_NOT_NULL_RET(tex);
+    /* TODO: check all attachment is same sample count */
+    rt->sample_count = tex->sample_count;
     VkFormat format = VulkanHelper::texture_format(tex->format);
     rt->depth_attachment = HardwareDepthStencilAttachmentVk{
         .is_depth = VulkanHelper::is_depth(tex->format),
@@ -1875,6 +2023,8 @@ void RenderBackendVK::bind_color_attachment(RenderPassHandle handle, u8 slot,
     HardwareTextureVk *tex = this->textures.get_or_null(texture);
     EXPECT_NOT_NULL_RET(tex);
     VkFormat format = VulkanHelper::texture_format(tex->format);
+    /* TODO: check all attachment is same sample count */
+    rt->sample_count = tex->sample_count;
     /* we'll replace same slot or replace depth attachment */
     bool flag = false;
     for (u32 i = 0; i < rt->color_attachments.size(); i++) {
@@ -1932,7 +2082,7 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
         case RenderResourceType::TEXTURE:
             _tex = this->textures.get_or_null(handle);
             EXPECT_NOT_NULL_RET(_tex);
-            this->destroy_queue.push(
+            this->destroy_list.push_back(
                 DestroyResource{.type = type,
                                 .mapped = (_tex->mapped_ptr != nullptr),
                                 .texture = {.image = _tex->image,
@@ -1947,14 +2097,14 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
         case RenderResourceType::SHADER:
             _shader = this->shaders.get_or_null(handle);
             EXPECT_NOT_NULL_RET(_shader);
-            this->destroy_queue.push(DestroyResource{
+            this->destroy_list.push_back(DestroyResource{
                 .type = type, .shader = {.layout = _shader->layout}});
             this->shaders.remove(handle);
             break;
         case RenderResourceType::RENDER_TARGET:
             _rt = this->render_pass.get_or_null(handle);
             EXPECT_NOT_NULL_RET(_rt);
-            this->destroy_queue.push(DestroyResource{
+            this->destroy_list.push_back(DestroyResource{
                 .type = type,
                 .render_target = {.render_pass = _rt->render_pass_cache,
                                   .framebuffer = _rt->framebuffer_cache}});
@@ -1966,13 +2116,15 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
 }
 
 void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
-    vkWaitForFences(device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX);
+    Frame &frame = frames[get_current_frame_index()];
+
+    vkWaitForFences(device, 1, &frame.in_flight_fence, VK_TRUE, UINT64_MAX);
     // VmaTotalStatistics stats;
     // vmaCalculateStatistics(buffer_allocator, &stats);
     // spdlog::debug("VMA usage total : {} bytes",
     // stats.total.statistics.allocationBytes);
     VkResult result = vkAcquireNextImageKHR(
-        device, swap_chain.chain, UINT64_MAX, image_available_semaphore,
+        device, swap_chain.chain, UINT64_MAX, frame.image_available_semaphore,
         VK_NULL_HANDLE, &swap_chain.next_index);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         recreate_swapchain(current_window);
@@ -1980,17 +2132,23 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         throw std::runtime_error("failed to acquire swap chain image!");
     }
-    vkResetFences(device, 1, &in_flight_fence);
+    vkResetFences(device, 1, &frame.in_flight_fence);
 
-    vkResetCommandBuffer(render_cmd_buffer, 0);
-    // handle_destroy();
+    vkResetCommandBuffer(frame.render_cmd_buffer, 0);
+    handle_destroy();
+    for (Frame::StreamBufferUsage &usage : frame.usages) {
+        usage.buffer->head += usage.size;
+        usage.buffer->head %= usage.buffer->size;
+    }
+    frame.usages.clear();
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = 0;                   // Optional
     beginInfo.pInheritanceInfo = nullptr;  // Optional
 
-    if (vkBeginCommandBuffer(render_cmd_buffer, &beginInfo) != VK_SUCCESS) {
+    if (vkBeginCommandBuffer(frame.render_cmd_buffer, &beginInfo) !=
+        VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording command buffer!");
     }
     handle_frame_update();
@@ -2011,7 +2169,7 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     renderPassInfo.renderArea.extent =
         VkExtent2D{.width = rt->w, .height = rt->h};
 
-    vkCmdBeginRenderPass(render_cmd_buffer, &renderPassInfo,
+    vkCmdBeginRenderPass(frame.render_cmd_buffer, &renderPassInfo,
                          VK_SUBPASS_CONTENTS_INLINE);
 
     while (!cmd_queue.empty()) {
@@ -2038,17 +2196,17 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         }
         cmd_queue.pop_front();
     }
-    vkCmdEndRenderPass(render_cmd_buffer);
-    vkEndCommandBuffer(render_cmd_buffer);
+    vkCmdEndRenderPass(frame.render_cmd_buffer);
+    vkEndCommandBuffer(frame.render_cmd_buffer);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = {image_available_semaphore};
+    VkSemaphore waitSemaphores[] = {frame.image_available_semaphore};
     VkPipelineStageFlags waitStages[] = {
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkCommandBuffer commandBuffers[] = {
-        render_cmd_buffer,
+        frame.render_cmd_buffer,
     };
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
@@ -2059,15 +2217,9 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &swap_chain.semaphore[swap_chain.next_index];
 
-    if (vkQueueSubmit(graphics_queue, 1, &submitInfo, in_flight_fence) !=
+    if (vkQueueSubmit(graphics_queue, 1, &submitInfo, frame.in_flight_fence) !=
         VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
-    }
-    while (!this->streams_to_reset.is_empty()) {
-        HardwareBufferVk *buffer = this->streams_to_reset.peek();
-        this->streams_to_reset.pop();
-        buffer->next_offset = 0;
-        buffer->last_offset = 0;
     }
 }
 
@@ -2157,6 +2309,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
     Handle target_rt_handle;
     std::vector<Binding> bindings;
     VkClearRect clear_rect{};
+    Frame &frame = frames[get_current_frame_index()];
 
     for (i32 i = 0; i < state_data->operation_cnt; i++) {
         auto *op = &head[i];
@@ -2248,7 +2401,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
 
     if (target_rp) {
         /* end old render pass */
-        vkCmdEndRenderPass(render_cmd_buffer);
+        vkCmdEndRenderPass(frame.render_cmd_buffer);
         transition_render_pass(get_current_render_pass(), false);
         current_render_target = target_rt_handle;
         transition_render_pass(get_current_render_pass(), true);
@@ -2267,7 +2420,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
         renderPassInfo.renderArea.extent =
             VkExtent2D{.width = target_rp->w, .height = target_rp->h};
 
-        vkCmdBeginRenderPass(render_cmd_buffer, &renderPassInfo,
+        vkCmdBeginRenderPass(frame.render_cmd_buffer, &renderPassInfo,
                              VK_SUBPASS_CONTENTS_INLINE);
     }
     HardwareRenderPassVk *rt = get_current_render_pass();
@@ -2278,23 +2431,24 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
     clear_rect.layerCount = 1;
     if (scissor_set) {
         clear_rect.rect = scissor_rect;
-        vkCmdSetScissor(render_cmd_buffer, 0, 1, &scissor_rect);
+        vkCmdSetScissor(frame.render_cmd_buffer, 0, 1, &scissor_rect);
     }
     if (viewport_set && viewport_rect.width > 0 && viewport_rect.height > 0) {
         if (current_render_target == -1) {
             viewport_rect.y = rt->h - viewport_rect.y;
             viewport_rect.height = -viewport_rect.height;
         }
-        vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
+        vkCmdSetViewport(frame.render_cmd_buffer, 0, 1, &viewport_rect);
     }
     if (!attachments.empty() && clear_rect.rect.extent.width > 0 &&
         clear_rect.rect.extent.height > 0) {
-        vkCmdClearAttachments(render_cmd_buffer, attachments.size(),
+        vkCmdClearAttachments(frame.render_cmd_buffer, attachments.size(),
                               attachments.data(), 1, &clear_rect);
     }
 }
 
 void RenderBackendVK::handle_render(RenderCommand &cmd) {
+    Frame &frame = frames[get_current_frame_index()];
     RenderDrawData *draw_data = static_cast<RenderDrawData *>(cmd.data);
     RenderDrawData::Operation *head =
         (RenderDrawData::Operation *)(((u64)draw_data) +
@@ -2320,7 +2474,7 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                 HardwareBufferVk *_vertex =
                     this->vertices.get_or_null(op->vertex_handle);
                 vertex.push_back(_vertex->buffer);
-                vertex_offsets.push_back(_vertex->last_offset);
+                vertex_offsets.push_back(_vertex->current);
                 break;
             }
             case RenderDrawData::OpType::BIND_INDEX: {
@@ -2368,7 +2522,8 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                     viewport_rect.height = -viewport_rect.height;
                 }
                 if (viewport_rect.width > 0 && viewport_rect.height > 0) {
-                    vkCmdSetViewport(render_cmd_buffer, 0, 1, &viewport_rect);
+                    vkCmdSetViewport(frame.render_cmd_buffer, 0, 1,
+                                     &viewport_rect);
                 }
                 break;
             }
@@ -2378,11 +2533,11 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                 scissor_rect.offset.y = op->scissor_rect.y;
                 scissor_rect.extent.width = op->scissor_rect.w;
                 scissor_rect.extent.height = op->scissor_rect.h;
-                vkCmdSetScissor(render_cmd_buffer, 0, 1, &scissor_rect);
+                vkCmdSetScissor(frame.render_cmd_buffer, 0, 1, &scissor_rect);
                 break;
             }
             case RenderDrawData::OpType::PUSH_CONSTANT: {
-                vkCmdPushConstants(render_cmd_buffer, shader->layout,
+                vkCmdPushConstants(frame.render_cmd_buffer, shader->layout,
                                    VK_SHADER_STAGE_ALL_GRAPHICS,
                                    push_constant_offset, op->push_constant.size,
                                    op->push_constant.data);
@@ -2404,34 +2559,34 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
     VkPrimitiveTopology primitive = VulkanHelper::primitive(draw_data->type);
 
     VkPipeline vk_pipeline =
-        get_vk_pipeline(pipeline, rt, layouts, primitive,
+        get_vk_pipeline(pipeline, rt, layouts, primitive, rt->sample_count,
                         draw_data->draw_depth_only, draw_data->depth_clamp);
 
-    vkCmdBindPipeline(render_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindPipeline(frame.render_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                       vk_pipeline);
-    vkCmdSetDepthWriteEnable(render_cmd_buffer, draw_data->depth_write);
+    vkCmdSetDepthWriteEnable(frame.render_cmd_buffer, draw_data->depth_write);
     if (draw_data->depth_test_op == CompareOP::NEVER) {
-        vkCmdSetDepthTestEnable(render_cmd_buffer, false);
+        vkCmdSetDepthTestEnable(frame.render_cmd_buffer, false);
     } else {
-        vkCmdSetDepthTestEnable(render_cmd_buffer, true);
-        vkCmdSetDepthCompareOp(render_cmd_buffer,
+        vkCmdSetDepthTestEnable(frame.render_cmd_buffer, true);
+        vkCmdSetDepthCompareOp(frame.render_cmd_buffer,
                                VulkanHelper::compare(draw_data->depth_test_op));
     }
 
-    vkCmdBindVertexBuffers(render_cmd_buffer, 0, vertex.size(), vertex.data(),
-                           vertex_offsets.data());
-    vkCmdSetPrimitiveTopology(render_cmd_buffer, primitive);
+    vkCmdBindVertexBuffers(frame.render_cmd_buffer, 0, vertex.size(),
+                           vertex.data(), vertex_offsets.data());
+    vkCmdSetPrimitiveTopology(frame.render_cmd_buffer, primitive);
     draw_data->instance_cnt =
         draw_data->instance_cnt < 1 ? 1 : draw_data->instance_cnt;
     if (index) {
-        vkCmdBindIndexBuffer(render_cmd_buffer, index->buffer,
-                             index->last_offset,
+        vkCmdBindIndexBuffer(frame.render_cmd_buffer, index->buffer,
+                             index->current,
                              VulkanHelper::index_type(index->type));
-        vkCmdDrawIndexed(render_cmd_buffer, draw_data->vertex_cnt,
+        vkCmdDrawIndexed(frame.render_cmd_buffer, draw_data->vertex_cnt,
                          draw_data->instance_cnt, draw_data->index_offset,
                          draw_data->vertex_offset, draw_data->instance_offset);
     } else {
-        vkCmdDraw(render_cmd_buffer, draw_data->vertex_cnt,
+        vkCmdDraw(frame.render_cmd_buffer, draw_data->vertex_cnt,
                   draw_data->instance_cnt, draw_data->vertex_offset,
                   draw_data->instance_offset);
     }
