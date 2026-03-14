@@ -35,9 +35,11 @@ void DefaultRenderer::init(Window *window) {
     u32 res_w = window->get_width();
     u32 res_h = window->get_height();
     Ref<Texture> color_tex(TextureType::TEXTURE_2D, res_w, res_h,
-                           PixelFormat::RGBA16F, nullptr);
+                           PixelFormat::RGBA16F, MSAAType::SAMPLE_COUNT_4,
+                           nullptr, SamplerProperty{});
     Ref<Texture> depth_tex(
-        TextureType::TEXTURE_2D, res_w, res_h, PixelFormat::D32S8, nullptr,
+        TextureType::TEXTURE_2D, res_w, res_h, PixelFormat::D32S8,
+        MSAAType::SAMPLE_COUNT_4, nullptr,
         SamplerProperty{.min_filter = SamplerFilter::NEAREST,
                         .mag_filter = SamplerFilter::NEAREST});
 

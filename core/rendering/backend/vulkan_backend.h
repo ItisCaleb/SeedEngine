@@ -44,6 +44,10 @@ struct HardwareTextureVk {
         VkImageView view;
         VkSampler sampler;
         VmaAllocation memory;
+        VkSampleCountFlagBits sample_count;
+        VkImage msaa_image;
+        VkImageView msaa_view;
+        VmaAllocation msaa_memory;
         std::vector<VkImageLayout> layouts;
         void *mapped_ptr = nullptr;
 };
@@ -86,6 +90,7 @@ struct HardwareColorAttachmentVk {
 struct HardwareRenderPassVk {
         std::vector<HardwareColorAttachmentVk> color_attachments;
         HardwareDepthStencilAttachmentVk depth_attachment;
+        VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         bool dirty = true;
         bool texture_changed = true;
         bool is_swapchain = false;
@@ -122,7 +127,7 @@ class RenderBackendVK : public RenderBackend {
                 VkCommandBuffer render_cmd_buffer;
                 VkSemaphore image_available_semaphore;
                 VkFence in_flight_fence;
-                struct StreamBufferUsage{
+                struct StreamBufferUsage {
                         HardwareBufferVk *buffer;
                         u64 size;
                 };
@@ -203,7 +208,6 @@ class RenderBackendVK : public RenderBackend {
         RingBuffer<ImageUpdate> image_copy_queue;
         RingBuffer<TextureHandle> mappable_image_transition_queue;
 
-
         std::unordered_map<u64, VkPipeline> pipeline_cache;
         std::unordered_map<u64, DescriptorSetLayout> descriptor_layout_cache;
         std::unordered_map<u64, VkDescriptorSet> descriptor_set_cache;
@@ -261,11 +265,13 @@ class RenderBackendVK : public RenderBackend {
                                       HardwareRenderPassVk *render_target,
                                       std::vector<VertexLayout *> &layouts,
                                       VkPrimitiveTopology primitive,
+                                      VkSampleCountFlagBits sample_count,
                                       bool draw_depth_only, bool depth_clamp);
         VkPipeline get_vk_pipeline(HardwarePipelineVk *pipeline,
                                    HardwareRenderPassVk *render_target,
                                    std::vector<VertexLayout *> &layouts,
                                    VkPrimitiveTopology primitive,
+                                   VkSampleCountFlagBits sample_count,
                                    bool draw_depth_only, bool depth_clamp);
         void create_render_pass(HardwareRenderPassVk *render_target,
                                 bool is_swapchain);
@@ -300,7 +306,7 @@ class RenderBackendVK : public RenderBackend {
         }
         /* we defer the allocation to allow multithreading. */
         TextureHandle alloc_texture(TextureType type, u32 w, u32 h,
-                                    PixelFormat format,
+                                    PixelFormat format, MSAAType msaa_type,
                                     const SamplerProperty &property,
                                     const void *data) override;
         TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,

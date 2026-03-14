@@ -81,8 +81,9 @@ RenderBackendVK::RenderBackendVK(Window *window) {
         this->alloc_storage_buffer(1, nullptr, UpdateFrequence::PERFRAME);
     u8 *data = (u8 *)malloc(1);
     data[0] = 0;
-    dummy_texture = this->alloc_texture(TextureType::TEXTURE_2D, 1, 1,
-                                        PixelFormat::R, {}, data);
+    dummy_texture =
+        this->alloc_texture(TextureType::TEXTURE_2D, 1, 1, PixelFormat::R,
+                            MSAAType::SAMPLE_COUNT_1, {}, data);
 }
 
 RenderBackendVK::~RenderBackendVK() {
@@ -898,12 +899,15 @@ void RenderBackendVK::bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
 
 TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
                                              PixelFormat format,
+                                             MSAAType msaa_type,
                                              const SamplerProperty &property,
                                              const void *data) {
     VkImage image;
     VkImageView image_view;
     VkSampler sampler;
     VkImageCreateInfo imageInfo{};
+    VkImage msaa_image = nullptr;
+    VkImageView msaa_view = nullptr;
 
     bool is_depth = VulkanHelper::is_depth(format);
     bool is_stencil = VulkanHelper::is_stencil(format);
@@ -940,6 +944,7 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
     VmaAllocation allocation;
+    VmaAllocation msaa_allocation = nullptr;
     vmaCreateImage(buffer_allocator, &imageInfo, &allocInfo, &image,
                    &allocation, nullptr);
 
@@ -964,15 +969,39 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
         throw std::runtime_error("failed to create texture sampler!");
     }
 
-    TextureHandle handle = this->textures.insert({.w = w,
-                                                  .h = h,
-                                                  .type = type,
-                                                  .format = format,
-                                                  .image = image,
-                                                  .view = image_view,
-                                                  .sampler = sampler,
-                                                  .memory = allocation,
-                                                  .layouts = layouts});
+    if (msaa_type != MSAAType::SAMPLE_COUNT_1) {
+        imageInfo.samples = VulkanHelper::sample_count(msaa_type);
+        imageInfo.mipLevels = 1;
+        if (is_stencil || is_depth) {
+            imageInfo.usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
+                              VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+        } else {
+            imageInfo.usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
+                              VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        }
+        vmaCreateImage(buffer_allocator, &imageInfo, &allocInfo, &msaa_image,
+                       &msaa_allocation, nullptr);
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.image = msaa_image;
+        vkCreateImageView(device, &viewInfo, nullptr, &msaa_view);
+    }
+
+    TextureHandle handle = this->textures.insert({
+        .w = w,
+        .h = h,
+        .type = type,
+        .format = format,
+        .image = image,
+        .view = image_view,
+        .sampler = sampler,
+        .memory = allocation,
+        .sample_count = imageInfo.samples,
+        .msaa_image = msaa_image,
+        .msaa_view = msaa_view,
+        .msaa_memory = msaa_allocation,
+        .layouts = layouts,
+    });
 
     /* upload using staging buffer */
     /* we don't updload cubemap here */
@@ -1315,6 +1344,7 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
     std::vector<VkAttachmentDescription> allAttachments;
     std::vector<VkAttachmentReference> colorRefs;
     VkAttachmentReference depthRef{};
+    std::vector<VkAttachmentReference> resolveRefs;
     u32 i = 0;
 
     if (!render_target->dirty) {
@@ -1343,6 +1373,18 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
 
         allAttachments.push_back(colorAttachment);
 
+        if (render_target->sample_count != VK_SAMPLE_COUNT_1_BIT) {
+            VkAttachmentReference resolveRef;
+            resolveRef.attachment = i;
+            resolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            resolveRefs.push_back(resolveRef);
+            i++;
+
+            /* msaa attachment */
+            colorAttachment.samples = render_target->sample_count;
+            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            allAttachments.push_back(colorAttachment);
+        }
         VkAttachmentReference colorRef;
         colorRef.attachment = i;
         colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1368,7 +1410,18 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
         depthAttachment.finalLayout = depthAttachment.initialLayout;
 
         allAttachments.push_back(depthAttachment);
+        if (render_target->sample_count != VK_SAMPLE_COUNT_1_BIT) {
+            VkAttachmentReference resolveRef;
+            resolveRef.attachment = i;
+            resolveRef.layout = depthAttachment.finalLayout;
+            resolveRefs.push_back(resolveRef);
+            i++;
 
+            /* msaa attachment */
+            depthAttachment.samples = render_target->sample_count;
+            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            allAttachments.push_back(depthAttachment);
+        }
         depthRef.attachment = i;
         depthRef.layout = depthAttachment.finalLayout;
         subpass.pDepthStencilAttachment = &depthRef;
@@ -1377,13 +1430,15 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = colorRefs.size();
     subpass.pColorAttachments = colorRefs.data();
+    subpass.pResolveAttachments = resolveRefs.data();
 
     VkSubpassDependency dependency{};
     dependency.srcSubpass = 0;
     dependency.dstSubpass = 0;
     dependency.srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
     dependency.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-    dependency.srcAccessMask = 0;
+    dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                               VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
     VkRenderPassCreateInfo renderPassInfo{};
@@ -1424,6 +1479,9 @@ void RenderBackendVK::create_framebuffer(HardwareRenderPassVk *render_target) {
         attachments.push_back(texture->view);
         width = std::max(texture->w, framebufferInfo.width);
         height = std::max(texture->h, framebufferInfo.height);
+        if (render_target->sample_count != VK_SAMPLE_COUNT_1_BIT) {
+            attachments.push_back(texture->msaa_view);
+        }
     }
     if (render_target->depth_attachment.texture_handle != NULL_HANDLE) {
         HardwareTextureVk *texture = this->textures.get_or_null(
@@ -1431,6 +1489,9 @@ void RenderBackendVK::create_framebuffer(HardwareRenderPassVk *render_target) {
         attachments.push_back(texture->view);
         width = std::max(texture->w, framebufferInfo.width);
         height = std::max(texture->h, framebufferInfo.height);
+        if (render_target->sample_count != VK_SAMPLE_COUNT_1_BIT) {
+            attachments.push_back(texture->msaa_view);
+        }
     }
     framebufferInfo.width = width;
     framebufferInfo.height = height;
@@ -1457,7 +1518,8 @@ HardwareRenderPassVk *RenderBackendVK::get_current_render_pass() {
 VkPipeline RenderBackendVK::get_vk_pipeline(
     HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
     std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
-    bool draw_depth_only, bool depth_clamp) {
+    VkSampleCountFlagBits sample_count, bool draw_depth_only,
+    bool depth_clamp) {
     Hash _hash;
     _hash.update(&pipeline->rst_state.cull_mode);
     _hash.update(&pipeline->rst_state.poly_mode);
@@ -1472,6 +1534,7 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     _hash.update(&pipeline->blend_attachment.func.src_alpha);
     _hash.update(&pipeline->blend_attachment.func.dst_alpha);
     _hash.update(&primitive);
+    _hash.update(&sample_count);
     _hash.update(&draw_depth_only);
     _hash.update(&depth_clamp);
 
@@ -1489,7 +1552,7 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     if (iter == pipeline_cache.end()) {
         vk_pipeline =
             create_vk_pipeline(pipeline, render_target, layouts, primitive,
-                               draw_depth_only, depth_clamp);
+                               sample_count, draw_depth_only, depth_clamp);
         pipeline_cache.emplace(hash, vk_pipeline);
     } else {
         vk_pipeline = iter->second;
@@ -1585,9 +1648,9 @@ void RenderBackendVK::handle_frame_update() {
 }
 
 void RenderBackendVK::handle_destroy() {
-    for(auto it = destroy_list.begin(); it != destroy_list.end();) {
+    for (auto it = destroy_list.begin(); it != destroy_list.end();) {
         DestroyResource &destroy = *it;
-        if(destroy.frame_count < FRAMES_IN_FLIGHT){
+        if (destroy.frame_count < FRAMES_IN_FLIGHT) {
             destroy.frame_count++;
             it++;
             continue;
@@ -1657,14 +1720,56 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
     }
     std::vector<VkImageMemoryBarrier> barriers;
     for (HardwareColorAttachmentVk &attachment : rt->color_attachments) {
-        barriers.push_back(create_image_barrier(
-            this->textures.get_or_null(attachment.texture_handle),
-            target_color_layout, 0));
+        HardwareTextureVk *tex =
+            this->textures.get_or_null(attachment.texture_handle);
+        /* we'll only transition msaa for first time*/
+        if (tex->msaa_image != nullptr &&
+            tex->layouts[0] == VK_IMAGE_LAYOUT_UNDEFINED) {
+            VkImageMemoryBarrier msaa_barrier{};
+            msaa_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            msaa_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            msaa_barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            msaa_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            msaa_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            msaa_barrier.image = tex->msaa_image;
+            msaa_barrier.subresourceRange.aspectMask =
+                VulkanHelper::aspect_flag(tex->format);
+            msaa_barrier.subresourceRange.baseMipLevel = 0;
+            msaa_barrier.subresourceRange.levelCount = 1;
+            msaa_barrier.subresourceRange.baseArrayLayer = 0;
+            msaa_barrier.subresourceRange.layerCount = 1;
+            barriers.push_back(msaa_barrier);
+        }
+        barriers.push_back(create_image_barrier(tex, target_color_layout, 0));
     }
     if (rt->depth_attachment.texture_handle != NULL_HANDLE) {
-        barriers.push_back(create_image_barrier(
-            this->textures.get_or_null(rt->depth_attachment.texture_handle),
-            target_depth_layout, 0));
+        HardwareTextureVk *depth_tex =
+            this->textures.get_or_null(rt->depth_attachment.texture_handle);
+        if (depth_tex->msaa_image != nullptr &&
+            depth_tex->layouts[0] == VK_IMAGE_LAYOUT_UNDEFINED) {
+            VkImageMemoryBarrier msaa_barrier{};
+            msaa_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            msaa_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            msaa_barrier.newLayout =
+                (rt->depth_attachment.is_stencil &&
+                 rt->depth_attachment.is_depth)
+                    ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                : rt->depth_attachment.is_depth
+                    ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+                    : VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
+            msaa_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            msaa_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            msaa_barrier.image = depth_tex->msaa_image;
+            msaa_barrier.subresourceRange.aspectMask =
+                VulkanHelper::aspect_flag(depth_tex->format);
+            msaa_barrier.subresourceRange.baseMipLevel = 0;
+            msaa_barrier.subresourceRange.levelCount = 1;
+            msaa_barrier.subresourceRange.baseArrayLayer = 0;
+            msaa_barrier.subresourceRange.layerCount = 1;
+            barriers.push_back(msaa_barrier);
+        }
+        barriers.push_back(
+            create_image_barrier(depth_tex, target_depth_layout, 0));
     }
     Frame &frame = frames[get_current_frame_index()];
     vkCmdPipelineBarrier(frame.render_cmd_buffer,
@@ -1676,7 +1781,8 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
 VkPipeline RenderBackendVK::create_vk_pipeline(
     HardwarePipelineVk *pipeline, HardwareRenderPassVk *render_target,
     std::vector<VertexLayout *> &layouts, VkPrimitiveTopology primitive,
-    bool draw_depth_only, bool depth_clamp) {
+    VkSampleCountFlagBits sample_count, bool draw_depth_only,
+    bool depth_clamp) {
     VkPipeline graphicsPipeline;
     HardwareShaderVk *shader = this->shaders.get_or_null(pipeline->shader);
     if (!shader) {
@@ -1738,7 +1844,7 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
     multisampling.sType =
         VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampling.rasterizationSamples = sample_count;
     multisampling.minSampleShading = 1.0f;           // Optional
     multisampling.pSampleMask = nullptr;             // Optional
     multisampling.alphaToCoverageEnable = VK_FALSE;  // Optional
@@ -1900,6 +2006,8 @@ void RenderBackendVK::bind_depth_attachment(RenderPassHandle handle,
     EXPECT_NOT_NULL_RET(rt);
     HardwareTextureVk *tex = this->textures.get_or_null(texture);
     EXPECT_NOT_NULL_RET(tex);
+    /* TODO: check all attachment is same sample count */
+    rt->sample_count = tex->sample_count;
     VkFormat format = VulkanHelper::texture_format(tex->format);
     rt->depth_attachment = HardwareDepthStencilAttachmentVk{
         .is_depth = VulkanHelper::is_depth(tex->format),
@@ -1915,6 +2023,8 @@ void RenderBackendVK::bind_color_attachment(RenderPassHandle handle, u8 slot,
     HardwareTextureVk *tex = this->textures.get_or_null(texture);
     EXPECT_NOT_NULL_RET(tex);
     VkFormat format = VulkanHelper::texture_format(tex->format);
+    /* TODO: check all attachment is same sample count */
+    rt->sample_count = tex->sample_count;
     /* we'll replace same slot or replace depth attachment */
     bool flag = false;
     for (u32 i = 0; i < rt->color_attachments.size(); i++) {
@@ -2449,7 +2559,7 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
     VkPrimitiveTopology primitive = VulkanHelper::primitive(draw_data->type);
 
     VkPipeline vk_pipeline =
-        get_vk_pipeline(pipeline, rt, layouts, primitive,
+        get_vk_pipeline(pipeline, rt, layouts, primitive, rt->sample_count,
                         draw_data->draw_depth_only, draw_data->depth_clamp);
 
     vkCmdBindPipeline(frame.render_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,

@@ -43,6 +43,7 @@ class RenderBackend {
         virtual RenderBackendType get_type() = 0;
         virtual TextureHandle alloc_texture(TextureType type, u32 w, u32 h,
                                             PixelFormat format,
+                                            MSAAType msaa_type,
                                             const SamplerProperty &property,
                                             const void *data) = 0;
         virtual TextureHandle alloc_mappable_texture(
