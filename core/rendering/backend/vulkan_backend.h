@@ -16,6 +16,7 @@
 #include <vma/vk_mem_alloc.h>
 #endif
 #include "core/container/ring_buffer.h"
+#include <list>
 
 namespace Seed {
 
@@ -24,8 +25,9 @@ struct HardwareBufferVk {
         VkBuffer buffer;
         VmaAllocation memory;
         UpdateFrequence frequence;
-        u32 next_offset = 0;
-        u32 last_offset = 0;
+        u32 current = 0;
+        u32 head = 0;
+        u32 tail = 0;
         u64 size;
         void *mapped_ptr = nullptr;
 };
@@ -103,12 +105,10 @@ class RenderBackendVK : public RenderBackend {
         VkQueue graphics_queue;
         VkSurfaceKHR surface;
         VkCommandPool command_pool;
-        VkCommandBuffer render_cmd_buffer;
         VmaAllocator buffer_allocator;
         VkDescriptorPool descriptor_pool;
         Handle current_render_target;
-        VkSemaphore image_available_semaphore;
-        VkFence in_flight_fence;
+
         struct SwapChain {
                 VkSwapchainKHR chain;
                 VkFormat format;
@@ -117,6 +117,17 @@ class RenderBackendVK : public RenderBackend {
                 std::vector<VkSemaphore> semaphore;
                 u32 next_index = 0;
         } swap_chain;
+
+        struct Frame {
+                VkCommandBuffer render_cmd_buffer;
+                VkSemaphore image_available_semaphore;
+                VkFence in_flight_fence;
+                struct StreamBufferUsage{
+                        HardwareBufferVk *buffer;
+                        u64 size;
+                };
+                std::vector<StreamBufferUsage> usages;
+        } frames[FRAMES_IN_FLIGHT];
 
         HandleOwner<HardwareBufferVk> vertices;
         HandleOwner<HardwareIndexVk> indices;
@@ -129,6 +140,7 @@ class RenderBackendVK : public RenderBackend {
 
         struct DestroyResource {
                 RenderResourceType type;
+                u8 frame_count = 0;
                 bool mapped;
                 union {
                         struct {
@@ -184,14 +196,13 @@ class RenderBackendVK : public RenderBackend {
         };
 
         /* delay destroy to end of frame */
-        RingBuffer<DestroyResource> destroy_queue;
+        std::list<DestroyResource> destroy_list;
         RingBuffer<StaticBufferUpdate> static_buffer_update_queue;
         RingBuffer<DynamicBufferUpdate> dynamic_buffer_update_queue;
 
         RingBuffer<ImageUpdate> image_copy_queue;
         RingBuffer<TextureHandle> mappable_image_transition_queue;
 
-        RingBuffer<HardwareBufferVk *> streams_to_reset;
 
         std::unordered_map<u64, VkPipeline> pipeline_cache;
         std::unordered_map<u64, DescriptorSetLayout> descriptor_layout_cache;

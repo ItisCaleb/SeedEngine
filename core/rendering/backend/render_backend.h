@@ -30,9 +30,12 @@ enum class RenderBackendType { OPENGL, VULKAN };
 
 class RenderBackend {
     protected:
-        RenderCommandQueue cmd_queue[2];
-        std::atomic<int> current_queue = 0;
-        std::shared_mutex queue_lock;
+        inline static const u32 FRAMES_IN_FLIGHT = 3;
+        RenderCommandQueue cmd_queue[FRAMES_IN_FLIGHT];
+        std::atomic<int> current_frame = 0;
+        u32 get_current_frame_index() {
+            return current_frame % FRAMES_IN_FLIGHT;
+        }
 
     public:
         RenderBackend() = default;

@@ -15,7 +15,7 @@ class TerrainEditor {
         TerrainEditorRenderer *renderer;
         u32 screen_width = 1024;
         u32 screen_height = 768;
-
+        void edit_terrain();
     public:
         void init();
         void update();

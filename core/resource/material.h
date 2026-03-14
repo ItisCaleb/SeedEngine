@@ -20,6 +20,8 @@ class Material : public Resource {
         RenderRasterizerState raster_state;
         RenderDepthStencilState depth_state;
         RenderBlendState blend_state;
+        bool cast_shadow = true;
+        bool receive_shadow = true;
 
     public:
         void set_texture_unit(u32 unit, Ref<Texture> texture);
@@ -35,6 +37,9 @@ class Material : public Resource {
         RenderRasterizerState get_rasterizer_state() { return raster_state; }
         RenderDepthStencilState get_depth_state() { return depth_state; }
         RenderBlendState get_blend_state() { return blend_state; }
+
+        bool do_cast_shadow() { return cast_shadow; }
+        bool do_receive_shadow() { return receive_shadow; }
 
         PipelineHandle get_pipeline();
         u16 get_id() { return id; }

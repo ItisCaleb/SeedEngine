@@ -6,25 +6,7 @@
 #include "core/input.h"
 
 namespace Seed {
-void TerrainEditor::init() {
-    screen_texture.create(TextureType::TEXTURE_2D, screen_width, screen_height,
-                          PixelFormat::RGBA, nullptr);
-    screen_depth.create(TextureType::TEXTURE_2D, screen_width, screen_height,
-                        PixelFormat::D32, nullptr);
-    picking_texture.create(TextureType::TEXTURE_2D, screen_width, screen_height,
-                           PixelFormat::RGBA16I, nullptr);
-    ResourceLoader *loader = ResourceLoader::get_instance();
-    loader->load_async<Image>(
-        "assets/iceland_heightmap.png",
-        [&](Ref<Image> image) { current_terrain.create(image); });
-    renderer = new TerrainEditorRenderer(screen_texture, screen_depth,
-                                         picking_texture);
-    RenderEngine::get_instance()->register_renderer(1, renderer);
-}
-void TerrainEditor::update() {
-    if (current_terrain.is_null()) {
-        return;
-    }
+void TerrainEditor::edit_terrain() {
     Ref<MappableTexture> height_map = current_terrain->get_heightmap();
 
     Input *input = Input::get_instance();
@@ -67,6 +49,28 @@ void TerrainEditor::update() {
                 }
             }
         }
+    }
+}
+
+void TerrainEditor::init() {
+    screen_texture.create(TextureType::TEXTURE_2D, screen_width, screen_height,
+                          PixelFormat::RGBA, nullptr);
+    screen_depth.create(TextureType::TEXTURE_2D, screen_width, screen_height,
+                        PixelFormat::D32, nullptr);
+    picking_texture.create(TextureType::TEXTURE_2D, screen_width, screen_height,
+                           PixelFormat::RGBA16I, nullptr);
+    // ResourceLoader *loader = ResourceLoader::get_instance();
+    // loader->load_async<Image>(
+    //     "assets/iceland_heightmap.png",
+    //     [&](Ref<Image> image) { current_terrain.create(image); });
+    // renderer = new TerrainEditorRenderer(screen_texture, screen_depth,
+    //                                      picking_texture);
+    RenderEngine::get_instance()->register_renderer(1, renderer);
+}
+void TerrainEditor::update() {
+    if (current_terrain.is_valid()) {
+        edit_terrain();
+        return;
     }
 }
 }  // namespace Seed
