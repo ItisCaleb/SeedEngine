@@ -83,12 +83,9 @@ class DefaultRenderer : public Renderer {
         };
         class DebugPass : public RenderPass<FrameData> {
             public:
-                void setup(Ref<Texture> color, Ref<Texture> depth) {
+                void setup(RenderPass<FrameData> &renderpass) {
                     this->set_name("Debug Pass");
-                    this->set_viewport(
-                        Viewport(color->get_width(), color->get_height()));
-                    this->bind_color_attachment(color, 0, 0);
-                    this->bind_depth_attachment(depth, 0);
+                    this->set_renderpass(renderpass);
                 }
                 void execute(RenderCommandDispatcher &dp, Viewport &viewport,
                              FrameData &fd) override;

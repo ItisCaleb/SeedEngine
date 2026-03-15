@@ -55,6 +55,10 @@ class RenderPass {
             this->depth_stencil_attachment.texture_layer = layer;
             RHI::bind_depth_attachment(handle, texture->get_handle(), layer);
         }
+        void set_renderpass(RenderPass<T> &render_pass){
+            this->viewport = render_pass.viewport;
+            this->handle = render_pass.handle;
+        }
         void draw(RenderCommandDispatcher &dp, T &frame_data) {
             dp.begin_scope(this->name);
             RenderStateDataBuilder state;

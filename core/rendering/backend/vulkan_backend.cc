@@ -1014,6 +1014,7 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
                                   size);
         this->image_copy_queue.push(ImageUpdate{
             .staging_buffer = stagingBuffer,
+            .staging_allocation = stagingAllocation,
             .texture = handle,
             .face = 0,
             .offx = 0,
@@ -1668,16 +1669,15 @@ void RenderBackendVK::handle_destroy() {
                 break;
             case RenderResourceType::SHADER:
                 /* Since layouts might be reused, we won't destroy them. */
-                // vkDestroyDescriptorSetLayout(device,
-                // destroy.shader.set_layout,
-                //                              nullptr);
                 vkDestroyPipelineLayout(device, destroy.shader.layout, nullptr);
                 break;
             case RenderResourceType::TEXTURE:
                 if (destroy.mapped) {
                     vmaUnmapMemory(buffer_allocator, destroy.texture.memory);
                 }
-                vkDestroySampler(device, destroy.texture.sampler, nullptr);
+                if (destroy.texture.sampler != nullptr) {
+                    vkDestroySampler(device, destroy.texture.sampler, nullptr);
+                }
                 vkDestroyImageView(device, destroy.texture.view, nullptr);
                 vmaDestroyImage(buffer_allocator, destroy.texture.image,
                                 destroy.texture.memory);
@@ -2089,6 +2089,15 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
                                             .view = _tex->view,
                                             .sampler = _tex->sampler,
                                             .memory = _tex->memory}});
+            if (_tex->msaa_image != nullptr) {
+                this->destroy_list.push_back(
+                    DestroyResource{.type = type,
+                                    .mapped = false,
+                                    .texture = {.image = _tex->msaa_image,
+                                                .view = _tex->msaa_view,
+                                                .sampler = nullptr,
+                                                .memory = _tex->msaa_memory}});
+            }
             this->textures.remove(handle);
             break;
         case RenderResourceType::PIPELINE:
@@ -2135,7 +2144,8 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
     vkResetFences(device, 1, &frame.in_flight_fence);
 
     vkResetCommandBuffer(frame.render_cmd_buffer, 0);
-    handle_destroy();
+
+    /* consume ring buffer */
     for (Frame::StreamBufferUsage &usage : frame.usages) {
         usage.buffer->head += usage.size;
         usage.buffer->head %= usage.buffer->size;
@@ -2221,6 +2231,7 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
+    handle_destroy();
 }
 
 void RenderBackendVK::swap_buffer() {
