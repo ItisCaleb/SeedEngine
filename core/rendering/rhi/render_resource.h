@@ -58,7 +58,8 @@ IndexHandle alloc_index(const std::vector<u32> &indices,
                         UpdateFrequence frequence);
 
 [[nodiscard]]
-ConstantHandle alloc_constant(u32 size, UpdateFrequence frequence, void *data = nullptr);
+ConstantHandle alloc_constant(u32 size, UpdateFrequence frequence,
+                              void *data = nullptr);
 
 [[nodiscard]]
 SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
@@ -66,7 +67,8 @@ SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
 
 [[nodiscard]]
 TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
-                            const void *data, const SamplerProperty &property);
+                            MSAAType msaa_type, const void *data,
+                            const SamplerProperty &property);
 [[nodiscard]]
 TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
                                      PixelFormat format, const void *data,

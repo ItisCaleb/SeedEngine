@@ -2,7 +2,7 @@
 
 namespace Seed {
 void *RenderBackend::alloc(u64 size, void *data) {
-    RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
+    RenderCommandQueue &queue = this->cmd_queue[get_current_frame_index()];
     queue.queue_lock.lock();
     void *_data = queue.data_pool.alloc(size, data);
     queue.queue_lock.unlock();
@@ -10,7 +10,7 @@ void *RenderBackend::alloc(u64 size, void *data) {
 }
 
 void *RenderBackend::push_cmd(RenderCommand &cmd, u64 size, void *data) {
-    RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
+    RenderCommandQueue &queue = this->cmd_queue[get_current_frame_index()];
     queue.queue_lock.lock();
     if (size > 0) {
         cmd.data = queue.data_pool.alloc(size, data);
@@ -21,16 +21,14 @@ void *RenderBackend::push_cmd(RenderCommand &cmd, u64 size, void *data) {
 }
 
 void RenderBackend::process() {
-    {
-        RenderCommandQueue &queue = this->cmd_queue[current_queue & 1];
-        current_queue++;
-        queue.queue_lock.lock();
-        std::stable_sort(queue.cmd_queue.begin(), queue.cmd_queue.end(),
-                         RenderCommand::cmp);
-        this->process_commands(queue.cmd_queue);
-        queue.data_pool.free_all();
-        queue.queue_lock.unlock();
-        swap_buffer();
-    }
+    RenderCommandQueue &queue = this->cmd_queue[get_current_frame_index()];
+    current_frame++;
+    queue.queue_lock.lock();
+    std::stable_sort(queue.cmd_queue.begin(), queue.cmd_queue.end(),
+                     RenderCommand::cmp);
+    this->process_commands(queue.cmd_queue);
+    queue.data_pool.free_all();
+    queue.queue_lock.unlock();
+    swap_buffer();
 }
 }  // namespace Seed

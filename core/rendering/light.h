@@ -64,7 +64,8 @@ class DirectionalLight : public Light {
         inline Vec3 get_direction() { return dir; }
         inline void set_direction(const Vec3 &dir) { this->dir = dir; }
         void calculate_csm_lightspace(Camera &cam,
-                                      const std::vector<f32> &resolutions, CSMShadow &csm_data,
+                                      const std::vector<f32> &resolutions,
+                                      CSMShadow &csm_data,
                                       Camera::ShaderCamera *light_space_cam);
 
         void set_csm_lamda(f32 lamda) { this->shadow_lamdba = lamda; }
@@ -84,6 +85,10 @@ class DirectionalLight : public Light {
 class PointLight : public Light {
     private:
         Vec3 pos;
+        bool dirty = true;
+        Mat4 light_space_proj;
+        Mat4 light_space_lookat[6];
+        Frustum frustum_cache[6];
 
     public:
         void get_stb140(STB140Light *light) override {
@@ -93,6 +98,11 @@ class PointLight : public Light {
             light->enable = enable;
         }
 
+        void calculate_lightspace(Camera::ShaderCamera *light_space_cam);
+        const Frustum &get_frustum(u32 index) {
+            EXPECT_INDEX_INBOUND_THROW(index, 6);
+            return this->frustum_cache[index];
+        }
         inline Vec3 get_position() { return pos; }
 
         PointLight(const Vec3 &pos, const Vec3 &diffuse, const Vec3 &specular,

@@ -8,7 +8,7 @@ struct VS_OUT{
     vec3 tangent_view_pos;
     float view_depth;
     vec3 tangent_dir_light;
-    // vec3 tangent_pos_light[8];
+    vec3 tangent_pos_light[8];
     vec4 sv_position : SV_Position;
 }
 
@@ -53,12 +53,12 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_
     out.tangent_view_pos = TBN_to_tangent * cam.u_cam_pos;
     out.tangent_dir_light = TBN_to_tangent * (gLights.u_dir_light.position);
 
-    // for (int i = 0; i < 8; i++) {
-    //     Light light = gLights.u_point_lights[i];
-    //     if (light.enable == 0)
-    //         continue;
-    //     out.tangent_pos_light[i] = TBN_to_tangent * (light.position); 
-    // }
+    for (int i = 0; i < 8; i++) {
+        Light light = gLights.u_point_lights[i];
+        if (light.enable == 0)
+            continue;
+        out.tangent_pos_light[i] = TBN_to_tangent * (light.position); 
+    }
     return out;
 }
 
@@ -74,7 +74,7 @@ float4 frag(VS_OUT in){
     vec3 specular_sample = prop.u_specular.Sample(in.texCoord).xyz;
     vec3 dir_light = -normalize(in.tangent_dir_light);
     // direction
-    float dir_shadow = (1.0 - ShadowCalculation(prop.shadowMap,
+    float dir_shadow = (1.0 - CSMShadowCalculation(prop.shadowMap,
          vec4(in.frag_pos, 1.0), in.view_depth, normal, dir_light));
     light_out +=
         calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
@@ -83,17 +83,17 @@ float4 frag(VS_OUT in){
                                 1, normal) * dir_shadow;
 
 
-    // for (int i = 0; i < 8; i++) {
-    //     Light light = gLights.u_point_lights[i];
-    //     if (light.enable == 0)
-    //         continue;
-    //     vec3 light_dir = in.tangent_pos_light[i] - in.fragPos;
-    //     float d = length(light_dir);
-    //     light_dir = normalize(light_dir);
-    //     light_out += calculate_light(light.diffuse, light.specular,
-    //         diffuse_sample, specular_sample,
-    //         light_dir, view_dir, d, normal);
-    // }
+    for (int i = 0; i < 8; i++) {
+        Light light = gLights.u_point_lights[i];
+        if (light.enable == 0)
+            continue;
+        vec3 light_dir = in.tangent_pos_light[i] - in.frag_pos;
+        float d = length(light_dir);
+        light_dir = normalize(light_dir);
+        light_out += calculate_light(light.diffuse, light.specular,
+            diffuse_sample, specular_sample,
+            light_dir, view_dir, d, normal);
+    }
     
 
     return vec4(light_out, 1.0);

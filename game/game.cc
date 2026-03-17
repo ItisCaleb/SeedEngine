@@ -32,25 +32,6 @@ class DebugGUI : public GUI {
             ImGui::Text("FPS: %.2f", SeedEngine::get_instance()->get_fps());
             ImGui::SliderFloat("Shadow Lambda", &shadow_lambda, 0, 1.0);
             world->get_direction_light().set_csm_lamda(shadow_lambda);
-            // ImGui::SliderFloat("CSM Lambda", &Camera::shadow_lamdba, 0, 1.0);
-            if (ImGui::Button("ortho")) {
-                cam.set_ortho(-10, 10, -10, 10, -100, 100);
-                // set position from origin
-                Vec3 pos_dir = Vec3{-0.5, -0.5, 0};
-                cam.set_position(-pos_dir);
-                cam.set_front(pos_dir);
-            }
-            if (ImGui::Button("Terrain vertex")) {
-                auto mat = world->get_terrain()->get_material();
-                auto state = mat->get_rasterizer_state();
-                if (state.poly_mode == PolygonMode::FILL) {
-                    state.poly_mode = PolygonMode::LINE;
-                } else {
-                    state.poly_mode = PolygonMode::FILL;
-                }
-
-                // mat->set_rasterizer_state(state);
-            }
             ImGui::End();
         };
 };

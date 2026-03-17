@@ -274,6 +274,7 @@ class RenderCommandDispatcher {
 
         void render(RenderDrawDataBuilder &builder, RenderPrimitiveType type,
                     PipelineHandle pipeline, f32 depth);
+        void compute(PipelineHandle pipeline, u32 work_group_x, u32 work_group_y, u32 work_group_z);
 
         RenderCommandDispatcher();
         ~RenderCommandDispatcher();

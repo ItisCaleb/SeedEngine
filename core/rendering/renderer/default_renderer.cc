@@ -35,9 +35,11 @@ void DefaultRenderer::init(Window *window) {
     u32 res_w = window->get_width();
     u32 res_h = window->get_height();
     Ref<Texture> color_tex(TextureType::TEXTURE_2D, res_w, res_h,
-                           PixelFormat::RGBA16F, nullptr);
+                           PixelFormat::RGBA16F, MSAAType::SAMPLE_COUNT_4,
+                           nullptr, SamplerProperty{});
     Ref<Texture> depth_tex(
-        TextureType::TEXTURE_2D, res_w, res_h, PixelFormat::D32S8, nullptr,
+        TextureType::TEXTURE_2D, res_w, res_h, PixelFormat::D32S8,
+        MSAAType::SAMPLE_COUNT_4, nullptr,
         SamplerProperty{.min_filter = SamplerFilter::NEAREST,
                         .mag_filter = SamplerFilter::NEAREST});
 
@@ -49,7 +51,7 @@ void DefaultRenderer::init(Window *window) {
     shadow_pass.setup(fd.shadow_map);
     color_pass.setup(color_tex, depth_tex);
     post_pass.setup(window);
-    debug_pass.setup(color_tex, depth_tex);
+    debug_pass.setup(color_pass);
 
     fd.post_mat.create(DS::get_instance()->post_shader);
     fd.post_mat->set_texture("image", color_tex);
@@ -62,7 +64,7 @@ void DefaultRenderer::init(Window *window) {
         engine->get_instance_pool(TERRAIN_POOL_NAME)->get_render_buffer();
     bone_ssbo =
         engine->get_instance_pool(SKELETON_POOL_NAME)->get_render_buffer();
-    camera = RHI::alloc_constant(sizeof(Camera::ShaderCamera) * 8,
+    camera = RHI::alloc_constant(sizeof(Camera::ShaderCamera) * 64,
                                  UpdateFrequence::PERFRAME);
     u_lights =
         RHI::alloc_constant(sizeof(STB140Lights), UpdateFrequence::PERFRAME);
@@ -87,24 +89,23 @@ void DefaultRenderer::prepare_lights() {
 
     /* fill main camera */
     Camera::ShaderCamera *cams = (Camera::ShaderCamera *)RHI::alloc_heap(
-        sizeof(Camera::ShaderCamera) * 8);
+        sizeof(Camera::ShaderCamera) * 64);
     cam.fill_shader_camera(&cams[0]);
     /* upload lights uniform*/
     STB140Lights *light_buf =
         (STB140Lights *)RHI::alloc_heap(sizeof(STB140Lights));
     dir_light.get_stb140(&light_buf->u_dir_light);
     light_buf->u_light_ambient = world->get_ambient_light();
-    // for (u32 i = 0;
-    //      i < (sizeof(light_buf->u_point_lights) / sizeof(STB140Light)); i++)
-    //      {
-    //     if (i < world->get_point_lights().size()) {
-    //         world->get_point_lights()[i].get_stb140(
-    //             &light_buf->u_point_lights[i]);
-
-    //     } else {
-    //         light_buf->u_point_lights[i].enable = 0.0f;
-    //     }
-    // }
+    std::vector<PointLight> &point_lights = world->get_point_lights();
+    u32 point_light_size =
+        (sizeof(light_buf->u_point_lights) / sizeof(STB140Light));
+    for (u32 i = 0; i < point_light_size; i++) {
+        if (i < point_lights.size()) {
+            point_lights[i].get_stb140(&light_buf->u_point_lights[i]);
+        } else {
+            light_buf->u_point_lights[i].enable = 0.0f;
+        }
+    }
     RHI::update_from_heap(u_lights, 0, sizeof(STB140Lights), light_buf);
 
     /* CSM frustum splits */
@@ -122,9 +123,16 @@ void DefaultRenderer::prepare_lights() {
         csm_data->shadow_uv[i] =
             fd.shadow_map.query_uv(fd.shadow_map_dir_handle[i]);
     }
+    /* fill cams[5 ~ 40] to directional light*/
+    for (u32 i = 0; i < 6; i++) {
+        if(i >= point_lights.size()){
+            break;
+        }
+        point_lights[i].calculate_lightspace(&cams[5 + i * 6]);
+    }
 
     RHI::update_from_heap(u_csm, 0, sizeof(CSMShadow), csm_data);
-    RHI::update_from_heap(camera, 0, sizeof(Camera::ShaderCamera) * 8, cams);
+    RHI::update_from_heap(camera, 0, sizeof(Camera::ShaderCamera) * 64, cams);
 }
 
 void DefaultRenderer::prepare_meshes() {
@@ -142,7 +150,7 @@ void DefaultRenderer::prepare_meshes() {
         AABB bounding_box = mesh->get_bounding_box();
 
         /* check instance mesh size > 0 */
-        if (!instance.is_null() && instance->size() == 0) {
+        if (instance.is_null() || instance->size() == 0) {
             continue;
         }
 
@@ -154,24 +162,23 @@ void DefaultRenderer::prepare_meshes() {
             color_mesh = &this->fd.opaque_meshes.emplace_back(
                 MeshInstance{.mesh = mesh});
         }
-        ShadowMeshInstance &shadow_mesh = this->fd.shadow_meshes.emplace_back(
-            ShadowMeshInstance{.mesh = mesh});
 
         const Frustum &cam_frustum = cam.get_frustum();
-        if (!instance.is_null()) {
-            /* Use instancing */
+        if (uploaded_instance.find(instance.ptr()) == uploaded_instance.end()) {
+            uploaded_instance.insert(instance.ptr());
+            instance->upload();
+        }
+        color_mesh->visible_offset = visible_instances.size();
+        instance->frustum_culling(cam_frustum, bounding_box, visible_instances,
+                                  color_mesh->depth);
+        color_mesh->visible_size =
+            visible_instances.size() - color_mesh->visible_offset;
 
-            if (uploaded_instance.find(instance.ptr()) ==
-                uploaded_instance.end()) {
-                uploaded_instance.insert(instance.ptr());
-                instance->upload();
-            }
-            color_mesh->visible_offset = visible_instances.size();
-            instance->frustum_culling(cam_frustum, bounding_box,
-                                      visible_instances, color_mesh->depth);
-            color_mesh->visible_size =
-                visible_instances.size() - color_mesh->visible_offset;
-            u32 last_size = 0;
+        /* check mesh cast shadow */
+        if (mesh->get_material()->do_cast_shadow()) {
+            ShadowMeshInstance &shadow_mesh =
+                this->fd.shadow_meshes.emplace_back(
+                    ShadowMeshInstance{.mesh = mesh});
             for (u32 i = 0; i < CSM_SPLITS; i++) {
                 shadow_mesh.visible_offset.push_back(visible_instances.size());
                 instance->frustum_culling(dir_light.get_frustum(i),
@@ -300,9 +307,11 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
             DepthMode depth_mode = material->get_depth_state().depth_mode;
             if (last_material != material) {
                 mesh_builder = dp.generate_render_data(material);
-                mesh_builder.bind_texture(
-                    material->get_texture_count(),
-                    fd.shadow_map.get_texture()->get_handle());
+                if (material->do_receive_shadow()) {
+                    mesh_builder.bind_texture(
+                        material->get_texture_count(),
+                        fd.shadow_map.get_texture()->get_handle());
+                }
                 last_material = material;
             }
             mesh_builder.push_constant(mesh.visible_offset);

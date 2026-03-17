@@ -129,9 +129,7 @@ DS_OUT tese(
 }
 
 
-
-
-float terrain_shadowmapping(vec2 uv, float angle){
+float HorizonShadow(vec2 uv, float angle){
     // lookup texel at patch coordinate for height and scale + shift as desired
     float slope = prop.terrain_shadowMap.SampleLevelZero(uv).r;
     float soft_width = 0.15;
@@ -155,23 +153,27 @@ float4 frag(DS_OUT in){
     vec3 specular_sample = vec3(1,1,1);
     vec3 dir_light = -normalize(vec3(gLights.u_dir_light.position));
     float c = dir_light.y;
+
+    float csm_shadow = CSMShadowCalculation(prop.shadowMap, in.fragPos, in.view_depth, in.normal, dir_light);
+    float horizon_shadow = HorizonShadow(in.texCoord, c);
+    float shadow = max(csm_shadow, horizon_shadow);
+    
     // direction
     light_out +=
         calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
             diffuse_sample, specular_sample, dir_light, view_dir,
-            1, in.normal) * (1.0 - ShadowCalculation(prop.shadowMap, in.fragPos, in.view_depth, in.normal, dir_light))
-    * (1.0 - terrain_shadowmapping(in.texCoord, c));
-    // for (int i = 0; i < 8; i++) {
-    //     Light light = gLights.u_point_lights[i];
-    //     if (light.enable == 0)
-    //         continue;
-    //     vec3 light_dir = vec3(light.position) - in.fragPos.xyz;
-    //     float d = length(light_dir);
-    //     light_dir = normalize(light_dir);
-    //     light_out += calculate_light(light.diffuse, light.specular,
-    //         diffuse_sample, specular_sample,
-    //         light_dir, view_dir, d, in.normal);
-    // }
+            1, in.normal) * (1.0 - shadow);
+    for (int i = 0; i < 8; i++) {
+        Light light = gLights.u_point_lights[i];
+        if (light.enable == 0)
+            continue;
+        vec3 light_dir = vec3(light.position) - in.fragPos.xyz;
+        float d = length(light_dir);
+        light_dir = normalize(light_dir);
+        light_out += calculate_light(light.diffuse, light.specular,
+            diffuse_sample, specular_sample,
+            light_dir, view_dir, d, in.normal);
+    }
     light_out *= vec3(h, h, h);
     float dist = length(cam.u_cam_pos - in.fragPos.xyz);
     float fog_factor = clamp((dist - 700) / 100, 0.0, 0.95);
