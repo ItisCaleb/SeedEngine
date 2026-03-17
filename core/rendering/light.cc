@@ -98,4 +98,44 @@ void DirectionalLight::calculate_csm_lightspace(
         near = far;
     }
 }
+
+void PointLight::calculate_lightspace(Camera::ShaderCamera *light_space_cam) {
+    if (dirty) {
+        Camera cam;
+        cam.set_position(this->pos);
+        cam.set_up(Vec3{0, 1, 0});
+        cam.set_perspective(90, 1, 1.0f, 25.0f);
+        light_space_proj = cam.projection_zero();
+        /* z -z x -x y -y*/
+        cam.set_front(Vec3{0, 0, 1});
+        light_space_lookat[0] = cam.look_at();
+        frustum_cache[0] = cam.get_frustum();
+        cam.set_front(Vec3{0, 0, -1});
+        light_space_lookat[1] = cam.look_at();
+        frustum_cache[1] = cam.get_frustum();
+        cam.set_front(Vec3{1, 0, 0});
+        light_space_lookat[2] = cam.look_at();
+        frustum_cache[2] = cam.get_frustum();
+
+        cam.set_front(Vec3{-1, 0, 0});
+        light_space_lookat[3] = cam.look_at();
+        frustum_cache[3] = cam.get_frustum();
+
+        /* set up to horizontal */
+        cam.set_up(Vec3{1, 0, 0});
+        cam.set_front(Vec3{0, 1, 0});
+        light_space_lookat[4] = cam.look_at();
+        frustum_cache[5] = cam.get_frustum();
+
+        cam.set_front(Vec3{0, -1, 0});
+        light_space_lookat[5] = cam.look_at();
+        frustum_cache[6] = cam.get_frustum();
+
+        dirty = false;
+    }
+    for (u32 i = 0; i < 6; i++) {
+        light_space_cam[i].projection = light_space_proj;
+        light_space_cam[i].view = light_space_lookat[i];
+    }
+}
 };  // namespace Seed

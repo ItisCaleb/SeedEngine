@@ -15,6 +15,8 @@ class DefaultRenderer : public Renderer {
     private:
         inline static const u32 CSM_SPLITS = 4;
 
+        /* we upload all instance to SSBO */
+        /* then upload instance indices that is visible through frustum culling */
         struct MeshInstance {
                 Ref<Mesh> mesh;
                 u32 visible_offset;

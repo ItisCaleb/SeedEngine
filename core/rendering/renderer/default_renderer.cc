@@ -64,7 +64,7 @@ void DefaultRenderer::init(Window *window) {
         engine->get_instance_pool(TERRAIN_POOL_NAME)->get_render_buffer();
     bone_ssbo =
         engine->get_instance_pool(SKELETON_POOL_NAME)->get_render_buffer();
-    camera = RHI::alloc_constant(sizeof(Camera::ShaderCamera) * 8,
+    camera = RHI::alloc_constant(sizeof(Camera::ShaderCamera) * 64,
                                  UpdateFrequence::PERFRAME);
     u_lights =
         RHI::alloc_constant(sizeof(STB140Lights), UpdateFrequence::PERFRAME);
@@ -89,24 +89,23 @@ void DefaultRenderer::prepare_lights() {
 
     /* fill main camera */
     Camera::ShaderCamera *cams = (Camera::ShaderCamera *)RHI::alloc_heap(
-        sizeof(Camera::ShaderCamera) * 8);
+        sizeof(Camera::ShaderCamera) * 64);
     cam.fill_shader_camera(&cams[0]);
     /* upload lights uniform*/
     STB140Lights *light_buf =
         (STB140Lights *)RHI::alloc_heap(sizeof(STB140Lights));
     dir_light.get_stb140(&light_buf->u_dir_light);
     light_buf->u_light_ambient = world->get_ambient_light();
-    // for (u32 i = 0;
-    //      i < (sizeof(light_buf->u_point_lights) / sizeof(STB140Light)); i++)
-    //      {
-    //     if (i < world->get_point_lights().size()) {
-    //         world->get_point_lights()[i].get_stb140(
-    //             &light_buf->u_point_lights[i]);
-
-    //     } else {
-    //         light_buf->u_point_lights[i].enable = 0.0f;
-    //     }
-    // }
+    std::vector<PointLight> &point_lights = world->get_point_lights();
+    u32 point_light_size =
+        (sizeof(light_buf->u_point_lights) / sizeof(STB140Light));
+    for (u32 i = 0; i < point_light_size; i++) {
+        if (i < point_lights.size()) {
+            point_lights[i].get_stb140(&light_buf->u_point_lights[i]);
+        } else {
+            light_buf->u_point_lights[i].enable = 0.0f;
+        }
+    }
     RHI::update_from_heap(u_lights, 0, sizeof(STB140Lights), light_buf);
 
     /* CSM frustum splits */
@@ -124,9 +123,16 @@ void DefaultRenderer::prepare_lights() {
         csm_data->shadow_uv[i] =
             fd.shadow_map.query_uv(fd.shadow_map_dir_handle[i]);
     }
+    /* fill cams[5 ~ 40] to directional light*/
+    for (u32 i = 0; i < 6; i++) {
+        if(i >= point_lights.size()){
+            break;
+        }
+        point_lights[i].calculate_lightspace(&cams[5 + i * 6]);
+    }
 
     RHI::update_from_heap(u_csm, 0, sizeof(CSMShadow), csm_data);
-    RHI::update_from_heap(camera, 0, sizeof(Camera::ShaderCamera) * 8, cams);
+    RHI::update_from_heap(camera, 0, sizeof(Camera::ShaderCamera) * 64, cams);
 }
 
 void DefaultRenderer::prepare_meshes() {

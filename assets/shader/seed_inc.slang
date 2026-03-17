@@ -39,7 +39,7 @@ struct Light {
 struct Lights {
     vec3 u_light_ambient;
     Light u_dir_light;
-    //Light u_point_lights[8];
+    Light u_point_lights[8];
 };
 
 #define CSM_SPLITS 4
@@ -52,7 +52,7 @@ struct CSMShadow
 
 
 [[vk::binding(8)]]
-ConstantBuffer<Camera[8]> gCam;
+ConstantBuffer<Camera[64]> gCam;
 [[vk::binding(10)]]
 ConstantBuffer<Lights> gLights;
 [[vk::binding(11)]]
@@ -253,7 +253,7 @@ float SampleCasacade(Sampler2D shadow_map, int casacade, vec4 frag_pos, vec3 nor
     return shadow;
 }
 
-float ShadowCalculation(Sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 normal, vec3 light_dir)
+float CSMShadowCalculation(Sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 normal, vec3 light_dir)
 {
     int casacade_idx = SelectCasacade(frag_z);
     if(casacade_idx == CSM_SPLITS) return 0.0;
