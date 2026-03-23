@@ -4,3 +4,4 @@ bin/*
 imgui.ini
 .vs
 .seed_cache
+.cache

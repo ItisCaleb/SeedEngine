@@ -40,7 +40,7 @@ int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
     ResourceLoader *loader = ResourceLoader::get_instance();
 
-    auto terrain = loader->load_async<Terrain>("assets/iceland_heightmap.png");
+    auto terrain = loader->load_async<Terrain>("test_project/assets/terrain_01.json");
     auto sky = loader->load_async<Sky>("assets/sky.json");
     auto backpack = loader->load_async<Model>(
         "test_project/assets/backpack.json", [=](Ref<Model> rc) {

@@ -4,11 +4,21 @@
 #include "core/rendering/rhi/render_engine.h"
 
 namespace Seed {
-TerrainEditorRenderer::TerrainEditorRenderer(Ref<Texture> screen_texture,
-                                             Ref<Texture> screen_depth, Ref<MappableTexture> picking_texture) {
+TerrainEditorRenderer::TerrainEditorRenderer(
+    Ref<Texture> screen_texture, Ref<Texture> screen_depth,
+    Ref<MappableTexture> picking_texture) {
     this->screen_tex = screen_texture;
     this->screen_depth = screen_depth;
     this->picking_tex = picking_texture;
+}
+
+void TerrainEditorRenderer::rebind_textures(
+    Ref<Texture> screen_texture, Ref<Texture> screen_depth,
+    Ref<MappableTexture> picking_texture) {
+    this->screen_tex = screen_texture;
+    this->screen_depth = screen_depth;
+    this->picking_tex = picking_texture;
+    color_pass.setup(screen_tex, screen_depth, picking_tex);
 }
 
 void TerrainEditorRenderer::init(Window *window) {
@@ -33,12 +43,12 @@ void TerrainEditorRenderer::preprocess() {
     fd.screen_w = screen_tex->get_width();
     fd.screen_h = screen_tex->get_height();
     /* check instance mesh size > 0 */
-    if (instance.is_null() ||
-        !instance.is_null() && instance->size() == 0) {
+    if (instance.is_null() || !instance.is_null() && instance->size() == 0) {
         return;
     }
     Camera *cam = &SeedEngine::get_instance()->get_world()->get_camera();
-    Camera::ShaderCamera *matrices = (Camera::ShaderCamera*)RHI::alloc_heap(sizeof(Camera::ShaderCamera));
+    Camera::ShaderCamera *matrices =
+        (Camera::ShaderCamera *)RHI::alloc_heap(sizeof(Camera::ShaderCamera));
 
     cam->fill_shader_camera(matrices);
     RHI::update_from_heap(camera, 0, sizeof(Camera::ShaderCamera), matrices);

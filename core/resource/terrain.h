@@ -9,6 +9,7 @@
 #include <vector>
 #include "core/rendering/mesh.h"
 #include "core/rendering/instance_data.h"
+#include "core/resource/texture.h"
 
 namespace Seed {
 
@@ -25,7 +26,8 @@ struct TerrainInstance {
 
 class TerrainMaterial : public Material {
     public:
-        TerrainMaterial(Ref<Texture> height_map);
+        TerrainMaterial(Ref<Texture> height_map, Ref<Texture> light_map,
+                        Ref<Texture> splat_map);
         void set_height_map(Ref<Texture> height_map);
         void set_light_map(Ref<Texture> light_map);
         Ref<Texture> get_height_map();
@@ -59,11 +61,11 @@ class Terrain : public Resource {
         void build_mesh();
         void create_chunk(Ref<Image> height_map, i32 left, i32 top,
                           u32 half_width, u32 half_depth);
-        void gen_lightmap(Ref<Image> height_map);
 
     public:
-        Terrain(Ref<Image> height_map);
-        void set_material(Ref<TerrainMaterial> mat){
+        Terrain(Ref<Image> height_map, Ref<Texture> light_map,
+                Ref<Texture> splat_map);
+        void set_material(Ref<TerrainMaterial> mat) {
             this->mesh->set_material(ref_cast<Material>(mat));
             this->terrain_mat = mat;
         }

@@ -15,6 +15,7 @@
 #include "core/resource/sky.h"
 #include "core/resource/image.h"
 #include "core/resource/billboard.h"
+#include "mappable_texture.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -277,6 +278,23 @@ Ref<Texture> ResourceLoader::_load(const std::string &path) {
 }
 
 template <>
+Ref<MappableTexture> ResourceLoader::_load(const std::string &path) {
+    Ref<MappableTexture> texture;
+    int w, h, comp;
+    void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
+
+    if (!data) {
+        spdlog::warn("Can't load texture from {}", path);
+        return texture;
+    }
+    texture.create(TextureType::TEXTURE_2D, w, h, PixelFormat::RGBA,
+                   (const u8 *)data);
+
+    stbi_image_free(data);
+    return texture;
+}
+
+template <>
 Ref<Image> ResourceLoader::_load(const std::string &path) {
     Ref<Image> image;
     int w, h, comp;
@@ -295,8 +313,24 @@ Ref<Image> ResourceLoader::_load(const std::string &path) {
 template <>
 Ref<Terrain> ResourceLoader::_load(const std::string &path) {
     Ref<Terrain> terrain;
-    Ref<Image> height_map = _load<Image>(path);
-    terrain.create(height_map);
+    Ref<File> file = File::open(path, "rb");
+    Ref<Dir> dir = Dir::open(file->get_directory());
+    auto terrain_info = file->read_json();
+    std::string name = terrain_info["name"];
+    u32 width = terrain_info["width"];
+    u32 height = terrain_info["height"];
+    Ref<Image> height_map;
+    Ref<Texture> splat_map, light_map;
+    auto jheight_map = terrain_info["height_map"];
+    height_map = load<Image>(dir->concat(jheight_map));
+
+    auto jsplat_map = terrain_info["splat_map"];
+    splat_map = load<Texture>(dir->concat(jsplat_map));
+    if (terrain_info.contains("light_map")) {
+        auto jlight_map = terrain_info["light_map"];
+        light_map = load<Texture>(dir->concat(jlight_map));
+    }
+    terrain.create(height_map, light_map, splat_map);
     return terrain;
 }
 

@@ -20,6 +20,7 @@ class Editor {
         Project *project(){
             return current_project;
         }
+
         Editor();
         ~Editor() = default;
 };

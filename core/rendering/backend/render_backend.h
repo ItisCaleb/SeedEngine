@@ -49,6 +49,7 @@ class RenderBackend {
         virtual TextureHandle alloc_mappable_texture(
             TextureType type, u32 w, u32 h, PixelFormat format,
             const SamplerProperty &property, const void *data) = 0;
+        virtual void query_texture_size(TextureHandle handle, u32 *w, u32 *h) = 0;
         virtual VertexHandle alloc_vertex(u32 stride, u32 element_cnt,
                                           UpdateFrequence frequence,
                                           const void *data) = 0;
