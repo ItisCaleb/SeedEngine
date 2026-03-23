@@ -34,16 +34,26 @@ ConstantHandle alloc_constant(u32 size, UpdateFrequence frequence, void *data) {
         size, data, frequence);
 }
 
-TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format, MSAAType msaa_type,
-                            const void *data, const SamplerProperty &property) {
+TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
+                            MSAAType msaa_type, const void *data,
+                            const SamplerProperty &property) {
     return RenderEngine::get_instance()->get_device()->alloc_texture(
         type, w, h, format, msaa_type, property, data);
 }
 
-TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h, PixelFormat format,
-                            const void *data, const SamplerProperty &property) {
+TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
+                                     PixelFormat format, const void *data,
+                                     const SamplerProperty &property) {
     return RenderEngine::get_instance()->get_device()->alloc_mappable_texture(
         type, w, h, format, property, data);
+}
+
+void query_texture_size(TextureHandle handle, u32 *w, u32 *h) {
+    if (!w || !h) {
+        return;
+    }
+    RenderEngine::get_instance()->get_device()->query_texture_size(handle, w,
+                                                                   h);
 }
 
 SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,

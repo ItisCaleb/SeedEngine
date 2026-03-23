@@ -1,10 +1,9 @@
 #include "terrain.h"
 #include "core/resource/default_storage.h"
 #include "core/physic/physic_engine.h"
-#include "core/concurrency/thread_pool.h"
 #include "core/rendering/rhi/render_engine.h"
+#include "core/resource/texture.h"
 #include <math.h>
-#include <deque>
 #include <cfloat>
 
 namespace Seed {
@@ -13,10 +12,17 @@ namespace Seed {
 #define HEIGHT_OFFSET (-128)
 #define HEIGHT_SCALE (1)
 
-TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
+TerrainMaterial::TerrainMaterial(Ref<Texture> height_map,
+                                 Ref<Texture> light_map, Ref<Texture> splat_map)
     : Material(DS::get_instance()->terrain_shader) {
     this->set_texture("height_map", height_map);
-    this->set_texture("terrain_shadowMap", DS::get_instance()->black_texture);
+    if (light_map.is_null()) {
+        this->set_texture("terrain_shadowMap",
+                          DS::get_instance()->black_texture);
+    } else {
+        this->set_texture("terrain_shadowMap", light_map);
+    }
+    this->set_texture("splat_map", splat_map);
     this->raster_state = {.cull_mode = Cullmode::FRONT,
                           .patch_control_points = 4};
     this->depth_state = {.depth_mode = DepthMode::ALPHA_TEST};
@@ -174,93 +180,8 @@ void Terrain::build_mesh() {
     this->mesh->set_type(RenderPrimitiveType::PATCHES);
 }
 
-void Terrain::gen_lightmap(Ref<Image> height_map) {
-    Ref<Image> terrain_shadow_map(PixelFormat::R, this->hmap_width,
-                                  this->hmap_height);
-
-    Vec3 light_dir = Vec3{-0.5, -0.5, 0}.norm();
-    std::vector<Vec2> starts;
-
-    if (light_dir.x > 0) {
-        for (int z = 0; z < this->hmap_height; ++z)
-            starts.push_back({0.0f, (float)z});
-    } else if (light_dir.x < 0) {
-        for (int z = 0; z < this->hmap_height; ++z)
-            starts.push_back({(float)(hmap_width - 1), (float)z});
-    }
-
-    if (light_dir.z > 0) {
-        for (int x = 0; x < this->hmap_width; ++x)
-            starts.push_back({(float)x, 0.0f});
-    } else if (light_dir.z < 0) {
-        for (int x = 0; x < this->hmap_width; ++x)
-            starts.push_back({(float)x, (float)(this->hmap_height - 1)});
-    }
-    for (Vec2 &sp : starts) {
-        f32 row = sp.y;
-        f32 col = sp.x;
-        row -= light_dir.z;
-        col += light_dir.x;
-        i32 irow = row;
-        i32 icol = col;
-        std::deque<Vec2> hull;
-
-        auto get_height = [&](Vec2 p) {
-            return height_map->pixel(p.x, p.y)[0];
-        };
-
-        auto angle = [&](Vec2 p, Vec2 q) {
-            f32 dist_sqr = (q - p).length_sqr();
-            f32 ph = get_height(p);
-            f32 qh = get_height(q);
-            f32 dh = qh - ph;
-            f32 angle = dh / sqrt(dh * dh + dist_sqr);
-            return angle;
-        };
-
-        auto slope = [&](Vec2 p, Vec2 q) {
-            f32 dist = (q - p).length();
-            f32 ph = get_height(p);
-            f32 qh = get_height(q);
-            f32 dh = qh - ph;
-            f32 slope = dh / dist;
-            return slope;
-        };
-
-        while (icol >= 0 && icol < this->hmap_width && irow >= 0 &&
-               irow < this->hmap_height) {
-            Vec2 cur = Vec2{col, row};
-            while (hull.size() >= 2 &&
-                   slope(cur, hull[0]) < slope(cur, hull[1])) {
-                hull.pop_front();
-            }
-            if (hull.empty())
-                terrain_shadow_map->pixel(icol, irow)[0] = 0;
-            else {
-                f32 s = slope(cur, hull[0]);
-                terrain_shadow_map->pixel(icol, irow)[0] =
-                    s > 0 ? 255 * angle(cur, hull[0]) : 0;
-            }
-
-            while (!hull.empty() && get_height(cur) > get_height(hull[0])) {
-                hull.pop_front();
-            }
-            hull.push_front(cur);
-
-            col += light_dir.x;
-            row -= light_dir.z;
-            icol = col;
-            irow = row;
-        }
-    }
-
-    Ref<Texture> shadow_map(TextureType::TEXTURE_2D, this->hmap_width,
-                            this->hmap_height, PixelFormat::R, nullptr);
-    terrain_shadow_map->median_filter(7)->upload(shadow_map);
-    terrain_mat->set_light_map(shadow_map);
-}
-
-Terrain::Terrain(Ref<Image> height_map) {
+Terrain::Terrain(Ref<Image> height_map, Ref<Texture> light_map,
+                 Ref<Texture> splat_map) {
     this->hmap_width = height_map->get_width();
     this->hmap_height = height_map->get_height();
 
@@ -275,7 +196,7 @@ Terrain::Terrain(Ref<Image> height_map) {
     u32 half_depth = this->depth / 2;
 
     Ref<Texture> height_map_tex = height_map->create_texture();
-    terrain_mat.create(height_map_tex);
+    terrain_mat.create(height_map_tex, light_map, splat_map);
     this->instances.create();
 
     build_mesh();
@@ -292,7 +213,6 @@ Terrain::Terrain(Ref<Image> height_map) {
     this->instances->upload();
     MeshStorage::get_instance()->add_mesh(
         this->mesh, ref_cast<InstanceData>(this->instances));
-    gen_lightmap(height_map);
 }
 
 Terrain::~Terrain() {}

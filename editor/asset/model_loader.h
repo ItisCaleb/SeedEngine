@@ -80,7 +80,7 @@ class EditorModel {
         std::vector<EditorAnimation> animations;
         std::vector<::Material> materials;
 
-        void dump(const std::string &file_path);
+        void dump(const std::string &dir);
 
         EditorModel(const std::string &path);
 };

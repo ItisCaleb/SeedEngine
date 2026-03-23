@@ -52,9 +52,6 @@ int main(int, char **) {
     ResourceLoader *loader = ResourceLoader::get_instance();
     render_engine->set_renderer_enable(render_engine->get_default_renderer(),
                                        false);
-    // auto sky = loader->load_async<Sky>("assets/sky.json");
-    // engine->get_world()->set_sky(sky->wait());
-    // engine->get_world()->set_terrain(terrain->wait());
 
     engine->start();
     NFD_Quit();

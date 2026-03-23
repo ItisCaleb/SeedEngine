@@ -7,6 +7,8 @@ struct VS_OUT{
 
 struct Property{
     Sampler2D height_map; 
+    Sampler2D terrain_shadowMap;
+    Sampler2D splat_map;
 };
 
 ParameterBlock<Property> prop;
@@ -68,6 +70,43 @@ struct DS_OUT{
 
 float get_height(vec2 tex_coord){
     return prop.height_map.SampleLevelZero(tex_coord).y * 256.0 - 128.0;
+}
+
+float SampleHorizonShadow(vec2 uv, vec3 light_dir){
+    // lookup texel at patch coordinate for height and scale + shift as desired
+    float4 slopes = prop.terrain_shadowMap.SampleLevelZero(uv);
+
+    float sx = light_dir.x < 0 ? slopes.r : slopes.g;
+    float sz = light_dir.z < 0 ? slopes.b : slopes.a;
+
+    float wx = abs(light_dir.x);
+    float wz = abs(light_dir.z);
+    float total = wx + wz;  // L1 norm
+    float slope = (sx * wx + sz * wz) / total;
+    float angle = light_dir.y;
+    float soft_width = 0.15;
+    float shadow = smoothstep(angle - soft_width,
+                              angle + soft_width,
+                              slope);
+
+    return shadow;
+}
+
+float HorizonShadow(vec2 uv, vec3 light_dir) {
+    float shadow = 0.0;
+    uint level;
+    uint2 size;
+    prop.terrain_shadowMap.GetDimensions(0u, size[0], size[1], level);
+    vec2 tex_scale = (1.0 / vec2(size));
+    
+    int kernel_size = 3;
+    /* poisson disk */
+    for (int i = 0; i < 16; i++) {
+        vec2 sample_offset = poisson_disk[i] * kernel_size * tex_scale;
+        shadow += SampleHorizonShadow(uv + sample_offset, light_dir);
+    }
+    shadow /= 16.0;
+    return shadow;
 }
 
 [shader("domain")]
@@ -141,14 +180,14 @@ FS_OUT frag(DS_OUT in){
     vec3 view_dir = normalize(vec3(0.3,0.3,0.3));
     vec3 diffuse_sample = vec3(1,1,1);
     vec3 specular_sample = vec3(1,1,1);
-    vec3 dir_light = -normalize(vec3(0.3,0.3,0.3));
-    float c = dir_light.y;
+    vec3 dir_light = -normalize(vec3(-0.5,-0.5,0));
+    float horizon_shadow = HorizonShadow(in.texCoord, dir_light);
     // direction
     light_out +=
         calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
             diffuse_sample, specular_sample, dir_light, view_dir,
-            1, in.normal);
-    light_out *= vec3(h, h, h);;
+            1, in.normal) * (1.0 - horizon_shadow);
+    light_out *= vec3(h, h, h);
     out.albedo = vec4(light_out, 1.0);
 
     out.position = int4(

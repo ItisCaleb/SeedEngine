@@ -112,7 +112,6 @@ void EditorGUI::update() {
     PushFont((ImFont *)font);
     main_menu();
     main_panel();
-    ShowDemoWindow(&b);
     PopFont();
 }
 

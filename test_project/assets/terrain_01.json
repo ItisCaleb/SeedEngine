@@ -1,0 +1,9 @@
+{
+  "name": "terrain_01",
+  "type": "terrain",
+  "width": 2816,
+  "height": 1792,
+  "height_map": "terrain_01_height_map.png",
+  "splat_map": "terrain_01_splat_map.png",
+  "light_map": "terrain_01_light_map.png"
+}

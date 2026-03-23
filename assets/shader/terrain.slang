@@ -8,6 +8,7 @@ struct VS_OUT{
 struct Property{
     Sampler2D height_map; 
     Sampler2D terrain_shadowMap;
+    Sampler2D splat_map;
     Sampler2D shadowMap;
 };
 
@@ -129,13 +130,40 @@ DS_OUT tese(
 }
 
 
-float HorizonShadow(vec2 uv, float angle){
+float SampleHorizonShadow(vec2 uv, vec3 light_dir){
     // lookup texel at patch coordinate for height and scale + shift as desired
-    float slope = prop.terrain_shadowMap.SampleLevelZero(uv).r;
+    float4 slopes = prop.terrain_shadowMap.SampleLevelZero(uv);
+
+    float sx = light_dir.x < 0 ? slopes.r : slopes.g;
+    float sz = light_dir.z < 0 ? slopes.b : slopes.a;
+
+    float wx = abs(light_dir.x);
+    float wz = abs(light_dir.z);
+    float total = wx + wz;  // L1 norm
+    float slope = (sx * wx + sz * wz) / total;
+    float angle = light_dir.y;
     float soft_width = 0.15;
     float shadow = smoothstep(angle - soft_width,
                               angle + soft_width,
                               slope);
+
+    return shadow;
+}
+
+float HorizonShadow(vec2 uv, vec3 light_dir) {
+    float shadow = 0.0;
+    uint level;
+    uint2 size;
+    prop.terrain_shadowMap.GetDimensions(0u, size[0], size[1], level);
+    vec2 tex_scale = (1.0 / vec2(size));
+    
+    int kernel_size = 3;
+    /* poisson disk */
+    for (int i = 0; i < 16; i++) {
+        vec2 sample_offset = poisson_disk[i] * kernel_size * tex_scale;
+        shadow += SampleHorizonShadow(uv + sample_offset, light_dir);
+    }
+    shadow /= 16.0;
     return shadow;
 }
 
@@ -155,7 +183,7 @@ float4 frag(DS_OUT in){
     float c = dir_light.y;
 
     float csm_shadow = CSMShadowCalculation(prop.shadowMap, in.fragPos, in.view_depth, in.normal, dir_light);
-    float horizon_shadow = HorizonShadow(in.texCoord, c);
+    float horizon_shadow = HorizonShadow(in.texCoord, dir_light);
     float shadow = max(csm_shadow, horizon_shadow);
     
     // direction

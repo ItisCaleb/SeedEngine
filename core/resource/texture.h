@@ -13,7 +13,9 @@ class Texture : public Resource {
         SamplerProperty property;
         bool mipmap;
         u32 w, h;
-
+        /* real width on GPU */
+        u32 real_w, real_h;
+        Texture(){}
     public:
         TextureHandle get_handle() { return handle; }
         u32 get_width() { return w; }

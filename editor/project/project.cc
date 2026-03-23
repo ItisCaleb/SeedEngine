@@ -19,6 +19,7 @@ void Project::save() {
     auto file = File::open(path + "/" + this->name + ".json", "wb");
     nlohmann::json j;
     j["name"] = this->name;
+    j["assets"] = assets;
     std::string json_s = j.dump();
     file->write(json_s.data(), json_s.size());
 }
