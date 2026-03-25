@@ -313,6 +313,9 @@ class RenderBackendVK : public RenderBackend {
                                              PixelFormat format,
                                              const SamplerProperty &property,
                                              const void *data) override;
+        void query_texture_size(TextureHandle handle, u32 *w,
+                                        u32 *h) override;
+
         VertexHandle alloc_vertex(u32 stride, u32 element_cnt,
                                   UpdateFrequence frequence,
                                   const void *data) override;

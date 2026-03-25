@@ -17,6 +17,7 @@ Texture::Texture(TextureType type, u32 w, u32 h, PixelFormat format,
     : type(type), w(w), h(h), format(format), property(property) {
     handle =
         RHI::alloc_texture(type, w, h, format, msaa_type, image_data, property);
+    RHI::query_texture_size(handle, &real_w, &real_h);
 }
 
 void Texture::update(const u8 *data, u32 w, u32 h) {

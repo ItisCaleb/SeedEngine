@@ -58,6 +58,14 @@ enum class PixelFormat : u8 {
     S8
 };
 
+struct TextureDescription{
+    TextureType type;
+    u32 w, h;
+    PixelFormat format;
+    bool mappable = false;
+    MSAAType msaa_type = MSAAType::SAMPLE_COUNT_1;
+};
+
 u32 constexpr static get_pixel_format_size(PixelFormat format) {
     switch (format) {
         case PixelFormat::R:

@@ -16,7 +16,7 @@ class MappableTexture : public Texture {
         void *get_mapped();
         u8 *pixel(u32 x, u32 y) {
             u8 *data = (u8 *)get_mapped();
-            return &data[(y * w + x) * get_pixel_format_size(format)];
+            return &data[(y * real_w + x) * get_pixel_format_size(format)];
         }
         u8 *pixel_repeat(i32 x, i32 y) {
             if (x < 0) x = 0;
@@ -24,7 +24,7 @@ class MappableTexture : public Texture {
             if (y < 0) y = 0;
             if (y >= h) y = h - 1;
             u8 *data = (u8 *)get_mapped();
-            return &data[(y * w + x) * get_pixel_format_size(format)];
+            return &data[(y * real_w + x) * get_pixel_format_size(format)];
         }
 
         void save_disk(const std::string &path);

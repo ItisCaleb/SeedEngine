@@ -1097,18 +1097,37 @@ TextureHandle RenderBackendVK::alloc_mappable_texture(
     void *mapped_ptr;
     vmaMapMemory(buffer_allocator, allocation, &mapped_ptr);
 
-    TextureHandle handle = this->textures.insert({.w = w,
-                                                  .h = h,
-                                                  .type = type,
-                                                  .format = format,
-                                                  .image = image,
-                                                  .view = image_view,
-                                                  .sampler = sampler,
-                                                  .memory = allocation,
-                                                  .layouts = layouts,
-                                                  .mapped_ptr = mapped_ptr});
+    /* query texture real size */
+    VkImageSubresource subRes = {};
+    subRes.aspectMask = viewInfo.subresourceRange.aspectMask;
+    subRes.mipLevel = 0;
+    subRes.arrayLayer = 0;
+
+    VkSubresourceLayout subResLayout;
+    vkGetImageSubresourceLayout(device, image, &subRes, &subResLayout);
+    w = subResLayout.rowPitch / get_pixel_format_size(format);
+
+    TextureHandle handle =
+        this->textures.insert({.w = w,
+                               .h = h,
+                               .type = type,
+                               .format = format,
+                               .image = image,
+                               .view = image_view,
+                               .sampler = sampler,
+                               .memory = allocation,
+                               .sample_count = VK_SAMPLE_COUNT_1_BIT,
+                               .layouts = layouts,
+                               .mapped_ptr = mapped_ptr});
     mappable_image_transition_queue.push(handle);
     return handle;
+}
+
+void RenderBackendVK::query_texture_size(TextureHandle handle, u32 *w, u32 *h) {
+    HardwareTextureVk *tex = this->textures.get_or_null(handle);
+    EXPECT_NOT_NULL_RET(tex);
+    *w = tex->w;
+    *h = tex->h;
 }
 
 VertexHandle RenderBackendVK::alloc_vertex(u32 stride, u32 element_cnt,
@@ -1353,10 +1372,14 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
     }
     render_target->dirty = false;
 
-    // if (render_target->render_pass_cache != nullptr) {
-    //     vkDestroyRenderPass(device, render_target->render_pass_cache,
-    //     nullptr);
-    // }
+    if (render_target->render_pass_cache != nullptr) {
+        this->destroy_list.push_back(
+            DestroyResource{.type = RenderResourceType::RENDER_TARGET,
+                            .render_target = {
+                                .render_pass = render_target->render_pass_cache,
+                                .framebuffer = nullptr,
+                            }});
+    }
 
     for (auto attachment : render_target->color_attachments) {
         VkAttachmentDescription colorAttachment{};
@@ -1464,7 +1487,12 @@ void RenderBackendVK::create_framebuffer(HardwareRenderPassVk *render_target) {
     render_target->texture_changed = false;
 
     if (render_target->framebuffer_cache != nullptr) {
-        vkDestroyFramebuffer(device, render_target->framebuffer_cache, nullptr);
+        this->destroy_list.push_back(
+            DestroyResource{.type = RenderResourceType::RENDER_TARGET,
+                            .render_target = {
+                                .render_pass = nullptr,
+                                .framebuffer = render_target->framebuffer_cache,
+                            }});
     }
 
     VkFramebufferCreateInfo framebufferInfo{};
@@ -1565,6 +1593,9 @@ void RenderBackendVK::handle_frame_update() {
     std::vector<VkImageMemoryBarrier> transfer_barriers;
     std::vector<VkImageMemoryBarrier> shader_barriers;
     Frame &frame = frames[get_current_frame_index()];
+    transfer_barriers.reserve(image_copy_queue.size());
+    shader_barriers.reserve(image_copy_queue.size() +
+                            mappable_image_transition_queue.size());
 
     for (ImageUpdate &copy : image_copy_queue) {
         VkImageMemoryBarrier barrier{};
@@ -1683,8 +1714,10 @@ void RenderBackendVK::handle_destroy() {
                                 destroy.texture.memory);
                 break;
             case RenderResourceType::RENDER_TARGET:
-                vkDestroyFramebuffer(device, destroy.render_target.framebuffer,
-                                     nullptr);
+                if (destroy.render_target.framebuffer) {
+                    vkDestroyFramebuffer(
+                        device, destroy.render_target.framebuffer, nullptr);
+                }
                 if (destroy.render_target.render_pass) {
                     vkDestroyRenderPass(
                         device, destroy.render_target.render_pass, nullptr);

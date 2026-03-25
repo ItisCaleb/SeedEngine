@@ -24,6 +24,7 @@ class Image : public Resource {
             const SamplerProperty &property = {});
 
         void upload(Ref<Texture> texture);
+        void upload(Ref<MappableTexture> texture);
         void download(Ref<Texture> texture);
         u32 get_width() { return width; }
         u32 get_height() { return height; }
@@ -40,7 +41,7 @@ class Image : public Resource {
 
         std::vector<u8> &get_data() { return data; }
 
-        Ref<Image> median_filter(u32 kernel_size);
+        Ref<Image> median_filter(u32 kernel_size, bool process_alpha = false);
 
         Image(PixelFormat format, u32 w, u32 h);
 };

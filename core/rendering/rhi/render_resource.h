@@ -73,6 +73,7 @@ TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
 TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
                                      PixelFormat format, const void *data,
                                      const SamplerProperty &property);
+void query_texture_size(TextureHandle handle, u32 *w, u32 *h);
 
 [[nodiscard]]
 ShaderHandle alloc_shader(const std::string &path, const std::string &code,

@@ -21,8 +21,13 @@ inline static f32 clampf(f32 n, f32 low, f32 high) {
 }
 
 /* t must be normalized to [0, 1]*/
-inline static f32 lerp(f32 a, f32 b, f32 t){
+inline static f32 lerp(f32 a, f32 b, f32 t) {
     return a - (b - a) * clampf(t, 0.0, 1.0);
+}
+
+inline static u32 align_to(u32 n, u32 alignment) {
+    u32 aligned = (n + alignment - 1) & ~(alignment - 1);
+    return aligned;
 }
 
 inline static u32 roundup_to_pow2(u32 v) {
