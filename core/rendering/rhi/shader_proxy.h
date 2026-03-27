@@ -5,7 +5,6 @@
 #include <slang.h>
 #include <slang-com-ptr.h>
 #include <slang-com-helper.h>
-#include <unordered_map>
 #include "core/rendering/rhi/render_resource.h"
 
 namespace Seed {

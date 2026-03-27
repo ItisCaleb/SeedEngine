@@ -5,7 +5,6 @@
 #include "core/debug/debug_drawer.h"
 #include "core/macro.h"
 #include "core/engine.h"
-#include "core/rendering/rhi/render_engine.h"
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
 
 namespace Seed {

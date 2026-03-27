@@ -4,7 +4,6 @@
 #include <nfd.h>
 #include <spdlog/spdlog.h>
 #include "core/input.h"
-#include "core/engine.h"
 #include "core/rendering/renderer/imgui_renderer.h"
 
 namespace Seed {

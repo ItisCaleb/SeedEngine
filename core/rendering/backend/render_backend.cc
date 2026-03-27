@@ -1,4 +1,6 @@
 #include "render_backend.h"
+#include <algorithm>
+
 
 namespace Seed {
 void *RenderBackend::alloc(u64 size, void *data) {

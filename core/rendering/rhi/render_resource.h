@@ -3,7 +3,6 @@
 #include "core/types.h"
 #include <vector>
 #include <string>
-#include <map>
 #include "core/rendering/render_common.h"
 #include "core/handle.h"
 #include "core/rendering/shader_layout.h"

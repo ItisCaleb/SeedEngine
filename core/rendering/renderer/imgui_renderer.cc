@@ -1,7 +1,6 @@
 #include "imgui_renderer.h"
 #include <imgui.h>
 #include "core/math/mat4.h"
-#include "core/engine.h"
 
 namespace Seed {
 void ImguiRenderer::init(Window *window) {

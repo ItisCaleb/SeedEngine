@@ -3,7 +3,6 @@
 #include "core/ref.h"
 #include "core/rendering/instance_data.h"
 #include "core/resource/material.h"
-#include "core/resource/image.h"
 #include "core/rendering/mesh.h"
 
 namespace Seed {

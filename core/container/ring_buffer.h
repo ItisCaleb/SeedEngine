@@ -3,6 +3,7 @@
 #include "core/types.h"
 #include <vector>
 #include <atomic>
+#include <stdexcept>
 
 namespace Seed {
 template <typename T>

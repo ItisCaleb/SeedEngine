@@ -1,16 +1,11 @@
 #ifndef _SEED_RENDER_ENGINE_H_
 #define _SEED_RENDER_ENGINE_H_
 
-#include <queue>
 #include <vector>
-#include "core/rendering/camera.h"
-#include "core/rendering/rhi/render_command.h"
 #include "core/rendering/backend/render_backend.h"
-#include "core/rendering/mesh.h"
 #include "core/resource/model.h"
 #include "core/rendering/renderer/renderer.h"
 #include "core/window.h"
-#include "core/rendering/viewport.h"
 #include "core/rendering/mesh_storage.h"
 #include "core/rendering/rhi/shader_proxy.h"
 

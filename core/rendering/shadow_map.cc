@@ -1,5 +1,4 @@
 #include "shadow_map.h"
-#include "core/macro.h"
 #include <algorithm>
 #include <spdlog/spdlog.h>
 

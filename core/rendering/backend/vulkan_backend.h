@@ -2,9 +2,7 @@
 #define _SEED_VULKAN_BACKEND_H_
 #include "render_backend.h"
 #include "core/window.h"
-#include "core/container/freelist.h"
 #include "core/handle.h"
-#include <map>
 #include "core/rendering/render_common.h"
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>

@@ -6,7 +6,6 @@
 #include "core/allocator/linear_allocator.h"
 #include "core/rendering/shader_layout.h"
 #include <shared_mutex>
-#include <algorithm>
 #include <deque>
 
 namespace Seed {

@@ -1,8 +1,6 @@
 #include "entity.h"
 #include "core/physic/physic_engine.h"
-#include "core/rendering/mesh_storage.h"
 #include <vector>
-#include "core/input.h"
 
 namespace Seed {
 

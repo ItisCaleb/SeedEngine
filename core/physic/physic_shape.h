@@ -1,9 +1,7 @@
 #ifndef _SEED_PHYSIC_SHAPE_H_
 #define _SEED_PHYSIC_SHAPE_H_
 #include "core/types.h"
-#include "core/handle.h"
 #include "core/math/vec3.h"
-#include <vector>
 
 namespace Seed {
 enum class PhysicShapeType : u8 { SPHERE, BOX, CAPSULE, PLANE, HEIGHT_MAP };

@@ -3,7 +3,6 @@
 #include "core/ref.h"
 #include "core/transform.h"
 #include "core/rendering/rhi/render_resource.h"
-#include "core/rendering/camera.h"
 #include <set>
 #include <vector>
 #include <list>

@@ -1,7 +1,7 @@
 #ifndef CAMERA_ENTITY
 #define CAMERA_ENTITY
 #include "core/entity.h"
-#include "core/rendering/rhi/render_engine.h"
+#include "core/rendering/camera.h"
 
 namespace Seed {
 class CameraEntity : public Entity {

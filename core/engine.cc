@@ -9,7 +9,6 @@
 #include "core/physic/physic_engine.h"
 #include "types.h"
 #include <spdlog/spdlog.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include "core/os.h"
 #include "core/debug/debug_drawer.h"
