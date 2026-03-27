@@ -74,6 +74,7 @@ if(BUILD_XR)
         OpenXR::openxr_loader)
     target_include_directories(seed_xr PUBLIC .)
     target_link_libraries(seed PUBLIC seed_xr)
+    target_compile_definitions(seed PRIVATE SEED_XR)
 endif()
 target_compile_definitions(seed PRIVATE
         $<$<CONFIG:Debug>:VULKAN_DEBUG>

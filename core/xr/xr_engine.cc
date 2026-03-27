@@ -2,12 +2,13 @@
 
 #include <stdexcept>
 #include <vector>
+#include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
 #include <spdlog/spdlog.h>
 #include "core/types.h"
 
 namespace Seed {
 #define ENGINE_NAME "The Seed"
-
 
 static XRAPI_ATTR XrBool32 XRAPI_CALL
 debugCallback(XrDebugUtilsMessageSeverityFlagsEXT messageSeverity,
@@ -78,7 +79,6 @@ void XREngine::create_debug_messenger() {
         XR_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
         XR_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
         XR_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    ;
     createInfo.userCallback = debugCallback;
     const XrResult result = xrCreateDebugUtilsMessengerEXT(
         xr_instance, &createInfo, &debug_messenger);
@@ -94,6 +94,24 @@ void XREngine::get_system() {
         throw std::runtime_error("Failed to get XR system!");
     }
 }
+
+XrSession XREngine::bind_graphic_api(void *graphicBinding) {
+    XrSessionCreateInfo createInfo{};
+    if (graphicBinding == nullptr) {
+        throw std::runtime_error("Failed to get XR graphic binding!");
+    }
+    createInfo.type = XR_TYPE_SESSION_CREATE_INFO;
+    createInfo.systemId = xr_system_id;
+    createInfo.next = graphicBinding;
+    const XrResult result =
+        xrCreateSession(xr_instance, &createInfo, &xr_session);
+    if (XR_FAILED(result)) {
+        throw std::runtime_error("Failed to create XR session!");
+    }
+    return xr_session;
+}
+
+
 XREngine::XREngine() {
     instance = this;
     create_xr_instance();
