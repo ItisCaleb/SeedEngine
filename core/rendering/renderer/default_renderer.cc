@@ -88,12 +88,13 @@ void DefaultRenderer::prepare_lights() {
     Camera &cam = world->get_camera();
 
     /* fill main camera */
-    Camera::ShaderCamera *cams = (Camera::ShaderCamera *)RHI::alloc_heap(
-        sizeof(Camera::ShaderCamera) * 64);
+    RHI::UpdateBufferInfo cam_info =
+        RHI::alloc_heap(sizeof(Camera::ShaderCamera) * 64);
+    Camera::ShaderCamera *cams = (Camera::ShaderCamera *)cam_info.data;
     cam.fill_shader_camera(&cams[0]);
     /* upload lights uniform*/
-    STB140Lights *light_buf =
-        (STB140Lights *)RHI::alloc_heap(sizeof(STB140Lights));
+    RHI::UpdateBufferInfo light_info = RHI::alloc_heap(sizeof(STB140Lights));
+    STB140Lights *light_buf = (STB140Lights *)light_info.data;
     dir_light.get_stb140(&light_buf->u_dir_light);
     light_buf->u_light_ambient = world->get_ambient_light();
     std::vector<PointLight> &point_lights = world->get_point_lights();
@@ -106,10 +107,11 @@ void DefaultRenderer::prepare_lights() {
             light_buf->u_point_lights[i].enable = 0.0f;
         }
     }
-    RHI::update_from_heap(u_lights, 0, sizeof(STB140Lights), light_buf);
+    RHI::update_from_heap(u_lights, 0, light_info);
 
     /* CSM frustum splits */
-    CSMShadow *csm_data = (CSMShadow *)RHI::alloc_heap(sizeof(CSMShadow));
+    RHI::UpdateBufferInfo csm_info = RHI::alloc_heap(sizeof(CSMShadow));
+    CSMShadow *csm_data = (CSMShadow *)csm_info.data;
     std::vector<f32> resolutions;
     for (u32 i = 0; i < CSM_SPLITS; i++) {
         resolutions.push_back(
@@ -125,14 +127,14 @@ void DefaultRenderer::prepare_lights() {
     }
     /* fill cams[5 ~ 40] to directional light*/
     for (u32 i = 0; i < 6; i++) {
-        if(i >= point_lights.size()){
+        if (i >= point_lights.size()) {
             break;
         }
         point_lights[i].calculate_lightspace(&cams[5 + i * 6]);
     }
 
-    RHI::update_from_heap(u_csm, 0, sizeof(CSMShadow), csm_data);
-    RHI::update_from_heap(camera, 0, sizeof(Camera::ShaderCamera) * 64, cams);
+    RHI::update_from_heap(u_csm, 0, csm_info);
+    RHI::update_from_heap(camera, 0, cam_info);
 }
 
 void DefaultRenderer::prepare_meshes() {

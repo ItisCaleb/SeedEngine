@@ -3,6 +3,7 @@
 #include "core/ref.h"
 #include "core/transform.h"
 #include "core/rendering/rhi/render_resource.h"
+#include "rhi/render_resource.h"
 #include <set>
 #include <vector>
 #include <list>
@@ -19,6 +20,7 @@ class InstanceDataPool {
 
     private:
         SSBOHandle ssbo_handle;
+        u32 element_size;
         std::vector<std::list<Block>> free_zones;
         HandleOwner<Block> used_blocks;
         u32 max_order;
@@ -26,11 +28,14 @@ class InstanceDataPool {
         void merge(Block *b, u32 lg);
 
     public:
+        u32 get_element_size(){
+            return element_size;
+        }
         Handle alloc(u32 size);
         void free(Handle handle);
         Block query(Handle handle);
         SSBOHandle get_render_buffer() { return ssbo_handle; }
-        InstanceDataPool(u32 data_size, u32 size);
+        InstanceDataPool(u32 element_size, u32 size);
         ~InstanceDataPool();
 };
 
@@ -39,6 +44,7 @@ class InstanceData : public RefCounted {
         InstanceData(InstanceDataPool *pool) : pool(pool) {}
         InstanceDataPool *pool = nullptr;
         Handle instance_handle = NULL_HANDLE;
+        void _upload(RHI::UpdateBufferInfo &update_info);
 
     public:
         virtual void upload() = 0;

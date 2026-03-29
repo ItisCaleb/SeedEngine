@@ -1,4 +1,5 @@
 #include "terrain.h"
+#include "core/math/vec4.h"
 #include "core/resource/default_storage.h"
 #include "core/physic/physic_engine.h"
 #include "core/rendering/rhi/render_engine.h"
@@ -49,25 +50,16 @@ void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {
 }
 
 void TerrainInstanceData::upload() {
-    if (instance_handle == NULL_HANDLE) {
-        instance_handle = pool->alloc(this->instances.size());
-    } else {
-        auto block = pool->query(instance_handle);
-        if (block.size < this->instances.size()) {
-            pool->free(instance_handle);
-            instance_handle = pool->alloc(this->instances.size());
-        }
-    }
-    /* upload */
-    InstanceDataPool::Block block = pool->query(instance_handle);
-    Vec4 *vecs = (Vec4 *)RHI::alloc_heap(sizeof(Vec4) * this->instances.size());
+
+    RHI::UpdateBufferInfo instance_info = RHI::alloc_heap(sizeof(Vec4) * this->instances.size());
+    Vec4 *vecs = (Vec4 *)instance_info.data;
     u32 i = 0;
     for (TerrainInstance &instance : this->instances) {
         memcpy(&vecs[i], &instance, sizeof(Vec4));
         i++;
     }
-    RHI::update_from_heap(pool->get_render_buffer(), sizeof(Vec4) * block.idx,
-                          sizeof(Vec4) * this->instances.size(), vecs);
+    _upload(instance_info);
+
 }
 void TerrainInstanceData::frustum_culling(const Frustum &frustum,
                                           const AABB &bounding_box,

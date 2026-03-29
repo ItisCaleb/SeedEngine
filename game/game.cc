@@ -54,6 +54,15 @@ int main(void) {
                 ent->create_body(box, PhysicBodyType::DYNAMIC);
             }
         });
+    auto grass = loader->load_async<Billboard>(
+        "assets/grass.png", [=](Ref<Billboard> rc) {
+            for (i32 i = 0; i < 10; i++) {
+                Ref<Transform> tf;
+                tf.create();
+                tf->set_position(-i, 20, i);
+                rc->insert_transform(tf);
+            }
+        });
     auto man = loader->load_async<SkeletonModel>(
         "test_project/assets/man.json", [=](Ref<SkeletonModel> rc) {
             Entity *ent = new Entity(Vec3{0, 0, 0});
@@ -71,6 +80,8 @@ int main(void) {
         PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
     world->add_entity<CameraEntity>();
     world->set_sky(sky->wait());
+    world->add_billboard(grass->wait());
+
     engine->start();
 
     return 0;

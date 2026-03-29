@@ -4,6 +4,7 @@
 #include "core/rendering/rhi/render_engine.h"
 #include "core/debug/debug_drawer.h"
 #include "core/engine.h"
+#include "rhi/render_resource.h"
 
 namespace Seed {
 
@@ -87,16 +88,34 @@ InstanceDataPool::Block InstanceDataPool::query(Handle handle) {
     return *b;
 }
 
-InstanceDataPool::InstanceDataPool(u32 data_size, u32 size) {
+InstanceDataPool::InstanceDataPool(u32 element_size, u32 size)
+    : element_size(element_size) {
     this->max_order = log2(roundup_to_pow2(size)) + 1;
     this->ssbo_handle = RHI::alloc_storage_buffer(
-        (1 << max_order) * data_size, UpdateFrequence::PERFRAME, nullptr);
+        (1 << max_order) * element_size, UpdateFrequence::PERFRAME, nullptr);
     this->free_zones.resize(max_order);
     this->free_zones[this->max_order - 1].push_back(
         Block{0, 1u << (this->max_order - 1)});
 }
 InstanceDataPool::~InstanceDataPool() {}
 
+void InstanceData::_upload(RHI::UpdateBufferInfo &update_info) {
+    u32 element_size = pool->get_element_size();
+    u32 size = update_info.size / element_size;
+    if (instance_handle == NULL_HANDLE) {
+        instance_handle = pool->alloc(size);
+    } else {
+        auto block = pool->query(instance_handle);
+        if (block.size < size) {
+            pool->free(instance_handle);
+            instance_handle = pool->alloc(size);
+        }
+    }
+    /* upload */
+    InstanceDataPool::Block block = pool->query(instance_handle);
+    u32 offset = element_size * block.idx;
+    RHI::update_from_heap(pool->get_render_buffer(), offset, update_info);
+}
 InstanceData::~InstanceData() {
     if (this->instance_handle != NULL_HANDLE) {
         pool->free(this->instance_handle);
@@ -114,26 +133,15 @@ void TransformInstanceData::remove_transform(Ref<Transform> transform) {
 }
 
 void TransformInstanceData::upload() {
-    if (instance_handle == NULL_HANDLE) {
-        instance_handle = pool->alloc(this->transforms.size());
-    } else {
-        auto block = pool->query(instance_handle);
-        if (block.size < this->transforms.size()) {
-            pool->free(instance_handle);
-            instance_handle = pool->alloc(this->transforms.size());
-        }
-    }
-    /* upload */
-    InstanceDataPool::Block block = pool->query(instance_handle);
-    Mat4 *mats =
-        (Mat4 *)RHI::alloc_heap(sizeof(Mat4) * this->transforms.size());
+    RHI::UpdateBufferInfo mat_info =
+        RHI::alloc_heap(sizeof(Mat4) * this->transforms.size());
+    Mat4 *mats = (Mat4 *)mat_info.data;
     u32 i = 0;
     for (Ref<Transform> transform : this->transforms) {
         mats[i] = transform->get_model_matrix();
         i++;
     }
-    RHI::update_from_heap(pool->get_render_buffer(), sizeof(Mat4) * block.idx,
-                          sizeof(Mat4) * this->transforms.size(), mats);
+    _upload(mat_info);
 }
 
 void TransformInstanceData::frustum_culling(const Frustum &frustum,

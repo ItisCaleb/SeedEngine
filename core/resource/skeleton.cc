@@ -33,22 +33,14 @@ void SkeletonInstanceData::insert_instance(Ref<Transform> transform,
 }
 void SkeletonInstanceData::remove_state(Ref<Transform> transform,
                                         Ref<AnimationState> state) {
-    //this->instances.erase(SkeletonInstance{transform, state});
+    // this->instances.erase(SkeletonInstance{transform, state});
 }
 void SkeletonInstanceData::upload() {
-    u64 size = this->instances.size() * (1 + skeleton->size());
-    if (instance_handle == NULL_HANDLE) {
-        instance_handle = pool->alloc(size);
-    } else {
-        auto block = pool->query(instance_handle);
-        if (block.size < size) {
-            pool->free(instance_handle);
-            instance_handle = pool->alloc(size);
-        }
-    }
     /* upload */
+    u64 size = this->instances.size() * (1 + skeleton->size());
     InstanceDataPool::Block block = pool->query(instance_handle);
-    Mat4 *mats = (Mat4 *)RHI::alloc_heap(sizeof(Mat4) * size);
+    RHI::UpdateBufferInfo skeleton_info = RHI::alloc_heap(sizeof(Mat4) * size);
+    Mat4 *mats = (Mat4 *)skeleton_info.data;
     u64 i = 0;
     for (const SkeletonInstance &instance : this->instances) {
         mats[i] = instance.transform->get_model_matrix();
@@ -57,8 +49,7 @@ void SkeletonInstanceData::upload() {
         skeleton->apply_skinning(&mats[i + 1], skeleton->size());
         i += 1 + skeleton->size();
     }
-    RHI::update_from_heap(pool->get_render_buffer(), sizeof(Mat4) * block.idx,
-                          sizeof(Mat4) * size, mats);
+    _upload(skeleton_info);
 }
 void SkeletonInstanceData::frustum_culling(const Frustum &frustum,
                                            const AABB &bounding_box,
@@ -80,7 +71,7 @@ void SkeletonInstanceData::frustum_culling(const Frustum &frustum,
 }
 
 SkeletonInstanceData::SkeletonInstanceData(Ref<Skeleton> skeleton)
-    :InstanceData(
-          RenderEngine::get_instance()->get_instance_pool(SKELETON_POOL_NAME)), skeleton(skeleton) {
-}
+    : InstanceData(
+          RenderEngine::get_instance()->get_instance_pool(SKELETON_POOL_NAME)),
+      skeleton(skeleton) {}
 }  // namespace Seed
