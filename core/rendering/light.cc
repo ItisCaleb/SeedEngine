@@ -125,11 +125,11 @@ void PointLight::calculate_lightspace(Camera::ShaderCamera *light_space_cam) {
         cam.set_up(Vec3{1, 0, 0});
         cam.set_front(Vec3{0, 1, 0});
         light_space_lookat[4] = cam.look_at();
-        frustum_cache[5] = cam.get_frustum();
+        frustum_cache[4] = cam.get_frustum();
 
         cam.set_front(Vec3{0, -1, 0});
         light_space_lookat[5] = cam.look_at();
-        frustum_cache[6] = cam.get_frustum();
+        frustum_cache[5] = cam.get_frustum();
 
         dirty = false;
     }

@@ -38,6 +38,8 @@ class EditorTerrain : public Resource {
                       Ref<MappableTexture> splat_map,
                       Ref<MappableTexture> light_map);
         Ref<MappableTexture> get_heightmap() { return heightmap_texture; }
+        Ref<MappableTexture> get_splatmap() { return splat_map; }
+        Ref<EditorTerrainMaterial> get_material() { return material;}
         Ref<Mesh> get_mesh() { return mesh; }
         Ref<TerrainInstanceData> get_instances() { return instances; }
         u32 get_width() { return width; }

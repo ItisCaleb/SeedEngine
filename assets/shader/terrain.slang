@@ -9,6 +9,8 @@ struct Property{
     Sampler2D height_map; 
     Sampler2D terrain_shadowMap;
     Sampler2D splat_map;
+    Sampler2D tex1;
+    Sampler2D tex1_normal;
     Sampler2D shadowMap;
 };
 
@@ -62,10 +64,14 @@ PatchTessFactors PatchConstantFunction() {
 struct DS_OUT{
     float4 position : SV_Position;
     float height;
+    vec4 frag_pos;
     vec3 normal;
-    vec4 fragPos;
+    vec3 tangent_frag_pos;
+    vec3 tangent_view_pos;
     vec2 texCoord;
     float view_depth;
+    vec3 tangent_dir_light;
+    vec3 tangent_pos_light[8];
 };
 
 
@@ -118,12 +124,26 @@ DS_OUT tese(
 
     // displace point along normal
     p += vec4(0, out.height, 0 , 0);
+    vec3 normal = normalize(vec3(lh - rh, 2, dh - uh));
+    vec3 bitangent = cross(vec3(0,0,1), normal);
+    vec3 tangent = cross(normal, bitangent);
+    mat3 TBN = mat3(tangent, bitangent, normal);
     Camera cam = GetCamera();
     //https://stackoverflow.com/questions/49640250/calculate-normals-from-heightmap
-    out.normal = normalize(vec3(lh - rh, 2, dh - uh));
-    out.fragPos = p;
+    out.frag_pos = p;
+    out.tangent_frag_pos = TBN * p.xyz;
+    out.normal = normal;
     out.view_depth = -(cam.u_view * p).z;
     out.position = cam.u_projection * cam.u_view * p;
+    out.tangent_view_pos = TBN * cam.u_cam_pos;
+    out.tangent_dir_light = TBN * (gLights.u_dir_light.position);
+
+    for (int i = 0; i < 8; i++) {
+        Light light = gLights.u_point_lights[i];
+        if (light.enable == 0)
+            continue;
+        out.tangent_pos_light[i] = TBN * (light.position); 
+    }
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     return out;
@@ -173,37 +193,41 @@ float4 frag(DS_OUT in){
     if(h < 0.1){
         discard;
     }
+    vec2 uv = in.frag_pos.xz/32;
+    vec3 diffuse_sample = prop.tex1.Sample(uv).xyz;
+    vec3 normal = prop.tex1_normal.Sample(uv).rgb;
+    normal = normalize(normal * 2.0 - 1.0);  
 
-    vec3 light_out = gLights.u_light_ambient;
+
+    vec3 light_out = diffuse_sample * gLights.u_light_ambient;
     Camera cam = GetCamera();
-    vec3 view_dir = normalize(cam.u_cam_pos - in.fragPos.xyz);
-    vec3 diffuse_sample = vec3(1,1,1);
+    vec3 view_dir = normalize(in.tangent_view_pos - in.tangent_frag_pos.xyz);
     vec3 specular_sample = vec3(1,1,1);
     vec3 dir_light = -normalize(vec3(gLights.u_dir_light.position));
-    float c = dir_light.y;
+    vec3 tangent_dir_light = -normalize(in.tangent_dir_light);
 
-    float csm_shadow = CSMShadowCalculation(prop.shadowMap, in.fragPos, in.view_depth, in.normal, dir_light);
+    float csm_shadow = CSMShadowCalculation(prop.shadowMap, in.frag_pos, in.view_depth, in.normal, dir_light);
     float horizon_shadow = HorizonShadow(in.texCoord, dir_light);
     float shadow = max(csm_shadow, horizon_shadow);
     
     // direction
     light_out +=
         calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
-            diffuse_sample, specular_sample, dir_light, view_dir,
-            1, in.normal) * (1.0 - shadow);
+            diffuse_sample, specular_sample, tangent_dir_light, view_dir,
+            1, normal) * (1.0 - shadow);
     for (int i = 0; i < 8; i++) {
         Light light = gLights.u_point_lights[i];
         if (light.enable == 0)
             continue;
-        vec3 light_dir = vec3(light.position) - in.fragPos.xyz;
+        vec3 light_dir = in.tangent_pos_light[i] - in.tangent_frag_pos.xyz;
         float d = length(light_dir);
         light_dir = normalize(light_dir);
         light_out += calculate_light(light.diffuse, light.specular,
             diffuse_sample, specular_sample,
-            light_dir, view_dir, d, in.normal);
+            light_dir, view_dir, d, normal);
     }
     light_out *= vec3(h, h, h);
-    float dist = length(cam.u_cam_pos - in.fragPos.xyz);
+    float dist = length(cam.u_cam_pos - in.frag_pos.xyz);
     float fog_factor = clamp((dist - 700) / 100, 0.0, 0.95);
     vec3 final_color = lerp(light_out, vec3(0.48, 0.80, 0.80), fog_factor);
 

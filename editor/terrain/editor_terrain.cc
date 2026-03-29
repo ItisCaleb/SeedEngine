@@ -32,6 +32,7 @@ void EditorTerrainMaterial::set_light_map(Ref<Texture> texture) {
     this->set_texture("terrain_shadowMap", texture);
 }
 
+
 void EditorTerrain::build_mesh() {
     f32 tex_x_stride = (f32)CHUNK_SIZE / hmap_width;
     f32 tex_y_stride = (f32)CHUNK_SIZE / hmap_height;

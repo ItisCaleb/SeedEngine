@@ -105,6 +105,9 @@ void update(SSBOHandle handle, u32 offset, u32 size, void *data);
 void update(TextureHandle handle, PixelFormat format, u32 layer, u32 offx,
             u32 offy, u32 w, u32 h, void *data);
 
+void update_texture_sampler(TextureHandle handle, u32 layer,
+                            const SamplerProperty &property);
+
 /* these commands will be execute at start of frame */
 void update_from_heap(VertexHandle handle, u32 offset, u32 size, void *data);
 

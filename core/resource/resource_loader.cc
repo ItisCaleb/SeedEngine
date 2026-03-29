@@ -331,6 +331,22 @@ Ref<Terrain> ResourceLoader::_load(const std::string &path) {
         light_map = load<Texture>(dir->concat(jlight_map));
     }
     terrain.create(height_map, light_map, splat_map);
+    if (terrain_info.contains("tex1")) {
+        auto jtex1 = terrain_info["tex1"];
+        auto texture = load<Texture>(dir->concat(jtex1));
+        terrain->get_material()->set_texture("tex1", texture);
+        texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+                                                .wrap_v = SamplerWrap::REPEAT});
+    }
+
+    if (terrain_info.contains("tex1_normal")) {
+        auto jtex1 = terrain_info["tex1_normal"];
+        auto texture = load<Texture>(dir->concat(jtex1));
+        terrain->get_material()->set_texture("tex1_normal",
+                                                           texture);
+        texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+                                                .wrap_v = SamplerWrap::REPEAT});
+    }
     return terrain;
 }
 

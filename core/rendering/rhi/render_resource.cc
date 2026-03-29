@@ -137,6 +137,12 @@ void update(TextureHandle handle, PixelFormat format, u32 layer, u32 offx,
                                                        offy, w, h, heap);
 }
 
+void update_texture_sampler(TextureHandle handle, u32 layer,
+                            const SamplerProperty &property) {
+    RenderEngine::get_instance()->get_device()->update_texture_sampler(
+        handle, layer, property);
+}
+
 /* these commands will be execute at start of frame */
 void update_from_heap(VertexHandle handle, u32 offset, u32 size, void *data) {
     RenderEngine::get_instance()->get_device()->update(

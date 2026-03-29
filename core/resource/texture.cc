@@ -33,5 +33,10 @@ void Texture::upload_cube_map(const u8 *right, const u8 *left, const u8 *top,
     RHI::update(handle, format, 4, 0, 0, w, h, (void *)front);
     RHI::update(handle, format, 5, 0, 0, w, h, (void *)back);
 }
+
+void Texture::update_sampler(const SamplerProperty &property) {
+    this->property = property;
+    RHI::update_texture_sampler(handle, 0, property);
+}
 Texture::~Texture() { RHI::dealloc(handle); }
 }  // namespace Seed

@@ -6,6 +6,8 @@
 #include "core/input.h"
 #include "core/resource/mappable_texture.h"
 #include "core/resource/resource_loader.h"
+#include "core/resource/texture.h"
+#include "core/types.h"
 #include "editor/terrain/editor_terrain.h"
 #include "core/math/utils.h"
 #include "editor/editor.h"
@@ -272,6 +274,23 @@ void TerrainEditor::load_terrain(const std::string &path) {
     }
     this->current_terrain.create(width, height, height_map, splat_map,
                                  light_map);
+    // if (terrain_info.contains("tex1")) {
+    //     auto jtex1 = terrain_info["tex1"];
+    //     auto texture = loader->load<Texture>(dir->concat(jtex1));
+    //     this->current_terrain->get_material()->set_texture("tex1", texture);
+    //     texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+    //                                             .wrap_v = SamplerWrap::REPEAT});
+    // }
+
+    // if (terrain_info.contains("tex1_normal")) {
+    //     auto jtex1 = terrain_info["tex1_normal"];
+    //     auto texture = loader->load<Texture>(dir->concat(jtex1));
+    //     this->current_terrain->get_material()->set_texture("tex1_normal",
+    //                                                        texture);
+    //     texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+    //                                             .wrap_v = SamplerWrap::REPEAT});
+    // }
+
     this->current_terrain->name = name;
 }
 
@@ -405,10 +424,11 @@ void TerrainEditor::edit_terrain_imgui(ImVec2 origin, float w, float h) {
 
 void TerrainEditor::apply_brush(i16 cx, i16 cy) {
     Ref<MappableTexture> height_map = current_terrain->get_heightmap();
-    u32 r = (u32)brush_radius;
+    // Ref<MappableTexture> splat_map = current_terrain->get_splatmap();
+    i32 r = (u32)brush_radius;
 
-    for (u32 i = -r; i <= r; i++) {
-        for (u32 j = -r; j <= r; j++) {
+    for (i32 i = -r; i <= r; i++) {
+        for (i32 j = -r; j <= r; j++) {
             float dist = sqrtf((float)(i * i + j * j));
             if (dist > r) continue;
 
@@ -425,24 +445,24 @@ void TerrainEditor::apply_brush(i16 cx, i16 cy) {
             u8 *c = height_map->pixel(px, py);
             switch (active_tool) {
                 case TerrainTool::Raise:
-                    c[1] = (u8)std::min(255u, (u32)c[1] + (u32)(delta * 255));
+                    c[1] = (u8)std::min(255, (i32)c[1] + (i32)(delta * 255));
                     break;
                 case TerrainTool::Lower:
-                    c[1] = (u8)std::max(0u, (u32)c[1] - (u32)(delta * 255));
+                    c[1] = (u8)std::max(0, (i32)c[1] - (i32)(delta * 255));
                     break;
                 case TerrainTool::Smooth: {
                     // Average with neighbours (simple box)
-                    u32 sum = 0, cnt = 0;
-                    for (u32 di = -2; di <= 2; di++)
-                        for (u32 dj = -2; dj <= 2; dj++) {
-                            u32 nx = px + di, ny = py + dj;
+                    i32 sum = 0, cnt = 0;
+                    for (i32 di = -2; di <= 2; di++)
+                        for (i32 dj = -2; dj <= 2; dj++) {
+                            i32 nx = px + di, ny = py + dj;
                             if (nx < height_map->get_width() &&
                                 ny < height_map->get_height()) {
                                 sum += height_map->pixel(nx, ny)[1];
                                 cnt++;
                             }
                         }
-                    u32 avg = sum / cnt;
+                    i32 avg = sum / cnt;
                     c[1] = (u8)(c[1] + (avg - c[1]) * falloff * brush_strength);
                     break;
                 }
@@ -451,6 +471,10 @@ void TerrainEditor::apply_brush(i16 cx, i16 cy) {
                     c[1] = (u8)(c[1] +
                                 (128 - c[1]) * falloff * brush_strength * 0.1f);
                     break;
+                // case TerrainTool::Paint:
+                //     c = splat_map->pixel(px, py);
+                //     c[0] = 255;
+                //     break;
                 default:
                     break;
             }

@@ -1,5 +1,6 @@
 #ifndef _SEED_TEXTURE_H_
 #define _SEED_TEXTURE_H_
+#include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_resource.h"
 #include "core/resource/resource.h"
 
@@ -25,6 +26,7 @@ class Texture : public Resource {
         void update(const u8 *data, u32 w, u32 h);
         void upload_cube_map(const u8 *right, const u8 *left, const u8 *top,
                              const u8 *bottom, const u8 *front, const u8 *back);
+        void update_sampler(const SamplerProperty &property);
 
         Texture(TextureType type, u32 w, u32 h, PixelFormat format,
                 const u8 *image_data);

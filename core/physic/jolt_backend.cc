@@ -1,5 +1,6 @@
 #include "jolt_backend.h"
 #include <thread>
+#include <Jolt/Physics/Body/AllowedDOFs.h>
 #include <spdlog/spdlog.h>
 #include <stdarg.h>
 #include "core/debug/debug_drawer.h"
@@ -137,6 +138,9 @@ void JoltBackend::create_body(PhysicBody &body, PhysicShape &shape,
 
     JPH::BodyCreationSettings setting(shape_ref, to_jolt(pos), to_jolt(quat),
                                       m_type, Layers::MOVING);
+    // setting.mAllowedDOFs &=
+    //     ~(JPH::EAllowedDOFs::RotationX | JPH::EAllowedDOFs::RotationY |
+    //       JPH::EAllowedDOFs::RotationZ);
     JPH::Body *_body = body_if.CreateBody(setting);
     body_if.AddBody(_body->GetID(), JPH::EActivation::Activate);
     Handle handle = this->bodys.insert(_body->GetID());

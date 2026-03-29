@@ -14,6 +14,13 @@ OPTION(TEST
 "Build unit test"
 OFF)
 
+# add_compile_options("-fsanitize=address")
+# add_link_options("-fsanitize=address")
+# add_compile_definitions(
+#     _DISABLE_STRING_ANNOTATION=1
+#     _DISABLE_VECTOR_ANNOTATION=1
+# )
+
 # The engine static library
 add_library(seed STATIC)
 
@@ -68,6 +75,8 @@ target_compile_definitions(seed PRIVATE
 
 )
 
+
+
 add_subdirectory(core)
 add_subdirectory(thirdparty)
 
@@ -91,6 +100,9 @@ add_subdirectory(game)
 set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
 
 
+set_target_properties(app PROPERTIES
+    DEBUGGER_WORKING_DIRECTORY  "${PROJECT_SOURCE_DIR}"
+)
 if(TEST)
     add_subdirectory(test)
 endif()

@@ -38,6 +38,12 @@ void TerrainMaterial::set_light_map(Ref<Texture> light_map) {
     this->set_texture("terrain_shadowMap", light_map);
 }
 
+void TerrainMaterial::set_tex(Ref<Texture> texture) {
+    texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+                                            .wrap_v = SamplerWrap::REPEAT});
+    this->set_texture("tex1", texture);
+}
+
 void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {
     this->instances.push_back(instance);
 }

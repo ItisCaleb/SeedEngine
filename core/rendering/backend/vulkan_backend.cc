@@ -1,6 +1,8 @@
 #include "vulkan_backend.h"
 #include <GLFW/glfw3.h>
+#include <cstddef>
 #include "core/rendering/backend/vulkan_helper.h"
+#include "core/rendering/rhi/render_resource.h"
 #define VOLK_IMPLEMENTATION
 #include <volk.h>
 #define VMA_IMPLEMENTATION
@@ -1123,6 +1125,26 @@ TextureHandle RenderBackendVK::alloc_mappable_texture(
     return handle;
 }
 
+void RenderBackendVK::update_texture_sampler(TextureHandle handle, u32 layer,
+                                             const SamplerProperty &property) {
+    HardwareTextureVk *tex = this->textures.get_or_null(handle);
+    EXPECT_NOT_NULL_RET(tex);
+
+    VkSamplerCreateInfo samplerInfo = VulkanHelper::sampler_info(
+        property, device_properties.limits.maxSamplerAnisotropy);
+    this->destroy_list.push_back(
+        DestroyResource{.type = RenderResourceType::TEXTURE,
+                        .texture = {
+                            .image = nullptr,
+                            .view = nullptr,
+                            .sampler = tex->sampler,
+                            .memory = nullptr,
+                        }});
+    if (vkCreateSampler(device, &samplerInfo, nullptr, &tex->sampler) !=
+        VK_SUCCESS) {
+        throw std::runtime_error("failed to create texture sampler!");
+    }
+}
 void RenderBackendVK::query_texture_size(TextureHandle handle, u32 *w, u32 *h) {
     HardwareTextureVk *tex = this->textures.get_or_null(handle);
     EXPECT_NOT_NULL_RET(tex);
@@ -1709,9 +1731,13 @@ void RenderBackendVK::handle_destroy() {
                 if (destroy.texture.sampler != nullptr) {
                     vkDestroySampler(device, destroy.texture.sampler, nullptr);
                 }
-                vkDestroyImageView(device, destroy.texture.view, nullptr);
-                vmaDestroyImage(buffer_allocator, destroy.texture.image,
-                                destroy.texture.memory);
+                if (destroy.texture.view != nullptr) {
+                    vkDestroyImageView(device, destroy.texture.view, nullptr);
+                }
+                if (destroy.texture.image != nullptr) {
+                    vmaDestroyImage(buffer_allocator, destroy.texture.image,
+                                    destroy.texture.memory);
+                }
                 break;
             case RenderResourceType::RENDER_TARGET:
                 if (destroy.render_target.framebuffer) {

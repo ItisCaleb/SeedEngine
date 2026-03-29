@@ -30,6 +30,7 @@ class TerrainMaterial : public Material {
                         Ref<Texture> splat_map);
         void set_height_map(Ref<Texture> height_map);
         void set_light_map(Ref<Texture> light_map);
+        void set_tex(Ref<Texture> texture);
         Ref<Texture> get_height_map();
 };
 

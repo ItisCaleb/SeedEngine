@@ -1,5 +1,6 @@
 #ifndef _SEED_RENDER_BACKEND_H_
 #define _SEED_RENDER_BACKEND_H_
+#include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_command.h"
 #include "core/rendering/rhi/render_resource.h"
 #include "core/handle.h"
@@ -48,7 +49,8 @@ class RenderBackend {
         virtual TextureHandle alloc_mappable_texture(
             TextureType type, u32 w, u32 h, PixelFormat format,
             const SamplerProperty &property, const void *data) = 0;
-        virtual void query_texture_size(TextureHandle handle, u32 *w, u32 *h) = 0;
+        virtual void query_texture_size(TextureHandle handle, u32 *w,
+                                        u32 *h) = 0;
         virtual VertexHandle alloc_vertex(u32 stride, u32 element_cnt,
                                           UpdateFrequence frequence,
                                           const void *data) = 0;
@@ -75,6 +77,8 @@ class RenderBackend {
                             u32 size, void *data) = 0;
         virtual void update(TextureHandle handle, u32 layer, u32 offx, u32 offy,
                             u32 w, u32 h, void *data) = 0;
+        virtual void update_texture_sampler(TextureHandle handle, u32 layer,
+                                            const SamplerProperty &property) = 0;
         virtual void *map_buffer(RenderResourceType type, Handle handle) = 0;
         virtual void *map_texture(TextureHandle handle) = 0;
         virtual void bind_depth_attachment(RenderPassHandle handle,
