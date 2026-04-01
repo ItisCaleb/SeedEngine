@@ -2,6 +2,7 @@
 #include <spdlog/spdlog.h>
 #include "core/rendering/rhi/render_engine.h"
 #include "core/macro.h"
+#include "core/transform.h"
 
 namespace Seed {
 void Skeleton::apply_fk(Mat4 *bone_tranforms, u64 size) {
@@ -24,26 +25,24 @@ void Skeleton::apply_skinning(Mat4 *bone_tranforms, u64 size) {
     }
 }
 
-void SkeletonInstanceData::insert_instance(Ref<Transform> transform,
+void SkeletonInstanceData::insert_instance(Transform &transform,
                                            Ref<AnimationState> state) {
-    EXPECT_NOT_NULL_RET(*transform);
     EXPECT_NOT_NULL_RET(*state);
 
-    this->instances.push_back(SkeletonInstance{transform, state});
+    this->instances.push_back(
+        SkeletonInstance{transform.get_model_matrix(), state});
 }
-void SkeletonInstanceData::remove_state(Ref<Transform> transform,
-                                        Ref<AnimationState> state) {
-    // this->instances.erase(SkeletonInstance{transform, state});
-}
+
 void SkeletonInstanceData::upload() {
     /* upload */
+    /* skeleton and transform */
     u64 size = this->instances.size() * (1 + skeleton->size());
     InstanceDataPool::Block block = pool->query(instance_handle);
     RHI::UpdateBufferInfo skeleton_info = RHI::alloc_heap(sizeof(Mat4) * size);
     Mat4 *mats = (Mat4 *)skeleton_info.data;
     u64 i = 0;
     for (const SkeletonInstance &instance : this->instances) {
-        mats[i] = instance.transform->get_model_matrix();
+        mats[i] = instance.world_matrix;
         instance.state->calculate_pose(&mats[i + 1], skeleton->size());
         skeleton->apply_fk(&mats[i + 1], skeleton->size());
         skeleton->apply_skinning(&mats[i + 1], skeleton->size());
@@ -58,13 +57,12 @@ void SkeletonInstanceData::frustum_culling(const Frustum &frustum,
     u32 i = pool->query(instance_handle).idx;
 
     for (const SkeletonInstance &instance : instances) {
-        AABB aabb = instance.transform->translate_AABB(bounding_box);
+        AABB aabb = bounding_box.translate(instance.world_matrix);
         /* frustum culling */
         if (frustum.within_frustum(aabb)) {
             /* push instance indices */
             instance_ids.push_back(i);
-            depths.push_back(
-                frustum.calculate_depth(instance.transform->get_position()));
+            depths.push_back(frustum.calculate_depth(aabb.center));
         }
         i++;
     }

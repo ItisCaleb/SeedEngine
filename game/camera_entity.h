@@ -1,18 +1,25 @@
 #ifndef CAMERA_ENTITY
 #define CAMERA_ENTITY
-#include "core/entity.h"
+#include "core/types.h"
+#include "core/world/behaviour.h"
 #include "core/rendering/camera.h"
+#include "core/world/entity.h"
 
 namespace Seed {
-class CameraEntity : public Entity {
-    private:
+
+class CameraBehaviour : public Behaviour {
         Camera *cam;
-        f32 yaw = 0, pitch = 0;
+        f32 yaw, pitch;
 
     public:
-        void update(f32 dt) override;
-        CameraEntity();
-        ~CameraEntity();
+        virtual void start() override;
+        virtual void update(float dt) override;
+};
+
+class CameraEntity {
+    public:
+        static Entity create_entity(EntityManager &m);
+        static void destroy_entity(EntityManager &m, Entity e);
 };
 
 }  // namespace Seed

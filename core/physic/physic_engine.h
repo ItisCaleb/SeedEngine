@@ -13,9 +13,10 @@ class PhysicEngine {
     public:
         static PhysicEngine *get_instance() { return instance; }
         void process();
-        void create_body(PhysicBody &body, PhysicShape &shape,
-                         PhysicBodyType type, const Vec3 &pos,
+        void create_body(PhysicBody &body, const PhysicShape &shape,
+                         const PhysicBodyType type, const Vec3 &pos,
                          const Quaternion &quat = Quaternion::identity());
+        void query_physics(PhysicBody &body, Vec3 &position, Quaternion &quat);
         void delete_body(PhysicBody &body);
         PhysicEngine();
 };

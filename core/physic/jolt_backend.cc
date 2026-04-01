@@ -88,24 +88,24 @@ void JoltBackend::query_physics(PhysicBody &body, Vec3 &position,
     quat = from_jolt(j_quat);
 }
 
-JPH::ShapeRefC JoltBackend::create_shape(PhysicShape &shape) {
+JPH::ShapeRefC JoltBackend::create_shape(const PhysicShape &shape) {
     switch (shape.type) {
         case PhysicShapeType::BOX: {
-            PhysicBoxShape &box_shape = static_cast<PhysicBoxShape &>(shape);
+            const PhysicBoxShape &box_shape = static_cast<const PhysicBoxShape &>(shape);
             JPH::BoxShapeSettings setting(to_jolt(box_shape.half_extent));
             return setting.Create().Get();
         }
         case PhysicShapeType::HEIGHT_MAP: {
-            PhysicHeightmapShape &height_shape =
-                static_cast<PhysicHeightmapShape &>(shape);
+            const PhysicHeightmapShape &height_shape =
+                static_cast<const PhysicHeightmapShape &>(shape);
             JPH::HeightFieldShapeSettings setting(
                 height_shape.points, to_jolt(height_shape.offset),
                 to_jolt(height_shape.scale), height_shape.point_cnt);
             return setting.Create().Get();
         }
         case PhysicShapeType::SPHERE: {
-            PhysicSphereShape &sphere_shape =
-                static_cast<PhysicSphereShape &>(shape);
+            const PhysicSphereShape &sphere_shape =
+                static_cast<const PhysicSphereShape &>(shape);
             JPH::SphereShapeSettings setting(sphere_shape.radius);
             return setting.Create().Get();
         }
@@ -114,8 +114,8 @@ JPH::ShapeRefC JoltBackend::create_shape(PhysicShape &shape) {
     }
 }
 
-void JoltBackend::create_body(PhysicBody &body, PhysicShape &shape,
-                              PhysicBodyType type, const Vec3 &pos,
+void JoltBackend::create_body(PhysicBody &body, const PhysicShape &shape,
+                              const PhysicBodyType type, const Vec3 &pos,
                               const Quaternion &quat) {
     JPH::ShapeRefC shape_ref = this->create_shape(shape);
     if (shape_ref.GetPtr() == nullptr) {

@@ -1,5 +1,6 @@
 #ifndef _SEED_Mat4_H_
 #define _SEED_Mat4_H_
+#include "core/math/vec4.h"
 #include "vec4.h"
 #include "vec3.h"
 #include "quaternion.h"
@@ -89,7 +90,6 @@ struct Mat4 {
 
         Mat4 translate(Vec3 t) { return Mat4::translate_mat(t) * (*this); }
 
-
         /* x 0 0 0 */
         /* 0 y 0 0 */
         /* 0 0 z 0 */
@@ -148,9 +148,8 @@ struct Mat4 {
                          Vec4{0, 0, -2 / d, -fn / d}, Vec4{0, 0, 0, 1}});
         }
 
-        
         inline static Mat4 ortho_mat_zero(f32 r, f32 l, f32 t, f32 b, f32 near,
-                                     f32 far) {
+                                          f32 far) {
             f32 w = r - l;
             f32 rl = r + l;
             f32 h = t - b;
@@ -160,6 +159,12 @@ struct Mat4 {
             return Mat4({Vec4{2 / w, 0, 0, -rl / w}, Vec4{0, 2 / h, 0, -tb / h},
                          Vec4{0, 0, -1 / d, -near / d}, Vec4{0, 0, 0, 1}});
         }
+
+        inline Vec3 transform_point(const Vec3 &p) {
+            Vec4 _p = Vec4{p.x, p.y, p.z, 1};
+            _p = *this * _p;
+            return Vec3{_p.x, _p.y, _p.z};
+        };
 };
 
 }  // namespace Seed

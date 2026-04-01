@@ -3,7 +3,7 @@
 #include <list>
 #include <string>
 #include <map>
-#include "core/world.h"
+#include "core/world/world.h"
 
 namespace Seed {
 class EditorGUI;

@@ -3,10 +3,12 @@
 #include "core/io/dir.h"
 #include <spdlog/spdlog.h>
 #include <stdexcept>
+#include "core/rendering/mesh.h"
 #include "core/resource/model_file.h"
 #include <filesystem>
 #include <type_traits>
 #include <nlohmann/json.hpp>
+#include <vector>
 #include "core/serialize/json_impl.h"
 
 #include "core/resource/model.h"
@@ -40,16 +42,13 @@ Ref<Shader> ResourceLoader::_load(const std::string &path) {
     return shader;
 }
 
-template <>
-Ref<Model> ResourceLoader::_load(const std::string &path) {
-    Ref<Model> model;
+void ResourceLoader::load_meshes(const std::string &path, std::vector<Ref<Mesh>> &meshes) {
     Ref<File> file = File::open(path, "rb");
     Ref<Dir> dir = Dir::open(file->get_directory());
     auto model_info = file->read_json();
     std::string bin_path = model_info["bin_file"];
     Ref<File> bin_file = dir->open_file(bin_path, "rb");
 
-    std::vector<Ref<Mesh>> meshs;
     std::vector<i32> mesh_mats;
     std::vector<Ref<BaseMaterial>> materials;
     std::vector<Ref<Texture>> textures;
@@ -60,14 +59,14 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
             std::vector<SkeletonVertex> vertices;
             bin_file->read_vector(vertices, jmesh["vertex_count"]);
             bin_file->read_vector(indices, jmesh["index_count"]);
-            meshs.push_back(Ref<Mesh>(&DS::get_instance()->skeleton_mesh_desc,
+            meshes.push_back(Ref<Mesh>(&DS::get_instance()->skeleton_mesh_desc,
                                       vertices, indices,
                                       (AABB)jmesh["bounding_box"]));
         } else {
             std::vector<ModelVertex> vertices;
             bin_file->read_vector(vertices, jmesh["vertex_count"]);
             bin_file->read_vector(indices, jmesh["index_count"]);
-            meshs.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
+            meshes.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
                                       indices, (AABB)jmesh["bounding_box"]));
         }
 
@@ -102,13 +101,19 @@ Ref<Model> ResourceLoader::_load(const std::string &path) {
         blend_state.blend_on = jmaterial["opacity"] != 1.0;
         materials.push_back(mat);
     }
-    for (int i = 0; i < meshs.size(); i++) {
+    for (int i = 0; i < meshes.size(); i++) {
         i32 id = mesh_mats[i];
         if (id == -1) id = 0;
-        meshs[i]->set_material(ref_cast<Material>(materials[id]));
+        meshes[i]->set_material(ref_cast<Material>(materials[id]));
     }
+}
 
-    model.create(meshs);
+template <>
+Ref<BasicModel> ResourceLoader::_load(const std::string &path) {
+    Ref<BasicModel> model;
+    std::vector<Ref<Mesh>> meshes;
+    load_meshes(path, meshes);
+    model.create(meshes);
     return model;
 }
 
@@ -342,8 +347,7 @@ Ref<Terrain> ResourceLoader::_load(const std::string &path) {
     if (terrain_info.contains("tex1_normal")) {
         auto jtex1 = terrain_info["tex1_normal"];
         auto texture = load<Texture>(dir->concat(jtex1));
-        terrain->get_material()->set_texture("tex1_normal",
-                                                           texture);
+        terrain->get_material()->set_texture("tex1_normal", texture);
         texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
                                                 .wrap_v = SamplerWrap::REPEAT});
     }

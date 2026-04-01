@@ -14,20 +14,15 @@ void Entity::remove_body() {
 }
 
 void Entity::bind_model(Ref<Model> new_model) {
-    if (!this->model.is_null() && !this->model->get_meshes().empty()) {
-        this->model->remove_transform(this->transform);
-    }
     this->model = new_model;
     if (new_model.is_null()) return;
     std::vector<Ref<Mesh>> &meshes = new_model->get_meshes();
     if (meshes.empty()) return;
-    this->model->insert_transform(this->transform);
 }
 
 void Entity::bind_skeleton_model(Ref<SkeletonModel> model) {
     this->skeleton_model = model;
     this->state.create();
-    this->skeleton_model->insert_instance(this->transform, this->state);
 }
 
 Entity::Entity(Vec3 position) {
@@ -59,9 +54,7 @@ void Entity::play_animation(const std::string &name) {
 }
 
 Entity::~Entity() {
-    if (!this->model.is_null() && !this->model->get_meshes().empty()) {
-        this->model->remove_transform(this->transform);
-    }
+
 }
 
 }  // namespace Seed

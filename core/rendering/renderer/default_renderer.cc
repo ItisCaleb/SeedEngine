@@ -1,4 +1,5 @@
 #include "default_renderer.h"
+#include "core/rendering/instance_data.h"
 #include "core/rendering/light.h"
 #include "core/rendering/rhi/render_resource.h"
 #include "core/rendering/rhi/render_engine.h"
@@ -148,7 +149,9 @@ void DefaultRenderer::prepare_meshes() {
     std::vector<u32> visible_instances;
 
     u32 last_visible_offset = 0;
-    for (auto &[mesh, instance] : mesh_storage->get_meshes()) {
+    for (auto &[_, mesh_instance] : mesh_storage->get_meshes()) {
+        Ref<Mesh> mesh = mesh_instance.mesh;
+        Ref<InstanceData> instance = mesh_instance.instance;
         AABB bounding_box = mesh->get_bounding_box();
 
         /* check instance mesh size > 0 */

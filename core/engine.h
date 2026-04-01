@@ -2,7 +2,7 @@
 #define _SEED_ENGINE_H_
 
 #include "types.h"
-#include "world.h"
+#include "world/world.h"
 #include "input_handler.h"
 #include "window.h"
 

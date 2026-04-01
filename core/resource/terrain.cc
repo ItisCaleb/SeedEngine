@@ -209,8 +209,7 @@ Terrain::Terrain(Ref<Image> height_map, Ref<Texture> light_map,
         }
     }
     this->instances->upload();
-    MeshStorage::get_instance()->add_mesh(
-        this->mesh, ref_cast<InstanceData>(this->instances));
+
 }
 
 Terrain::~Terrain() {}

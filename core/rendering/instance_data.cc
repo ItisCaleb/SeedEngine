@@ -1,9 +1,18 @@
 #include "instance_data.h"
+#include <cstdlib>
+#include <cstring>
+#include "core/collision/shape.h"
 #include "core/macro.h"
+#include "core/math/mat4.h"
 #include "core/math/utils.h"
+#include "core/math/vec3.h"
+#include "core/math/vec4.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/debug/debug_drawer.h"
 #include "core/engine.h"
+#include "core/resource/animation.h"
+#include "core/resource/model.h"
+#include "core/transform.h"
 #include "rhi/render_resource.h"
 
 namespace Seed {
@@ -123,52 +132,44 @@ InstanceData::~InstanceData() {
     }
 }
 
-void TransformInstanceData::insert_transform(Ref<Transform> transform) {
-    EXPECT_NOT_NULL_RET(*transform);
-    this->transforms.insert(transform);
-}
-void TransformInstanceData::remove_transform(Ref<Transform> transform) {
-    EXPECT_NOT_NULL_RET(*transform);
-    this->transforms.erase(transform);
-}
 
-void TransformInstanceData::upload() {
-    RHI::UpdateBufferInfo mat_info =
-        RHI::alloc_heap(sizeof(Mat4) * this->transforms.size());
-    Mat4 *mats = (Mat4 *)mat_info.data;
-    u32 i = 0;
-    for (Ref<Transform> transform : this->transforms) {
-        mats[i] = transform->get_model_matrix();
-        i++;
+void StaticInstanceData::insert_transform(Transform &transform) {
+    this->world_matrices.push_back(transform.get_model_matrix());
+    updated = false;
+}
+void StaticInstanceData::upload() {
+    if (updated) {
+        return;
     }
+    RHI::UpdateBufferInfo mat_info =
+        RHI::alloc_heap(sizeof(Mat4) * this->world_matrices.size());
+    memcpy(mat_info.data, world_matrices.data(), mat_info.size);
     _upload(mat_info);
-}
-
-void TransformInstanceData::frustum_culling(const Frustum &frustum,
-                                            const AABB &bounding_box,
-                                            std::vector<u32> &instance_ids,
-                                            std::vector<f32> &depths) {
+};
+void StaticInstanceData::frustum_culling(const Frustum &frustum,
+                                         const AABB &bounding_box,
+                                         std::vector<u32> &instance_ids,
+                                         std::vector<f32> &depths) {
     u32 i = pool->query(instance_handle).idx;
     DebugDrawer *drawer = DebugDrawer::get_instance();
 
-    for (Ref<Transform> transform : transforms) {
-        AABB aabb = transform->translate_AABB(bounding_box);
+    for (Mat4 &mat : world_matrices) {
+        AABB result = bounding_box.translate(mat);
         /* frustum culling */
-        if (frustum.within_frustum(aabb)) {
+        if (frustum.within_frustum(result)) {
             if (SeedEngine::get_instance()->get_debug_flag() &
                 EngineConfig::BOUNDING_BOX) {
-                drawer->draw_aabb(aabb);
+                drawer->draw_aabb(result);
             }
             /* push instance indices */
             instance_ids.push_back(i);
-            depths.push_back(
-                frustum.calculate_depth(transform->get_position()));
+            depths.push_back(frustum.calculate_depth(result.center));
         }
         i++;
     }
-}
+};
 
-TransformInstanceData::TransformInstanceData()
+StaticInstanceData::StaticInstanceData()
     : InstanceData(RenderEngine::get_instance()->get_instance_pool(
           TRANSFORM_POOL_NAME)) {}
 }  // namespace Seed

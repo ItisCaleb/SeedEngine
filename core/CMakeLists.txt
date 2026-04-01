@@ -1,11 +1,9 @@
 target_sources(seed PRIVATE 
     engine.cc
     input.cc
-    world.cc
-    entity.cc
+    window.cc
     input_handler.cc
     os.cc
-    window.cc
 )
 
 
@@ -20,3 +18,4 @@ add_subdirectory(debug)
 add_subdirectory(physic)
 add_subdirectory(misc)
 add_subdirectory(io)
+add_subdirectory(world)

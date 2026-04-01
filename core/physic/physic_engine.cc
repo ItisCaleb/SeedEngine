@@ -2,6 +2,7 @@
 #include "jolt_backend.h"
 #include <spdlog/spdlog.h>
 #include "core/engine.h"
+#include "physic_shape.h"
 
 namespace Seed {
 
@@ -12,23 +13,27 @@ PhysicEngine::PhysicEngine() {
     backend = new JoltBackend();
 };
 
-void PhysicEngine::create_body(PhysicBody &body, PhysicShape &shape,
-                               PhysicBodyType type, const Vec3 &pos,
+void PhysicEngine::create_body(PhysicBody &body, const PhysicShape &shape,
+                               const PhysicBodyType type, const Vec3 &pos,
                                const Quaternion &quat) {
+    if (shape.type == PhysicShapeType::EMPTY_SHAPE) {
+        return;
+    }
     backend->create_body(body, shape, type, pos, quat);
 }
-void PhysicEngine::delete_body(PhysicBody &body) { backend->delete_body(body); }
+void PhysicEngine::delete_body(PhysicBody &body) {
+    if (body.handle == NULL_HANDLE) {
+        return;
+    }
+    backend->delete_body(body);
+}
 
 void PhysicEngine::process() {
     backend->process();
-    auto entities = SeedEngine::get_instance()->get_world()->get_entities();
-    for (auto entity : entities) {
-        if (entity->body.handle != NULL_HANDLE) {
-            Ref<Transform> transform = entity->get_transform();
-            backend->query_physics(entity->body, transform->position,
-                                   transform->rotation);
-            transform->dirty = true;
-        }
-    }
+}
+
+void PhysicEngine::query_physics(PhysicBody &body, Vec3 &position,
+                                 Quaternion &quat) {
+    backend->query_physics(body, position, quat);
 }
 }  // namespace Seed

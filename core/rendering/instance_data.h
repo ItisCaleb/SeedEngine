@@ -1,5 +1,7 @@
 #ifndef _SEED_INSTANCE_DATA_H_
 #define _SEED_INSTANCE_DATA_H_
+#include "core/collision/shape.h"
+#include "core/math/mat4.h"
 #include "core/ref.h"
 #include "core/transform.h"
 #include "core/rendering/rhi/render_resource.h"
@@ -28,9 +30,7 @@ class InstanceDataPool {
         void merge(Block *b, u32 lg);
 
     public:
-        u32 get_element_size(){
-            return element_size;
-        }
+        u32 get_element_size() { return element_size; }
         Handle alloc(u32 size);
         void free(Handle handle);
         Block query(Handle handle);
@@ -53,26 +53,28 @@ class InstanceData : public RefCounted {
                                      const AABB &bounding_box,
                                      std::vector<u32> &instance_ids,
                                      std::vector<f32> &depths) = 0;
-
+        virtual void clear() = 0;
         virtual ~InstanceData();
 };
 
-class TransformInstanceData : public InstanceData {
+
+class StaticInstanceData : public InstanceData {
     private:
-        std::set<Ref<Transform>> transforms;
+        std::vector<Mat4> world_matrices;
+        bool updated = false;
 
     public:
-        const std::set<Ref<Transform>> &get_transforms() { return transforms; }
-        u32 size() override { return transforms.size(); }
-        void insert_transform(Ref<Transform> transform);
-        void remove_transform(Ref<Transform> transform);
+        u32 size() override { return world_matrices.size(); }
+        void insert_transform(Transform &transform);
         void upload() override;
         void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
                              std::vector<u32> &instance_ids,
                              std::vector<f32> &depths) override;
+        void clear() override { this->world_matrices.clear(); }
 
-        TransformInstanceData();
+        StaticInstanceData();
 };
+
 }  // namespace Seed
 
 #endif

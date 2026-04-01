@@ -10,7 +10,8 @@ namespace Seed {
 class ResourceLoader;
 
 class Skeleton : public RefCounted {
-    friend ResourceLoader;
+        friend ResourceLoader;
+
     private:
         std::vector<Mat4> bones;
         /* we assure bone parents is topological order */
@@ -26,22 +27,22 @@ class SkeletonInstanceData : public InstanceData {
     private:
         Ref<Skeleton> skeleton;
         struct SkeletonInstance {
-                Ref<Transform> transform;
+                Mat4 world_matrix;
                 Ref<AnimationState> state;
         };
         std::vector<SkeletonInstance> instances;
 
     public:
-        const std::vector<SkeletonInstance> &get_instances() { return instances; }
+        const std::vector<SkeletonInstance> &get_instances() {
+            return instances;
+        }
         u32 size() override { return instances.size(); }
-        void insert_instance(Ref<Transform> transform,
-                             Ref<AnimationState> state);
-        void remove_state(Ref<Transform> transform, Ref<AnimationState> state);
+        void insert_instance(Transform &transform, Ref<AnimationState> state);
         void upload() override;
         void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
                              std::vector<u32> &instance_ids,
                              std::vector<f32> &depths) override;
-
+        void clear() override { this->instances.clear(); }
         SkeletonInstanceData(Ref<Skeleton> skeleton);
 };
 }  // namespace Seed
