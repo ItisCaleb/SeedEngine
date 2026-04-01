@@ -13,6 +13,7 @@
 #include "core/resource/animation.h"
 #include "core/resource/model.h"
 #include "core/transform.h"
+#include "core/types.h"
 #include "rhi/render_resource.h"
 
 namespace Seed {
@@ -108,7 +109,8 @@ InstanceDataPool::InstanceDataPool(u32 element_size, u32 size)
 }
 InstanceDataPool::~InstanceDataPool() {}
 
-void InstanceData::_upload(RHI::UpdateBufferInfo &update_info) {
+void InstanceData::_upload(RHI::UpdateBufferInfo &update_info,
+                           u32 element_offset) {
     u32 element_size = pool->get_element_size();
     u32 size = update_info.size / element_size;
     if (instance_handle == NULL_HANDLE) {
@@ -122,8 +124,33 @@ void InstanceData::_upload(RHI::UpdateBufferInfo &update_info) {
     }
     /* upload */
     InstanceDataPool::Block block = pool->query(instance_handle);
-    u32 offset = element_size * block.idx;
+    u32 offset = element_size * block.idx + element_size * element_offset;
     RHI::update_from_heap(pool->get_render_buffer(), offset, update_info);
+}
+
+void InstanceData::_upload(std::vector<RHI::UpdateBufferInfo> &update_infos) {
+    u32 element_size = pool->get_element_size();
+    u32 total_size = 0;
+    for (RHI::UpdateBufferInfo &info : update_infos) {
+        total_size += info.size;
+    }
+    u32 size = total_size / element_size;
+    if (instance_handle == NULL_HANDLE) {
+        instance_handle = pool->alloc(size);
+    } else {
+        auto block = pool->query(instance_handle);
+        if (block.size < size) {
+            pool->free(instance_handle);
+            instance_handle = pool->alloc(size);
+        }
+    }
+    /* upload */
+    InstanceDataPool::Block block = pool->query(instance_handle);
+    u32 offset = element_size * block.idx;
+    for (RHI::UpdateBufferInfo &info : update_infos) {
+        RHI::update_from_heap(pool->get_render_buffer(), offset, info);
+        offset += info.size;
+    }
 }
 InstanceData::~InstanceData() {
     if (this->instance_handle != NULL_HANDLE) {
@@ -131,7 +158,6 @@ InstanceData::~InstanceData() {
         this->instance_handle = NULL_HANDLE;
     }
 }
-
 
 void StaticInstanceData::insert_transform(Transform &transform) {
     this->world_matrices.push_back(transform.get_model_matrix());

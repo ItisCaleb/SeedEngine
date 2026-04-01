@@ -85,7 +85,7 @@ class SkeletonModel : public ModelBase<SkeletonModel> {
             this->animations.push_back(animation);
         }
         void _add_instance(Ref<InstanceData> data, Transform &transform,
-                           Ref<AnimationState> state) {
+                           AnimationState *state) {
             Ref<SkeletonInstanceData> sdata =
                 ref_cast<SkeletonInstanceData>(data);
             sdata->insert_instance(transform, state);

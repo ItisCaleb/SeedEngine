@@ -28,12 +28,15 @@ void PhysicEngine::delete_body(PhysicBody &body) {
     backend->delete_body(body);
 }
 
-void PhysicEngine::process() {
-    backend->process();
-}
+void PhysicEngine::process() { backend->process(); }
 
 void PhysicEngine::query_physics(PhysicBody &body, Vec3 &position,
                                  Quaternion &quat) {
     backend->query_physics(body, position, quat);
+}
+
+void PhysicEngine::set_physics(PhysicBody &body, Vec3 &positon,
+                               Quaternion &quat) {
+    backend->set_physics(body, positon, quat);
 }
 }  // namespace Seed

@@ -43,8 +43,8 @@ class EntityManager {
 
         /* entity */
         u32 next_entity = 0;
-        std::vector<u32> alive_entities;
-        std::vector<u32> free_entities;
+        std::vector<Entity> alive_entities;
+        std::vector<Entity> free_entities;
         /* system */
 
         template <typename... Args, typename Fn, size_t... I>
@@ -52,12 +52,12 @@ class EntityManager {
                          Fn &&system, std::index_sequence<I...>) {
             std::array<void *, sizeof...(Args)> args = {
                 (void *)create_or_get_components<Args>(ids[I])...};
-            for (u32 alive : alive_entities) {
+            for (Entity alive : alive_entities) {
                 u32 entity_mask = entity_component_masks[alive];
                 if ((system_mask & entity_mask) != system_mask) {
                     continue;
                 }
-                system(&static_cast<Args *>(args[I])[alive]...);
+                system(alive, &static_cast<Args *>(args[I])[alive]...);
             }
         }
 
@@ -85,7 +85,7 @@ class EntityManager {
         }
 
         template <typename T, typename... Args>
-        void add_component(Entity entity, Args &&...args) {
+        T* add_component(Entity entity, Args &&...args) {
             assert(entity > -1);
             u64 component_id = get_type_id<T>();
             T *component_array = create_or_get_components<T>(component_id);
@@ -106,6 +106,7 @@ class EntityManager {
                 }
             }
             entity_component_masks[entity] |= component_bit[component_id];
+            return &component_array[entity];
         }
 
         template <typename T, typename Fn>

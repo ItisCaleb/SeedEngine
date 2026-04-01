@@ -46,7 +46,7 @@ class Animation : public Resource {
         const std::string &get_name() const { return name; }
 };
 
-class AnimationState : public RefCounted {
+class AnimationState {
     private:
         Ref<Animation> animation;
         f32 current_time;

@@ -20,29 +20,25 @@ class Skeleton : public RefCounted {
     public:
         void apply_fk(Mat4 *bone_tranforms, u64 size);
         void apply_skinning(Mat4 *bone_tranforms, u64 size);
-        u64 size() { return bones.size(); }
+        u64 bone_count() { return bones.size(); }
 };
 
 class SkeletonInstanceData : public InstanceData {
     private:
         Ref<Skeleton> skeleton;
-        struct SkeletonInstance {
-                Mat4 world_matrix;
-                Ref<AnimationState> state;
-        };
-        std::vector<SkeletonInstance> instances;
+        std::vector<RHI::UpdateBufferInfo> upload_buffers;
 
     public:
-        const std::vector<SkeletonInstance> &get_instances() {
-            return instances;
-        }
-        u32 size() override { return instances.size(); }
-        void insert_instance(Transform &transform, Ref<AnimationState> state);
+        u32 size() override { return upload_buffers.size(); }
+        void insert_instance(Transform &transform, AnimationState *state);
         void upload() override;
         void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
                              std::vector<u32> &instance_ids,
                              std::vector<f32> &depths) override;
-        void clear() override { this->instances.clear(); }
+        virtual u32 instance_size() override {
+            return 1 + skeleton->bone_count();
+        }
+        void clear() override { upload_buffers.clear(); }
         SkeletonInstanceData(Ref<Skeleton> skeleton);
 };
 }  // namespace Seed

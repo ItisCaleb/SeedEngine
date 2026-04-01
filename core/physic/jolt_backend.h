@@ -165,6 +165,7 @@ class JoltBackend {
         inline void query_position(PhysicBody &body, Vec3 &position);
         inline void query_rotation(PhysicBody &body, Quaternion &quat);
         void query_physics(PhysicBody &body, Vec3 &position, Quaternion &quat);
+        void set_physics(PhysicBody &body, Vec3 &positon, Quaternion &quat);
 };
 
 }  // namespace Seed

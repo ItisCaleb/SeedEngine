@@ -44,11 +44,20 @@ class InstanceData : public RefCounted {
         InstanceData(InstanceDataPool *pool) : pool(pool) {}
         InstanceDataPool *pool = nullptr;
         Handle instance_handle = NULL_HANDLE;
-        void _upload(RHI::UpdateBufferInfo &update_info);
+        void _upload(RHI::UpdateBufferInfo &update_info,
+                     u32 element_offset = 0);
+        void _upload(std::vector<RHI::UpdateBufferInfo> &update_infos);
 
     public:
         virtual void upload() = 0;
         virtual u32 size() = 0;
+        /* size for single instance */
+        /* if instance only contains transform, then instance size is 1 */
+        /* if instance contains transform and skeleton, */
+        /* then instance size is 1 + bone_count */
+        virtual u32 instance_size() {
+            return 1;;
+        }
         virtual void frustum_culling(const Frustum &frustum,
                                      const AABB &bounding_box,
                                      std::vector<u32> &instance_ids,
@@ -56,7 +65,6 @@ class InstanceData : public RefCounted {
         virtual void clear() = 0;
         virtual ~InstanceData();
 };
-
 
 class StaticInstanceData : public InstanceData {
     private:

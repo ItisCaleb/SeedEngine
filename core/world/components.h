@@ -27,6 +27,9 @@ struct ComponentTrait<PhysicBody> {
             std::tuple<const PhysicShape &, const PhysicBodyType>;
 };
 
+template <typename T>
+struct ComponentOptional {};
+
 struct MeshInstance {
         Ref<BasicModel> model;
 };
@@ -34,8 +37,6 @@ struct MeshInstance {
 struct SkeletonMeshInstance {
         Ref<SkeletonModel> model;
 };
-
-
 
 }  // namespace Seed
 

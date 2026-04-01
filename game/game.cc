@@ -16,6 +16,7 @@
 #include "core/transform.h"
 #include "core/world/world.h"
 #include "core/world/components.h"
+#include "human_entity.h"
 using namespace Seed;
 
 static Vec3 light_dir;
@@ -68,22 +69,13 @@ int main(void) {
     //             rc->insert_transform(tf);
     //         }
     //     });
-    // auto man = loader->load_async<SkeletonModel>(
-    //     "test_project/assets/man.json", [=](Ref<SkeletonModel> rc) {
-    //         Entity *ent = new Entity(Vec3{0, 0, 0});
-    //         ent->get_transform()->set_scale(Vec3{0.1, 0.1, 0.1});
-    //         PhysicBoxShape box(Vec3{1, 1, 1});
-    //         ent->create_body(box, PhysicBodyType::DYNAMIC);
-    //         ent->bind_skeleton_model(rc);
-    //         ent->play_animation("Take 001");
-    //         engine->get_world()->add_entity(ent);
-    //     });
+    auto man =
+        loader->load_async<SkeletonModel>("test_project/assets/man.json");
 
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     World *world = engine->get_world();
     world->get_point_lights().push_back(
         PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
-    // world->add_entity<CameraEntity>();
     world->set_sky(sky->wait());
     // world->add_billboard(grass->wait());
     Ref<WorldChunk> chunk;
@@ -101,6 +93,10 @@ int main(void) {
     ecs.add_component<PhysicBody>(a, box, PhysicBodyType::DYNAMIC);
     ecs.add_component<MeshInstance>(a, MeshInstance{.model = model});
     CameraEntity::create_entity(ecs);
+    t.set_scale(Vec3{0.1, 0.1, 0.1});
+    auto man_model = man->wait();
+    HumanEntity::create_entity(ecs, t, man_model);
+
     engine->start();
 
     return 0;

@@ -80,7 +80,7 @@ class RingBuffer {
             this->cap = cap;
         }
         RingBuffer(u32 cap) : cap(cap) { this->data.resize(cap); }
-        RingBuffer() : RingBuffer(256) {}
+        RingBuffer() : RingBuffer(4096) {}
         RingBuffer(RingBuffer &&rb)
             : data(std::move(rb.data)),
               cap(rb.cap),

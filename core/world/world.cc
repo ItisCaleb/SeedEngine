@@ -8,6 +8,7 @@
 #include "core/ref.h"
 #include "core/rendering/instance_data.h"
 #include "core/rendering/mesh_storage.h"
+#include "core/resource/animation.h"
 #include "core/resource/model.h"
 #include "core/resource/terrain.h"
 #include "core/transform.h"
@@ -52,21 +53,27 @@ void World::add_billboard(Ref<Billboard> billboard) {
 void World::tick(f32 dt) {
     PhysicEngine *phys = PhysicEngine::get_instance();
 
+    // sync transform to physic
+    entity_manager.run_system<Transform, PhysicBody>(
+        [=](Entity e, Transform *tf, PhysicBody *ph) {
+            if (ph->type != PhysicBodyType::STATIC) {
+                phys->set_physics(*ph, tf->position, tf->rotation);
+            }
+        });
+
     PhysicEngine::get_instance()->process();
 
     /* sync physic to transform */
     entity_manager.run_system<Transform, PhysicBody>(
-        [=](Transform *tf, PhysicBody *ph) {
-            if(ph->type != PhysicBodyType::STATIC){
+        [=](Entity e, Transform *tf, PhysicBody *ph) {
+            if (ph->type != PhysicBodyType::STATIC) {
                 phys->query_physics(*ph, tf->position, tf->rotation);
                 tf->dirty = true;
             }
         });
     /* run game logic update */
     entity_manager.run_system<BehaviourComponent>(
-        [=](BehaviourComponent *b) { 
-            b->behaviour->update(dt); 
-        });
+        [=](Entity e, BehaviourComponent *b) { b->behaviour->update(dt); });
 
     /* we collect entity tranform every frame */
     for (auto &[_, inst] : this->model_instances) {
@@ -74,15 +81,20 @@ void World::tick(f32 dt) {
     }
     /* upload model transform to instance*/
     entity_manager.run_system<Transform, MeshInstance>(
-        [=](Transform *tf, MeshInstance *inst) {
+        [=](Entity e, Transform *tf, MeshInstance *inst) {
             Ref<InstanceData> data = model_instances[*inst->model];
             inst->model->_add_instance(data, *tf);
         });
-    // entity_manager.run_system<Transform, SkeletonMeshInstance>(
-    //     [=](Transform *tf, SkeletonMeshInstance *inst) {
-    //         Ref<InstanceData> data = model_instances[*inst->model];
-    //         inst->model->_add_instance(data, *tf);
-    //     });
+    entity_manager.run_system<Transform, SkeletonMeshInstance>(
+        [&](Entity e, Transform *tf, SkeletonMeshInstance *inst) {
+            Ref<InstanceData> data = model_instances[*inst->model];
+            AnimationState *state =
+                entity_manager.query_component<AnimationState>(e);
+            if (state) {
+                state->update(1 / 30.0f);
+            }
+            inst->model->_add_instance(data, *tf, state);
+        });
 }
 
 void World::add_chunk(Ref<WorldChunk> &chunk) {

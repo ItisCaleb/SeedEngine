@@ -17,6 +17,7 @@ class PhysicEngine {
                          const PhysicBodyType type, const Vec3 &pos,
                          const Quaternion &quat = Quaternion::identity());
         void query_physics(PhysicBody &body, Vec3 &position, Quaternion &quat);
+        void set_physics(PhysicBody &body, Vec3 &positon, Quaternion &quat);
         void delete_body(PhysicBody &body);
         PhysicEngine();
 };
