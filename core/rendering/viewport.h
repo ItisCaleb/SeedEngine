@@ -2,7 +2,6 @@
 #define _SEED_VIEWPORT_H_
 #include "core/types.h"
 #include "core/collision/shape.h"
-#include "core/math/utils.h"
 #include "core/math/vec2.h"
 #include <spdlog/spdlog.h>
 

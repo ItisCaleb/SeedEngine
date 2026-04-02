@@ -1,7 +1,6 @@
 #include "editor_terrain.h"
 #include <fmt/format.h>
 #include "core/ref.h"
-#include "core/rendering/mesh_storage.h"
 #include "core/rendering/render_common.h"
 #include "core/resource/image.h"
 #include "core/resource/mappable_texture.h"
@@ -17,9 +16,11 @@ namespace Seed {
 #define HEIGHT_OFFSET (-128)
 #define HEIGHT_SCALE (1)
 
-EditorTerrainMaterial::EditorTerrainMaterial(Ref<Texture> height_map)
+EditorTerrainMaterial::EditorTerrainMaterial(Ref<Texture> height_map,
+                                             Ref<Texture> splat_map)
     : Material(ES::get_instance()->editor_terrain_shader) {
     this->set_texture("height_map", height_map);
+    this->set_texture("splat_map", splat_map);
     this->raster_state = {.cull_mode = Cullmode::FRONT,
                           .patch_control_points = 4};
 }
@@ -30,6 +31,7 @@ Ref<Texture> EditorTerrainMaterial::get_height_map() {
 void EditorTerrainMaterial::set_light_map(Ref<Texture> texture) {
     this->set_texture("terrain_shadowMap", texture);
 }
+
 
 void EditorTerrain::build_mesh() {
     f32 tex_x_stride = (f32)CHUNK_SIZE / hmap_width;
@@ -127,12 +129,14 @@ EditorTerrain::EditorTerrain(u32 width, u32 height,
     heightmap_texture = height_map;
     this->hmap_width = height_map->get_width();
     this->hmap_height = height_map->get_height();
-    material.create(ref_cast<Texture>(heightmap_texture));
     if (splat_map.is_null()) {
         Ref<Image> splat_image;
         splat_image.create(PixelFormat::RGBA, hmap_width, hmap_height);
         splat_map = splat_image->create_mappable_texture();
     }
+    material.create(ref_cast<Texture>(heightmap_texture),
+                    ref_cast<Texture>(splat_map));
+
     this->splat_map = splat_map;
     this->light_map = light_map;
     if (this->light_map.is_valid()) {

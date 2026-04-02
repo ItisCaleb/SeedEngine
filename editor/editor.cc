@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include "core/rendering/rhi/render_engine.h"
 #include "editor/asset/model_loader.h"
 #include <nfd.h>
 #include <fmt/format.h>
@@ -7,7 +8,7 @@
 #include "core/gui/gui_engine.h"
 #include "editor_gui.h"
 #include "core/resource/resource_loader.h"
-#include "editor_camera.h"
+#include "camera_entity.h"
 #include "editor.h"
 #include "editor_storage.h"
 
@@ -34,9 +35,10 @@ void Editor::set_last_open(std::string &path) {
     project_cache["last_open"] = path;
     cache->write_str(project_cache.dump());
 }
+
 }  // namespace Seed
 
-// Main code
+using namespace Seed;
 int main(int, char **) {
     NFD_Init();
     // Main loop
@@ -48,7 +50,8 @@ int main(int, char **) {
 
     // ImGui::ShowDemoWindow(&show_demo_window);
 
-    engine->get_world()->add_entity<EditorCamera>();
+    auto &ecs = engine->get_world()->ecs();
+    EditorCameraEntity::create_entity(ecs);
     ResourceLoader *loader = ResourceLoader::get_instance();
     render_engine->set_renderer_enable(render_engine->get_default_renderer(),
                                        false);
@@ -57,3 +60,4 @@ int main(int, char **) {
     NFD_Quit();
     return 0;
 }
+// Main code

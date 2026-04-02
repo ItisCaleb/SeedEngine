@@ -1,11 +1,9 @@
 target_sources(seed PRIVATE 
     engine.cc
     input.cc
-    world.cc
-    entity.cc
+    window.cc
     input_handler.cc
     os.cc
-    window.cc
 )
 
 
@@ -24,3 +22,4 @@ add_subdirectory(io)
 if(BUILD_XR)
     add_subdirectory(xr)
 endif()
+add_subdirectory(world)

@@ -55,7 +55,6 @@ void SeedEngine::start() {
 
         glfwPollEvents();
         GuiEngine::get_instance()->update();
-        PhysicEngine::get_instance()->process();
         world->tick(delta);
 
         render_engine->process();

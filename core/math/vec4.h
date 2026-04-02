@@ -2,6 +2,7 @@
 #define _SEED_VEC4_H_
 
 #include <math.h>
+#include "core/math/vec2.h"
 #include "core/types.h"
 #include "core/math/utils.h"
 
@@ -91,6 +92,7 @@ struct Vec4 {
         static Vec4 lerp(const Vec4 &a, const Vec4 &b, f32 t) {
             return a + (b - a) * clampf(t, 0.0, 1.0);
         }
+
 };
 
 }  // namespace Seed

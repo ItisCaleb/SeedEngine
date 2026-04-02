@@ -1,0 +1,1 @@
+cmake --build build --preset test && .\bin\tests.exe

@@ -1,11 +1,15 @@
 #include "jolt_backend.h"
 #include <thread>
+#include <Jolt/Math/Real.h>
+#include <Jolt/Physics/Body/AllowedDOFs.h>
+#include <Jolt/Physics/EActivation.h>
 #include <spdlog/spdlog.h>
 #include <stdarg.h>
 #include "core/debug/debug_drawer.h"
 #include "core/macro.h"
 #include "core/engine.h"
-#include "core/rendering/rhi/render_engine.h"
+#include "core/math/quaternion.h"
+#include "physic_body.h"
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
 
 namespace Seed {
@@ -73,8 +77,20 @@ void JoltBackend::process() {
     }
 }
 
-void JoltBackend::query_position(PhysicBody &body, Vec3 &position) {}
-void JoltBackend::query_rotation(PhysicBody &body, Quaternion &quat) {}
+void JoltBackend::query_position(PhysicBody &body, Vec3 &position) {
+    JPH::BodyID *body_id = this->bodys.get_or_null(body.handle);
+    EXPECT_NOT_NULL_RET(body_id);
+    JPH::RVec3 j_pos = system.GetBodyInterface().GetPosition(*body_id);
+
+    position = from_jolt(j_pos);
+}
+void JoltBackend::query_rotation(PhysicBody &body, Quaternion &quat) {
+    JPH::BodyID *body_id = this->bodys.get_or_null(body.handle);
+    EXPECT_NOT_NULL_RET(body_id);
+    JPH::Quat j_quat = system.GetBodyInterface().GetRotation(*body_id);
+
+    quat = from_jolt(j_quat);
+}
 
 void JoltBackend::query_physics(PhysicBody &body, Vec3 &position,
                                 Quaternion &quat) {
@@ -83,29 +99,37 @@ void JoltBackend::query_physics(PhysicBody &body, Vec3 &position,
     JPH::RVec3 j_pos;
     JPH::Quat j_quat;
     system.GetBodyInterface().GetPositionAndRotation(*body_id, j_pos, j_quat);
-
     position = from_jolt(j_pos);
     quat = from_jolt(j_quat);
 }
 
-JPH::ShapeRefC JoltBackend::create_shape(PhysicShape &shape) {
+void JoltBackend::set_physics(PhysicBody &body, Vec3 &positon,
+                              Quaternion &quat) {
+    JPH::BodyID *body_id = this->bodys.get_or_null(body.handle);
+    EXPECT_NOT_NULL_RET(body_id);
+    system.GetBodyInterface().SetPositionAndRotation(
+        *body_id, to_jolt(positon), to_jolt(quat), JPH::EActivation::Activate);
+}
+
+JPH::ShapeRefC JoltBackend::create_shape(const PhysicShape &shape) {
     switch (shape.type) {
         case PhysicShapeType::BOX: {
-            PhysicBoxShape &box_shape = static_cast<PhysicBoxShape &>(shape);
+            const PhysicBoxShape &box_shape =
+                static_cast<const PhysicBoxShape &>(shape);
             JPH::BoxShapeSettings setting(to_jolt(box_shape.half_extent));
             return setting.Create().Get();
         }
         case PhysicShapeType::HEIGHT_MAP: {
-            PhysicHeightmapShape &height_shape =
-                static_cast<PhysicHeightmapShape &>(shape);
+            const PhysicHeightmapShape &height_shape =
+                static_cast<const PhysicHeightmapShape &>(shape);
             JPH::HeightFieldShapeSettings setting(
                 height_shape.points, to_jolt(height_shape.offset),
                 to_jolt(height_shape.scale), height_shape.point_cnt);
             return setting.Create().Get();
         }
         case PhysicShapeType::SPHERE: {
-            PhysicSphereShape &sphere_shape =
-                static_cast<PhysicSphereShape &>(shape);
+            const PhysicSphereShape &sphere_shape =
+                static_cast<const PhysicSphereShape &>(shape);
             JPH::SphereShapeSettings setting(sphere_shape.radius);
             return setting.Create().Get();
         }
@@ -114,8 +138,8 @@ JPH::ShapeRefC JoltBackend::create_shape(PhysicShape &shape) {
     }
 }
 
-void JoltBackend::create_body(PhysicBody &body, PhysicShape &shape,
-                              PhysicBodyType type, const Vec3 &pos,
+void JoltBackend::create_body(PhysicBody &body, const PhysicShape &shape,
+                              const PhysicBodyType type, const Vec3 &pos,
                               const Quaternion &quat) {
     JPH::ShapeRefC shape_ref = this->create_shape(shape);
     if (shape_ref.GetPtr() == nullptr) {
@@ -138,6 +162,9 @@ void JoltBackend::create_body(PhysicBody &body, PhysicShape &shape,
 
     JPH::BodyCreationSettings setting(shape_ref, to_jolt(pos), to_jolt(quat),
                                       m_type, Layers::MOVING);
+    // setting.mAllowedDOFs &=
+    //     ~(JPH::EAllowedDOFs::RotationX | JPH::EAllowedDOFs::RotationY |
+    //       JPH::EAllowedDOFs::RotationZ);
     JPH::Body *_body = body_if.CreateBody(setting);
     body_if.AddBody(_body->GetID(), JPH::EActivation::Activate);
     Handle handle = this->bodys.insert(_body->GetID());

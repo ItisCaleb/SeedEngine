@@ -22,15 +22,6 @@
       }
     },
     {
-      "name": "xr",
-      "inherits": [
-        "default"
-      ],
-      "cacheVariables": {
-        "BUILD_XR": true
-      }
-    },
-    {
       "name": "install",
       "inherits": [
         "default"
@@ -47,6 +38,15 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "xr",
+      "inherits": [
+        "default"
+      ],
+      "cacheVariables": {
+        "BUILD_XR": true
+      }
     }
   ],
   "buildPresets": [
@@ -60,22 +60,20 @@
       ]
     },
     {
-      "name": "xr",
-      "configurePreset": "xr",
-      "jobs": 4,
-      "targets": [
-        "seed_xr",
-        "seed",
-        "app"
-      ]
-    },
-    {
       "name": "editor",
       "jobs": 4,
       "configurePreset": "default",
       "targets": [
         "seed",
         "editor"
+      ]
+    },
+    {
+      "name": "test",
+      "jobs": 4,
+      "configurePreset": "test",
+      "targets": [
+        "tests"
       ]
     }
   ]

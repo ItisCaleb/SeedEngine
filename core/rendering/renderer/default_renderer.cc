@@ -1,4 +1,5 @@
 #include "default_renderer.h"
+#include "core/rendering/instance_data.h"
 #include "core/rendering/light.h"
 #include "core/rendering/rhi/render_resource.h"
 #include "core/rendering/rhi/render_engine.h"
@@ -88,12 +89,13 @@ void DefaultRenderer::prepare_lights() {
     Camera &cam = world->get_camera();
 
     /* fill main camera */
-    Camera::ShaderCamera *cams = (Camera::ShaderCamera *)RHI::alloc_heap(
-        sizeof(Camera::ShaderCamera) * 64);
+    RHI::UpdateBufferInfo cam_info =
+        RHI::alloc_heap(sizeof(Camera::ShaderCamera) * 64);
+    Camera::ShaderCamera *cams = (Camera::ShaderCamera *)cam_info.data;
     cam.fill_shader_camera(&cams[0]);
     /* upload lights uniform*/
-    STB140Lights *light_buf =
-        (STB140Lights *)RHI::alloc_heap(sizeof(STB140Lights));
+    RHI::UpdateBufferInfo light_info = RHI::alloc_heap(sizeof(STB140Lights));
+    STB140Lights *light_buf = (STB140Lights *)light_info.data;
     dir_light.get_stb140(&light_buf->u_dir_light);
     light_buf->u_light_ambient = world->get_ambient_light();
     std::vector<PointLight> &point_lights = world->get_point_lights();
@@ -106,10 +108,11 @@ void DefaultRenderer::prepare_lights() {
             light_buf->u_point_lights[i].enable = 0.0f;
         }
     }
-    RHI::update_from_heap(u_lights, 0, sizeof(STB140Lights), light_buf);
+    RHI::update_from_heap(u_lights, 0, light_info);
 
     /* CSM frustum splits */
-    CSMShadow *csm_data = (CSMShadow *)RHI::alloc_heap(sizeof(CSMShadow));
+    RHI::UpdateBufferInfo csm_info = RHI::alloc_heap(sizeof(CSMShadow));
+    CSMShadow *csm_data = (CSMShadow *)csm_info.data;
     std::vector<f32> resolutions;
     for (u32 i = 0; i < CSM_SPLITS; i++) {
         resolutions.push_back(
@@ -125,14 +128,14 @@ void DefaultRenderer::prepare_lights() {
     }
     /* fill cams[5 ~ 40] to directional light*/
     for (u32 i = 0; i < 6; i++) {
-        if(i >= point_lights.size()){
+        if (i >= point_lights.size()) {
             break;
         }
         point_lights[i].calculate_lightspace(&cams[5 + i * 6]);
     }
 
-    RHI::update_from_heap(u_csm, 0, sizeof(CSMShadow), csm_data);
-    RHI::update_from_heap(camera, 0, sizeof(Camera::ShaderCamera) * 64, cams);
+    RHI::update_from_heap(u_csm, 0, csm_info);
+    RHI::update_from_heap(camera, 0, cam_info);
 }
 
 void DefaultRenderer::prepare_meshes() {
@@ -146,7 +149,9 @@ void DefaultRenderer::prepare_meshes() {
     std::vector<u32> visible_instances;
 
     u32 last_visible_offset = 0;
-    for (auto &[mesh, instance] : mesh_storage->get_meshes()) {
+    for (auto &[_, mesh_instance] : mesh_storage->get_meshes()) {
+        Ref<Mesh> mesh = mesh_instance.mesh;
+        Ref<InstanceData> instance = mesh_instance.instance;
         AABB bounding_box = mesh->get_bounding_box();
 
         /* check instance mesh size > 0 */
@@ -399,17 +404,22 @@ void DefaultRenderer::DebugPass::execute(RenderCommandDispatcher &dp,
     DebugDrawer *drawer = DebugDrawer::get_instance();
 
     if (drawer->try_lock()) {
-        RenderDrawDataBuilder line_builder =
-            dp.generate_render_data(drawer->debug_mat);
-        line_builder.bind_vertex_data(fd.debug_line);
-        dp.render(line_builder, RenderPrimitiveType::LINES,
-                  drawer->debug_mat->get_pipeline(), 0);
-        RenderDrawDataBuilder triangle_builder =
-            dp.generate_render_data(drawer->debug_mat);
-        triangle_builder.bind_vertex_data(fd.debug_triangle);
-        triangle_builder.bind_index_data(fd.debug_triangle_indices);
-        dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES,
-                  drawer->debug_mat->get_pipeline(), 0);
+        if (fd.debug_line->get_count() != 0) {
+            RenderDrawDataBuilder line_builder =
+                dp.generate_render_data(drawer->debug_mat);
+            line_builder.bind_vertex_data(fd.debug_line);
+            dp.render(line_builder, RenderPrimitiveType::LINES,
+                      drawer->debug_mat->get_pipeline(), 0);
+        }
+        if (fd.debug_triangle->get_count() != 0) {
+            RenderDrawDataBuilder triangle_builder =
+                dp.generate_render_data(drawer->debug_mat);
+            triangle_builder.bind_vertex_data(fd.debug_triangle);
+            triangle_builder.bind_index_data(fd.debug_triangle_indices);
+            dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES,
+                      drawer->debug_mat->get_pipeline(), 0);
+        }
+
         drawer->clear();
         drawer->unlock();
     }

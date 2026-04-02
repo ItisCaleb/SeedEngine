@@ -1,10 +1,5 @@
 #include "shader.h"
-#include <regex>
-#include <unordered_set>
 #include <spdlog/spdlog.h>
-#include <sstream>
-#include "core/io/file.h"
-#include <filesystem>
 
 namespace Seed {
 

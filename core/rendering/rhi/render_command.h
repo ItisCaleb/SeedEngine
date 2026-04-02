@@ -5,8 +5,6 @@
 #include "core/rendering/vertex_layout.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/viewport.h"
-#include <queue>
-#include <stack>
 #include <fmt/format.h>
 
 namespace Seed {

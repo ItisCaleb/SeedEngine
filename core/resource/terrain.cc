@@ -1,4 +1,5 @@
 #include "terrain.h"
+#include "core/math/vec4.h"
 #include "core/resource/default_storage.h"
 #include "core/physic/physic_engine.h"
 #include "core/rendering/rhi/render_engine.h"
@@ -38,30 +39,27 @@ void TerrainMaterial::set_light_map(Ref<Texture> light_map) {
     this->set_texture("terrain_shadowMap", light_map);
 }
 
+void TerrainMaterial::set_tex(Ref<Texture> texture) {
+    texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+                                            .wrap_v = SamplerWrap::REPEAT});
+    this->set_texture("tex1", texture);
+}
+
 void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {
     this->instances.push_back(instance);
 }
 
 void TerrainInstanceData::upload() {
-    if (instance_handle == NULL_HANDLE) {
-        instance_handle = pool->alloc(this->instances.size());
-    } else {
-        auto block = pool->query(instance_handle);
-        if (block.size < this->instances.size()) {
-            pool->free(instance_handle);
-            instance_handle = pool->alloc(this->instances.size());
-        }
-    }
-    /* upload */
-    InstanceDataPool::Block block = pool->query(instance_handle);
-    Vec4 *vecs = (Vec4 *)RHI::alloc_heap(sizeof(Vec4) * this->instances.size());
+
+    RHI::UpdateBufferInfo instance_info = RHI::alloc_heap(sizeof(Vec4) * this->instances.size());
+    Vec4 *vecs = (Vec4 *)instance_info.data;
     u32 i = 0;
     for (TerrainInstance &instance : this->instances) {
         memcpy(&vecs[i], &instance, sizeof(Vec4));
         i++;
     }
-    RHI::update_from_heap(pool->get_render_buffer(), sizeof(Vec4) * block.idx,
-                          sizeof(Vec4) * this->instances.size(), vecs);
+    _upload(instance_info);
+
 }
 void TerrainInstanceData::frustum_culling(const Frustum &frustum,
                                           const AABB &bounding_box,
@@ -145,11 +143,11 @@ void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
 void Terrain::build_mesh() {
     f32 tex_x_stride = (f32)CHUNK_SIZE / hmap_width;
     f32 tex_y_stride = (f32)CHUNK_SIZE / hmap_height;
-    u32 vertex_row_cnt = 5;
-    u32 chunk_cnt = 4;
+    u32 vertex_row_cnt = 9;
+    u32 chunk_cnt = vertex_row_cnt - 1;
     u32 step = (vertex_row_cnt - 1) / chunk_cnt;
     std::vector<TerrainVertex> vertices;
-    f32 offset = CHUNK_SIZE / 4;
+    f32 offset = CHUNK_SIZE / chunk_cnt;
     for (i32 i = 0; i < vertex_row_cnt; i++) {
         for (i32 j = 0; j < vertex_row_cnt; j++) {
             vertices.push_back(TerrainVertex{
@@ -211,8 +209,7 @@ Terrain::Terrain(Ref<Image> height_map, Ref<Texture> light_map,
         }
     }
     this->instances->upload();
-    MeshStorage::get_instance()->add_mesh(
-        this->mesh, ref_cast<InstanceData>(this->instances));
+
 }
 
 Terrain::~Terrain() {}

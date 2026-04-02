@@ -153,18 +153,19 @@ class JoltBackend {
         BPLayerInterfaceImpl broad_phase_layer_interface;
         ObjectVsBroadPhaseLayerFilterImpl object_vs_broadphase_layer_filter;
         ObjectLayerPairFilterImpl object_vs_object_layer_filter;
-        JPH::ShapeRefC create_shape(PhysicShape &shape);
+        JPH::ShapeRefC create_shape(const PhysicShape &shape);
 
     public:
         JoltBackend();
         void process();
-        void create_body(PhysicBody &body, PhysicShape &shape,
-                         PhysicBodyType type, const Vec3 &pos,
+        void create_body(PhysicBody &body, const PhysicShape &shape,
+                         const PhysicBodyType type, const Vec3 &pos,
                          const Quaternion &quat);
         void delete_body(PhysicBody &body);
         inline void query_position(PhysicBody &body, Vec3 &position);
         inline void query_rotation(PhysicBody &body, Quaternion &quat);
         void query_physics(PhysicBody &body, Vec3 &position, Quaternion &quat);
+        void set_physics(PhysicBody &body, Vec3 &positon, Quaternion &quat);
 };
 
 }  // namespace Seed

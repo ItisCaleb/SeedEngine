@@ -1,7 +1,6 @@
 #ifndef _SEED_MATERIAL_H_
 #define _SEED_MATERIAL_H_
 
-#include "core/math/vec3.h"
 #include "core/rendering/rhi/render_resource.h"
 #include "core/resource/texture.h"
 #include "core/resource/resource.h"
