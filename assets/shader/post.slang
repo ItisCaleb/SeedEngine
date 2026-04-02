@@ -34,6 +34,8 @@ float3 ACESToneMapping(float3 color, float adapted_lum)
 [shader("fragment")]
 float4 frag(VS_OUT in) : SV_Target0{
     const float gamma = 2.2;
+    // we flipped uv here
+    in.uv.y = (1 - in.uv.y);
     vec3 hdrColor = prop.image.Sample(in.uv).rgb;
     // exposure tone mapping
     vec3 mapped =  ACESToneMapping(hdrColor, 0.5);

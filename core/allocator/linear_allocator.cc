@@ -40,7 +40,7 @@ void LinearAllocator::free_all() {
     this->cur = 0;
 }
 LinearAllocator::LinearAllocator() {
-    u64 size = 1024 * 1024 * 16;
+    u64 size = 1024 * 1024;
     this->memory_base = malloc(size);
     this->cap = size;
     this->cur = 0;

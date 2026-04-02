@@ -5,7 +5,6 @@
 #include "core/math/quaternion.h"
 #include "core/math/vec3.h"
 #include <vector>
-#include <unordered_map>
 #include "core/resource/resource.h"
 #include "core/math/mat4.h"
 
@@ -47,7 +46,7 @@ class Animation : public Resource {
         const std::string &get_name() const { return name; }
 };
 
-class AnimationState : public RefCounted {
+class AnimationState {
     private:
         Ref<Animation> animation;
         f32 current_time;

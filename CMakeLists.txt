@@ -14,19 +14,19 @@ OPTION(TEST
 "Build unit test"
 OFF)
 
+# add_compile_options("-fsanitize=address")
+# add_link_options("-fsanitize=address")
+# add_compile_definitions(
+#     _DISABLE_STRING_ANNOTATION=1
+#     _DISABLE_VECTOR_ANNOTATION=1
+# )
+
 # The engine static library
 add_library(seed STATIC)
 
 target_include_directories(seed PUBLIC .)
 
 include(FetchContent)
-
-FetchContent_Declare(
-    fkYAML
-    GIT_REPOSITORY https://github.com/fktn-k/fkYAML.git
-    GIT_TAG v0.4.2
-)
-FetchContent_MakeAvailable(fkYAML)
 
 
 find_package(glfw3 CONFIG REQUIRED)
@@ -59,7 +59,6 @@ target_link_libraries(seed PUBLIC
     Jolt::Jolt
     imgui::imgui
     nfd::nfd
-    fkYAML::fkYAML
     slang::slang
     GPUOpen::VulkanMemoryAllocator
 )
@@ -67,6 +66,8 @@ target_compile_definitions(seed PRIVATE
         $<$<CONFIG:Debug>:VULKAN_DEBUG>
 
 )
+
+
 
 add_subdirectory(core)
 add_subdirectory(thirdparty)
@@ -91,8 +92,30 @@ add_subdirectory(game)
 set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
 
 
+set_target_properties(app PROPERTIES
+    DEBUGGER_WORKING_DIRECTORY  "${PROJECT_SOURCE_DIR}"
+)
 if(TEST)
+    FetchContent_Declare(
+    googletest
+        URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
+    )
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+    FetchContent_MakeAvailable(googletest)
+    target_compile_options(gtest PRIVATE -Wno-character-conversion)
+    target_compile_options(gtest_main PRIVATE -Wno-character-conversion)
+
+    add_executable(tests)
     add_subdirectory(test)
+
+    target_link_libraries(tests
+        GTest::gtest_main
+        seed
+    )
+
+    include(GoogleTest)
+    gtest_discover_tests(tests)
 endif()
 
 # The editor

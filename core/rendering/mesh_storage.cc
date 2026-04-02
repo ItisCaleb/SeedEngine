@@ -1,30 +1,54 @@
 #include "mesh_storage.h"
+#include <vector>
 #include "core/macro.h"
+#include "core/misc//hash.h"
+#include "instance_data.h"
+#include "mesh.h"
 
 namespace Seed {
 MeshStorage::MeshStorage() { instance = this; }
 
 void MeshStorage::add_mesh(Ref<Mesh> mesh, Ref<InstanceData> instance) {
     EXPECT_NOT_NULL_RET(*mesh);
-    if (this->meshes.find(mesh) == this->meshes.end()) {
-        this->meshes[mesh] = instance;
+    EXPECT_NOT_NULL_RET(*instance);
+    /* since mesh and instance address will be same across entire game */
+    /* we can use it's address as hash key */
+    Hash h;
+    Mesh *mesh_ptr = mesh.ptr();
+    InstanceData *instance_ptr = instance.ptr();
+    h.update(&mesh_ptr);
+    h.update(&instance_ptr);
+    u64 key = h.digest();
+    if (this->meshes.find(key) == this->meshes.end()) {
+        this->meshes[key] = {.mesh = mesh, .instance = instance};
     } else {
         spdlog::error("Mesh already in MeshStorage.");
     }
 }
 
-void MeshStorage::remove_mesh(Ref<Mesh> mesh) {
+void MeshStorage::remove_mesh(Ref<Mesh> mesh, Ref<InstanceData> instance) {
     EXPECT_NOT_NULL_RET(*mesh);
-    this->meshes.erase(mesh);
+    EXPECT_NOT_NULL_RET(*instance);
+
+    Hash h;
+    Mesh *mesh_ptr = mesh.ptr();
+    InstanceData *instance_ptr = instance.ptr();
+    h.update(&mesh_ptr);
+    h.update(&instance_ptr);
+    u64 key = h.digest();
+    this->meshes.erase(key);
 }
 
-Ref<InstanceData> MeshStorage::get_mesh_instance(Ref<Mesh> mesh) {
-    if (mesh.is_null()) return Ref<InstanceData>();
-    if (this->meshes.find(mesh) == this->meshes.end()) {
-        SPDLOG_WARN("Can't find instance with supplied mesh.");
-        return Ref<InstanceData>();
-    } else {
-        return this->meshes[mesh];
+void MeshStorage::add_model(Ref<Model> model, Ref<InstanceData> instance) {
+    std::vector<Ref<Mesh>> meshes = model->get_meshes();
+    for (Ref<Mesh> mesh : meshes) {
+        add_mesh(mesh, instance);
+    }
+}
+void MeshStorage::remove_model(Ref<Model> model, Ref<InstanceData> instance) {
+    std::vector<Ref<Mesh>> meshes = model->get_meshes();
+    for (Ref<Mesh> mesh : meshes) {
+        remove_mesh(mesh, instance);
     }
 }
 

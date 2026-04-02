@@ -2,7 +2,6 @@
 #define _SEED_LIGHT_H_
 
 #include "core/math/vec3.h"
-#include "core/math/vec4.h"
 #include "core/math/mat4.h"
 #include "core/rendering/camera.h"
 #include "core/macro.h"

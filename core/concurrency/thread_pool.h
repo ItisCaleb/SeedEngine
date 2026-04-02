@@ -44,7 +44,8 @@ class ThreadPool {
                 std::mutex mutex;
                 RingBuffer<Work> queue;
                 bool exit = false;
-                ThreadData(u32 index) : index(index), th(thread_func, this) {}
+                ThreadData(u32 index)
+                    : index(index), th(thread_func, this), queue(256) {}
         };
 
     public:

@@ -1,14 +1,13 @@
 #ifndef _SEED_TRANSFORM_H_
 #define _SEED_TRANSFORM_H_
-#include "core/ref.h"
 #include "core/math/vec3.h"
 #include "core/math/mat4.h"
 #include "core/collision/shape.h"
-class PhysicEngine;
 
 namespace Seed {
-class Transform : public RefCounted {
-        friend PhysicEngine;
+class World;
+class Transform {
+        friend World;
 
     private:
         Vec3 position = Vec3{0, 0, 0};
@@ -23,19 +22,19 @@ class Transform : public RefCounted {
         }
 
     public:
-        Vec3 get_position() { return position; }
+        Vec3 get_position() const { return position; }
         void set_position(const Vec3 &position) {
             this->position = position;
             this->dirty = true;
         }
         void set_position(f32 x, f32 y, f32 z) { set_position(Vec3{x, y, z}); }
 
-        Quaternion get_rotation() { return rotation; }
+        Quaternion get_rotation() const { return rotation; }
         void set_rotation(const Quaternion &rotation) {
             this->rotation = rotation;
             this->dirty = true;
         }
-        Vec3 get_scale() { return scale; }
+        Vec3 get_scale() const { return scale; }
         void set_scale(const Vec3 &scale) {
             this->scale = scale;
             this->dirty = true;

@@ -1,5 +1,6 @@
 #ifndef _SEED_EDITOR_TERRAIN_H_
 #define _SEED_EDITOR_TERRAIN_H_
+#include "core/ref.h"
 #include "core/resource/terrain.h"
 #include "core/resource/mappable_texture.h"
 #include "core/resource/texture.h"
@@ -7,7 +8,7 @@
 namespace Seed {
 class EditorTerrainMaterial : public Material {
     public:
-        EditorTerrainMaterial(Ref<Texture> height_map);
+        EditorTerrainMaterial(Ref<Texture> height_map, Ref<Texture> splat_map);
         Ref<Texture> get_height_map();
         void set_light_map(Ref<Texture> texture);
 };
@@ -37,6 +38,8 @@ class EditorTerrain : public Resource {
                       Ref<MappableTexture> splat_map,
                       Ref<MappableTexture> light_map);
         Ref<MappableTexture> get_heightmap() { return heightmap_texture; }
+        Ref<MappableTexture> get_splatmap() { return splat_map; }
+        Ref<EditorTerrainMaterial> get_material() { return material;}
         Ref<Mesh> get_mesh() { return mesh; }
         Ref<TerrainInstanceData> get_instances() { return instances; }
         u32 get_width() { return width; }

@@ -3,7 +3,6 @@
 #include "core/types.h"
 #include <vector>
 #include <string>
-#include <map>
 #include "core/rendering/render_common.h"
 #include "core/handle.h"
 #include "core/rendering/shader_layout.h"
@@ -88,7 +87,12 @@ PipelineHandle alloc_pipeline(ShaderHandle shader,
 [[nodiscard]]
 RenderPassHandle alloc_renderpass();
 
-void *alloc_heap(u32 size);
+struct UpdateBufferInfo{
+    void *data;
+    u32 size;
+};
+
+UpdateBufferInfo alloc_heap(u32 size);
 
 /* these commands will be execute at start of frame */
 void update(VertexHandle handle, u32 offset, u32 size, void *data);
@@ -106,17 +110,20 @@ void update(SSBOHandle handle, u32 offset, u32 size, void *data);
 void update(TextureHandle handle, PixelFormat format, u32 layer, u32 offx,
             u32 offy, u32 w, u32 h, void *data);
 
-/* these commands will be execute at start of frame */
-void update_from_heap(VertexHandle handle, u32 offset, u32 size, void *data);
+void update_texture_sampler(TextureHandle handle, u32 layer,
+                            const SamplerProperty &property);
 
 /* these commands will be execute at start of frame */
-void update_from_heap(IndexHandle handle, u32 offset, u32 size, void *data);
+void update_from_heap(VertexHandle handle, u32 offset, UpdateBufferInfo info);
 
 /* these commands will be execute at start of frame */
-void update_from_heap(ConstantHandle handle, u32 offset, u32 size, void *data);
+void update_from_heap(IndexHandle handle, u32 offset, UpdateBufferInfo info);
 
 /* these commands will be execute at start of frame */
-void update_from_heap(SSBOHandle handle, u32 offset, u32 size, void *data);
+void update_from_heap(ConstantHandle handle, u32 offset, UpdateBufferInfo info);
+
+/* these commands will be execute at start of frame */
+void update_from_heap(SSBOHandle handle, u32 offset, UpdateBufferInfo info);
 
 void bind_depth_attachment(RenderPassHandle handle, TextureHandle texture,
                            u32 face);

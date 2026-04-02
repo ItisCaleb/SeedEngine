@@ -2,9 +2,7 @@
 #define _SEED_VULKAN_BACKEND_H_
 #include "render_backend.h"
 #include "core/window.h"
-#include "core/container/freelist.h"
 #include "core/handle.h"
-#include <map>
 #include "core/rendering/render_common.h"
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
@@ -313,8 +311,7 @@ class RenderBackendVK : public RenderBackend {
                                              PixelFormat format,
                                              const SamplerProperty &property,
                                              const void *data) override;
-        void query_texture_size(TextureHandle handle, u32 *w,
-                                        u32 *h) override;
+        void query_texture_size(TextureHandle handle, u32 *w, u32 *h) override;
 
         VertexHandle alloc_vertex(u32 stride, u32 element_cnt,
                                   UpdateFrequence frequence,
@@ -349,6 +346,9 @@ class RenderBackendVK : public RenderBackend {
                     u32 size, void *data) override;
         void update(TextureHandle handle, u32 layer, u32 offx, u32 offy, u32 w,
                     u32 h, void *data) override;
+        void update_texture_sampler(TextureHandle handle, u32 layer,
+                                            const SamplerProperty &property) override;
+
         void *map_buffer(RenderResourceType type, Handle handle) override;
         void *map_texture(TextureHandle handle) override;
         void bind_depth_attachment(RenderPassHandle handle,

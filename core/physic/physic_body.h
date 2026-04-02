@@ -1,7 +1,6 @@
 #ifndef _SEED_PHYSIC_BODY_H_
 #define _SEED_PHYSIC_BODY_H_
 #include "core/handle.h"
-#include "core/ref.h"
 
 namespace Seed {
 

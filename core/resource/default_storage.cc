@@ -42,11 +42,12 @@ DefaultStorage::DefaultStorage() {
             Vec2 pos;
             Vec2 tex;
     };
-    QuadData quad[] = {-1.0f, 1.0f, 0.0f, 1.0f,  -1.0f, -1.0f,
-                       0.0f,  0.0f, 1.0f, -1.0f, 1.0f,  0.0f,
+    /* uv origin is top-left */
+    QuadData quad[] = {-1.0f, 1.0f, 0.0f, 0.0f,  -1.0f, -1.0f,
+                       0.0f,  1.0f, 1.0f, -1.0f, 1.0f,  1.0f,
 
-                       -1.0f, 1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
-                       1.0f,  0.0f, 1.0f, 1.0f,  1.0f,  1.0f};
+                       -1.0f, 1.0f, 0.0f, 0.0f,  1.0f,  -1.0f,
+                       1.0f,  1.0f, 1.0f, 1.0f,  1.0f,  0.0f};
 
     quad_desc.add_type_attr<Vec2>(0);
     quad_desc.add_type_attr<Vec2>(1);

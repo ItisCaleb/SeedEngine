@@ -47,11 +47,12 @@ void TerrainEditorRenderer::preprocess() {
         return;
     }
     Camera *cam = &SeedEngine::get_instance()->get_world()->get_camera();
-    Camera::ShaderCamera *matrices =
-        (Camera::ShaderCamera *)RHI::alloc_heap(sizeof(Camera::ShaderCamera));
+    RHI::UpdateBufferInfo cam_info =
+        RHI::alloc_heap(sizeof(Camera::ShaderCamera));
+    Camera::ShaderCamera *matrices = (Camera::ShaderCamera *)cam_info.data;
 
     cam->fill_shader_camera(matrices);
-    RHI::update_from_heap(camera, 0, sizeof(Camera::ShaderCamera), matrices);
+    RHI::update_from_heap(camera, 0, cam_info);
     const Frustum &cam_frustum = cam->get_frustum();
 
     /* Use instancing */

@@ -1,5 +1,4 @@
 #include "vertex_data.h"
-#include "core/rendering/rhi/render_command.h"
 
 namespace Seed {
 

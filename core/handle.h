@@ -2,7 +2,6 @@
 #define _SEED_HANDLE_H_
 #include "core/types.h"
 #include "core/container/freelist.h"
-#include <mutex>
 
 namespace Seed {
 

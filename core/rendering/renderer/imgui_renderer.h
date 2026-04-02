@@ -1,7 +1,6 @@
 #ifndef _SEED_IMGUI_RENDERER_H_
 #define _SEED_IMGUI_RENDERER_H_
 #include "renderer.h"
-#include "core/resource/texture.h"
 #include "core/resource/material.h"
 #include "core/rendering/render_pass.h"
 namespace Seed {

@@ -9,7 +9,6 @@
 #include "core/physic/physic_engine.h"
 #include "types.h"
 #include <spdlog/spdlog.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include "core/os.h"
 #include "core/debug/debug_drawer.h"
@@ -52,7 +51,6 @@ void SeedEngine::start() {
 
         glfwPollEvents();
         GuiEngine::get_instance()->update();
-        PhysicEngine::get_instance()->process();
         world->tick(delta);
 
         render_engine->process();

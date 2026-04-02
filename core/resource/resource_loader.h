@@ -1,10 +1,11 @@
 #ifndef _SEED_RESOURCE_LOADER_H_
 #define _SEED_RESOURCE_LOADER_H_
 
+#include <string>
+#include <vector>
 #include "core/ref.h"
+#include "core/rendering/mesh.h"
 #include "core/resource/resource.h"
-#include "core/rendering/rhi/render_resource.h"
-#include "core/resource/shader.h"
 #include "core/concurrency/thread_pool.h"
 
 namespace Seed {
@@ -35,7 +36,7 @@ class ResourceLoader {
         template <typename T>
         Ref<T> _load(const std::string &path);
         std::unordered_map<std::string, Resource *> res_cache;
-
+        void load_meshes(const std::string &path, std::vector<Ref<Mesh>> &meshes);
     public:
         static ResourceLoader *get_instance();
         void register_resource(Resource *res);

@@ -1,7 +1,6 @@
 #ifndef _SEED_JSON_IMPL_H_
 #define _SEED_JSON_IMPL_H_
 #include <nlohmann/json.hpp>
-#include "core/types.h"
 #include "core/math/vec3.h"
 #include "core/math/vec4.h"
 #include "core/math/mat4.h"

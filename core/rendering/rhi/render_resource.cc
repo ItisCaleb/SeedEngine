@@ -79,17 +79,19 @@ RenderPassHandle alloc_renderpass() {
     return RenderEngine::get_instance()->get_device()->alloc_render_pass();
 }
 
-void *alloc_heap(u32 size) { return malloc(size); }
+UpdateBufferInfo alloc_heap(u32 size) {
+    return UpdateBufferInfo{.data = malloc(size), .size = size};
+}
 
 /* these commands will be execute at start of frame */
 void update(VertexHandle handle, u32 offset, u32 size, void *data) {
     if (size == 0 || data == nullptr) {
         return;
     }
-    void *heap = alloc_heap(size);
-    memcpy(heap, data, size);
+    UpdateBufferInfo heap = alloc_heap(size);
+    memcpy(heap.data, data, size);
     RenderEngine::get_instance()->get_device()->update(
-        RenderResourceType::VERTEX, handle, offset, size, heap);
+        RenderResourceType::VERTEX, handle, offset, size, heap.data);
 }
 
 /* these commands will be execute at start of frame */
@@ -97,10 +99,10 @@ void update(IndexHandle handle, u32 offset, u32 size, void *data) {
     if (size == 0 || data == nullptr) {
         return;
     }
-    void *heap = alloc_heap(size);
-    memcpy(heap, data, size);
+    UpdateBufferInfo heap = alloc_heap(size);
+    memcpy(heap.data, data, size);
     RenderEngine::get_instance()->get_device()->update(
-        RenderResourceType::INDEX, handle, offset, size, heap);
+        RenderResourceType::INDEX, handle, offset, size, heap.data);
 }
 
 /* these commands will be execute at start of frame */
@@ -108,10 +110,10 @@ void update(ConstantHandle handle, u32 offset, u32 size, void *data) {
     if (size == 0 || data == nullptr) {
         return;
     }
-    void *heap = alloc_heap(size);
-    memcpy(heap, data, size);
+    UpdateBufferInfo heap = alloc_heap(size);
+    memcpy(heap.data, data, size);
     RenderEngine::get_instance()->get_device()->update(
-        RenderResourceType::CONSTANT, handle, offset, size, heap);
+        RenderResourceType::CONSTANT, handle, offset, size, heap.data);
 }
 
 /* these commands will be execute at start of frame */
@@ -119,10 +121,10 @@ void update(SSBOHandle handle, u32 offset, u32 size, void *data) {
     if (size == 0 || data == nullptr) {
         return;
     }
-    void *heap = alloc_heap(size);
-    memcpy(heap, data, size);
+    UpdateBufferInfo heap = alloc_heap(size);
+    memcpy(heap.data, data, size);
     RenderEngine::get_instance()->get_device()->update(
-        RenderResourceType::STORAGE_BUFFER, handle, offset, size, heap);
+        RenderResourceType::STORAGE_BUFFER, handle, offset, size, heap.data);
 }
 
 void update(TextureHandle handle, PixelFormat format, u32 layer, u32 offx,
@@ -131,34 +133,40 @@ void update(TextureHandle handle, PixelFormat format, u32 layer, u32 offx,
     if (size == 0 || data == nullptr) {
         return;
     }
-    void *heap = alloc_heap(size);
-    memcpy(heap, data, size);
+    UpdateBufferInfo heap = alloc_heap(size);
+    memcpy(heap.data, data, size);
     RenderEngine::get_instance()->get_device()->update(handle, layer, offx,
-                                                       offy, w, h, heap);
+                                                       offy, w, h, heap.data);
+}
+
+void update_texture_sampler(TextureHandle handle, u32 layer,
+                            const SamplerProperty &property) {
+    RenderEngine::get_instance()->get_device()->update_texture_sampler(
+        handle, layer, property);
 }
 
 /* these commands will be execute at start of frame */
-void update_from_heap(VertexHandle handle, u32 offset, u32 size, void *data) {
+void update_from_heap(VertexHandle handle, u32 offset, UpdateBufferInfo info) {
     RenderEngine::get_instance()->get_device()->update(
-        RenderResourceType::VERTEX, handle, offset, size, data);
+        RenderResourceType::VERTEX, handle, offset, info.size, info.data);
 }
 
 /* these commands will be execute at start of frame */
-void update_from_heap(IndexHandle handle, u32 offset, u32 size, void *data) {
+void update_from_heap(IndexHandle handle, u32 offset, UpdateBufferInfo info) {
     RenderEngine::get_instance()->get_device()->update(
-        RenderResourceType::INDEX, handle, offset, size, data);
+        RenderResourceType::INDEX, handle, offset, info.size, info.data);
 }
 
 /* these commands will be execute at start of frame */
-void update_from_heap(ConstantHandle handle, u32 offset, u32 size, void *data) {
+void update_from_heap(ConstantHandle handle, u32 offset, UpdateBufferInfo info) {
     RenderEngine::get_instance()->get_device()->update(
-        RenderResourceType::CONSTANT, handle, offset, size, data);
+        RenderResourceType::CONSTANT, handle, offset, info.size, info.data);
 }
 
 /* these commands will be execute at start of frame */
-void update_from_heap(SSBOHandle handle, u32 offset, u32 size, void *data) {
+void update_from_heap(SSBOHandle handle, u32 offset, UpdateBufferInfo info) {
     RenderEngine::get_instance()->get_device()->update(
-        RenderResourceType::STORAGE_BUFFER, handle, offset, size, data);
+        RenderResourceType::STORAGE_BUFFER, handle, offset,info.size, info.data);
 }
 void bind_depth_attachment(RenderPassHandle handle, TextureHandle texture,
                            u32 face) {

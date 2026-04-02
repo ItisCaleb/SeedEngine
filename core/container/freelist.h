@@ -1,8 +1,6 @@
 #ifndef _SEED_FREE_LIST_H_
 #define _SEED_FREE_LIST_H_
-#include <vector>
 #include "core/types.h"
-#include <iterator>
 #include <mutex>
 
 namespace Seed {

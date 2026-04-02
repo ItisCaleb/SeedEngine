@@ -1,10 +1,20 @@
 #include "instance_data.h"
+#include <cstdlib>
+#include <cstring>
+#include "core/collision/shape.h"
 #include "core/macro.h"
+#include "core/math/mat4.h"
 #include "core/math/utils.h"
-#include "core/rendering/rhi/render_command.h"
+#include "core/math/vec3.h"
+#include "core/math/vec4.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/debug/debug_drawer.h"
 #include "core/engine.h"
+#include "core/resource/animation.h"
+#include "core/resource/model.h"
+#include "core/transform.h"
+#include "core/types.h"
+#include "rhi/render_resource.h"
 
 namespace Seed {
 
@@ -88,16 +98,60 @@ InstanceDataPool::Block InstanceDataPool::query(Handle handle) {
     return *b;
 }
 
-InstanceDataPool::InstanceDataPool(u32 data_size, u32 size) {
+InstanceDataPool::InstanceDataPool(u32 element_size, u32 size)
+    : element_size(element_size) {
     this->max_order = log2(roundup_to_pow2(size)) + 1;
     this->ssbo_handle = RHI::alloc_storage_buffer(
-        (1 << max_order) * data_size, UpdateFrequence::PERFRAME, nullptr);
+        (1 << max_order) * element_size, UpdateFrequence::PERFRAME, nullptr);
     this->free_zones.resize(max_order);
     this->free_zones[this->max_order - 1].push_back(
         Block{0, 1u << (this->max_order - 1)});
 }
 InstanceDataPool::~InstanceDataPool() {}
 
+void InstanceData::_upload(RHI::UpdateBufferInfo &update_info,
+                           u32 element_offset) {
+    u32 element_size = pool->get_element_size();
+    u32 size = update_info.size / element_size;
+    if (instance_handle == NULL_HANDLE) {
+        instance_handle = pool->alloc(size);
+    } else {
+        auto block = pool->query(instance_handle);
+        if (block.size < size) {
+            pool->free(instance_handle);
+            instance_handle = pool->alloc(size);
+        }
+    }
+    /* upload */
+    InstanceDataPool::Block block = pool->query(instance_handle);
+    u32 offset = element_size * block.idx + element_size * element_offset;
+    RHI::update_from_heap(pool->get_render_buffer(), offset, update_info);
+}
+
+void InstanceData::_upload(std::vector<RHI::UpdateBufferInfo> &update_infos) {
+    u32 element_size = pool->get_element_size();
+    u32 total_size = 0;
+    for (RHI::UpdateBufferInfo &info : update_infos) {
+        total_size += info.size;
+    }
+    u32 size = total_size / element_size;
+    if (instance_handle == NULL_HANDLE) {
+        instance_handle = pool->alloc(size);
+    } else {
+        auto block = pool->query(instance_handle);
+        if (block.size < size) {
+            pool->free(instance_handle);
+            instance_handle = pool->alloc(size);
+        }
+    }
+    /* upload */
+    InstanceDataPool::Block block = pool->query(instance_handle);
+    u32 offset = element_size * block.idx;
+    for (RHI::UpdateBufferInfo &info : update_infos) {
+        RHI::update_from_heap(pool->get_render_buffer(), offset, info);
+        offset += info.size;
+    }
+}
 InstanceData::~InstanceData() {
     if (this->instance_handle != NULL_HANDLE) {
         pool->free(this->instance_handle);
@@ -105,63 +159,43 @@ InstanceData::~InstanceData() {
     }
 }
 
-void TransformInstanceData::insert_transform(Ref<Transform> transform) {
-    EXPECT_NOT_NULL_RET(*transform);
-    this->transforms.insert(transform);
+void StaticInstanceData::insert_transform(Transform &transform) {
+    this->world_matrices.push_back(transform.get_model_matrix());
+    updated = false;
 }
-void TransformInstanceData::remove_transform(Ref<Transform> transform) {
-    EXPECT_NOT_NULL_RET(*transform);
-    this->transforms.erase(transform);
-}
-
-void TransformInstanceData::upload() {
-    if (instance_handle == NULL_HANDLE) {
-        instance_handle = pool->alloc(this->transforms.size());
-    } else {
-        auto block = pool->query(instance_handle);
-        if (block.size < this->transforms.size()) {
-            pool->free(instance_handle);
-            instance_handle = pool->alloc(this->transforms.size());
-        }
+void StaticInstanceData::upload() {
+    if (updated) {
+        return;
     }
-    /* upload */
-    InstanceDataPool::Block block = pool->query(instance_handle);
-    Mat4 *mats =
-        (Mat4 *)RHI::alloc_heap(sizeof(Mat4) * this->transforms.size());
-    u32 i = 0;
-    for (Ref<Transform> transform : this->transforms) {
-        mats[i] = transform->get_model_matrix();
-        i++;
-    }
-    RHI::update_from_heap(pool->get_render_buffer(), sizeof(Mat4) * block.idx,
-                          sizeof(Mat4) * this->transforms.size(), mats);
-}
-
-void TransformInstanceData::frustum_culling(const Frustum &frustum,
-                                            const AABB &bounding_box,
-                                            std::vector<u32> &instance_ids,
-                                            std::vector<f32> &depths) {
+    RHI::UpdateBufferInfo mat_info =
+        RHI::alloc_heap(sizeof(Mat4) * this->world_matrices.size());
+    memcpy(mat_info.data, world_matrices.data(), mat_info.size);
+    _upload(mat_info);
+};
+void StaticInstanceData::frustum_culling(const Frustum &frustum,
+                                         const AABB &bounding_box,
+                                         std::vector<u32> &instance_ids,
+                                         std::vector<f32> &depths) {
     u32 i = pool->query(instance_handle).idx;
     DebugDrawer *drawer = DebugDrawer::get_instance();
 
-    for (Ref<Transform> transform : transforms) {
-        AABB aabb = transform->translate_AABB(bounding_box);
+    for (Mat4 &mat : world_matrices) {
+        AABB result = bounding_box.translate(mat);
         /* frustum culling */
-        if (frustum.within_frustum(aabb)) {
+        if (frustum.within_frustum(result)) {
             if (SeedEngine::get_instance()->get_debug_flag() &
                 EngineConfig::BOUNDING_BOX) {
-                drawer->draw_aabb(aabb);
+                drawer->draw_aabb(result);
             }
             /* push instance indices */
             instance_ids.push_back(i);
-            depths.push_back(
-                frustum.calculate_depth(transform->get_position()));
+            depths.push_back(frustum.calculate_depth(result.center));
         }
         i++;
     }
-}
+};
 
-TransformInstanceData::TransformInstanceData()
+StaticInstanceData::StaticInstanceData()
     : InstanceData(RenderEngine::get_instance()->get_instance_pool(
           TRANSFORM_POOL_NAME)) {}
 }  // namespace Seed

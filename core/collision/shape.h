@@ -1,5 +1,6 @@
 #ifndef _SEED_SHAPE_H_
 #define _SEED_SHAPE_H_
+#include "core/math/mat4.h"
 #include "core/types.h"
 #include "core/math/vec3.h"
 #include <cmath>
@@ -16,6 +17,20 @@ struct AABB {
                    center.y - ext.y <= other.center.y + other.ext.y &&
                    center.z + ext.z >= other.center.z - other.ext.z &&
                    center.z - ext.z <= other.center.z + other.ext.z;
+        }
+        AABB translate(Mat4 world_matrix) const {
+            AABB result;
+            result.center = world_matrix.transform_point(center);
+            result.ext = Vec3{std::abs(world_matrix[0][0]) * ext.x +
+                                  std::abs(world_matrix[0][1]) * ext.y +
+                                  std::abs(world_matrix[0][2]) * ext.z,
+                              std::abs(world_matrix[1][0]) * ext.x +
+                                  std::abs(world_matrix[1][1]) * ext.y +
+                                  std::abs(world_matrix[1][2]) * ext.z,
+                              std::abs(world_matrix[2][0]) * ext.x +
+                                  std::abs(world_matrix[2][1]) * ext.y +
+                                  std::abs(world_matrix[2][2]) * ext.z};
+            return result;
         }
 };
 

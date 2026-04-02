@@ -7,8 +7,6 @@
 #include "core/rendering/render_common.h"
 #include "core/collision/shape.h"
 #include "core/rendering/viewport.h"
-#include <queue>
-#include <stack>
 #include <fmt/format.h>
 
 namespace Seed {

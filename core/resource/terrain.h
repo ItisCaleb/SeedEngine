@@ -30,6 +30,7 @@ class TerrainMaterial : public Material {
                         Ref<Texture> splat_map);
         void set_height_map(Ref<Texture> height_map);
         void set_light_map(Ref<Texture> light_map);
+        void set_tex(Ref<Texture> texture);
         Ref<Texture> get_height_map();
 };
 
@@ -45,6 +46,7 @@ class TerrainInstanceData : public InstanceData {
         void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
                              std::vector<u32> &instance_ids,
                              std::vector<f32> &depths) override;
+        void clear() override { instances.clear(); }
         TerrainInstanceData();
 };
 
@@ -70,7 +72,8 @@ class Terrain : public Resource {
             this->terrain_mat = mat;
         }
         Ref<TerrainMaterial> get_material() { return terrain_mat; }
-
+        Ref<TerrainInstanceData> get_instance() { return instances; }
+        Ref<Mesh> get_mesh() { return mesh; }
         ~Terrain();
 };
 

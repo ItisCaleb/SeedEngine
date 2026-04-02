@@ -1,14 +1,9 @@
 #include "render_engine.h"
 #include <GLFW/glfw3.h>
-#include "core/engine.h"
-#include "core/resource/resource_loader.h"
 #include <spdlog/spdlog.h>
-#include "core/rendering/light.h"
-#include "core/resource/material.h"
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
-#include "core/macro.h"
 
 #include <spdlog/spdlog.h>
 
