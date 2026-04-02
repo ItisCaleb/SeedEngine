@@ -143,11 +143,11 @@ void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
 void Terrain::build_mesh() {
     f32 tex_x_stride = (f32)CHUNK_SIZE / hmap_width;
     f32 tex_y_stride = (f32)CHUNK_SIZE / hmap_height;
-    u32 vertex_row_cnt = 5;
-    u32 chunk_cnt = 4;
+    u32 vertex_row_cnt = 9;
+    u32 chunk_cnt = vertex_row_cnt - 1;
     u32 step = (vertex_row_cnt - 1) / chunk_cnt;
     std::vector<TerrainVertex> vertices;
-    f32 offset = CHUNK_SIZE / 4;
+    f32 offset = CHUNK_SIZE / chunk_cnt;
     for (i32 i = 0; i < vertex_row_cnt; i++) {
         for (i32 j = 0; j < vertex_row_cnt; j++) {
             vertices.push_back(TerrainVertex{

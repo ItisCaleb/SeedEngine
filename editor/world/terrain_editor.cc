@@ -8,7 +8,7 @@
 #include "core/resource/resource_loader.h"
 #include "core/resource/texture.h"
 #include "core/types.h"
-#include "editor/terrain/editor_terrain.h"
+#include "editor/world/editor_terrain.h"
 #include "core/math/utils.h"
 #include "editor/editor.h"
 #include "core/io/file.h"
@@ -198,26 +198,6 @@ void TerrainEditor::draw_left_panel() {
 
     ImGui::Spacing();
     ImGui::Spacing();
-
-    // // ── Terrain Size ─────────────────────────────────────
-    // te_section_header("TERRAIN SIZE");
-
-    // ImGui::PushItemWidth(80);
-    // static int t_w = 512, t_h = 512;
-    // ImGui::Text("W");
-    // ImGui::SameLine();
-    // ImGui::InputInt("##tw", &t_w, 0);
-    // ImGui::SameLine();
-    // ImGui::Text("H");
-    // ImGui::SameLine();
-    // ImGui::InputInt("##th", &t_h, 0);
-    // ImGui::PopItemWidth();
-
-    // static float t_scale = 1.f;
-    // ImGui::Text("Scale");
-    // ImGui::PushItemWidth(-1);
-    // ImGui::InputFloat("##tsc", &t_scale, 0.1f, 1.f, "%.2f");
-    // ImGui::PopItemWidth();
 
     // ── Bottom buttons ────────────────────────────────────
     // Push to the bottom of the child window

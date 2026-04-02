@@ -404,17 +404,22 @@ void DefaultRenderer::DebugPass::execute(RenderCommandDispatcher &dp,
     DebugDrawer *drawer = DebugDrawer::get_instance();
 
     if (drawer->try_lock()) {
-        RenderDrawDataBuilder line_builder =
-            dp.generate_render_data(drawer->debug_mat);
-        line_builder.bind_vertex_data(fd.debug_line);
-        dp.render(line_builder, RenderPrimitiveType::LINES,
-                  drawer->debug_mat->get_pipeline(), 0);
-        RenderDrawDataBuilder triangle_builder =
-            dp.generate_render_data(drawer->debug_mat);
-        triangle_builder.bind_vertex_data(fd.debug_triangle);
-        triangle_builder.bind_index_data(fd.debug_triangle_indices);
-        dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES,
-                  drawer->debug_mat->get_pipeline(), 0);
+        if (fd.debug_line->get_count() != 0) {
+            RenderDrawDataBuilder line_builder =
+                dp.generate_render_data(drawer->debug_mat);
+            line_builder.bind_vertex_data(fd.debug_line);
+            dp.render(line_builder, RenderPrimitiveType::LINES,
+                      drawer->debug_mat->get_pipeline(), 0);
+        }
+        if (fd.debug_triangle->get_count() != 0) {
+            RenderDrawDataBuilder triangle_builder =
+                dp.generate_render_data(drawer->debug_mat);
+            triangle_builder.bind_vertex_data(fd.debug_triangle);
+            triangle_builder.bind_index_data(fd.debug_triangle_indices);
+            dp.render(triangle_builder, RenderPrimitiveType::TRIANGLES,
+                      drawer->debug_mat->get_pipeline(), 0);
+        }
+
         drawer->clear();
         drawer->unlock();
     }

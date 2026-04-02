@@ -52,13 +52,7 @@ int main(void) {
     auto sky = loader->load_async<Sky>("assets/sky.json");
     auto backpack = loader->load_async<BasicModel>(
         "test_project/assets/backpack.json", [=](Ref<BasicModel> rc) {
-            // for (i32 i = 0; i < 10; i++) {
-            //     Entity *ent = new Entity(Vec3{(f32)i * 5, 20, (f32)-i});
-            //     ent->bind_model(rc);
-            //     engine->get_world()->add_entity(ent);
-            //     PhysicBoxShape box(Vec3{1, 1, 1});
-            //     ent->create_body(box, PhysicBodyType::DYNAMIC);
-            // }
+
         });
     // auto grass = loader->load_async<Billboard>(
     //     "assets/grass.png", [=](Ref<Billboard> rc) {
@@ -77,7 +71,6 @@ int main(void) {
     world->get_point_lights().push_back(
         PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
     world->set_sky(sky->wait());
-    // world->add_billboard(grass->wait());
     Ref<WorldChunk> chunk;
     chunk.create(terrain->wait());
     Transform t;

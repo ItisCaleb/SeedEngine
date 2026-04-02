@@ -3,7 +3,7 @@
 #include <string>
 #include "project/project.h"
 #include <nlohmann/json.hpp>
-#include "editor/terrain/terrain_editor.h"
+#include "editor/world/terrain_editor.h"
 #include "editor/asset/asset_viewer.h"
 
 namespace Seed {

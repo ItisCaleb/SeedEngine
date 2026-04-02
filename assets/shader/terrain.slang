@@ -187,17 +187,31 @@ float HorizonShadow(vec2 uv, vec3 light_dir) {
     return shadow;
 }
 
+vec3 diffuse_blend(vec2 uv1, vec2 uv2){
+    vec3 diffuse1 = prop.tex1.Sample(uv1).xyz;
+    vec3 diffuse2 = prop.tex1.Sample(uv2).xyz;
+    return diffuse1 * diffuse2 * 2.0;
+}
+
+vec3 normal_blend(vec2 uv1, vec2 uv2){
+    vec3 n1 = sample_normal(uv1, prop.tex1_normal); 
+    vec3 n2 = sample_normal(uv2, prop.tex1_normal); 
+    return blend_normal_rnm(n1, n2);
+}
+
 [shader("fragment")]
 float4 frag(DS_OUT in){
     float h = (in.height + 128)/256.0f;
     if(h < 0.1){
         discard;
     }
-    vec2 uv = in.frag_pos.xz/32;
-    vec3 diffuse_sample = prop.tex1.Sample(uv).xyz;
-    vec3 normal = prop.tex1_normal.Sample(uv).rgb;
-    normal = normalize(normal * 2.0 - 1.0);  
+    vec2 uv1 = in.frag_pos.xz/32;
+    vec2 uv2 = in.frag_pos.xz/128;
+    // vec3 diffuse_sample = diffuse_blend(uv1, uv2);
+    // vec3 normal = normal_blend(uv1, uv2);
 
+    vec3 diffuse_sample = prop.tex1.Sample(uv1).xyz;
+    vec3 normal = sample_normal(uv1,  prop.tex1_normal);
 
     vec3 light_out = diffuse_sample * gLights.u_light_ambient;
     Camera cam = GetCamera();

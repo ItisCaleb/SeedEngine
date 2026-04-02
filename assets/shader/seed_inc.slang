@@ -268,3 +268,15 @@ float CSMShadowCalculation(Sampler2D shadow_map, vec4 frag_pos, float frag_z, ve
     }
     return shadow;    
 }
+
+vec3 sample_normal(vec2 uv, Sampler2D normal_map){
+    return normalize(normal_map.Sample(uv).rgb * 2.0 - 1.0);
+}
+
+
+vec3 blend_normal_rnm(vec3 n1, vec3 n2) {
+    vec3 t = n1 * vec3(2, 2, 2) + vec3(-1, -1, 0);
+    vec3 u = n2 * vec3(-2, -2, 2) + vec3(1, 1, -1);
+    vec3 r = t * dot(t, u) - u * t.z;
+    return normalize(r);
+}
