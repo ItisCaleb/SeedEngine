@@ -75,6 +75,16 @@
       "targets": [
         "tests"
       ]
+    },
+    {
+      "name": "xr",
+      "jobs": 4,
+      "configurePreset": "xr",
+      "targets": [
+        "seed_xr",
+        "seed",
+        "app"
+      ]
     }
   ]
 }
