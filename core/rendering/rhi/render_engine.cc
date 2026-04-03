@@ -4,6 +4,8 @@
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
+#include "core/rendering/backend/xr_vulkan_backend.h"
+#include "core/window.h"
 
 #include <spdlog/spdlog.h>
 
@@ -37,6 +39,15 @@ void RenderEngine::bind_vulken(Window *window) {
     GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
 
     this->device = new RenderBackendVK(window);
+}
+void RenderEngine::bind_vulkan_xr(Window *window){
+    spdlog::info("Initializing Vulkan XR Rendering backend");
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    window->create();
+
+    GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
+
+    this->device = new RenderBackendXRVk(window);
 }
 
 static const std::vector<std::string> DEFAULT_INCLUDE_PATHS = {
@@ -75,8 +86,11 @@ RenderEngine::RenderEngine(Window *window) {
             "Can't initialize Render engine, window is null, exiting.");
         exit(1);
     }
+#ifdef SEED_XR 
+    bind_vulkan_xr(window);
+#else
     bind_vulken(window);
-
+#endif
     this->shader_proxy = new ShaderProxy(DEFAULT_INCLUDE_PATHS);
     this->mesh_storage = new MeshStorage;
     this->current_window = window;

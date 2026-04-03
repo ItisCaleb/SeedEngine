@@ -26,8 +26,8 @@ class RenderCommandQueue {
         }
 };
 
-enum class RenderBackendType { OPENGL, VULKAN };
-
+enum class RenderBackendType { VULKAN, XR_VULKAN };
+class RenderEngine;
 class RenderBackend {
     protected:
         inline static const u32 FRAMES_IN_FLIGHT = 3;

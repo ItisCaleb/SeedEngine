@@ -98,7 +98,7 @@ struct HardwareRenderPassVk {
 };
 
 class RenderBackendVK : public RenderBackend {
-    private:
+    protected:
         Window *current_window;
         VkInstance instance;
         VkPhysicalDevice physical_device = VK_NULL_HANDLE;
@@ -295,7 +295,7 @@ class RenderBackendVK : public RenderBackend {
         void handle_update(RenderCommand &cmd);
         void handle_state(RenderCommand &cmd);
         void handle_render(RenderCommand &cmd);
-
+        RenderBackendVK() = default;
     public:
         RenderBackendVK(Window *window);
         ~RenderBackendVK();

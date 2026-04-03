@@ -63,6 +63,8 @@ struct Plane {
 
 Vec3 plane_intersect(const Plane &p1, const Plane &p2, const Plane &p3);
 
+#undef far
+#undef near
 struct Frustum {
         Plane left, right;
         Plane top, bottom;

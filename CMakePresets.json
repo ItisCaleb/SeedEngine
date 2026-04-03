@@ -1,72 +1,90 @@
 {
-    "version": 2,
-    "configurePresets": [
-        {
-            "name": "default",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build",
-            "cacheVariables": {
-                "VCPKG_MANIFEST_INSTALL": false,
-                "CMAKE_TOOLCHAIN_FILE": "./vcpkg/scripts/buildsystems/vcpkg.cmake",
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-            }
-        },
-        {
-            "name": "test",
-            "inherits": [
-                "default"
-            ],
-            "cacheVariables": {
-                "TEST": true
-            }
-        },
-        {
-            "name": "install",
-            "inherits": [
-                "default"
-            ],
-            "cacheVariables": {
-                "VCPKG_MANIFEST_INSTALL": true
-            }
-        },
-        {
-            "name": "release",
-            "inherits": [
-                "default"
-            ],
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
-            }
-        }
-    ],
-    "buildPresets": [
-        {
-            "name": "default",
-            "configurePreset": "default",
-            "jobs": 4,
-            "targets": [
-                "seed",
-                "app"
-            ]
-        },
-        {
-            "name": "editor",
-            "jobs": 4,
-            "configurePreset": "default",
-            "targets": [
-                "seed",
-                "editor"
-            ]
-        }
-        ,
-        {
-            "name": "test",
-            "jobs": 4,
-            "configurePreset": "test",
-            "targets": [
-                "tests"
-            ]
-        }
-    ]
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "default",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_INSTALL": false,
+        "CMAKE_TOOLCHAIN_FILE": "./vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "test",
+      "inherits": [
+        "default"
+      ],
+      "cacheVariables": {
+        "TEST": true
+      }
+    },
+    {
+      "name": "install",
+      "inherits": [
+        "default"
+      ],
+      "cacheVariables": {
+        "VCPKG_MANIFEST_INSTALL": true
+      }
+    },
+    {
+      "name": "release",
+      "inherits": [
+        "default"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "xr",
+      "inherits": [
+        "default"
+      ],
+      "cacheVariables": {
+        "BUILD_XR": true
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "jobs": 4,
+      "targets": [
+        "seed",
+        "app"
+      ]
+    },
+    {
+      "name": "editor",
+      "jobs": 4,
+      "configurePreset": "default",
+      "targets": [
+        "seed",
+        "editor"
+      ]
+    },
+    {
+      "name": "test",
+      "jobs": 4,
+      "configurePreset": "test",
+      "targets": [
+        "tests"
+      ]
+    },
+    {
+      "name": "xr",
+      "jobs": 4,
+      "configurePreset": "xr",
+      "targets": [
+        "seed_xr",
+        "seed",
+        "app"
+      ]
+    }
+  ]
 }

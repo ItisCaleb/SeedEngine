@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include "core/os.h"
 #include "core/debug/debug_drawer.h"
+#include "xr/xr_engine.h"
 namespace Seed {
 
 static void error_callback(int error, const char *description) {
@@ -22,6 +23,9 @@ SeedEngine *SeedEngine::get_instance() { return instance; }
 
 void SeedEngine::init_systems() {
     ResourceLoader *resource_loader = new ResourceLoader;
+#ifdef SEED_XR
+    XREngine *xr_engine = new XREngine();
+#endif
     RenderEngine *render_engine = new RenderEngine(window);
     Input *input = new Input;
     input_handler.init(this->window);

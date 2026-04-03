@@ -147,12 +147,13 @@ ShaderHandle ShaderProxy::compile_shader(const std::string &path,
     Slang::ComPtr<slang::IBlob> diagnostics;
     Slang::ComPtr<slang::IModule> module;
     switch (backend->get_type()) {
-        case RenderBackendType::OPENGL:
-            global_session->createSession(glsl_session_desc,
-                                          session.writeRef());
+        // case RenderBackendType::OPENGL:
+        //     global_session->createSession(glsl_session_desc,
+        //                                   session.writeRef());
 
-            break;
+        //     break;
         case RenderBackendType::VULKAN:
+        case RenderBackendType::XR_VULKAN:
             global_session->createSession(spirv_session_desc,
                                           session.writeRef());
             break;
