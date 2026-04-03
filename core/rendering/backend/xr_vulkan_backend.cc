@@ -4,9 +4,7 @@
 #include <cstdlib>
 #include <vector>
 #include "core/rendering/render_common.h"
-#define VOLK_IMPLEMENTATION
 #include <volk.h>
-#define VMA_IMPLEMENTATION
 #ifdef __APPLE__
 #include <vk_mem_alloc.h>
 #else
@@ -16,7 +14,12 @@
 #define XR_USE_GRAPHICS_API_VULKAN
 #include <openxr/openxr_platform.h>
 
+VMA_CALL_PRE VkResult VMA_CALL_POST vmaImportVulkanFunctionsFromVolk(
+    const VmaAllocatorCreateInfo* VMA_NOT_NULL pAllocatorCreateInfo,
+    VmaVulkanFunctions* VMA_NOT_NULL pDstVulkanFunctions);
+
 namespace Seed {
+    
 
 static const std::vector<const char *> validationLayers = {
     "VK_LAYER_KHRONOS_validation"};
@@ -296,6 +299,8 @@ void RenderBackendXRVk::create_swapchain_framebuffer() {
     }
     current_render_target = this->xr_swap_chain.render_targets[0];
 }
+
+        void RenderBackendXRVk::swap_buffer(){}
 
 RenderBackendXRVk::~RenderBackendXRVk() {}
 }  // namespace Seed

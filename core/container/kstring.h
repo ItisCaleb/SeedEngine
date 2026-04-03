@@ -1,5 +1,8 @@
 #ifndef _SEED_KSTRING_H_
 #define _SEED_KSTRING_H_
+#include <fmt/base.h>
+#include <fmt/format.h>
+#include <fmt/ranges.h>
 #include "core/types.h"
 #include <cstdlib>
 #include <cstring>
@@ -92,8 +95,8 @@ class KString {
         void operator+=(KString &str) { append(str); }
 
         /* return raw data size */
-        size_t size() { return this->_size; }
-        const u8 *data() { return this->_data; }
+        size_t size() const { return this->_size; }
+        const u8 *data() const { return this->_data; }
 
         /* utility methods */
         KString clone();
@@ -142,5 +145,27 @@ class KStr {
 };
 
 };  // namespace Seed
+
+template <>
+struct fmt::formatter<Seed::KStr> : fmt::formatter<fmt::string_view> {
+        constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+        constexpr auto format(const Seed::KStr &sv, format_context &ctx) const {
+            // Cast or convert your type to fmt::string_view and delegate
+            return formatter<fmt::string_view>::format(
+                {(const char *)sv.data(), sv.length()}, ctx);
+        }
+};
+
+template <>
+struct fmt::formatter<Seed::KString> : fmt::formatter<fmt::string_view> {
+        constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+        auto format(const Seed::KString &sv, format_context &ctx) const {
+            // Cast or convert your type to fmt::string_view and delegate
+            return formatter<fmt::string_view>::format(
+                {(char *)sv.data(), sv.size() - 1}, ctx);
+        }
+};
 
 #endif

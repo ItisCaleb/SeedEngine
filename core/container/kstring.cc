@@ -304,7 +304,7 @@ std::vector<KStr> KStr::split_n(const KStr &pattern, u32 n) const {
         _data, _length, pattern._data, pattern._length, n, [&](u32 index) {
             splits.push_back(
                 KStr((u8 *)(u64)(_data + last_split), index - last_split));
-            last_split += index - last_split + 1;
+            last_split += index + pattern.length() - last_split;
         });
     splits.push_back(
         KStr((u8 *)(u64)(_data + last_split), _length - last_split));

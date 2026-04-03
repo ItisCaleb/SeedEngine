@@ -31,7 +31,6 @@ class RenderEngine {
         Renderer *imgui_renderer;
 
         Window *current_window;
-        void bind_opengl(Window *window);
         void bind_vulken(Window *window);
         void bind_vulkan_xr(Window *window);
 
