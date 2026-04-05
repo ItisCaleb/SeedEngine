@@ -1,8 +1,10 @@
 #ifndef _SEED_RESOURCE_LOADER_H_
 #define _SEED_RESOURCE_LOADER_H_
 
+#include <spdlog/spdlog.h>
 #include <string>
 #include <vector>
+#include "core/io/path.h"
 #include "core/ref.h"
 #include "core/rendering/mesh.h"
 #include "core/resource/resource.h"
@@ -34,20 +36,24 @@ class ResourceLoader {
     private:
         inline static ResourceLoader *instance = nullptr;
         template <typename T>
-        Ref<T> _load(const std::string &path);
-        std::unordered_map<std::string, Resource *> res_cache;
-        void load_meshes(const std::string &path, std::vector<Ref<Mesh>> &meshes);
+        Ref<T> _load(const Path &path);
+        std::unordered_map<Path, Resource *> res_cache;
+        void load_meshes(const Path &path, std::vector<Ref<Mesh>> &meshes);
+
     public:
         static ResourceLoader *get_instance();
         void register_resource(Resource *res);
         void unregister_resource(Resource *res);
         template <typename T>
-        Ref<T> load(const std::string &path) {
+        Ref<T> load(const Path &path) {
             static_assert(std::is_base_of_v<Resource, T>);
             if (res_cache.find(path) != res_cache.end()) {
                 return Ref<T>(static_cast<T *>(res_cache[path]));
             }
             Ref<Resource> res = ref_cast<Resource>(this->_load<T>(path));
+            if(res.is_null()){
+                return ref_cast<T>(res);;
+            }
             res->set_path(path);
             this->register_resource(res.ptr());
             return ref_cast<T>(res);
@@ -55,7 +61,7 @@ class ResourceLoader {
 
         template <typename T>
         Ref<AsyncResource<T>> load_async(
-            const std::string &path,
+            const Path &path,
             std::function<void(Ref<T>)> callback = {}) {
             Ref<AsyncResource<T>> async_rc;
             async_rc.create();

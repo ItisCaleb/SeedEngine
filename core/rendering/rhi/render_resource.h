@@ -1,5 +1,6 @@
 #ifndef _SEED_RENDERING_RESOURCE_H_
 #define _SEED_RENDERING_RESOURCE_H_
+#include "core/io/path.h"
 #include "core/types.h"
 #include <vector>
 #include <string>
@@ -75,7 +76,7 @@ TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
 void query_texture_size(TextureHandle handle, u32 *w, u32 *h);
 
 [[nodiscard]]
-ShaderHandle alloc_shader(const std::string &path, const std::string &code,
+ShaderHandle alloc_shader(const Path &path, const std::string &code,
                           ShaderLayout *layout);
 
 [[nodiscard]]
@@ -87,9 +88,9 @@ PipelineHandle alloc_pipeline(ShaderHandle shader,
 [[nodiscard]]
 RenderPassHandle alloc_renderpass();
 
-struct UpdateBufferInfo{
-    void *data;
-    u32 size;
+struct UpdateBufferInfo {
+        void *data;
+        u32 size;
 };
 
 UpdateBufferInfo alloc_heap(u32 size);

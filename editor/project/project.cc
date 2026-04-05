@@ -1,6 +1,8 @@
 #include "project.h"
+#include <fmt/format.h>
 #include "core/io/file.h"
 #include "core/io/dir.h"
+#include "core/io/path.h"
 
 namespace Seed {
 Project *Project::load(const std::string &path) {
@@ -10,13 +12,17 @@ Project *Project::load(const std::string &path) {
     Project *project = new Project;
     project->name = json["name"];
     project->path = file->get_directory();
-    Dir::create_if_not_exists(project->get_asset_dir());
+    project->asset_dir = project->path;
+    project->asset_dir.push("assets");
+    Dir::create_if_not_exists(project->asset_dir);
     return project;
 }
-std::string Project::get_asset_dir() { return path + "/assets/"; }
+Path &Project::get_asset_dir() { return asset_dir; }
 
 void Project::save() {
-    auto file = File::open(path + "/" + this->name + ".json", "wb");
+    Path save_path = path;
+    path.push(fmt::format("{}.json", this->name));
+    auto file = File::open(save_path, "wb");
     nlohmann::json j;
     j["name"] = this->name;
     j["assets"] = assets;

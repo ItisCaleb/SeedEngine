@@ -44,7 +44,7 @@ class EditorTerrain : public Resource {
         Ref<TerrainInstanceData> get_instances() { return instances; }
         u32 get_width() { return width; }
         u32 get_height() { return height; }
-        void dump(const std::string &dir);
+        void dump(const Path &dir);
         ~EditorTerrain();
 };
 }  // namespace Seed

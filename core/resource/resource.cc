@@ -8,7 +8,7 @@ Resource::Resource() {}
 
 Resource::~Resource() {
     /* Only unregister resource from external*/
-    if (!this->get_path().empty()) {
+    if (!this->get_path().is_empty()) {
         ResourceLoader::get_instance()->unregister_resource(this);
     }
 }

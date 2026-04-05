@@ -17,6 +17,7 @@ void AssetViewer::update() {
         nfdresult_t r = NFD_OpenDialogU8_With(&path, &args);
         if (r == NFD_OKAY) {
             current_model = new EditorModel(path);
+            NFD_FreePathU8(path); 
         }
     }
 

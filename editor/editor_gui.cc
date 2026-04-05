@@ -1,4 +1,5 @@
 #include "editor_gui.h"
+#include <imgui.h>
 #include <spdlog/spdlog.h>
 #include <nfd.h>
 #include <imgui_stdlib.h>
@@ -84,16 +85,24 @@ void EditorGUI::create_project() {
 
 void EditorGUI::main_panel() {
     Window *window = SeedEngine::get_instance()->get_window();
-    SetNextWindowPos(ImVec2(0, main_menu_height), ImGuiCond_Always);
-    SetNextWindowSize(
+    ImGui::SetNextWindowPos(ImVec2(0, main_menu_height), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(
         ImVec2(window->get_width(), window->get_height() - main_menu_height));
-    ImGui::Begin("LeftPanel", nullptr,
+    ImGui::Begin("MainPanel", nullptr,
                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
                      ImGuiWindowFlags_NoScrollWithMouse |
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+    float total_h = window->get_height() - main_menu_height;
+    static float world_editor_h = 600.f;
+    float asset_browser_h = total_h - world_editor_h;
+
+    ImGui::BeginChild(
+        "##top", ImVec2(0, world_editor_h), false,
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     if (ImGui::BeginTabBar("##TabBar")) {
-        if (ImGui::BeginTabItem("Assest viewer")) {
+        if (ImGui::BeginTabItem("Asset viewer")) {
             gEditor->asset_viewer.update();
             ImGui::EndTabItem();
         }
@@ -103,6 +112,26 @@ void EditorGUI::main_panel() {
         }
         ImGui::EndTabBar();
     }
+    ImGui::EndChild();
+
+    /* sizable splittter*/
+    ImVec2 splitter_pos = ImGui::GetCursorScreenPos();
+    ImGui::InvisibleButton("##splitter", ImVec2(-1, 4.f));
+    if (ImGui::IsItemActive())
+        world_editor_h =
+            std::clamp(world_editor_h + ImGui::GetIO().MouseDelta.y, 100.f,
+                       total_h - 100.f);
+    if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        splitter_pos,
+        ImVec2(splitter_pos.x + ImGui::GetContentRegionAvail().x,
+               splitter_pos.y + 4.f),
+        IM_COL32(60, 60, 60, 255));
+
+    ImGui::BeginChild("##bottom", ImVec2(0, asset_browser_h - 4.f), false);
+    gEditor->asset_browser.update();
+    ImGui::EndChild();
 
     ImGui::End();
 }

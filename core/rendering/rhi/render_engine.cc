@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
+#include "core/io/path.h"
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
@@ -127,7 +128,7 @@ InstanceDataPool *RenderEngine::get_instance_pool(const std::string &name) {
     return nullptr;
 }
 
-ShaderHandle RenderEngine::compile_shader(const std::string &path,
+ShaderHandle RenderEngine::compile_shader(const Path &path,
                                           const std::string &shader,
                                           ShaderLayout *layout) {
     return this->shader_proxy->compile_shader(path, shader, layout);

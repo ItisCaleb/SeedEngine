@@ -1,6 +1,9 @@
 #ifndef _SEED_DIR_H_
 #define _SEED_DIR_H_
 #include <string>
+#include <vector>
+#include "core/container/kstring.h"
+#include "path.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef _WIN32
@@ -8,29 +11,29 @@
 #endif
 #include "core/ref.h"
 
-#ifndef SPLITOR
-#ifdef _WIN32
-#define SPLITOR "\\"
-#else
-#define SPLITOR "/"
-#endif
-#endif
-
 namespace Seed {
 class File;
 class Dir : public RefCounted {
     private:
-        std::string path;
+        Path path;
 
     public:
-        static Ref<Dir> open(const std::string &path);
-        std::string concat(const std::string &path) {
-            return this->path + SPLITOR + path;
+        static Ref<Dir> open(KStr path);
+        Path concat(KStr path) {
+            Path new_path = this->path;
+            new_path.push(path);
+            return new_path;
         }
-        static bool exists(const std::string &path) {
+
+        Path concat(const KString &path) { return concat(path.to_str()); }
+
+        std::vector<Path> list();
+
+        Path &get_path() { return path; }
+        static bool exists(const Path &path) {
 #ifdef _WIN32
             struct _stat s;
-            _stat(path.c_str(), &s);
+            _stat(path.data(), &s);
             return (s.st_mode & _S_IFDIR);
 #else
             struct stat s;
@@ -38,12 +41,13 @@ class Dir : public RefCounted {
             return S_ISDIR(s.st_mode);
 #endif
         }
-        Ref<File> open_file(const std::string &path, const char *mode = "rb");
+        Ref<File> open_file(const Path &path, const char *mode = "rb");
+        Ref<File> open_file(const KStr path, const char *mode = "rb");
 
         /* return false when fail to create */
-        static bool create_if_not_exists(const std::string &path) {
+        static bool create_if_not_exists(const Path &path) {
             if (!exists(path)) {
-                int r = _mkdir(path.c_str());
+                int r = _mkdir(path.data());
                 /* 0 is succeess */
                 return r == 0;
             }

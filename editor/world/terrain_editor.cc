@@ -1,6 +1,8 @@
 #include "terrain_editor.h"
 #include <imgui.h>
 #include "core/concurrency/thread_pool.h"
+#include "core/container/kstring.h"
+#include "core/io/path.h"
 #include "core/ref.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/input.h"
@@ -13,6 +15,7 @@
 #include "editor/editor.h"
 #include "core/io/file.h"
 #include "core/io/dir.h"
+#include "core/serialize/json_impl.h"
 #include <nfd.h>
 #include <string>
 
@@ -110,40 +113,9 @@ void TerrainEditor::update() {
 }
 
 // ─────────────────────────────────────────────────────────
-//  LEFT PANEL — toolbar + brush settings
+//  LEFT PANEL —  brush settings
 // ─────────────────────────────────────────────────────────
 void TerrainEditor::draw_left_panel() {
-    // ── Toolbar ─────────────────────────────────────────
-    te_section_header("TOOLS");
-
-    struct ToolDef {
-            const char *icon;
-            const char *name;
-            TerrainTool tool;
-    };
-    static const ToolDef tools[] = {
-        {"  /\\  ", "Raise", TerrainTool::Raise},
-        {"  \\/  ", "Lower", TerrainTool::Lower},
-        {"  ~~  ", "Smooth", TerrainTool::Smooth},
-        {"  --  ", "Flatten", TerrainTool::Flatten},
-        {"  **  ", "Noise", TerrainTool::Noise},
-        {"  ::  ", "Erode", TerrainTool::Erode},
-        {"  []  ", "Paint", TerrainTool::Paint},
-        {"  <>  ", "Pick", TerrainTool::Pick},
-    };
-
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
-    for (int i = 0; i < 8; i++) {
-        if (i % 4 != 0) ImGui::SameLine(0, 4);
-        if (te_tool_button(tools[i].icon, tools[i].name,
-                           active_tool == tools[i].tool))
-            active_tool = tools[i].tool;
-    }
-    ImGui::PopStyleVar();
-
-    ImGui::Spacing();
-    ImGui::Spacing();
-
     // ── Brush Settings ───────────────────────────────────
     te_section_header("BRUSH");
 
@@ -234,7 +206,7 @@ void TerrainEditor::draw_left_panel() {
     }
 }
 
-void TerrainEditor::load_terrain(const std::string &path) {
+void TerrainEditor::load_terrain(const Path &path) {
     ResourceLoader *loader = ResourceLoader::get_instance();
     Ref<File> file = File::open(path, "rb");
     Ref<Dir> dir = Dir::open(file->get_directory());
@@ -243,13 +215,13 @@ void TerrainEditor::load_terrain(const std::string &path) {
     u32 width = terrain_info["width"];
     u32 height = terrain_info["height"];
     Ref<MappableTexture> height_map, splat_map, light_map;
-    auto jheight_map = terrain_info["height_map"];
+    KString jheight_map = terrain_info["height_map"];
     height_map = loader->load<MappableTexture>(dir->concat(jheight_map));
 
-    auto jsplat_map = terrain_info["splat_map"];
+    KString jsplat_map = terrain_info["splat_map"];
     splat_map = loader->load<MappableTexture>(dir->concat(jsplat_map));
     if (terrain_info.contains("light_map")) {
-        auto jlight_map = terrain_info["light_map"];
+        KString jlight_map = terrain_info["light_map"];
         light_map = loader->load<MappableTexture>(dir->concat(jlight_map));
     }
     this->current_terrain.create(width, height, height_map, splat_map,
@@ -258,8 +230,10 @@ void TerrainEditor::load_terrain(const std::string &path) {
     //     auto jtex1 = terrain_info["tex1"];
     //     auto texture = loader->load<Texture>(dir->concat(jtex1));
     //     this->current_terrain->get_material()->set_texture("tex1", texture);
-    //     texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
-    //                                             .wrap_v = SamplerWrap::REPEAT});
+    //     texture->update_sampler(SamplerProperty{.wrap_u =
+    //     SamplerWrap::REPEAT,
+    //                                             .wrap_v =
+    //                                             SamplerWrap::REPEAT});
     // }
 
     // if (terrain_info.contains("tex1_normal")) {
@@ -267,16 +241,150 @@ void TerrainEditor::load_terrain(const std::string &path) {
     //     auto texture = loader->load<Texture>(dir->concat(jtex1));
     //     this->current_terrain->get_material()->set_texture("tex1_normal",
     //                                                        texture);
-    //     texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
-    //                                             .wrap_v = SamplerWrap::REPEAT});
+    //     texture->update_sampler(SamplerProperty{.wrap_u =
+    //     SamplerWrap::REPEAT,
+    //                                             .wrap_v =
+    //                                             SamplerWrap::REPEAT});
     // }
-
+    gEditor->set_last_open_world(path);
     this->current_terrain->name = name;
 }
 
 // ─────────────────────────────────────────────────────────
 //  VIEWPORT
 // ─────────────────────────────────────────────────────────
+void TerrainEditor::draw_viewport_toolbar() {
+    ImVec2 p = ImGui::GetWindowPos();
+    ImVec2 s = ImGui::GetWindowSize();
+    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + s.x, p.y + s.y),
+                                              IM_COL32(20, 22, 26, 180), 4.f);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 4));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 4));
+    ImGui::SetCursorPosY(4);
+
+    struct ToolDef {
+            const char *label;
+            TerrainTool tool;
+    };
+    static const ToolDef tools[] = {
+        {"Raise", TerrainTool::Raise},   {"Lower", TerrainTool::Lower},
+        {"Smooth", TerrainTool::Smooth}, {"Flatten", TerrainTool::Flatten},
+        {"Noise", TerrainTool::Noise},   {"Erode", TerrainTool::Erode},
+        {"Paint", TerrainTool::Paint},   {"Pick", TerrainTool::Pick},
+    };
+
+    for (auto &t : tools) {
+        bool active = (active_tool == t.tool);
+        if (active)
+            ImGui::PushStyleColor(ImGuiCol_Button,
+                                  ImVec4(0.15f, 0.35f, 0.60f, 1.f));
+        if (ImGui::SmallButton(t.label)) active_tool = t.tool;
+        if (active) ImGui::PopStyleColor();
+        ImGui::SameLine(0, 2);
+    }
+
+    // ── 分隔線 ───────────────────────────────────────────
+    ImGui::SameLine(0, 8);
+    ImVec2 _p = ImGui::GetCursorScreenPos();
+    float h = ImGui::GetFrameHeight();
+    ImGui::GetWindowDrawList()->AddLine(ImVec2(_p.x, _p.y),
+                                        ImVec2(_p.x, _p.y + h),
+                                        IM_COL32(80, 80, 80, 255), 1.f);
+    ImGui::Dummy(ImVec2(1.f, h));
+    ImGui::SameLine(0, 8);
+
+    // ── Brush shape ──────────────────────────────────────
+    // const char *shapes[] = { "O", "G", "[]" }; // Circle/Gauss/Square 縮寫
+    // for (int i = 0; i < 3; i++) {
+    //     bool active = (brush_shape == i);
+    //     if (active) ImGui::PushStyleColor(ImGuiCol_Button,
+    //                                       ImVec4(0.15f, 0.35f, 0.60f, 1.f));
+    //     if (ImGui::SmallButton(shapes[i])) brush_shape = i;
+    //     if (active) ImGui::PopStyleColor();
+    //     if (i < 2) ImGui::SameLine(0, 2);
+    // }
+
+    // ImGui::SameLine(0, 8);
+    // ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+    // ImGui::SameLine(0, 8);
+
+    // ── 工具專屬參數 ─────────────────────────────────────
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
+
+    // radius + strength 幾乎所有工具都要
+    auto slider_labeled = [](const char *label, const char *id, float *v,
+                             float mn, float mx, float w) {
+        ImGui::Text("%s", label);
+        ImGui::SameLine(0, 4);
+        ImGui::SetNextItemWidth(w);
+        ImGui::SliderFloat(id, v, mn, mx, "%.2f");
+    };
+
+    // switch (active_tool) {
+    //     case TerrainTool::Raise:
+    //     case TerrainTool::Lower:
+    //     case TerrainTool::Noise:
+    //     case TerrainTool::Erode:
+    //         slider_labeled("r",   "##vp_br",
+    //         &brush_radius,   1.f,  50.f, 70.f); ImGui::SameLine(0, 8);
+    //         slider_labeled("str", "##vp_bs", &brush_strength,
+    //         0.01f, 1.f, 70.f); break;
+
+    //     case TerrainTool::Smooth:
+    //         slider_labeled("str", "##vp_bs", &brush_strength,
+    //         0.01f, 1.f, 70.f); ImGui::SameLine(0, 8); ImGui::Text("iter");
+    //         ImGui::SameLine(0, 4);
+    //         ImGui::SetNextItemWidth(40);
+    //         ImGui::InputInt("##si", &smooth_iterations, 0);
+    //         smooth_iterations = std::clamp(smooth_iterations, 1, 16);
+    //         break;
+
+    //     case TerrainTool::Flatten:
+    //         slider_labeled("r",      "##vp_br",
+    //         &brush_radius,  1.f,   50.f, 70.f); ImGui::SameLine(0, 8);
+    //         slider_labeled("target", "##vp_ht", &h_target, h_min,
+    //         h_max, 90.f); break;
+
+    //     case TerrainTool::Paint:
+    //         if (active_layer < (int)splat_layers.size()) {
+    //             auto &layer = splat_layers[active_layer];
+    //             // 色塊
+    //             ImVec2 sw = ImGui::GetCursorScreenPos();
+    //             ImGui::GetWindowDrawList()->AddRectFilled(
+    //                 sw, ImVec2(sw.x + 14, sw.y + 14),
+    //                 ImGui::ColorConvertFloat4ToU32(layer.preview_color), 2.f);
+    //             ImGui::Dummy(ImVec2(14, 14));
+    //             ImGui::SameLine(0, 4);
+    //             ImGui::TextUnformatted(layer.name.c_str());
+    //             ImGui::SameLine(0, 8);
+    //             // 快速切換 layer
+    //             if (ImGui::ArrowButton("##prev_layer", ImGuiDir_Left))
+    //                 active_layer = std::max(0, active_layer - 1);
+    //             ImGui::SameLine(0, 2);
+    //             if (ImGui::ArrowButton("##next_layer", ImGuiDir_Right))
+    //                 active_layer = std::min((int)splat_layers.size() - 1,
+    //                                         active_layer + 1);
+    //             ImGui::SameLine(0, 8);
+    //             slider_labeled("flow", "##vp_pf", &paint_flow,
+    //             0.f, 1.f, 70.f);
+    //         }
+    //         break;
+
+    //     case TerrainTool::Pick:
+    //         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f,
+    //         0.9f, 1.f)); ImGui::Text("Coord: %d, %d   H: %d",
+    //                     last_click_x, last_click_y, last_pick_height);
+    //         ImGui::PopStyleColor();
+    //         break;
+
+    //     default:
+    //         break;
+    // }
+
+    ImGui::PopStyleVar(3);
+}
+
 void TerrainEditor::draw_viewport(float vp_w, float vp_h) {
     u32 need_w = (u32)vp_w;
     u32 need_h = (u32)(vp_h - ImGui::GetFrameHeightWithSpacing() - 22.f);
@@ -368,38 +476,43 @@ void TerrainEditor::edit_terrain_imgui(ImVec2 origin, float w, float h) {
     ImGui::Image((ImTextureID)(u64)screen_texture->get_handle(), ImVec2(w, h),
                  ImVec2(0, 1), ImVec2(1, 0));
 
-    bool hovered = ImGui::IsItemHovered();
+    float toolbar_h = 32.f;
+    ImGui::SetCursorScreenPos(ImVec2(origin.x + 4, origin.y + 4));
+    ImGui::BeginChild(
+        "##vp_toolbar", ImVec2(w - 8, toolbar_h), false,
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    draw_viewport_toolbar();
+    ImGui::EndChild();
+
+    ImVec2 mouse = ImGui::GetMousePos();
+    bool in_toolbar = mouse.y < origin.y + toolbar_h + 4.f;
+    if (!ImGui::IsWindowHovered() || in_toolbar) return;
     Input *input = Input::get_instance();
 
-    if (hovered) {
-        ImVec2 mouse = ImGui::GetMousePos();
-        Viewport vp = Viewport{(u32)w, (u32)h};
-        auto vp_coord =
-            vp.to_viewport_coord(Vec2{mouse.x - origin.x, mouse.y - origin.y});
+    Viewport vp = Viewport{(u32)w, (u32)h};
+    auto vp_coord =
+        vp.to_viewport_coord(Vec2{mouse.x - origin.x, mouse.y - origin.y});
 
-        u32 x = (u32)vp_coord.x;
-        u32 y = (u32)vp_coord.y;
+    u32 x = (u32)vp_coord.x;
+    u32 y = (u32)vp_coord.y;
 
-        auto terrain_coord =
-            (i16 *)picking_texture->pixel_repeat(x, (u32)h - y);
+    auto terrain_coord = (i16 *)picking_texture->pixel_repeat(x, (u32)h - y);
 
-        i16 tx = terrain_coord[0] + current_terrain->get_width() / 2;
-        i16 ty = terrain_coord[1] + current_terrain->get_height() / 2;
-        last_click_x = tx;
-        last_click_y = ty;
+    i16 tx = terrain_coord[0] + current_terrain->get_width() / 2;
+    i16 ty = terrain_coord[1] + current_terrain->get_height() / 2;
+    last_click_x = tx;
+    last_click_y = ty;
 
-        if (input->is_mouse_clicked(MouseEvent::LEFT)) {
-            apply_brush(tx, ty);
-        }
-
-        // Brush circle overlay
-        ImDrawList *dl = ImGui::GetWindowDrawList();
-        float screen_radius = brush_radius * (w / current_terrain->get_width());
-        dl->AddCircle(mouse, screen_radius, IM_COL32(120, 180, 255, 200), 32,
-                      1.f);
-        dl->AddCircle(mouse, screen_radius * 0.3f, IM_COL32(120, 180, 255, 80),
-                      16, 1.f);
+    if (input->is_mouse_clicked(MouseEvent::LEFT)) {
+        apply_brush(tx, ty);
     }
+
+    // Brush circle overlay
+    ImDrawList *dl = ImGui::GetWindowDrawList();
+    float screen_radius = brush_radius * (w / current_terrain->get_width());
+    dl->AddCircle(mouse, screen_radius, IM_COL32(120, 180, 255, 200), 32, 1.f);
+    dl->AddCircle(mouse, screen_radius * 0.3f, IM_COL32(120, 180, 255, 80), 16,
+                  1.f);
 }
 
 void TerrainEditor::apply_brush(i16 cx, i16 cy) {

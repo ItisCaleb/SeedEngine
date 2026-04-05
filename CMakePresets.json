@@ -78,6 +78,14 @@
       ]
     },
     {
+      "name": "release",
+      "jobs":4,
+      "configurePreset": "release",
+      "targets":[
+        "seed", "app"
+      ]      
+    },
+    {
       "name": "xr",
       "jobs": 4,
       "configurePreset": "xr",

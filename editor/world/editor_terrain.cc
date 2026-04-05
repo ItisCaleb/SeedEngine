@@ -1,5 +1,6 @@
 #include "editor_terrain.h"
 #include <fmt/format.h>
+#include "core/io/path.h"
 #include "core/ref.h"
 #include "core/rendering/render_common.h"
 #include "core/resource/image.h"
@@ -31,7 +32,6 @@ Ref<Texture> EditorTerrainMaterial::get_height_map() {
 void EditorTerrainMaterial::set_light_map(Ref<Texture> texture) {
     this->set_texture("terrain_shadowMap", texture);
 }
-
 
 void EditorTerrain::build_mesh() {
     f32 tex_x_stride = (f32)CHUNK_SIZE / hmap_width;
@@ -252,7 +252,7 @@ void EditorTerrain::gen_lightmap() {
     material->set_light_map(ref_cast<Texture>(this->light_map));
 }
 
-void EditorTerrain::dump(const std::string &dir) {
+void EditorTerrain::dump(const Path &dir) {
     Ref<File> f = File::open(fmt::format("{}/{}.json", dir, name), "wb");
     std::string height_map_name = fmt::format("{}_height_map.png", name);
     std::string splat_map_name = fmt::format("{}_splat_map.png", name);

@@ -1,6 +1,7 @@
 #ifndef _SEED_MODEL_LOADER_H_
 #define _SEED_MODEL_LOADER_H_
 
+#include "core/io/path.h"
 #include "core/rendering/mesh.h"
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
@@ -58,7 +59,8 @@ class EditorModel {
         void processMesh(aiMesh *mesh, const aiScene *scene);
         void processBoneMesh(aiMesh *mesh, const aiScene *scene);
         void processAnimation(const aiScene *scene);
-        void processBoneHierachy(aiNode *node, const aiScene *scene, u16 parent_id);
+        void processBoneHierachy(aiNode *node, const aiScene *scene,
+                                 u16 parent_id);
         void collectBoneNames(aiNode *node, const aiScene *scene);
         i16 get_material_id(aiMesh *mesh, const aiScene *scene);
         i16 loadMaterialTextures(aiMaterial *mat, aiTextureType type);
@@ -80,7 +82,7 @@ class EditorModel {
         std::vector<EditorAnimation> animations;
         std::vector<::Material> materials;
 
-        void dump(const std::string &dir);
+        void dump(const Seed::Path &dir);
 
         EditorModel(const std::string &path);
 };

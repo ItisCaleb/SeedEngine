@@ -1,8 +1,10 @@
 #include "model_loader.h"
 
 #include <spdlog/spdlog.h>
+#include "core/container/kstring.h"
 #include "core/io/file.h"
 #include <filesystem>
+#include "core/io/path.h"
 #include "core/resource/model_file.h"
 #include <algorithm>
 #include <nfd.h>
@@ -152,7 +154,7 @@ void EditorModel::processBoneMesh(aiMesh *mesh, const aiScene *scene) {
         } else {
             vertex.tex_coord = {0, 0};
         }
-        for(u32 j = 0;j<4;j++){
+        for (u32 j = 0; j < 4; j++) {
             vertex.bone_ids[j] = 0;
             vertex.bone_weights[j] = 0.0f;
         }
@@ -333,15 +335,14 @@ inline void to_json(json_type &j, const ::Material &m) {
                   {"opacity", m.opacity}};
 }
 
-void EditorModel::dump(const std::string &dir) {
+void EditorModel::dump(const Seed::Path &dir) {
     std::string name = origin_dir.filename().string();
     Ref<File> f = File::open(fmt::format("{}/{}.json", dir, name), "wb");
     Ref<File> bin_f = File::open(fmt::format("{}/{}.bin", dir, name), "wb");
-    for (auto &texture : this->textures) {
+    for (KStr texture : this->textures) {
         Ref<File> t =
             File::open(fmt::format("{}/{}", origin_dir.string(), texture));
         t->copy_to(fmt::format("{}/{}", dir, t->get_filename()));
-        texture = t->get_filename();
     }
 
     nlohmann::ordered_json j;

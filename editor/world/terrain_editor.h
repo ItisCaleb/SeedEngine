@@ -1,5 +1,6 @@
 #ifndef _SEED_TERRAIN_EDITOR_H_
 #define _SEED_TERRAIN_EDITOR_H_
+#include "core/io/path.h"
 #include "editor/world/editor_terrain.h"
 #include "editor/world/terrain_editor_renderer.h"
 #include <imgui.h>
@@ -67,14 +68,16 @@ class TerrainEditor {
         void draw_right_panel();
         void apply_brush(i16 cx, i16 cy);
         void edit_terrain_imgui(ImVec2 origin, float w, float h);
+        void draw_viewport_toolbar();
         void draw_viewport(float vp_w, float vp_h);
         void draw_left_panel();
         void draw_new_terrain_modal();
         const char *tool_name(TerrainTool t);
-        void load_terrain(const std::string& path);
+
     public:
         void init();
         void update();
+        void load_terrain(const Path &path);
 };
 }  // namespace Seed
 

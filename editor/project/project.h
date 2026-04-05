@@ -3,6 +3,7 @@
 #include <list>
 #include <string>
 #include <map>
+#include "core/io/path.h"
 #include "core/world/world.h"
 
 namespace Seed {
@@ -12,13 +13,14 @@ class Project {
 
     private:
         std::string name;
-        std::string path;
+        Path path;
+        Path asset_dir;
         std::list<std::string> assets;
         void save();
 
     public:
         static Project *load(const std::string &path);
-        std::string get_asset_dir();
+        Path &get_asset_dir();
         void add_to_assets(const std::string &path) {
             this->assets.push_back(path);
         }

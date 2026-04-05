@@ -1,7 +1,9 @@
 #ifndef _SEED_FILE_H_
 #define _SEED_FILE_H_
+#include "core/container/kstring.h"
 #include "core/ref.h"
 #include "core/types.h"
+#include "path.h"
 #include <stdio.h>
 #include <vector>
 #include <string>
@@ -20,14 +22,15 @@ namespace Seed {
 class File : public RefCounted {
     private:
         FILE *file;
-        std::string path;
-        std::string full_path;
+        Path full_path;
         u64 file_size;
         u64 read_cnt;
         u64 write_cnt;
 
     public:
-        static Ref<File> open(const std::string &path, const char *mode = "rb");
+        static Ref<File> open(KStr path, const char *mode = "rb");
+        static bool exists(const Path &path);
+
         std::string read_str(size_t size = SIZE_MAX);
 
         void read(void *data, size_t size);
@@ -65,27 +68,14 @@ class File : public RefCounted {
 
         void copy_to(const std::string &path) const;
 
-        const std::string &get_path() const { return this->path; }
-        const std::string &get_fullpath() const { return this->full_path; }
-        const std::string get_filename() const {
-            std::string_view view(this->full_path);
-            view = view.substr(view.find_last_of(SPLITOR) + 1);
-            return std::string(view);
+        const Path &get_fullpath() const { return this->full_path; }
+        const KStr get_filename() const { return this->full_path.filename(); }
+
+        const KStr get_filename_without_ext() const {
+            return this->full_path.filename_without_ext();
         }
 
-        const std::string get_filename_without_ext() const {
-            std::string_view view(this->full_path);
-            view = view.substr(view.find_last_of(SPLITOR));
-            view = view.substr(0, view.find_last_of("."));
-            return std::string(view);
-        }
-
-        const std::string get_directory() {
-            std::string_view view(this->full_path);
-            auto f = view.find_last_of(SPLITOR);
-            view = view.substr(0, f);
-            return std::string(view);
-        }
+        const KStr get_directory() { return this->full_path.directory(); }
 
         ~File() {
             if (file) {

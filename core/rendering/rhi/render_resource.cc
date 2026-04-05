@@ -1,6 +1,7 @@
 #include "render_resource.h"
 #include <glad/glad.h>
 #include <fmt/core.h>
+#include "core/io/path.h"
 #include "render_engine.h"
 #include <spdlog/spdlog.h>
 
@@ -62,7 +63,7 @@ SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
         size, data, frequence);
 }
 
-ShaderHandle alloc_shader(const std::string &path, const std::string &code,
+ShaderHandle alloc_shader(const Path &path, const std::string &code,
                           ShaderLayout *layout) {
     return RenderEngine::get_instance()->compile_shader(path, code, layout);
 }

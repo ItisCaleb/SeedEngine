@@ -1,4 +1,5 @@
 #include "resource_loader.h"
+#include "core/container/kstring.h"
 #include "core/io/file.h"
 #include "core/io/dir.h"
 #include <spdlog/spdlog.h>
@@ -33,7 +34,7 @@ ResourceLoader::ResourceLoader() {
 ResourceLoader::~ResourceLoader() { instance = nullptr; }
 
 template <>
-Ref<Shader> ResourceLoader::_load(const std::string &path) {
+Ref<Shader> ResourceLoader::_load(const Path &path) {
     Ref<Shader> shader;
     Ref<File> file = File::open(path, "rb");
     std::string shader_code;
@@ -42,7 +43,8 @@ Ref<Shader> ResourceLoader::_load(const std::string &path) {
     return shader;
 }
 
-void ResourceLoader::load_meshes(const std::string &path, std::vector<Ref<Mesh>> &meshes) {
+void ResourceLoader::load_meshes(const Path &path,
+                                 std::vector<Ref<Mesh>> &meshes) {
     Ref<File> file = File::open(path, "rb");
     Ref<Dir> dir = Dir::open(file->get_directory());
     auto model_info = file->read_json();
@@ -60,14 +62,14 @@ void ResourceLoader::load_meshes(const std::string &path, std::vector<Ref<Mesh>>
             bin_file->read_vector(vertices, jmesh["vertex_count"]);
             bin_file->read_vector(indices, jmesh["index_count"]);
             meshes.push_back(Ref<Mesh>(&DS::get_instance()->skeleton_mesh_desc,
-                                      vertices, indices,
-                                      (AABB)jmesh["bounding_box"]));
+                                       vertices, indices,
+                                       (AABB)jmesh["bounding_box"]));
         } else {
             std::vector<ModelVertex> vertices;
             bin_file->read_vector(vertices, jmesh["vertex_count"]);
             bin_file->read_vector(indices, jmesh["index_count"]);
             meshes.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
-                                      indices, (AABB)jmesh["bounding_box"]));
+                                       indices, (AABB)jmesh["bounding_box"]));
         }
 
         mesh_mats.push_back(jmesh["material_id"]);
@@ -109,7 +111,7 @@ void ResourceLoader::load_meshes(const std::string &path, std::vector<Ref<Mesh>>
 }
 
 template <>
-Ref<BasicModel> ResourceLoader::_load(const std::string &path) {
+Ref<BasicModel> ResourceLoader::_load(const Path &path) {
     Ref<BasicModel> model;
     std::vector<Ref<Mesh>> meshes;
     load_meshes(path, meshes);
@@ -118,7 +120,7 @@ Ref<BasicModel> ResourceLoader::_load(const std::string &path) {
 }
 
 template <>
-Ref<SkeletonModel> ResourceLoader::_load(const std::string &path) {
+Ref<SkeletonModel> ResourceLoader::_load(const Path &path) {
     Ref<SkeletonModel> model;
     Ref<File> file = File::open(path, "rb");
     Ref<Dir> dir = Dir::open(file->get_directory());
@@ -231,7 +233,7 @@ Ref<SkeletonModel> ResourceLoader::_load(const std::string &path) {
 }
 
 template <>
-Ref<Sky> ResourceLoader::_load(const std::string &path) {
+Ref<Sky> ResourceLoader::_load(const Path &path) {
     Ref<Sky> sky;
     Ref<File> json_file = File::open(path);
     if (json_file.is_null()) {
@@ -244,10 +246,10 @@ Ref<Sky> ResourceLoader::_load(const std::string &path) {
     int w, h, comp;
     for (auto tex_field : j) {
         u32 face = tex_field["face"];
-        std::string tex_path = tex_field["path"];
-        std::string r_tex_path =
-            std::filesystem::path(path).parent_path().append(tex_path).string();
-        u8 *data = stbi_load(r_tex_path.c_str(), &w, &h, &comp, 4);
+        KString tex_path = tex_field["path"];
+        Path r_tex_path = path.directory();
+        r_tex_path.push(tex_path);
+        u8 *data = stbi_load(r_tex_path.data(), &w, &h, &comp, 4);
         if (!data) {
             spdlog::warn("Can't load texture from {}", r_tex_path);
             return sky;
@@ -266,10 +268,10 @@ Ref<Sky> ResourceLoader::_load(const std::string &path) {
 }
 
 template <>
-Ref<Texture> ResourceLoader::_load(const std::string &path) {
+Ref<Texture> ResourceLoader::_load(const Path &path) {
     Ref<Texture> texture;
     int w, h, comp;
-    void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
+    void *data = stbi_load(path.data(), &w, &h, &comp, 4);
 
     if (!data) {
         spdlog::warn("Can't load texture from {}", path);
@@ -283,10 +285,10 @@ Ref<Texture> ResourceLoader::_load(const std::string &path) {
 }
 
 template <>
-Ref<MappableTexture> ResourceLoader::_load(const std::string &path) {
+Ref<MappableTexture> ResourceLoader::_load(const Path &path) {
     Ref<MappableTexture> texture;
     int w, h, comp;
-    void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
+    void *data = stbi_load(path.data(), &w, &h, &comp, 4);
 
     if (!data) {
         spdlog::warn("Can't load texture from {}", path);
@@ -300,10 +302,10 @@ Ref<MappableTexture> ResourceLoader::_load(const std::string &path) {
 }
 
 template <>
-Ref<Image> ResourceLoader::_load(const std::string &path) {
+Ref<Image> ResourceLoader::_load(const Path &path) {
     Ref<Image> image;
     int w, h, comp;
-    void *data = stbi_load(path.c_str(), &w, &h, &comp, 4);
+    void *data = stbi_load(path.data(), &w, &h, &comp, 4);
 
     if (!data) {
         spdlog::warn("Can't load image from {}", path);
@@ -316,7 +318,7 @@ Ref<Image> ResourceLoader::_load(const std::string &path) {
 }
 
 template <>
-Ref<Terrain> ResourceLoader::_load(const std::string &path) {
+Ref<Terrain> ResourceLoader::_load(const Path &path) {
     Ref<Terrain> terrain;
     Ref<File> file = File::open(path, "rb");
     Ref<Dir> dir = Dir::open(file->get_directory());
@@ -355,7 +357,7 @@ Ref<Terrain> ResourceLoader::_load(const std::string &path) {
 }
 
 template <>
-Ref<Billboard> ResourceLoader::_load(const std::string &path) {
+Ref<Billboard> ResourceLoader::_load(const Path &path) {
     Ref<Billboard> billboard;
     Ref<Texture> image = _load<Texture>(path);
     billboard.create(image);

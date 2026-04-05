@@ -1,6 +1,5 @@
 #include <fmt/base.h>
 #include <gtest/gtest.h>
-#include <string_view>
 #include <vector>
 #include "core/container/kstring.h"
 
@@ -65,6 +64,16 @@ TEST(KStrTest, SplitMulti) {
     }
 }
 
+TEST(KStrTest, SplitAt) {
+    KStr haystack = "hello world!";
+    KStr t1 = "he";
+
+    KStr t2 = "llo world!";
+    auto split = haystack.split_at(2);
+    EXPECT_EQ(split.first, t1);
+    EXPECT_EQ(split.second, t2);
+}
+
 TEST(KStrTest, Trim) {
     KStr src = "\t\n\t hello! \t\n\t";
     KStr target = "hello!";
@@ -75,4 +84,13 @@ TEST(KStrTest, Replace) {
     KStr src = "C://a/b/c/d.txt";
     KStr target = "C:\\\\a\\b\\c\\d.txt";
     EXPECT_EQ(src.replace("/", "\\").to_str(), target);
+}
+
+
+TEST(KStrTest, Pop) {
+    KStr src = "歡迎來到 Ave Mujica 的世界";
+    KStr target = "歡迎來到 Ave Mujica";
+    KString s(src);
+    s.pop(4);
+    EXPECT_EQ(s.to_str(), target);
 }

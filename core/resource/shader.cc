@@ -3,7 +3,7 @@
 
 namespace Seed {
 
-Shader::Shader(const std::string &path, const std::string &code) {
+Shader::Shader(const Path &path, const std::string &code) {
     handle = RHI::alloc_shader(path, code, &this->layout);
 }
 }  // namespace Seed

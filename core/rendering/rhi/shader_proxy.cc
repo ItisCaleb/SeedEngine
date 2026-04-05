@@ -1,4 +1,5 @@
 #include "shader_proxy.h"
+#include "core/container/kstring.h"
 #include "core/rendering/rhi/render_engine.h"
 #include <filesystem>
 #include "core/rendering/shader_layout.h"
@@ -56,7 +57,8 @@ ShaderProxy::ShaderProxy(const std::vector<std::string> &include_path) {
     spirv_session_desc.compilerOptionEntries = spirv_compile_opt.data();
     spirv_session_desc.compilerOptionEntryCount = spirv_compile_opt.size();
     /* the default is*/
-    spirv_session_desc.defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
+    spirv_session_desc.defaultMatrixLayoutMode =
+        SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
     // spirv_session_desc.fileSystem = &this->file_system;
 }
 
@@ -134,16 +136,12 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
     shader_layout.sets.push_back(binding_set);
 }
 
-ShaderHandle ShaderProxy::compile_shader(const std::string &path,
+ShaderHandle ShaderProxy::compile_shader(const Path &path,
                                          const std::string &shader,
                                          ShaderLayout *layout) {
     RenderBackend *backend = RenderEngine::get_instance()->get_device();
-    auto get_module_name = [](const std::string &path) -> std::string {
-        std::filesystem::path p(path);
-        return p.stem().string();
-    };
     Slang::ComPtr<slang::ISession> session;
-    std::string module_name = get_module_name(path);
+    KStr module_name = path.filename_without_ext();
     Slang::ComPtr<slang::IBlob> diagnostics;
     Slang::ComPtr<slang::IModule> module;
     switch (backend->get_type()) {

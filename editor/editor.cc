@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include "core/io/path.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "editor/asset/model_loader.h"
 #include <nfd.h>
@@ -11,6 +12,7 @@
 #include "camera_entity.h"
 #include "editor.h"
 #include "editor_storage.h"
+#include "core/serialize/json_impl.h"
 
 namespace Seed {
 Editor *gEditor = nullptr;
@@ -28,11 +30,23 @@ Editor::Editor() {
     GuiEngine::get_instance()->add_gui(new EditorGUI);
     terrain_editor.init();
     asset_viewer.init();
+    if (current_project) {
+        asset_browser.init(current_project->get_asset_dir());
+        if (project_cache.contains("last_open_world")) {
+            terrain_editor.load_terrain(project_cache["last_open_world"]);
+        }
+    }
 }
 
-void Editor::set_last_open(std::string &path) {
+void Editor::set_last_open(Path &path) {
     Ref<File> cache = File::open(".seed_cache", "wb");
     project_cache["last_open"] = path;
+    cache->write_str(project_cache.dump());
+}
+
+void Editor::set_last_open_world(const Path &path) {
+    Ref<File> cache = File::open(".seed_cache", "wb");
+    project_cache["last_open_world"] = path;
     cache->write_str(project_cache.dump());
 }
 

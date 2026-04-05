@@ -9,16 +9,18 @@
 #include "core/transform.h"
 #include "core/world/components.h"
 #include "core/world/entity.h"
+#include "core/world/world.h"
 
 namespace Seed {
 
-HumanBehaviour::HumanBehaviour(Ref<SkeletonModel> model, AnimationState *state)
-    : model(model), state(state) {
-    if(model->get_animations().size() > 0){
+HumanBehaviour::HumanBehaviour() {}
+void HumanBehaviour::start() {
+    model = m->query_component<SkeletonMeshInstance>(self)->model;
+    state = m->query_component<AnimationState>(self);
+    if (model->get_animations().size() > 0) {
         this->state->set_animation(model->get_animations()[0]);
     }
 }
-void HumanBehaviour::start() {}
 
 void HumanBehaviour::update(f32 dt) {}
 Entity HumanEntity::create_entity(EntityManager &m, Transform &transform,
@@ -29,7 +31,7 @@ Entity HumanEntity::create_entity(EntityManager &m, Transform &transform,
     m.add_component<SkeletonMeshInstance>(e,
                                           SkeletonMeshInstance{.model = model});
     AnimationState *state = m.add_component<AnimationState>(e);
-    b.create(model, state);
+    b.create();
 
     m.add_component<BehaviourComponent>(
         e, BehaviourComponent{.behaviour = ref_cast<Behaviour>(b)});
