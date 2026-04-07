@@ -1,6 +1,7 @@
 #include "file.h"
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
+#include <sys/stat.h>
 #include <utility>
 #include "path.h"
 #ifdef _WIN32
@@ -12,11 +13,9 @@
 namespace Seed {
 Ref<File> File::open(KStr path, const char *mode) {
     Ref<File> file;
-    Path fullpath = path;
-    fullpath.absolute();
-    FILE *f = fopen(fullpath.to_str().data(), mode);
+    FILE *f = fopen(path.data(), mode);
     if (!f) {
-        SPDLOG_WARN("Can't open file '{}'", fullpath);
+        SPDLOG_WARN("Can't open file '{}'", path);
         return file;
     }
     fseek(f, 0L, SEEK_END);
@@ -24,7 +23,7 @@ Ref<File> File::open(KStr path, const char *mode) {
     fseek(f, 0L, SEEK_SET);
     file.create();
     file->file = f;
-    file->full_path = std::move(fullpath);
+    file->path = path;
     file->file_size = sz;
     file->read_cnt = 0;
     return file;
@@ -34,7 +33,7 @@ bool File::exists(const Path &path) {
 #ifdef _WIN32
     struct _stat s;
     _stat(path.data(), &s);
-    return (s.st_mode & _S_IFDIR);
+    return (s.st_mode & _S_IFREG);
 #else
     struct stat s;
     stat(path, &s);
@@ -75,9 +74,9 @@ size_t File::write_str(const std::string &str) const {
     return fwrite(str.data(), 1, str.size(), file);
 }
 
-void File::copy_to(const std::string &path) const {
+void File::copy_to(const Path &path) const {
 #ifdef _WIN32
-    CopyFileA(this->full_path.data(), path.c_str(), false);
+    CopyFileA(this->get_fullpath().data(), path.data(), false);
 #else
 
 #endif

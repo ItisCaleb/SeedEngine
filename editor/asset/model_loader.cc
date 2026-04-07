@@ -7,7 +7,12 @@
 #include "core/io/path.h"
 #include "core/resource/model_file.h"
 #include <algorithm>
+#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
+#include <string>
+#include <vector>
 #include <nfd.h>
+#include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
 #include "core/resource/model.h"
 #include "core/engine.h"
@@ -44,23 +49,6 @@ inline static Vec2 from_assimp(aiVector2D &v) { return Vec2{v.x, v.y}; }
 
 inline static Quaternion from_assimp(aiQuaternion &q) {
     return Quaternion{q.w, q.x, q.y, q.z};
-}
-
-i16 EditorModel::loadMaterialTextures(aiMaterial *mat, aiTextureType type) {
-    for (int i = 0; i < mat->GetTextureCount(type); i++) {
-        aiString str;
-        mat->GetTexture(type, i, &str);
-
-        /* find if texture exist */
-        for (int j = 0; j < textures.size(); j++) {
-            if (textures[j].compare(str.C_Str()) == 0) return j;
-        }
-
-        /* add new texture */
-        textures.push_back(str.C_Str());
-        return textures.size() - 1;
-    }
-    return -1;
 }
 
 AABB EditorModel::calculateAABB(const std::vector<ModelVertex> &vertices) {
@@ -132,7 +120,7 @@ void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
         for (int j = 0; j < face.mNumIndices; j++)
             indices.push_back(face.mIndices[j]);
     }
-    m.material_id = get_material_id(mesh, scene);
+    m.material_id = mesh->mMaterialIndex;
 }
 
 void EditorModel::processBoneMesh(aiMesh *mesh, const aiScene *scene) {
@@ -186,32 +174,7 @@ void EditorModel::processBoneMesh(aiMesh *mesh, const aiScene *scene) {
         for (int j = 0; j < face.mNumIndices; j++)
             indices.push_back(face.mIndices[j]);
     }
-    m.material_id = get_material_id(mesh, scene);
-}
-
-i16 EditorModel::get_material_id(aiMesh *mesh, const aiScene *scene) {
-    aiMaterial *mat = scene->mMaterials[mesh->mMaterialIndex];
-    ::Material model_mat;
-    model_mat.diffuse = loadMaterialTextures(mat, aiTextureType_DIFFUSE);
-    model_mat.specular = loadMaterialTextures(mat, aiTextureType_SPECULAR);
-    model_mat.normal = loadMaterialTextures(mat, aiTextureType_NORMALS);
-    mat->Get(AI_MATKEY_OPACITY, &model_mat.opacity, nullptr);
-
-    if (model_mat.normal == -1) {
-        /* we try to load heightmap instead*/
-        model_mat.normal = loadMaterialTextures(mat, aiTextureType_HEIGHT);
-    }
-
-    for (int i = 0; i < materials.size(); i++) {
-        if (materials[i] == model_mat) {
-            return i;
-        }
-    }
-    if (!model_mat.is_null()) {
-        materials.push_back(model_mat);
-        return materials.size() - 1;
-    }
-    return -1;
+    m.material_id = mesh->mMaterialIndex;
 }
 
 void EditorModel::processNode(aiNode *node, const aiScene *scene) {
@@ -296,61 +259,48 @@ void EditorModel::collectBoneNames(aiNode *node, const aiScene *scene) {
     }
 }
 
-EditorModel::EditorModel(const std::string &path) {
+EditorModel::EditorModel(const Seed::Path &path) {
     Assimp::Importer importer;
-    this->origin_path = path;
     u32 assimp_flag = aiProcess_CalcTangentSpace | aiProcess_GenNormals |
                       aiProcess_Triangulate | aiProcess_OptimizeGraph |
                       aiProcess_OptimizeMeshes |
                       aiProcess_JoinIdenticalVertices | aiProcess_SortByPType;
-    std::string_view view(path);
-    view = view.substr(view.find_last_of(".") + 1);
-    std::string extension = std::string(view);
-    if (extension == "gltf") {
+    if (path.extension() == ".gltf") {
         assimp_flag |= aiProcess_FlipUVs;
     }
 
-    const aiScene *scene = importer.ReadFile(path, assimp_flag);
+    const aiScene *scene = importer.ReadFile(path.to_str().data(), assimp_flag);
 
     // If the import failed, report it
     if (!scene) {
         spdlog::error("Can't load Model from {}", path);
         return;
     }
+    for (u32 i = 0; i < scene->mNumMaterials; i++) {
+        auto mat = scene->mMaterials[i];
+        this->materials.push_back(EditorMaterial{
+            .name = mat->GetName().C_Str(),
+        });
+    }
+
     collectBoneNames(scene->mRootNode, scene);
     processBoneHierachy(scene->mRootNode, scene, 0);
     processNode(scene->mRootNode, scene);
     processAnimation(scene);
 
     fmt::println("{}", scene->mNumMeshes);
-    std::filesystem::path dir = path;
-    origin_dir = dir.parent_path();
 }
 
-template <typename json_type>
-inline void to_json(json_type &j, const ::Material &m) {
-    j = json_type{{"diffuse", m.diffuse},
-                  {"specular", m.specular},
-                  {"normal", m.normal},
-                  {"opacity", m.opacity}};
-}
-
-void EditorModel::dump(const Seed::Path &dir) {
-    std::string name = origin_dir.filename().string();
-    Ref<File> f = File::open(fmt::format("{}/{}.json", dir, name), "wb");
-    Ref<File> bin_f = File::open(fmt::format("{}/{}.bin", dir, name), "wb");
-    for (KStr texture : this->textures) {
-        Ref<File> t =
-            File::open(fmt::format("{}/{}", origin_dir.string(), texture));
-        t->copy_to(fmt::format("{}/{}", dir, t->get_filename()));
-    }
-
-    nlohmann::ordered_json j;
-    j["name"] = name;
+void EditorModel::dump(ResourceConfiguration &conf, Ref<File> bin_f) {
+    auto &j = conf.get_json();
     j["type"] = "model";
-    j["textures"] = this->textures;
-    j["materials"] = this->materials;
-    j["bin_file"] = name + ".bin";
+    j["materials"] = nlohmann::json::array();
+    for (auto &mat : materials) {
+        nlohmann::ordered_json mat_j;
+        mat_j["name"] = mat.name;
+        mat_j["opacity"] = mat.opacity;
+        j["materials"].push_back(mat_j);
+    }
     j["meshes"] = nlohmann::json::array();
     j["bones"] = {};
     j["animations"] = nlohmann::json::array();
@@ -425,7 +375,4 @@ void EditorModel::dump(const Seed::Path &dir) {
         animation_j["bin_size"] = offset - _offset;
         j["animations"].push_back(animation_j);
     }
-    f->write_str(j.dump(2));
-
-    fmt::println("Succesfully dumped {}", dir);
 }

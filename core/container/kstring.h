@@ -110,9 +110,10 @@ class KString {
 
         KString &operator=(const KString &other);
         KString &operator=(KString &&other) noexcept;
-
+        
         void operator+=(const KStr &str) { append(str); }
         void operator+=(KString &str) { append(str); }
+        bool operator==(const KString &other) const;
         bool operator<(const KString &str) const;
 
         /* return raw data size */
@@ -150,10 +151,12 @@ class KStr {
 
         KString string() const;
         const char *data() const { return _data; }
+        const char *end() const {return &_data[_length];}
         u32 length() const { return _length; }
         bool operator==(const KStr &str) const;
         bool operator!=(const KStr &str) const { return !operator==(str); }
         bool operator<(const KStr &str) const;
+        char operator[](u32 idx) const;
         bool start_with(const KStr &str) const;
         bool end_with(const KStr &str) const;
         bool contains(const KStr &str) const;
@@ -174,7 +177,7 @@ class KStr {
         KStr rtrim() const;
         KStr trim() const;
 
-        bool is_empty() { return _length == 0; }
+        bool is_empty() const { return _length == 0; }
 };
 
 template <typename T>

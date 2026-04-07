@@ -22,7 +22,9 @@ namespace Seed {
 class File : public RefCounted {
     private:
         FILE *file;
-        Path full_path;
+        Path path;
+        /* lazy evaluation full path */
+        mutable Path full_path;
         u64 file_size;
         u64 read_cnt;
         u64 write_cnt;
@@ -66,16 +68,23 @@ class File : public RefCounted {
 
         size_t write_str(const std::string &str) const;
 
-        void copy_to(const std::string &path) const;
+        void copy_to(const Path &path) const;
 
-        const Path &get_fullpath() const { return this->full_path; }
-        const KStr get_filename() const { return this->full_path.filename(); }
+        const Path &get_path() const { return this->path; }
+        const Path &get_fullpath() const {
+            if (full_path.is_empty()) {
+                full_path = this->path;
+                full_path.absolute();
+            }
+            return this->full_path;
+        }
+        const KStr get_filename() const { return this->path.filename(); }
 
         const KStr get_filename_without_ext() const {
-            return this->full_path.filename_without_ext();
+            return this->path.filename_without_ext();
         }
 
-        const KStr get_directory() { return this->full_path.directory(); }
+        const KStr get_directory() { return get_fullpath().directory(); }
 
         ~File() {
             if (file) {

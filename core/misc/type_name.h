@@ -3,7 +3,8 @@
 
 #include <array>
 #include <string_view>
-#include <vector>
+#include "core/types.h"
+#include "core/misc/hash.h"
 namespace Seed {
 
 template <std::size_t... Idxs>
@@ -47,6 +48,11 @@ template <typename T>
 constexpr std::string_view type_name() {
     constexpr auto &value = _type_name_holder<T>::value;
     return std::string_view{value.data(), value.size()};
+}
+
+template <typename T>
+constexpr u64 type_id() {
+    return fnv1a(type_name<T>());
 }
 
 template <typename... T>

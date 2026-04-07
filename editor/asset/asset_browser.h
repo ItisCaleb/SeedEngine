@@ -1,9 +1,13 @@
+#ifndef _SEED_ASSET_BROWSER_H_
+#define _SEED_ASSET_BROWSER_H_
+
 #include <imgui.h>
 #include <vector>
 #include "core/container/kstring.h"
 #include "core/io/dir.h"
 #include "core/types.h"
 #include "editor/asset/asset.h"
+#include "editor/gui/inspectable.h"
 
 namespace Seed {
 
@@ -40,9 +44,14 @@ class AssetBrowser {
         void draw_entry_context_menu(int idx);
         void begin_rename(int idx);
         void commit_rename();
+        UUID get_asset_uuid(AssetEntry &entry);
+        Inspectable *create_inspectable(AssetEntry &entry);
         AssetType classify(const Path &p);
         const char *asset_type_icon(AssetType t);
         ImVec4 asset_type_color(AssetType t);
 };
 
 }  // namespace Seed
+
+
+#endif

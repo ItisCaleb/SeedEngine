@@ -76,6 +76,10 @@ KString &KString::operator=(KString &&other) noexcept {
     return *this;
 }
 
+bool KString::operator==(const KString &other) const {
+    return to_str() == other.to_str();
+}
+
 bool KString::operator<(const KString &str) const {
     return to_str() < str.to_str();
 }
@@ -273,6 +277,8 @@ bool KStr::operator<(const KStr &str) const {
     }
     return _length < str._length;
 }
+
+char KStr::operator[](u32 idx) const { return _data[idx]; }
 
 bool KStr::start_with(const KStr &str) const {
     if (_length < str._length) return false;

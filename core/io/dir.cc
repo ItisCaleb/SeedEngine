@@ -20,11 +20,6 @@ Ref<Dir> Dir::open(KStr path) {
     return dir;
 }
 
-Ref<File> Dir::open_file(const Path &path, const char *mode) {
-    return File::open(fmt::format("{}/{}", this->path.to_str(), path.to_str()),
-                      mode);
-}
-
 Ref<File> Dir::open_file(const KStr path, const char *mode) {
     return File::open(fmt::format("{}/{}", this->path.to_str(), path), mode);
 }

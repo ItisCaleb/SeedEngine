@@ -1,11 +1,21 @@
 #include "asset_browser.h"
+#include <fmt/base.h>
+#include <imgui.h>
 #include <imgui_internal.h>
 #include <algorithm>
 #include <utility>
 #include <vector>
+#include "asset.h"
 #include "core/container/kstring.h"
+#include "core/input.h"
 #include "core/io/dir.h"
 #include "core/io/path.h"
+#include "core/misc/uuid.h"
+#include "core/resource/resource.h"
+#include "core/resource/resource_entry.h"
+#include "core/resource/resource_loader.h"
+#include "editor/editor.h"
+#include "editor/project/preprocessor.h"
 
 namespace Seed {
 
@@ -158,7 +168,6 @@ void AssetBrowser::update() {
         i32 find = name.find_first(filter);
         if (find != -1) visible.push_back(i);
     }
-
     if (view_mode == 0)
         draw_grid();  // passes visible internally via state — refactor if
                       // needed
@@ -169,7 +178,25 @@ void AssetBrowser::update() {
     if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() &&
         ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         selected_idx = -1;
+    /* drop target*/
+    ImVec2 remaining = ImGui::GetContentRegionAvail();
+    if (remaining.y > 0) {
+        ImGui::InvisibleButton("##grid_drop", remaining);
+        if (ImGui::BeginDragDropTarget()) {
+            if (auto p = ImGui::AcceptDragDropPayload("EXTERNAL")) {
+                KStr data(KStr((char *)p->Data, p->DataSize - 1));
+                std::vector<KStr> files = data.split("\n");
+                fmt::println("{}", files);
 
+                for (auto file : files) {
+                    if (file.is_empty()) continue;
+                    gEditor->project()->add_to_project(
+                        file, current_dir->get_path().directory());
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+    }
     ImGui::EndChild();
 }
 
@@ -244,6 +271,32 @@ void AssetBrowser::draw_breadcrumb() {
     ImGui::PopStyleVar();
 }
 
+UUID AssetBrowser::get_asset_uuid(AssetEntry &entry) {
+    /* TODO: this is just a workaround */
+    Path _p = "assets";
+    _p.push(entry.path);
+
+    if (entry.type == AssetType::Mesh) {
+        PreprocessEntry *pentry = gEditor->preprocessor.get_entry_from_path(_p);
+        if (pentry == nullptr) return UUID();
+        return pentry->target_uuid;
+    } else {
+        UUID uuid = ResourceLoader::get_instance()->get_entries().get_uuid(_p);
+        return uuid;
+    }
+}
+
+Inspectable *AssetBrowser::create_inspectable(AssetEntry &entry) {
+    if (entry.type == AssetType::Mesh) {
+        ResourceEntry *rentry =
+            ResourceLoader::get_instance()->get_entries().get_entry(
+                get_asset_uuid(entry));
+        if (rentry == nullptr) return nullptr;
+        return new ModelInspector(rentry->config);
+    }
+    return nullptr;
+}
+
 // ── Grid view ────────────────────────────────────────────
 void AssetBrowser::draw_grid() {
     KStr filter = search_buf;
@@ -254,7 +307,6 @@ void AssetBrowser::draw_grid() {
     int cols = std::max(1, (int)(avail_w / cell_w));
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
-
     int col = 0;
     for (int i = 0; i < (int)entries.size(); i++) {
         auto &e = entries[i];
@@ -286,6 +338,7 @@ void AssetBrowser::draw_grid() {
                 navigate_to(e.path.to_str());
             } else {
                 selected_idx = i;
+                gEditor->set_current_inspect(create_inspectable(e));
             }
         }
 
@@ -313,10 +366,12 @@ void AssetBrowser::draw_grid() {
         // Drag source — payload is the absolute path string
         if (!e.is_dir &&
             ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-            KStr path_str = e.path.to_str();
-            ImGui::SetDragDropPayload("ASSET_PATH", path_str.data(),
-                                      path_str.length() + 1);
-            ImGui::TextUnformatted(e.path.filename().data());
+            UUID uuid = get_asset_uuid(e);
+            if (!uuid.is_null()) {
+                ImGui::SetDragDropPayload("UUID", &uuid, sizeof(uuid));
+                ImGui::TextUnformatted(uuid.to_string().c_str());
+            }
+
             ImGui::EndDragDropSource();
         }
 
@@ -353,6 +408,7 @@ void AssetBrowser::draw_grid() {
 
         // Filename label — truncate if too long
         KStr filename = e.path.filename();
+        filename = filename.split_at(10).first;
 
         // Inline rename
         if (renaming_idx == i) {
@@ -369,10 +425,11 @@ void AssetBrowser::draw_grid() {
                                   ImVec4(0.85f, 0.85f, 0.85f, 1.f));
             // Centre the text
             float text_w =
-                std::min(ImGui::CalcTextSize(filename.data()).x, cell_size.x);
+                std::min(ImGui::CalcTextSize(filename.data(), filename.end()).x,
+                         cell_size.x);
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
                                  (cell_size.x - text_w) * 0.5f);
-            ImGui::TextUnformatted(filename.data());
+            ImGui::TextUnformatted(filename.data(), filename.end());
             ImGui::PopStyleColor();
         }
 

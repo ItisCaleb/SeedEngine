@@ -215,14 +215,14 @@ void TerrainEditor::load_terrain(const Path &path) {
     u32 width = terrain_info["width"];
     u32 height = terrain_info["height"];
     Ref<MappableTexture> height_map, splat_map, light_map;
-    KString jheight_map = terrain_info["height_map"];
-    height_map = loader->load<MappableTexture>(dir->concat(jheight_map));
+    auto jheight_map = terrain_info["height_map"];
+    height_map = loader->load<MappableTexture>(jheight_map);
 
-    KString jsplat_map = terrain_info["splat_map"];
-    splat_map = loader->load<MappableTexture>(dir->concat(jsplat_map));
+    auto jsplat_map = terrain_info["splat_map"];
+    splat_map = loader->load<MappableTexture>(jsplat_map);
     if (terrain_info.contains("light_map")) {
-        KString jlight_map = terrain_info["light_map"];
-        light_map = loader->load<MappableTexture>(dir->concat(jlight_map));
+        auto jlight_map = terrain_info["light_map"];
+        light_map = loader->load<MappableTexture>(jlight_map);
     }
     this->current_terrain.create(width, height, height_map, splat_map,
                                  light_map);
@@ -503,7 +503,7 @@ void TerrainEditor::edit_terrain_imgui(ImVec2 origin, float w, float h) {
     last_click_x = tx;
     last_click_y = ty;
 
-    if (input->is_mouse_clicked(MouseEvent::LEFT)) {
+    if (input->is_mouse_pressed(MouseEvent::LEFT)) {
         apply_brush(tx, ty);
     }
 
@@ -795,11 +795,11 @@ void TerrainEditor::draw_new_terrain_modal() {
             nfdopendialogu8args_t args = {0};
             nfdresult_t r = NFD_OpenDialogU8_With(&path, &args);
             if (r == NFD_OKAY) {
-                new_terrain_heightmap = loader->load<MappableTexture>(path);
-                new_terrain_w =
-                    align_to(new_terrain_heightmap->get_width(), 256);
-                new_terrain_h =
-                    align_to(new_terrain_heightmap->get_height(), 256);
+                // new_terrain_heightmap = loader->load<MappableTexture>(path);
+                // new_terrain_w =
+                //     align_to(new_terrain_heightmap->get_width(), 256);
+                // new_terrain_h =
+                //     align_to(new_terrain_heightmap->get_height(), 256);
             }
         }
 
@@ -808,12 +808,12 @@ void TerrainEditor::draw_new_terrain_modal() {
             if (const ImGuiPayload *payload =
                     ImGui::AcceptDragDropPayload("external_file")) {
                 // payload->Data contains the file path
-                new_terrain_heightmap =
-                    loader->load<MappableTexture>((const char *)payload->Data);
-                new_terrain_w =
-                    align_to(new_terrain_heightmap->get_width(), 256);
-                new_terrain_h =
-                    align_to(new_terrain_heightmap->get_height(), 256);
+                // new_terrain_heightmap =
+                //     loader->load<MappableTexture>((const char *)payload->Data);
+                // new_terrain_w =
+                //     align_to(new_terrain_heightmap->get_width(), 256);
+                // new_terrain_h =
+                //     align_to(new_terrain_heightmap->get_height(), 256);
             }
             ImGui::EndDragDropTarget();
         }

@@ -1,7 +1,10 @@
 #ifndef _SEED_UUID_H_
 #define _SEED_UUID_H_
+#include "core/container/kstring.h"
+#include "core/misc/hash.h"
 #include "core/types.h"
 #include "core/misc/random.h"
+#include <functional>
 #include <string>
 
 namespace Seed {
@@ -24,13 +27,22 @@ class UUID {
             return uuid;
         }
 
+        static UUID from_string(const KStr &str);
+
         bool operator==(const UUID &o) const {
             return this->data[0] == o.data[0] && this->data[1] == o.data[1];
         }
 
-        std::string to_string();
+        bool is_null() { return data[0] == 0 && data[1] == 0; }
+
+        std::string to_string() const;
 };
 
 }  // namespace Seed
-
+template <>
+struct std::hash<Seed::UUID> {
+        size_t operator()(const Seed::UUID &uuid) const noexcept {
+            return Seed::Hash::hash_from_buffer(&uuid, sizeof(uuid));
+        }
+};
 #endif

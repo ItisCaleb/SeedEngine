@@ -1,0 +1,11 @@
+{
+  "entries": [
+    {
+      "UUID": "55951a95-839d-40df-8b8d-9a5726b1355e",
+      "target_UUID": "ffda1b80-2136-42b6-b336-1af85e6c00fd",
+      "resource_type_id": 11686891429335393640,
+      "path": "assets\\scene.gltf",
+      "config": {}
+    }
+  ]
+}

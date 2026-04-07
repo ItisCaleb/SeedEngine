@@ -3,13 +3,13 @@
 #include "core/io/file.h"
 #include "core/io/dir.h"
 #include <spdlog/spdlog.h>
-#include <stdexcept>
+#include "core/misc/uuid.h"
+#include "core/ref.h"
 #include "core/rendering/mesh.h"
-#include "core/resource/model_file.h"
-#include <filesystem>
-#include <type_traits>
+
 #include <nlohmann/json.hpp>
 #include <vector>
+#include "core/resource/resource_entry.h"
 #include "core/serialize/json_impl.h"
 
 #include "core/resource/model.h"
@@ -19,6 +19,8 @@
 #include "core/resource/image.h"
 #include "core/resource/billboard.h"
 #include "mappable_texture.h"
+#include "resource.h"
+#include "shader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -26,30 +28,21 @@
 namespace Seed {
 ResourceLoader *ResourceLoader::get_instance() { return instance; }
 
-ResourceLoader::ResourceLoader() {
-    instance = this;
-    spdlog::info("Initializing Resource loader");
-}
-
 ResourceLoader::~ResourceLoader() { instance = nullptr; }
 
-template <>
-Ref<Shader> ResourceLoader::_load(const Path &path) {
+Ref<Resource> ResourceLoader::load_shader(ResourceLoader &loader,
+                                          ResourceConfiguration &config,
+                                          Ref<File> data) {
     Ref<Shader> shader;
-    Ref<File> file = File::open(path, "rb");
     std::string shader_code;
-    shader_code = file->read_str();
-    shader.create(path, shader_code);
-    return shader;
+    shader_code = data->read_str();
+    shader.create(data->get_fullpath(), shader_code);
+    return ref_cast<Resource>(shader);
 }
 
-void ResourceLoader::load_meshes(const Path &path,
-                                 std::vector<Ref<Mesh>> &meshes) {
-    Ref<File> file = File::open(path, "rb");
-    Ref<Dir> dir = Dir::open(file->get_directory());
-    auto model_info = file->read_json();
-    std::string bin_path = model_info["bin_file"];
-    Ref<File> bin_file = dir->open_file(bin_path, "rb");
+static void load_meshes(ResourceLoader &loader, ResourceConfiguration &config,
+                        Ref<File> data, std::vector<Ref<Mesh>> &meshes) {
+    auto model_info = config.get_json();
 
     std::vector<i32> mesh_mats;
     std::vector<Ref<BaseMaterial>> materials;
@@ -59,15 +52,15 @@ void ResourceLoader::load_meshes(const Path &path,
         std::vector<u32> indices;
         if (jmesh["has_bone"]) {
             std::vector<SkeletonVertex> vertices;
-            bin_file->read_vector(vertices, jmesh["vertex_count"]);
-            bin_file->read_vector(indices, jmesh["index_count"]);
+            data->read_vector(vertices, jmesh["vertex_count"]);
+            data->read_vector(indices, jmesh["index_count"]);
             meshes.push_back(Ref<Mesh>(&DS::get_instance()->skeleton_mesh_desc,
                                        vertices, indices,
                                        (AABB)jmesh["bounding_box"]));
         } else {
             std::vector<ModelVertex> vertices;
-            bin_file->read_vector(vertices, jmesh["vertex_count"]);
-            bin_file->read_vector(indices, jmesh["index_count"]);
+            data->read_vector(vertices, jmesh["vertex_count"]);
+            data->read_vector(indices, jmesh["index_count"]);
             meshes.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
                                        indices, (AABB)jmesh["bounding_box"]));
         }
@@ -75,29 +68,24 @@ void ResourceLoader::load_meshes(const Path &path,
         mesh_mats.push_back(jmesh["material_id"]);
     }
 
-    auto jtextures = model_info["textures"];
-    for (auto &jtexture : jtextures) {
-        Ref<Texture> tex = load<Texture>(dir->concat(jtexture));
-        if (tex.is_valid()) {
-            textures.push_back(tex);
-        }
-    }
-
     auto jmaterials = model_info["materials"];
     for (auto &jmaterial : jmaterials) {
         Ref<BaseMaterial> mat;
         mat.create();
-        if (jmaterial["diffuse"] != -1) {
+        UUID diffuse = jmaterial["diffuse"];
+        UUID specular = jmaterial["specular"];
+        UUID normal = jmaterial["normal"];
+        if (!diffuse.is_null()) {
             mat->set_texture_map(BaseMaterial::DIFFUSE,
-                                 textures[jmaterial["diffuse"]]);
+                                 loader.load<Texture>(diffuse));
         }
-        if (jmaterial["specular"] != -1) {
+        if (!specular.is_null()) {
             mat->set_texture_map(BaseMaterial::SPECULAR,
-                                 textures[jmaterial["specular"]]);
+                                 loader.load<Texture>(specular));
         }
-        if (jmaterial["normal"] != -1) {
+        if (!normal.is_null()) {
             mat->set_texture_map(BaseMaterial::NORMAl,
-                                 textures[jmaterial["normal"]]);
+                                 loader.load<Texture>(normal));
         }
         RenderBlendState blend_state;
         blend_state.blend_on = jmaterial["opacity"] != 1.0;
@@ -110,23 +98,23 @@ void ResourceLoader::load_meshes(const Path &path,
     }
 }
 
-template <>
-Ref<BasicModel> ResourceLoader::_load(const Path &path) {
+Ref<Resource> ResourceLoader::load_basic_model(ResourceLoader &loader,
+                                               ResourceConfiguration &config,
+                                               Ref<File> data) {
     Ref<BasicModel> model;
     std::vector<Ref<Mesh>> meshes;
-    load_meshes(path, meshes);
+    load_meshes(loader, config, data, meshes);
     model.create(meshes);
-    return model;
+    return ref_cast<Resource>(model);
 }
 
-template <>
-Ref<SkeletonModel> ResourceLoader::_load(const Path &path) {
+Ref<Resource> ResourceLoader::load_skeleton_model(ResourceLoader &loader,
+                                                  ResourceConfiguration &config,
+                                                  Ref<File> data) {
     Ref<SkeletonModel> model;
-    Ref<File> file = File::open(path, "rb");
-    Ref<Dir> dir = Dir::open(file->get_directory());
-    auto model_info = file->read_json();
-    std::string bin_path = model_info["bin_file"];
-    Ref<File> bin_file = dir->open_file(bin_path, "rb");
+    Ref<Dir> dir = Dir::open(data->get_directory());
+    auto model_info = config.get_json();
+    Ref<File> bin_file = data;
 
     std::vector<Ref<Mesh>> meshs;
     std::vector<i32> mesh_mats;
@@ -164,29 +152,24 @@ Ref<SkeletonModel> ResourceLoader::_load(const Path &path) {
         skeleton->bone_parents = jbones["parents"].get<std::vector<u16>>();
     }
 
-    auto jtextures = model_info["textures"];
-    for (auto &jtexture : jtextures) {
-        Ref<Texture> tex = load<Texture>(dir->concat(jtexture));
-        if (tex.is_valid()) {
-            textures.push_back(tex);
-        }
-    }
-
     auto jmaterials = model_info["materials"];
     for (auto &jmaterial : jmaterials) {
         Ref<BaseMaterial> mat;
         mat.create(DS::get_instance()->skeleton_mesh_shader);
-        if (jmaterial["diffuse"] != -1) {
+        UUID diffuse = jmaterial["diffuse"];
+        UUID specular = jmaterial["specular"];
+        UUID normal = jmaterial["normal"];
+        if (!diffuse.is_null()) {
             mat->set_texture_map(BaseMaterial::DIFFUSE,
-                                 textures[jmaterial["diffuse"]]);
+                                 loader.load<Texture>(diffuse));
         }
-        if (jmaterial["specular"] != -1) {
+        if (!specular.is_null()) {
             mat->set_texture_map(BaseMaterial::SPECULAR,
-                                 textures[jmaterial["specular"]]);
+                                 loader.load<Texture>(specular));
         }
-        if (jmaterial["normal"] != -1) {
+        if (!normal.is_null()) {
             mat->set_texture_map(BaseMaterial::NORMAl,
-                                 textures[jmaterial["normal"]]);
+                                 loader.load<Texture>(normal));
         }
         RenderBlendState blend_state;
         blend_state.blend_on = jmaterial["opacity"] != 1.0;
@@ -228,31 +211,26 @@ Ref<SkeletonModel> ResourceLoader::_load(const Path &path) {
         }
         model->add_animation(animation);
     }
-
-    return model;
+    return ref_cast<Resource>(model);
 }
 
-template <>
-Ref<Sky> ResourceLoader::_load(const Path &path) {
+Ref<Resource> ResourceLoader::load_sky(ResourceLoader &loader,
+                                       ResourceConfiguration &config,
+                                       Ref<File> data) {
     Ref<Sky> sky;
-    Ref<File> json_file = File::open(path);
-    if (json_file.is_null()) {
-        SPDLOG_ERROR("Can't open json from {}", path);
-        return sky;
-    }
-    nlohmann::json j = json_file->read_json();
+    auto &j = config.get_json();
     std::vector<u8 *> texture;
     texture.resize(6);
     int w, h, comp;
     for (auto tex_field : j) {
         u32 face = tex_field["face"];
         KString tex_path = tex_field["path"];
-        Path r_tex_path = path.directory();
+        Path r_tex_path = data->get_fullpath().directory();
         r_tex_path.push(tex_path);
         u8 *data = stbi_load(r_tex_path.data(), &w, &h, &comp, 4);
         if (!data) {
             spdlog::warn("Can't load texture from {}", r_tex_path);
-            return sky;
+            return ref_cast<Resource>(sky);
         }
         texture[face] = data;
     }
@@ -264,83 +242,84 @@ Ref<Sky> ResourceLoader::_load(const Path &path) {
     stbi_image_free(texture[3]);
     stbi_image_free(texture[4]);
     stbi_image_free(texture[5]);
-    return sky;
+    return ref_cast<Resource>(sky);
 }
 
-template <>
-Ref<Texture> ResourceLoader::_load(const Path &path) {
+Ref<Resource> ResourceLoader::load_texture(ResourceLoader &loader,
+                                           ResourceConfiguration &config,
+                                           Ref<File> data) {
     Ref<Texture> texture;
     int w, h, comp;
-    void *data = stbi_load(path.data(), &w, &h, &comp, 4);
+    void *_data = stbi_load(data->get_fullpath().data(), &w, &h, &comp, 4);
 
-    if (!data) {
-        spdlog::warn("Can't load texture from {}", path);
-        return texture;
+    if (!_data) {
+        spdlog::warn("Can't load texture from {}", data->get_fullpath());
+        return ref_cast<Resource>(texture);
     }
     texture.create(TextureType::TEXTURE_2D, w, h, PixelFormat::RGBA,
-                   (const u8 *)data);
+                   (const u8 *)_data);
 
-    stbi_image_free(data);
-    return texture;
+    stbi_image_free(_data);
+    return ref_cast<Resource>(texture);
 }
 
-template <>
-Ref<MappableTexture> ResourceLoader::_load(const Path &path) {
+Ref<Resource> ResourceLoader::load_mappable_texture(
+    ResourceLoader &loader, ResourceConfiguration &config, Ref<File> data) {
     Ref<MappableTexture> texture;
     int w, h, comp;
-    void *data = stbi_load(path.data(), &w, &h, &comp, 4);
+    void *_data = stbi_load(data->get_fullpath().data(), &w, &h, &comp, 4);
 
-    if (!data) {
-        spdlog::warn("Can't load texture from {}", path);
-        return texture;
+    if (!_data) {
+        spdlog::warn("Can't load texture from {}", data->get_fullpath());
+        return ref_cast<Resource>(texture);
     }
     texture.create(TextureType::TEXTURE_2D, w, h, PixelFormat::RGBA,
-                   (const u8 *)data);
+                   (const u8 *)_data);
 
-    stbi_image_free(data);
-    return texture;
+    stbi_image_free(_data);
+    return ref_cast<Resource>(texture);
 }
 
-template <>
-Ref<Image> ResourceLoader::_load(const Path &path) {
+Ref<Resource> ResourceLoader::load_image(ResourceLoader &loader,
+                                         ResourceConfiguration &config,
+                                         Ref<File> data) {
     Ref<Image> image;
     int w, h, comp;
-    void *data = stbi_load(path.data(), &w, &h, &comp, 4);
+    void *_data = stbi_load(data->get_fullpath().data(), &w, &h, &comp, 4);
 
-    if (!data) {
-        spdlog::warn("Can't load image from {}", path);
-        return image;
+    if (!_data) {
+        spdlog::warn("Can't load image from {}", data->get_fullpath());
+        return Ref<Resource>();
     }
     image.create(PixelFormat::RGBA, w, h);
-    image->update((u8 *)data, w, h);
-    stbi_image_free(data);
-    return image;
+    image->update((u8 *)_data, w, h);
+    stbi_image_free(_data);
+    return ref_cast<Resource>(image);
 }
 
-template <>
-Ref<Terrain> ResourceLoader::_load(const Path &path) {
+Ref<Resource> ResourceLoader::load_terrain(ResourceLoader &loader,
+                                           ResourceConfiguration &config,
+                                           Ref<File> data) {
     Ref<Terrain> terrain;
-    Ref<File> file = File::open(path, "rb");
-    Ref<Dir> dir = Dir::open(file->get_directory());
-    auto terrain_info = file->read_json();
+    auto terrain_info = config.get_json();
     std::string name = terrain_info["name"];
     u32 width = terrain_info["width"];
     u32 height = terrain_info["height"];
     Ref<Image> height_map;
     Ref<Texture> splat_map, light_map;
     auto jheight_map = terrain_info["height_map"];
-    height_map = load<Image>(dir->concat(jheight_map));
+    height_map = loader.load<Image>(jheight_map);
 
     auto jsplat_map = terrain_info["splat_map"];
-    splat_map = load<Texture>(dir->concat(jsplat_map));
+    splat_map = loader.load<Texture>(jsplat_map);
     if (terrain_info.contains("light_map")) {
         auto jlight_map = terrain_info["light_map"];
-        light_map = load<Texture>(dir->concat(jlight_map));
+        light_map = loader.load<Texture>(jlight_map);
     }
     terrain.create(height_map, light_map, splat_map);
     if (terrain_info.contains("tex1")) {
         auto jtex1 = terrain_info["tex1"];
-        auto texture = load<Texture>(dir->concat(jtex1));
+        auto texture = loader.load<Texture>(jtex1);
         terrain->get_material()->set_texture("tex1", texture);
         texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
                                                 .wrap_v = SamplerWrap::REPEAT});
@@ -348,30 +327,35 @@ Ref<Terrain> ResourceLoader::_load(const Path &path) {
 
     if (terrain_info.contains("tex1_normal")) {
         auto jtex1 = terrain_info["tex1_normal"];
-        auto texture = load<Texture>(dir->concat(jtex1));
+        auto texture = loader.load<Texture>(jtex1);
         terrain->get_material()->set_texture("tex1_normal", texture);
         texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
                                                 .wrap_v = SamplerWrap::REPEAT});
     }
-    return terrain;
+    return ref_cast<Resource>(terrain);
 }
 
-template <>
-Ref<Billboard> ResourceLoader::_load(const Path &path) {
-    Ref<Billboard> billboard;
-    Ref<Texture> image = _load<Texture>(path);
-    billboard.create(image);
-    return billboard;
+ResourceLoader::ResourceLoader() {
+    instance = this;
+    spdlog::info("Initializing Resource loader");
+    register_type<Shader>(load_shader, true);
+    register_type<BasicModel>(load_basic_model, true);
+    register_type<SkeletonModel>(load_skeleton_model, true);
+    register_type<Sky>(load_sky);
+    register_type<Texture>(load_texture, true);
+    register_type<MappableTexture>(load_mappable_texture, true);
+    register_type<Image>(load_image, true);
+    register_type<Terrain>(load_terrain);
 }
 
 void ResourceLoader::register_resource(Resource *res) {
-    if (res == nullptr) return;
-    this->res_cache[res->get_path()] = res;
+    if (res == nullptr || res->get_uuid().is_null()) return;
+    this->res_cache[res->get_uuid()] = res;
 }
 
 void ResourceLoader::unregister_resource(Resource *res) {
-    if (res == nullptr) return;
-    this->res_cache.erase(res->get_path());
+    if (res == nullptr || res->get_uuid().is_null()) return;
+    this->res_cache.erase(res->get_uuid());
 }
 
 }  // namespace Seed

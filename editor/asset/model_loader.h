@@ -1,6 +1,7 @@
 #ifndef _SEED_MODEL_LOADER_H_
 #define _SEED_MODEL_LOADER_H_
 
+#include "core/io/dir.h"
 #include "core/io/path.h"
 #include "core/rendering/mesh.h"
 #include <assimp/postprocess.h>
@@ -13,7 +14,9 @@
 #include <filesystem>
 #include "core/resource/model.h"
 #include "core/resource/animation.h"
+#include "editor/project/preprocessor.h"
 
+namespace Seed {
 struct EditorMesh {
         std::vector<Seed::ModelVertex> vertices;
         std::vector<u32> indices;
@@ -38,19 +41,10 @@ struct EditorAnimation {
         std::vector<Seed::AnimationClip> clips;
 };
 
-struct Material {
-        i16 diffuse = -1;
-        i16 specular = -1;
-        i16 normal = -1;
-        f32 opacity = 1.0f;
-        bool operator==(Material &other) {
-            return diffuse == other.diffuse && specular == other.specular &&
-                   normal == other.normal && opacity == other.opacity;
-        }
-        bool is_null() {
-            return diffuse == -1 && specular == -1 && normal == -1 &&
-                   opacity == 1.0f;
-        }
+struct EditorMaterial {
+        std::string name;
+        std::vector<std::string> texture_names;
+        f32 opacity;
 };
 
 class EditorModel {
@@ -62,8 +56,6 @@ class EditorModel {
         void processBoneHierachy(aiNode *node, const aiScene *scene,
                                  u16 parent_id);
         void collectBoneNames(aiNode *node, const aiScene *scene);
-        i16 get_material_id(aiMesh *mesh, const aiScene *scene);
-        i16 loadMaterialTextures(aiMaterial *mat, aiTextureType type);
         Seed::AABB calculateAABB(
             const std::vector<Seed::ModelVertex> &vertices);
         Seed::AABB calculateAABB(
@@ -73,18 +65,16 @@ class EditorModel {
         std::unordered_map<std::string, u16> bone_map;
 
     public:
-        std::string origin_path;
-        std::filesystem::path origin_dir;
         std::vector<EditorMesh> meshes;
         std::vector<EditorBoneMesh> bone_meshes;
-        std::vector<std::string> textures;
         std::vector<Bone> bones;
         std::vector<EditorAnimation> animations;
-        std::vector<::Material> materials;
+        std::vector<EditorMaterial> materials;
 
-        void dump(const Seed::Path &dir);
+        void dump(ResourceConfiguration &conf, Ref<File> bin_f);
 
-        EditorModel(const std::string &path);
+        EditorModel(const Seed::Path &path);
 };
+}  // namespace Seed
 
 #endif

@@ -7,6 +7,7 @@
 #include "core/concurrency/thread_pool.h"
 #include "core/resource/default_storage.h"
 #include "core/physic/physic_engine.h"
+#include "input_handler.h"
 #include "types.h"
 #include <spdlog/spdlog.h>
 #include <stdlib.h>
@@ -53,6 +54,7 @@ void SeedEngine::start() {
             break;
         }
 
+        input_handler.update();
         glfwPollEvents();
         GuiEngine::get_instance()->update();
         world->tick(delta);

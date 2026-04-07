@@ -1,7 +1,12 @@
 #ifndef _SEED_EDITOR_H_
 #define _SEED_EDITOR_H_
 #include <string>
+#include "core/container/kstring.h"
 #include "core/io/path.h"
+#include "core/resource/resource.h"
+#include "editor_gui.h"
+#include "gui/inspectable.h"
+#include "project/preprocessor.h"
 #include "project/project.h"
 #include <nlohmann/json.hpp>
 #include "editor/world/terrain_editor.h"
@@ -9,7 +14,6 @@
 #include "editor/asset/asset_browser.h"
 
 namespace Seed {
-class EditorGUI;
 class Editor {
         friend EditorGUI;
         Project *current_project = nullptr;
@@ -18,11 +22,16 @@ class Editor {
 
     public:
         struct Context {
+                Inspectable *current_inspect = nullptr;
         } ctx;
         TerrainEditor terrain_editor;
         AssetViewer asset_viewer;
         AssetBrowser asset_browser;
+        Preprocessor preprocessor;
+        EditorGUI editor_gui;
+        Inspector inspector;
         void set_last_open_world(const Path &path);
+        void set_current_inspect(Inspectable *inspectable);
         Project *project() { return current_project; }
 
         Editor();

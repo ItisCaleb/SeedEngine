@@ -13,6 +13,7 @@ class InputHandler {
     public:
         InputHandler() = default;
         ~InputHandler() = default;
+        void update();
 };
 
 }  // namespace Seed

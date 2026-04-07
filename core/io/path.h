@@ -1,6 +1,7 @@
 #ifndef _SEED_PATH_H_
 #define _SEED_PATH_H_
 
+#include <vector>
 #include "core/container/kstring.h"
 #include "core/os.h"
 namespace Seed {
@@ -55,6 +56,7 @@ class Path {
         void normalize();
         void push(const KStr &segment);
         void pop();
+        Path append(const KStr &segment) const;
         bool is_empty() { return path.is_empty(); }
 
         /* Warning: Do not modify Path instance after this call! */
@@ -69,9 +71,11 @@ class Path {
         /* Do not use the return KStr as null terminated string! */
         KStr directory() const;
         Path parent() const;
-
+        Path replace_extension(KStr str) const;
         KStr to_str() const;
-
+        
+        Path relative(const Path &base) const;
+        bool is_absolute() const;
         bool absolute();
         bool canonicalize();
         bool is_directory() const;

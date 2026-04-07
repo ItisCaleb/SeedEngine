@@ -41,7 +41,6 @@ class Dir : public RefCounted {
             return S_ISDIR(s.st_mode);
 #endif
         }
-        Ref<File> open_file(const Path &path, const char *mode = "rb");
         Ref<File> open_file(const KStr path, const char *mode = "rb");
 
         /* return false when fail to create */

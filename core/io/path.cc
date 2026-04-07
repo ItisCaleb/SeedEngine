@@ -110,7 +110,7 @@ void Path::normalize() {
     }
 }
 void Path::push(const KStr &segment) {
-    if (!path.to_str().end_with(get_splitter())) {
+    if (!path.to_str().is_empty() && !path.to_str().end_with(get_splitter())) {
         path.append(get_splitter());
     }
     path.append(segment);
@@ -126,6 +126,12 @@ void Path::pop() {
     } else if (i == 0) {
         path.pop_raw(_path.length() - i - 1);
     }
+}
+
+Path Path::append(const KStr &segment) const {
+    Path new_path = *this;
+    new_path.push(segment);
+    return new_path;
 }
 
 KStr Path::extension() const {
@@ -171,11 +177,24 @@ KStr Path::directory() const {
     if (_path == root) {
         return _path;
     }
-    i32 i = _path.find_last(get_splitter());
-    if (i == -1) {
+    /* single segment*/
+    i32 back = _path.find_last(get_splitter());
+    if (back == -1) {
         return _path;
     }
-    return _path.split_at(i).first;
+    if (is_file()) {
+        _path = _path.split_at(back).first;
+        i32 front = _path.find_last(get_splitter());
+        /* we find root*/
+        if (front <= root.length()) {
+            return root;
+        }
+        _path = _path.split_at(front + 1).second;
+    } else {
+        return _path.split_at(back + 1).second;
+    }
+
+    return _path;
 }
 
 Path Path::parent() const {
@@ -184,7 +203,76 @@ Path Path::parent() const {
     return parent;
 }
 
+Path Path::replace_extension(KStr str) const {
+    Path new_path = *this;
+    KStr _path = new_path.to_str();
+    i32 i = _path.find_last(".");
+    if (i != -1) {
+        new_path.path.pop_raw(_path.length() - i);
+        new_path.path.append(".");
+    }
+    new_path.path.append(str);
+    return new_path;
+}
+
 KStr Path::to_str() const { return KStr(path); }
+
+Path Path::relative(const Path &base) const {
+    if (base.root.is_empty()) {
+        return *this;
+    }
+
+    if (root.length() == 3 && base.root.length() == 3) {
+        /* Different drive（Windows）*/
+        if (root != base.root) {
+            return *this;
+        }
+    } else {
+        /* path is already relative */
+        if (root.is_empty() || !(root == get_splitter())) {
+            return *this;
+        }
+    }
+
+    Path result;
+    KStr _path = path.to_str();
+    KStr _base = base.path.to_str();
+
+    std::vector<KStr> path_segs = _path.split(get_splitter());
+    std::vector<KStr> base_segs = _base.split(get_splitter());
+
+    /* find common */
+    u64 common = 0;
+    u64 min_len = min(path_segs.size(), base_segs.size());
+    while (common < min_len && path_segs[common] == base_segs[common]) {
+        common++;
+    }
+
+    /* every left segment is ".." */
+    for (u64 i = common; i < base_segs.size(); i++) {
+        if (base_segs[i].is_empty()) continue;
+        result.push(get_dds());  // ".."
+    }
+
+    /* cosume left over */
+    for (u64 i = common; i < path_segs.size(); i++) {
+        if (path_segs[i].is_empty()) continue;
+        result.push(path_segs[i]);
+    }
+
+    /* if path is same */
+    if (result.path.is_empty()) {
+        result.path.append(".");
+        result.root = KStr(result.path, 1);
+    }
+
+    return result;
+}
+
+bool Path::is_absolute() const {
+    bool is_absolute = root == get_splitter() || root.length() == 3;
+    return is_absolute;
+}
 
 bool Path::absolute() {
     /* already absoute */

@@ -8,3 +8,4 @@ target_sources(editor PRIVATE
 add_subdirectory(project)
 add_subdirectory(world)
 add_subdirectory(asset)
+add_subdirectory(gui)

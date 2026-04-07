@@ -8,6 +8,7 @@
 #include "core/math/mat4.h"
 #include "core/collision/shape.h"
 #include "core/io/path.h"
+#include "core/misc/uuid.h"
 
 namespace Seed {
 
@@ -63,6 +64,17 @@ inline void from_json(json_type &j, Path &v) {
 template <typename json_type>
 inline void to_json(json_type &j, const Path &v) {
     j = v.to_str().data();
+}
+
+template <typename json_type>
+inline void from_json(json_type &j, UUID &v) {
+    const std::string &s = j.template get<std::string>();
+    v = UUID::from_string(s);
+}
+
+template <typename json_type>
+inline void to_json(json_type &j, const UUID &v) {
+    j = v.to_string();
 }
 
 }  // namespace Seed
