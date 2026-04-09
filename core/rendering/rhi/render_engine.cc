@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include "core/io/path.h"
+#include "core/math/vec2.h"
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
@@ -84,7 +85,7 @@ RenderEngine::RenderEngine(Window *window) {
     this->instance_pools[TRANSFORM_POOL_NAME] =
         new InstanceDataPool(sizeof(Mat4), 65536);
     this->instance_pools[TERRAIN_POOL_NAME] =
-        new InstanceDataPool(sizeof(Vec4), 1024);
+        new InstanceDataPool(sizeof(Vec2), 1024);
     this->instance_pools[SKELETON_POOL_NAME] =
         new InstanceDataPool(sizeof(Mat4), 65536);
 }

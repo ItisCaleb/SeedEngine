@@ -69,6 +69,14 @@ SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
 TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
                             MSAAType msaa_type, const void *data,
                             const SamplerProperty &property);
+
+[[nodiscard]]
+TextureHandle alloc_textures(TextureType type, u32 w, u32 h, PixelFormat format,
+                             u32 count, const SamplerProperty &property);
+[[nodiscard]]
+TextureHandle alloc_cubemap(u32 w, u32 h, PixelFormat format,
+                            const SamplerProperty &property);
+
 [[nodiscard]]
 TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
                                      PixelFormat format, const void *data,
@@ -90,26 +98,34 @@ RenderPassHandle alloc_renderpass();
 
 struct UpdateBufferInfo {
         void *data;
-        u32 size;
+        union {
+                u64 size;
+                struct {
+                        u32 pixel_size : 8;
+                        u32 w : 24;
+                        u32 h : 24;
+                } image;
+        };
 };
 
 UpdateBufferInfo alloc_heap(u32 size);
+UpdateBufferInfo alloc_texture_heap(PixelFormat format, u32 w, u32 h);
 
 /* these commands will be execute at start of frame */
-void update(VertexHandle handle, u32 offset, u32 size, void *data);
+void update(VertexHandle handle, u32 offset, u32 size, const void *data);
 
 /* these commands will be execute at start of frame */
-void update(IndexHandle handle, u32 offset, u32 size, void *data);
+void update(IndexHandle handle, u32 offset, u32 size, const void *data);
 
 /* these commands will be execute at start of frame */
-void update(ConstantHandle handle, u32 offset, u32 size, void *data);
+void update(ConstantHandle handle, u32 offset, u32 size, const void *data);
 
 /* these commands will be execute at start of frame */
-void update(SSBOHandle handle, u32 offset, u32 size, void *data);
+void update(SSBOHandle handle, u32 offset, u32 size, const void *data);
 
 /* these commands will be execute at start of frame */
 void update(TextureHandle handle, PixelFormat format, u32 layer, u32 offx,
-            u32 offy, u32 w, u32 h, void *data);
+            u32 offy, u32 w, u32 h, const void *data);
 
 void update_texture_sampler(TextureHandle handle, u32 layer,
                             const SamplerProperty &property);
@@ -125,6 +141,10 @@ void update_from_heap(ConstantHandle handle, u32 offset, UpdateBufferInfo info);
 
 /* these commands will be execute at start of frame */
 void update_from_heap(SSBOHandle handle, u32 offset, UpdateBufferInfo info);
+
+/* these commands will be execute at start of frame */
+void update_from_heap(TextureHandle handle, u32 layer, u32 offx, u32 offy,
+                      UpdateBufferInfo info);
 
 void bind_depth_attachment(RenderPassHandle handle, TextureHandle texture,
                            u32 face);

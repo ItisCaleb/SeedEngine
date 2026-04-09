@@ -237,6 +237,9 @@ class RenderBackendVK : public RenderBackend {
         void create_sync_objects();
 
         /* helper functions */
+        TextureHandle create_texture(TextureType type, u32 w, u32 h, PixelFormat format,
+                            u32 count, MSAAType msaa_type,
+                            const SamplerProperty &property, bool should_map);
         void create_staging_buffer(VkBuffer *buffer, VmaAllocation *allocation,
                                    u64 size);
         void create_host_visible_buffer(VkBuffer *buffer,
@@ -285,14 +288,17 @@ class RenderBackendVK : public RenderBackend {
         void stream_buffer(HardwareBufferVk *buffer, u64 size, u64 alignment,
                            void *data);
         VkDescriptorSet get_descriptor_set(DescriptorSetLayout *layout,
-                                           std::vector<Binding> &bindings, bool is_global);
+                                           std::vector<Binding> &bindings,
+                                           bool is_global);
         void bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
-                                 std::vector<Binding> &bindings, bool is_global);
+                                 std::vector<Binding> &bindings,
+                                 bool is_global);
         /* drawing commands */
         void handle_update(RenderCommand &cmd);
         void handle_state(RenderCommand &cmd);
         void handle_render(RenderCommand &cmd);
         RenderBackendVK() = default;
+
     public:
         RenderBackendVK(Window *window);
         ~RenderBackendVK();
@@ -304,6 +310,12 @@ class RenderBackendVK : public RenderBackend {
                                     PixelFormat format, MSAAType msaa_type,
                                     const SamplerProperty &property,
                                     const void *data) override;
+        TextureHandle alloc_textures(TextureType type, u32 w, u32 h,
+                                     PixelFormat format, u32 count,
+                                     const SamplerProperty &property) override;
+        TextureHandle alloc_cubemap(u32 w, u32 h, PixelFormat format,
+                                    const SamplerProperty &property) override;
+
         TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
                                              PixelFormat format,
                                              const SamplerProperty &property,
@@ -344,7 +356,7 @@ class RenderBackendVK : public RenderBackend {
         void update(TextureHandle handle, u32 layer, u32 offx, u32 offy, u32 w,
                     u32 h, void *data) override;
         void update_texture_sampler(TextureHandle handle, u32 layer,
-                                            const SamplerProperty &property) override;
+                                    const SamplerProperty &property) override;
 
         void *map_buffer(RenderResourceType type, Handle handle) override;
         void *map_texture(TextureHandle handle) override;

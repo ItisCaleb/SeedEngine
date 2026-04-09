@@ -54,11 +54,11 @@ void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {
 
 void TerrainInstanceData::upload() {
     RHI::UpdateBufferInfo instance_info =
-        RHI::alloc_heap(sizeof(Vec4) * this->instances.size());
-    Vec4 *vecs = (Vec4 *)instance_info.data;
+        RHI::alloc_heap(sizeof(Vec2) * this->instances.size());
+    Vec2 *vecs = (Vec2 *)instance_info.data;
     u32 i = 0;
     for (TerrainInstance &instance : this->instances) {
-        memcpy(&vecs[i], &instance, sizeof(Vec4));
+        memcpy(&vecs[i], &instance, sizeof(Vec2));
         i++;
     }
     _upload(instance_info);
@@ -126,7 +126,6 @@ void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
     // uv bottom left
     this->instances->insert_terrain_data(TerrainInstance{
         .pos = Vec2{left_f + CHUNK_SIZE / 2, bottom_f + CHUNK_SIZE / 2},
-        .total_size = Vec2{(f32)width, (f32)depth},
         .max_height = max_height,
         .min_height = min_height});
 
@@ -142,9 +141,8 @@ void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
 
 void Terrain::build_mesh() {
     i32 half_chunk = CHUNK_SIZE / 2;
-    u32 vertex_row_cnt = 9;
-    u32 chunk_cnt = vertex_row_cnt - 1;
-    u32 step = (vertex_row_cnt - 1) / chunk_cnt;
+    u32 chunk_cnt = 16;
+    u32 vertex_row_cnt = chunk_cnt + 1;
     std::vector<TerrainVertex> vertices;
     f32 offset = CHUNK_SIZE / chunk_cnt;
     for (i32 i = 0; i < vertex_row_cnt; i++) {
@@ -153,6 +151,8 @@ void Terrain::build_mesh() {
                 offset * i - CHUNK_SIZE / 2, offset * j - CHUNK_SIZE / 2}});
         }
     }
+
+    u32 step = chunk_cnt / chunk_cnt;
     std::vector<u32> indices;
     for (i32 i = 0; i < chunk_cnt; i++) {
         for (i32 j = 0; j < chunk_cnt; j++) {

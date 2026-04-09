@@ -2,22 +2,19 @@
 #define _SEED_RESOURCE_LOADER_H_
 
 #include <spdlog/spdlog.h>
-#include <functional>
 #include <nlohmann/json_fwd.hpp>
-#include <string>
 #include <unordered_map>
-#include <vector>
 #include "core/container/kstring.h"
 #include "core/io/file.h"
 #include "core/io/path.h"
-#include "core/misc/type_name.h"
 #include "core/misc/uuid.h"
 #include "core/ref.h"
-#include "core/rendering/mesh.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/resource/resource.h"
 #include "core/concurrency/thread_pool.h"
 #include "resource.h"
 #include "resource_entry.h"
+#include "core/misc/type_name.h"
 
 namespace Seed {
 class ResourceLoader;
@@ -55,18 +52,21 @@ class ResourceLoader {
         static RESOURCE_LOADER(load_shader);
         static RESOURCE_LOADER(load_basic_model);
         static RESOURCE_LOADER(load_skeleton_model);
-        static RESOURCE_LOADER(load_sky);
         static RESOURCE_LOADER(load_texture);
+        static RESOURCE_LOADER(load_texture_array);
+        static RESOURCE_LOADER(load_cubemap);
         static RESOURCE_LOADER(load_mappable_texture);
         static RESOURCE_LOADER(load_image);
         static RESOURCE_LOADER(load_terrain);
         ResourceEntries entries;
-
+    
     public:
         static ResourceLoader *get_instance();
         void register_resource(Resource *res);
         void unregister_resource(Resource *res);
         ResourceEntries &get_entries() { return entries; }
+
+        RHI::UpdateBufferInfo load_image_to_upload(UUID uuid);
 
         template <typename T>
         Ref<T> load(UUID uuid) {

@@ -3,21 +3,23 @@
 #include "core/io/file.h"
 #include "core/io/dir.h"
 #include <spdlog/spdlog.h>
+#include "core/io/path.h"
 #include "core/misc/uuid.h"
 #include "core/ref.h"
 #include "core/rendering/mesh.h"
 
 #include <nlohmann/json.hpp>
 #include <vector>
+#include "core/rendering/render_common.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/resource/resource_entry.h"
 #include "core/serialize/json_impl.h"
 
 #include "core/resource/model.h"
 #include "core/resource/terrain.h"
 #include "core/resource/texture.h"
-#include "core/resource/sky.h"
 #include "core/resource/image.h"
-#include "core/resource/billboard.h"
+#include "core/types.h"
 #include "mappable_texture.h"
 #include "resource.h"
 #include "shader.h"
@@ -213,36 +215,21 @@ Ref<Resource> ResourceLoader::load_skeleton_model(ResourceLoader &loader,
     }
     return ref_cast<Resource>(model);
 }
-
-Ref<Resource> ResourceLoader::load_sky(ResourceLoader &loader,
-                                       ResourceConfiguration &config,
-                                       Ref<File> data) {
-    Ref<Sky> sky;
-    auto &j = config.get_json();
-    std::vector<u8 *> texture;
-    texture.resize(6);
-    int w, h, comp;
-    for (auto tex_field : j) {
-        u32 face = tex_field["face"];
-        KString tex_path = tex_field["path"];
-        Path r_tex_path = data->get_fullpath().directory();
-        r_tex_path.push(tex_path);
-        u8 *data = stbi_load(r_tex_path.data(), &w, &h, &comp, 4);
-        if (!data) {
-            spdlog::warn("Can't load texture from {}", r_tex_path);
-            return ref_cast<Resource>(sky);
-        }
-        texture[face] = data;
-    }
-    sky.create(w, h, texture[0], texture[1], texture[2], texture[3], texture[4],
-               texture[5]);
-    stbi_image_free(texture[0]);
-    stbi_image_free(texture[1]);
-    stbi_image_free(texture[2]);
-    stbi_image_free(texture[3]);
-    stbi_image_free(texture[4]);
-    stbi_image_free(texture[5]);
-    return ref_cast<Resource>(sky);
+/* since we now use malloc in update heap, we do not need to free here */
+RHI::UpdateBufferInfo ResourceLoader::load_image_to_upload(UUID uuid) {
+    ResourceEntry *entry = entries.get_entry(uuid);
+    RHI::UpdateBufferInfo info;
+    info.data = nullptr;
+    if (!entry) return info;
+    Path path =
+        entry->path.is_absolute() ? entry->path : root.append(entry->path);
+    i32 w, h, comp;
+    void *_data = stbi_load(path.data(), &w, &h, &comp, 4);
+    info.data = _data;
+    info.image.w = w;
+    info.image.h = h;
+    info.image.pixel_size = comp;
+    return info;
 }
 
 Ref<Resource> ResourceLoader::load_texture(ResourceLoader &loader,
@@ -250,6 +237,7 @@ Ref<Resource> ResourceLoader::load_texture(ResourceLoader &loader,
                                            Ref<File> data) {
     Ref<Texture> texture;
     int w, h, comp;
+
     void *_data = stbi_load(data->get_fullpath().data(), &w, &h, &comp, 4);
 
     if (!_data) {
@@ -257,9 +245,69 @@ Ref<Resource> ResourceLoader::load_texture(ResourceLoader &loader,
         return ref_cast<Resource>(texture);
     }
     texture.create(TextureType::TEXTURE_2D, w, h, PixelFormat::RGBA,
-                   (const u8 *)_data);
+                   SamplerProperty{}, (const u8 *)_data);
 
     stbi_image_free(_data);
+    return ref_cast<Resource>(texture);
+}
+
+Ref<Resource> ResourceLoader::load_texture_array(ResourceLoader &loader,
+                                                 ResourceConfiguration &config,
+                                                 Ref<File> data) {
+    Ref<TextureArray> texture;
+    auto &j = config.get_json();
+    std::vector<RHI::UpdateBufferInfo> infos;
+    for (auto &tex : j["textures"]) {
+        UUID uuid = tex;
+        RHI::UpdateBufferInfo info = loader.load_image_to_upload(uuid);
+        if (info.data == nullptr) {
+            SPDLOG_WARN("Can't load image '{}'", uuid.to_string());
+            continue;
+        }
+        infos.push_back(info);
+    }
+    if (infos.size() == 0) {
+        return ref_cast<Resource>(texture);
+    }
+    u32 w = infos[0].image.w;
+    u32 h = infos[0].image.h;
+    texture.create(TextureType::TEXTURE_2D, w, h, infos.size(),
+                   PixelFormat::RGBA, SamplerProperty{});
+    u32 i = 0;
+    for (RHI::UpdateBufferInfo &info : infos) {
+        RHI::update_from_heap(texture->get_handle(), i, 0, 0, info);
+        i++;
+    }
+    return ref_cast<Resource>(texture);
+}
+
+Ref<Resource> ResourceLoader::load_cubemap(ResourceLoader &loader,
+                                           ResourceConfiguration &config,
+                                           Ref<File> data) {
+    Ref<TextureCubemap> texture;
+    auto &j = config.get_json();
+    RHI::UpdateBufferInfo infos[6];
+    infos[0] = loader.load_image_to_upload(j["right"]);
+    infos[1] = loader.load_image_to_upload(j["left"]);
+    infos[2] = loader.load_image_to_upload(j["top"]);
+    infos[3] = loader.load_image_to_upload(j["bottom"]);
+    infos[4] = loader.load_image_to_upload(j["front"]);
+    infos[5] = loader.load_image_to_upload(j["back"]);
+    u32 w = infos[0].image.w;
+    u32 h = infos[0].image.h;
+    texture.create(w, h, PixelFormat::RGBA, SamplerProperty{});
+    RHI::update_from_heap(texture->get_handle(), (u32)CubemapFace::RIGHT, 0, 0,
+                          infos[0]);
+    RHI::update_from_heap(texture->get_handle(), (u32)CubemapFace::LEFT, 0, 0,
+                          infos[1]);
+    RHI::update_from_heap(texture->get_handle(), (u32)CubemapFace::TOP, 0, 0,
+                          infos[2]);
+    RHI::update_from_heap(texture->get_handle(), (u32)CubemapFace::BOTTOM, 0, 0,
+                          infos[3]);
+    RHI::update_from_heap(texture->get_handle(), (u32)CubemapFace::FRONT, 0, 0,
+                          infos[4]);
+    RHI::update_from_heap(texture->get_handle(), (u32)CubemapFace::BACK, 0, 0,
+                          infos[5]);
     return ref_cast<Resource>(texture);
 }
 
@@ -340,8 +388,9 @@ ResourceLoader::ResourceLoader() {
     register_type<Shader>(load_shader, true);
     register_type<BasicModel>(load_basic_model, true);
     register_type<SkeletonModel>(load_skeleton_model, true);
-    register_type<Sky>(load_sky);
     register_type<Texture>(load_texture, true);
+    register_type<TextureArray>(load_texture_array);
+    register_type<TextureCubemap>(load_cubemap);
     register_type<MappableTexture>(load_mappable_texture, true);
     register_type<Image>(load_image, true);
     register_type<Terrain>(load_terrain);

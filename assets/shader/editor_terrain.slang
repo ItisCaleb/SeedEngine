@@ -9,16 +9,18 @@ struct Property{
     Sampler2D height_map; 
     Sampler2D terrain_shadowMap;
     Sampler2D splat_map;
+    vec2 terrain_size;
 };
 
 ParameterBlock<Property> prop;
 
 [shader("vertex")]
-VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
+VS_OUT vert(float2 aPos, uint id: SV_VulkanInstanceID){
     VS_OUT out;
-    vec4 terrain = GetTerrain(id);
+    vec2 terrain = GetTerrain(id);
+    vec2 size = prop.terrain_size; 
     out.sv_position = vec4(aPos.x + terrain.x, 0.0f, aPos.y + terrain.y, 1.0);
-    out.uv = aTexCoord + terrain.zw;
+    out.uv = (out.sv_position.xz + size / 2)/size;
     return out;
 }
 

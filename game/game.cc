@@ -14,6 +14,7 @@
 #include "core/resource/sky.h"
 #include "core/gui/gui.h"
 #include "core/gui/gui_engine.h"
+#include "core/resource/texture.h"
 #include "core/transform.h"
 #include "core/world/world.h"
 #include "core/world/components.h"
@@ -52,7 +53,8 @@ int main(void) {
 
     auto terrain =
         loader->load_internal<Terrain>("test_project/assets/terrain_01.json");
-    // auto sky = loader->load_async<Sky>("assets/sky.json");
+    auto sky_cube = loader->load_internal<TextureCubemap>("test_project/assets/sky.json");
+    Ref<Sky> sky(sky_cube);
     // auto backpack = loader->load_async<BasicModel>(
     //     "test_project/assets/backpack.json", [=](Ref<BasicModel> rc) {
 
@@ -71,6 +73,7 @@ int main(void) {
 
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     World *world = engine->get_world();
+    world->set_sky(sky);
     world->get_point_lights().push_back(
         PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
     Ref<WorldChunk> chunk;

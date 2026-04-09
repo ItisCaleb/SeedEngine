@@ -1,6 +1,12 @@
 {
   "entries": [
     {
+      "UUID": "aff7c713-a9a2-46cd-a5c5-9c8c2749f06b",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\terrain_01_light_map.png",
+      "config": {}
+    },
+    {
       "UUID": "656824f6-ee32-44a7-81ce-1d4ae8f7cf41",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\rp_nathan_animated_003_mat_baseColor.jpeg",
@@ -271,12 +277,6 @@
       "config": {}
     },
     {
-      "UUID": "aff7c713-a9a2-46cd-a5c5-9c8c2749f06b",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\terrain_01_light_map.png",
-      "config": {}
-    },
-    {
       "UUID": "5f9de3da-2135-406a-8a8c-ba2af18c4b23",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\terrain_01_splat_map.png",
@@ -286,6 +286,42 @@
       "UUID": "750a0356-7f95-4b92-8a59-571e0f8ff4ba",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\diffuse.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "92fbc3c8-bbde-4731-b03d-78937b0ea1f8",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\back.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "620f87e0-0a10-42bf-b67b-50c8e38bb9a1",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\bottom.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "7f2de372-1c44-439f-8ae2-aba64eff6aa8",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\front.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "9e5ec450-5ada-444d-b995-cd0e4b6ef80f",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\left.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "aa311615-60d4-49cf-b7e2-16439664e236",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\right.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "b00fde8a-1922-49c4-b006-e047d30def75",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\top.jpg",
       "config": {}
     }
   ]

@@ -4,7 +4,9 @@
 #include <cstddef>
 #include <vector>
 #include "core/rendering/backend/vulkan_helper.h"
+#include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_resource.h"
+#include "core/resource/texture.h"
 #define VOLK_IMPLEMENTATION
 #include <volk.h>
 #define VMA_IMPLEMENTATION
@@ -903,11 +905,11 @@ void RenderBackendVK::bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
                             binding, 1, &set, offsets.size(), offsets.data());
 }
 
-TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
-                                             PixelFormat format,
-                                             MSAAType msaa_type,
-                                             const SamplerProperty &property,
-                                             const void *data) {
+TextureHandle RenderBackendVK::create_texture(TextureType type, u32 w, u32 h,
+                                              PixelFormat format, u32 count,
+                                              MSAAType msaa_type,
+                                              const SamplerProperty &property,
+                                              bool should_map) {
     VkImage image;
     VkImageView image_view;
     VkSampler sampler;
@@ -941,14 +943,26 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
             layouts.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
         }
     } else {
-        imageInfo.arrayLayers = 1;
-        layouts.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
+        imageInfo.arrayLayers = count;
+        for (u32 i = 0; i < count; i++) {
+            layouts.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
+        }
     }
+
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+    if (should_map) {
+        imageInfo.tiling = VK_IMAGE_TILING_LINEAR;
+        allocInfo.flags =
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+            VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    } else {
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    }
+
     VmaAllocation allocation;
     VmaAllocation msaa_allocation = nullptr;
     vmaCreateImage(buffer_allocator, &imageInfo, &allocInfo, &image,
@@ -993,7 +1007,7 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
         vkCreateImageView(device, &viewInfo, nullptr, &msaa_view);
     }
 
-    TextureHandle handle = this->textures.insert({
+    return this->textures.insert({
         .w = w,
         .h = h,
         .type = type,
@@ -1008,10 +1022,18 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
         .msaa_memory = msaa_allocation,
         .layouts = layouts,
     });
+}
+
+TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
+                                             PixelFormat format,
+                                             MSAAType msaa_type,
+                                             const SamplerProperty &property,
+                                             const void *data) {
+    TextureHandle handle =
+        create_texture(type, w, h, format, 1, msaa_type, property, false);
 
     /* upload using staging buffer */
-    /* we don't updload cubemap here */
-    if (data && type != TextureType::TEXTURE_CUBEMAP) {
+    if (data) {
         size_t size = w * h * get_pixel_format_size(format);
         VkBuffer stagingBuffer;
         VmaAllocation stagingAllocation;
@@ -1032,99 +1054,55 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
     return handle;
 }
 
+TextureHandle RenderBackendVK::alloc_textures(TextureType type, u32 w, u32 h,
+                                              PixelFormat format, u32 count,
+                                              const SamplerProperty &property) {
+    TextureHandle handle = create_texture(type, w, h, format, count,
+                                          MSAAType::SAMPLE_COUNT_1, property,false);
+
+    return handle;
+}
+
+TextureHandle RenderBackendVK::alloc_cubemap(u32 w, u32 h, PixelFormat format,
+                                             const SamplerProperty &property) {
+    TextureHandle handle =
+        create_texture(TextureType::TEXTURE_CUBEMAP, w, h, format, 6,
+                       MSAAType::SAMPLE_COUNT_1, property, false);
+
+    return handle;
+}
+
 TextureHandle RenderBackendVK::alloc_mappable_texture(
     TextureType type, u32 w, u32 h, PixelFormat format,
     const SamplerProperty &property, const void *data) {
-    if (type == TextureType::TEXTURE_CUBEMAP) {
-        SPDLOG_ERROR("Cubemap cannot be allocated as mappable texture");
+    if (type != TextureType::TEXTURE_1D || type != TextureType::TEXTURE_2D ||
+        type != TextureType::TEXTURE_3D) {
+        SPDLOG_ERROR("Can't create mappable texture as target type");
         return NULL_HANDLE;
     }
-    VkImage image;
-    VkImageView image_view;
-    VkSampler sampler;
-    VkImageCreateInfo imageInfo{};
-
-    bool is_depth = VulkanHelper::is_depth(format);
-    bool is_stencil = VulkanHelper::is_stencil(format);
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
-    if (is_stencil || is_depth) {
-        imageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    } else {
-        imageInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    }
-
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageInfo.format = VulkanHelper::texture_format(format);
-    imageInfo.imageType = VulkanHelper::texture_type(type);
-    imageInfo.extent = VkExtent3D{.width = w, .height = h, .depth = 1};
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.mipLevels = 1;
-    std::vector<VkImageLayout> layouts;
-    imageInfo.arrayLayers = 1;
-    layouts.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.tiling = VK_IMAGE_TILING_LINEAR;
-
-    VmaAllocationCreateInfo allocInfo = {};
-    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-                      VMA_ALLOCATION_CREATE_MAPPED_BIT;
-
-    VmaAllocation allocation;
-    vmaCreateImage(buffer_allocator, &imageInfo, &allocInfo, &image,
-                   &allocation, nullptr);
-
-    VkImageViewCreateInfo viewInfo{};
-    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.format = imageInfo.format;
-
-    viewInfo.subresourceRange.aspectMask = VulkanHelper::aspect_flag(format);
-    viewInfo.subresourceRange.layerCount = imageInfo.arrayLayers;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.levelCount = imageInfo.mipLevels;
-    viewInfo.viewType = VulkanHelper::texture_view_type(type);
-    viewInfo.image = image;
-    vkCreateImageView(device, &viewInfo, nullptr, &image_view);
-
-    VkSamplerCreateInfo samplerInfo = VulkanHelper::sampler_info(
-        property, device_properties.limits.maxSamplerAnisotropy);
-
-    if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) !=
-        VK_SUCCESS) {
-        throw std::runtime_error("failed to create texture sampler!");
-    }
+    TextureHandle handle = create_texture(
+        type, w, h, format, 1, MSAAType::SAMPLE_COUNT_1, property, true);
+    HardwareTextureVk *texture = this->textures.get_or_null(handle);
 
     if (data) {
         size_t size = w * h * get_pixel_format_size(format);
-        vmaCopyMemoryToAllocation(buffer_allocator, data, allocation, 0, size);
+        vmaCopyMemoryToAllocation(buffer_allocator, data, texture->memory, 0,
+                                  size);
     }
     void *mapped_ptr;
-    vmaMapMemory(buffer_allocator, allocation, &mapped_ptr);
+    vmaMapMemory(buffer_allocator, texture->memory, &mapped_ptr);
 
     /* query texture real size */
     VkImageSubresource subRes = {};
-    subRes.aspectMask = viewInfo.subresourceRange.aspectMask;
+    subRes.aspectMask = VulkanHelper::aspect_flag(format);
     subRes.mipLevel = 0;
     subRes.arrayLayer = 0;
 
     VkSubresourceLayout subResLayout;
-    vkGetImageSubresourceLayout(device, image, &subRes, &subResLayout);
+    vkGetImageSubresourceLayout(device, texture->image, &subRes, &subResLayout);
     w = subResLayout.rowPitch / get_pixel_format_size(format);
 
-    TextureHandle handle =
-        this->textures.insert({.w = w,
-                               .h = h,
-                               .type = type,
-                               .format = format,
-                               .image = image,
-                               .view = image_view,
-                               .sampler = sampler,
-                               .memory = allocation,
-                               .sample_count = VK_SAMPLE_COUNT_1_BIT,
-                               .layouts = layouts,
-                               .mapped_ptr = mapped_ptr});
+    texture->mapped_ptr = mapped_ptr;
     mappable_image_transition_queue.push(handle);
     return handle;
 }

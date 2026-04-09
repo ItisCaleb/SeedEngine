@@ -46,6 +46,13 @@ class RenderBackend {
                                             MSAAType msaa_type,
                                             const SamplerProperty &property,
                                             const void *data) = 0;
+        virtual TextureHandle alloc_textures(
+            TextureType type, u32 w, u32 h, PixelFormat format, u32 count,
+            const SamplerProperty &property) = 0;
+        virtual TextureHandle alloc_cubemap(
+            u32 w, u32 h, PixelFormat format,
+            const SamplerProperty &property) = 0;
+
         virtual TextureHandle alloc_mappable_texture(
             TextureType type, u32 w, u32 h, PixelFormat format,
             const SamplerProperty &property, const void *data) = 0;
@@ -77,8 +84,9 @@ class RenderBackend {
                             u32 size, void *data) = 0;
         virtual void update(TextureHandle handle, u32 layer, u32 offx, u32 offy,
                             u32 w, u32 h, void *data) = 0;
-        virtual void update_texture_sampler(TextureHandle handle, u32 layer,
-                                            const SamplerProperty &property) = 0;
+        virtual void update_texture_sampler(
+            TextureHandle handle, u32 layer,
+            const SamplerProperty &property) = 0;
         virtual void *map_buffer(RenderResourceType type, Handle handle) = 0;
         virtual void *map_texture(TextureHandle handle) = 0;
         virtual void bind_depth_attachment(RenderPassHandle handle,
