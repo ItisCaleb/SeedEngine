@@ -5,6 +5,7 @@ struct VS_OUT{
     float4 sv_position: SV_Position;
 }
 
+
 struct Property{
     Sampler2D height_map; 
     Sampler2D terrain_shadowMap;
@@ -12,16 +13,18 @@ struct Property{
     Sampler2D tex1;
     Sampler2D tex1_normal;
     Sampler2D shadowMap;
+    vec2 terrain_size;
 };
 
 ParameterBlock<Property> prop;
 
 [shader("vertex")]
-VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
+VS_OUT vert(float2 aPos, uint id: SV_VulkanInstanceID){
     VS_OUT out;
-    vec4 terrain = GetTerrain(id);
+    vec2 terrain = GetTerrain(id);
+    vec2 size = prop.terrain_size; 
     out.sv_position = vec4(aPos.x + terrain.x, 0.0f, aPos.y + terrain.y, 1.0);
-    out.uv = aTexCoord + terrain.zw;
+    out.uv = (out.sv_position.xz + size / 2)/size;
     return out;
 }
 
@@ -49,15 +52,33 @@ struct PatchTessFactors {
     float2 insideTessFactor : SV_InsideTessFactor;
 };
 
-PatchTessFactors PatchConstantFunction() {
+PatchTessFactors PatchConstantFunction(InputPatch<VS_OUT, 4> patch) {
     PatchTessFactors factors;
+
+    const uint min_tess = 2;
+    const uint max_tess = 32;
+    const uint min_dist = 20;
+    const uint max_dist = 700;
+    const uint range = max_dist - min_dist;
+
+    Camera cam = GetCamera();
+    vec4 cam_pos00 = cam.u_view * patch[0].sv_position;
+    vec4 cam_pos01 = cam.u_view * patch[1].sv_position;
+    vec4 cam_pos10 = cam.u_view * patch[2].sv_position;
+    vec4 cam_pos11 = cam.u_view * patch[3].sv_position;
+
+    float dist00 = clamp((abs(cam_pos00.z) - min_dist) / range, 0, 1);
+    float dist01 = clamp((abs(cam_pos01.z) - min_dist) / range, 0, 1);
+    float dist10 = clamp((abs(cam_pos10.z) - min_dist) / range, 0, 1);
+    float dist11 = clamp((abs(cam_pos11.z) - min_dist) / range, 0, 1);
+
     // Set tessellation levels
-    factors.tessFactor[0] = 32;
-    factors.tessFactor[1] = 32;
-    factors.tessFactor[2] = 32;
-    factors.tessFactor[3] = 32;
-    factors.insideTessFactor[0] = 32;
-    factors.insideTessFactor[1] = 32;
+    factors.tessFactor[0] = lerp(max_tess, min_tess, min(dist10, dist00));
+    factors.tessFactor[1] = lerp(max_tess, min_tess, min(dist00, dist01));
+    factors.tessFactor[2] = lerp(max_tess, min_tess, min(dist01, dist11));
+    factors.tessFactor[3] = lerp(max_tess, min_tess, min(dist11, dist10));
+    factors.insideTessFactor[0] = max(factors.tessFactor[1], factors.tessFactor[3]);
+    factors.insideTessFactor[1] = max(factors.tessFactor[0], factors.tessFactor[2]);
     return factors;
 }
 
@@ -102,14 +123,17 @@ DS_OUT tese(
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
     out.texCoord = (t1 - t0) * v + t0;
-    float offset = 0.0001;
+    vec2 offset; 
+    float level;
+    prop.height_map.GetDimensions(0, offset[0], offset[1], level);
+    offset = 1 / offset;
     // lookup texel at patch coordinate for height and scale + shift as desired
-    out.height = get_height(out.texCoord);
-    float rh = get_height(out.texCoord + vec2(offset, 0));
-    float lh = get_height(out.texCoord + vec2(-offset, 0));
-    float uh = get_height(out.texCoord + vec2(0, offset));
-    float dh = get_height(out.texCoord + vec2(0, -offset));
-
+    float h = get_height(out.texCoord);
+    float rh = get_height(out.texCoord + vec2(offset.x, 0));
+    float lh = get_height(out.texCoord + vec2(-offset.x, 0));
+    float uh = get_height(out.texCoord + vec2(0, offset.y));
+    float dh = get_height(out.texCoord + vec2(0, -offset.y));
+    out.height = (h + rh + lh + uh + dh) / 5;
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
     vec4 p00 = patch[0].position;
@@ -199,6 +223,19 @@ vec3 normal_blend(vec2 uv1, vec2 uv2){
     return blend_normal_rnm(n1, n2);
 }
 
+vec3 triplanar_mapping(vec3 frag_pos, vec3 world_normal, Sampler2D texture, float scale){
+    vec2 uv_x = frag_pos.zy / scale;
+    vec2 uv_y = frag_pos.xz / scale;
+    vec2 uv_z = frag_pos.xy / scale;
+    vec3 weights = abs(world_normal);
+    weights = weights / (weights.x + weights.y + weights.z);
+    vec3 sx = texture.Sample(uv_x).xyz;
+    vec3 sy = texture.Sample(uv_y).xyz;
+    vec3 sz = texture.Sample(uv_z).xyz;
+    vec3 sampled = sx * weights.x + sy * weights.y + sz * weights.z;
+    return sampled;
+}
+
 [shader("fragment")]
 float4 frag(DS_OUT in){
     float h = (in.height + 128)/256.0f;
@@ -209,8 +246,8 @@ float4 frag(DS_OUT in){
     vec2 uv2 = in.frag_pos.xz/128;
     // vec3 diffuse_sample = diffuse_blend(uv1, uv2);
     // vec3 normal = normal_blend(uv1, uv2);
-
-    vec3 diffuse_sample = prop.tex1.Sample(uv1).xyz;
+    vec3 world_normal = normalize(in.normal);
+    vec3 diffuse_sample = triplanar_mapping(in.frag_pos.xyz, world_normal, prop.tex1, 32);
     vec3 normal = sample_normal(uv1,  prop.tex1_normal);
 
     vec3 light_out = diffuse_sample * gLights.u_light_ambient;
@@ -220,7 +257,7 @@ float4 frag(DS_OUT in){
     vec3 dir_light = -normalize(vec3(gLights.u_dir_light.position));
     vec3 tangent_dir_light = -normalize(in.tangent_dir_light);
 
-    float csm_shadow = CSMShadowCalculation(prop.shadowMap, in.frag_pos, in.view_depth, in.normal, dir_light);
+    float csm_shadow = CSMShadowCalculation(prop.shadowMap, in.frag_pos, in.view_depth, world_normal, dir_light);
     float horizon_shadow = HorizonShadow(in.texCoord, dir_light);
     float shadow = max(csm_shadow, horizon_shadow);
     

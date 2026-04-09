@@ -103,7 +103,7 @@ DebugDrawer::DebugDrawer() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
     Ref<Shader> debug_shader =
-        loader->load<Shader>("assets/shader/debug.slang");
+        loader->load_internal<Shader>("assets/shader/debug.slang");
     debug_desc.add_attr(0, VertexAttributeType::FLOAT, 3);
     debug_desc.add_attr(1, VertexAttributeType::UNSIGNED_BYTE, 4, true);
     RenderRasterizerState rst;

@@ -9,7 +9,8 @@
         "VCPKG_MANIFEST_INSTALL": false,
         "CMAKE_TOOLCHAIN_FILE": "./vcpkg/scripts/buildsystems/vcpkg.cmake",
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_XR": false
       }
     },
     {
@@ -75,6 +76,14 @@
       "targets": [
         "tests"
       ]
+    },
+    {
+      "name": "release",
+      "jobs":4,
+      "configurePreset": "release",
+      "targets":[
+        "seed", "app"
+      ]      
     },
     {
       "name": "xr",

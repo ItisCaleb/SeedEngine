@@ -1,5 +1,6 @@
 #ifndef _SEED_VULKAN_HELPER_H_
 #define _SEED_VULKAN_HELPER_H_
+#include "core/rendering/shader_layout.h"
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
 #include "core/rendering/render_common.h"
@@ -74,22 +75,14 @@ class VulkanHelper {
             VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE,
         };
 
-        inline static VkDescriptorType desc_type[] = {
-            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
-            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER};
-
         inline static VkPrimitiveTopology topology[] = {
             VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
             VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
             VK_PRIMITIVE_TOPOLOGY_POINT_LIST, VK_PRIMITIVE_TOPOLOGY_PATCH_LIST};
         inline static VkSampleCountFlagBits sample_bit[] = {
-            VK_SAMPLE_COUNT_1_BIT,
-            VK_SAMPLE_COUNT_2_BIT,
-            VK_SAMPLE_COUNT_4_BIT,
-            VK_SAMPLE_COUNT_8_BIT,
-            VK_SAMPLE_COUNT_16_BIT,
-            VK_SAMPLE_COUNT_32_BIT,
+            VK_SAMPLE_COUNT_1_BIT,  VK_SAMPLE_COUNT_2_BIT,
+            VK_SAMPLE_COUNT_4_BIT,  VK_SAMPLE_COUNT_8_BIT,
+            VK_SAMPLE_COUNT_16_BIT, VK_SAMPLE_COUNT_32_BIT,
             VK_SAMPLE_COUNT_64_BIT,
         };
 
@@ -265,9 +258,17 @@ class VulkanHelper {
             return samplerInfo;
         }
 
-        inline static VkDescriptorType descriptor_type(
-            ShaderResourceType type) {
-            return desc_type[(u8)type];
+        inline static VkDescriptorType descriptor_type(ShaderResourceType type,
+                                                       bool is_dynamic) {
+            if (type == ShaderResourceType::UBO) {
+                return is_dynamic ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
+                                  : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            } else if (type == ShaderResourceType::SSBO) {
+                return is_dynamic ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
+                                  : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            } else {
+                return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            }
         }
 
         inline static VkPrimitiveTopology primitive(RenderPrimitiveType type) {

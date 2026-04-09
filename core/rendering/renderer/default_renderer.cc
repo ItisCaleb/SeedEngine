@@ -8,6 +8,7 @@
 #include <vector>
 #include "core/debug/debug_drawer.h"
 #include "core/rendering/mesh_storage.h"
+#include "core/resource/material.h"
 
 namespace Seed {
 
@@ -37,12 +38,13 @@ void DefaultRenderer::init(Window *window) {
     u32 res_h = window->get_height();
     Ref<Texture> color_tex(TextureType::TEXTURE_2D, res_w, res_h,
                            PixelFormat::RGBA16F, MSAAType::SAMPLE_COUNT_4,
-                           nullptr, SamplerProperty{});
+                           SamplerProperty{}, nullptr);
     Ref<Texture> depth_tex(
         TextureType::TEXTURE_2D, res_w, res_h, PixelFormat::D32S8,
-        MSAAType::SAMPLE_COUNT_4, nullptr,
+        MSAAType::SAMPLE_COUNT_4,
         SamplerProperty{.min_filter = SamplerFilter::NEAREST,
-                        .mag_filter = SamplerFilter::NEAREST});
+                        .mag_filter = SamplerFilter::NEAREST},
+        nullptr);
 
     fd.shadow_map_dir_handle[0] = fd.shadow_map.allocate_2048();
     for (u32 i = 1; i < CSM_SPLITS; i++) {
@@ -268,9 +270,11 @@ void DefaultRenderer::ShadowPass::execute(RenderCommandDispatcher &dp,
     Ref<Material> last_material;
     for (ShadowMeshInstance &mesh : fd.shadow_meshes) {
         RenderDrawDataBuilder mesh_builder;
-        if (last_material != mesh.mesh->get_material()) {
-            mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
-            last_material = mesh.mesh->get_material();
+        Ref<Material> material = mesh.mesh->get_material();
+        if (last_material != material) {
+            material->upload_parameter(dp);
+            mesh_builder = dp.generate_render_data(material);
+            last_material = material;
         }
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
@@ -311,6 +315,7 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
             Ref<Material> material = mesh.mesh->get_material();
             DepthMode depth_mode = material->get_depth_state().depth_mode;
             if (last_material != material) {
+                material->upload_parameter(dp);
                 mesh_builder = dp.generate_render_data(material);
                 if (material->do_receive_shadow()) {
                     mesh_builder.bind_texture(
@@ -344,10 +349,14 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
         Ref<Material> material = mesh.mesh->get_material();
         DepthMode depth_mode = material->get_depth_state().depth_mode;
         if (last_material != material) {
+            material->upload_parameter(dp);
             mesh_builder = dp.generate_render_data(material);
-            mesh_builder.bind_texture(
-                material->get_texture_count(),
-                fd.shadow_map.get_texture()->get_handle());
+            i16 shadow_map_unit = material->get_shadow_map_unit();
+            if (material->do_receive_shadow() && shadow_map_unit != -1) {
+                mesh_builder.bind_texture(
+                    shadow_map_unit, fd.shadow_map.get_texture()->get_handle());
+            }
+
             last_material = material;
         }
         mesh_builder.push_constant(mesh.visible_offset);
@@ -355,7 +364,7 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
         mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
         mesh_builder.set_instance(mesh.visible_size);
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
-        mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
+        mesh_builder.set_depth_test(CompareOP::EQUAL);
 
         dp.render(mesh_builder, mesh.mesh->get_type(), material->get_pipeline(),
                   0);
@@ -366,9 +375,9 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
         RenderDrawDataBuilder mesh_builder;
         if (last_material != mesh.mesh->get_material()) {
             mesh_builder = dp.generate_render_data(mesh.mesh->get_material());
-            mesh_builder.bind_texture(
-                mesh.mesh->get_material()->get_texture_count(),
-                fd.shadow_map.get_texture()->get_handle());
+            // mesh_builder.bind_texture(
+            //     mesh.mesh->get_material()->get_texture_count(),
+            //     fd.shadow_map.get_texture()->get_handle());
             last_material = mesh.mesh->get_material();
         }
         mesh_builder.push_constant(mesh.visible_offset);

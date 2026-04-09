@@ -7,15 +7,17 @@ namespace Seed {
 DefaultStorage::DefaultStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
-    mesh_shader = loader->load<Shader>("assets/shader/default.slang");
+    mesh_shader = loader->load_internal<Shader>("assets/shader/default.slang");
     skeleton_mesh_shader =
-        loader->load<Shader>("assets/shader/default_skeleton.slang");
-    sky_shader = loader->load<Shader>("assets/shader/sky.slang");
-    terrain_shader = loader->load<Shader>("assets/shader/terrain.slang");
+        loader->load_internal<Shader>("assets/shader/default_skeleton.slang");
+    sky_shader = loader->load_internal<Shader>("assets/shader/sky.slang");
+    terrain_shader =
+        loader->load_internal<Shader>("assets/shader/terrain.slang");
 
-    post_shader = loader->load<Shader>("assets/shader/post.slang");
-    billboard_shader = loader->load<Shader>("assets/shader/billboard.slang");
-    gui_shader = loader->load<Shader>("assets/shader/imgui.slang");
+    post_shader = loader->load_internal<Shader>("assets/shader/post.slang");
+    billboard_shader =
+        loader->load_internal<Shader>("assets/shader/billboard.slang");
+    gui_shader = loader->load_internal<Shader>("assets/shader/imgui.slang");
 
     mesh_desc.add_type_attr<Vec3>(0);
     mesh_desc.add_type_attr<Vec3>(1);
@@ -32,7 +34,6 @@ DefaultStorage::DefaultStorage() {
     sky_desc.add_type_attr<Vec3>(0);
 
     terrain_desc.add_type_attr<Vec2>(0);
-    terrain_desc.add_type_attr<Vec2>(1);
 
     gui_desc.add_type_attr<Vec2>(0);
     gui_desc.add_type_attr<Vec2>(1);

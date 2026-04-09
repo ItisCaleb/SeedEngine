@@ -24,6 +24,7 @@ class Hash {
             this->size = 0;
         }
         u64 digest();
+        static u64 hash_from_buffer(const void* data, u64 size);
 };
 
 inline constexpr uint64_t fnv1a(std::string_view s) {

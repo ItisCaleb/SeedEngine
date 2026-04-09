@@ -49,9 +49,7 @@ find_package(OpenXR CONFIG REQUIRED)
 set_target_properties(Jolt::Jolt PROPERTIES CPP_RTTI_ENABLED ON)
 
 target_link_libraries(seed PUBLIC 
-    glad::glad
     glfw 
-    OpenGL::GL
     Vulkan::Vulkan
     volk::volk
     volk::volk_headers
@@ -72,7 +70,7 @@ if(BUILD_XR)
         OpenXR::headers
         OpenXR::openxr_loader)
     target_include_directories(seed_xr PUBLIC .)
-    target_link_libraries(seed PUBLIC seed_xr)
+    target_link_libraries(seed_xr PUBLIC seed)
     target_compile_definitions(seed PRIVATE SEED_XR)
 endif()
 target_compile_definitions(seed PRIVATE
@@ -101,6 +99,9 @@ endif()
 add_executable(app)
 target_include_directories(app PRIVATE .)
 target_link_libraries(app seed)
+if(BUILD_XR)
+    target_link_libraries(app seed_xr)
+endif()
 add_subdirectory(game)
 set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
 

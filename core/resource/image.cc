@@ -32,8 +32,8 @@ void Image::update(std::vector<u8> &data, u32 w, u32 h, u32 off_x, u32 off_y) {
 
 Ref<Texture> Image::create_texture(const SamplerProperty &property) {
     Ref<Texture> texture;
-    texture.create(TextureType::TEXTURE_2D, width, height, format,
-                   this->data.data(), property);
+    texture.create(TextureType::TEXTURE_2D, width, height, format, property,
+                   this->data.data());
     return texture;
 }
 Ref<MappableTexture> Image::create_mappable_texture(
@@ -61,7 +61,7 @@ void Image::fill(Color color, u32 off_x, u32 off_y, u32 fill_w, u32 fill_h) {
     u32 actual_w = end_x - off_x;
 
     std::vector<u8> row(actual_w * pixel_size);
-    u8 channels[4] = { color.r, color.g, color.b, color.a };
+    u8 channels[4] = {color.r, color.g, color.b, color.a};
     for (u32 x = 0; x < actual_w; x++)
         memcpy(&row[x * pixel_size], channels, pixel_size);
 

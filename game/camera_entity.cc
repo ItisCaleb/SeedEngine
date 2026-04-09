@@ -16,7 +16,7 @@ void CameraBehaviour::start() {
     pitch = 0;
     Input::get_instance()->on_mouse_move(
         [=](f32 last_x, f32 last_y, f32 x, f32 y) {
-            if (!Input::get_instance()->is_mouse_clicked(MouseEvent::LEFT)) {
+            if (!Input::get_instance()->is_mouse_pressed(MouseEvent::LEFT)) {
                 return;
             }
             f32 x_off = x - last_x;

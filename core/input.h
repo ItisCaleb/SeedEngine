@@ -82,7 +82,9 @@ class Input {
 
     private:
         inline static Input *instance = nullptr;
+        std::set<KeyCode> last_key_pressed;
         std::set<KeyCode> key_pressed;
+        std::set<MouseEvent> last_mouse_pressed;
         std::set<MouseEvent> mouse_pressed;
         std::function<void(f32 last_x, f32 last_y, f32 x, f32 y)> drag_func;
         f32 last_x = 0, last_y = 0;
@@ -91,10 +93,13 @@ class Input {
     public:
         static Input *get_instance();
         void reset_input();
+        bool is_key_clicked(KeyCode code);
         bool is_key_pressed(KeyCode code);
         void on_mouse_move(
             std::function<void(f32 last_x, f32 last_y, f32 x, f32 y)> cb);
         bool is_mouse_clicked(MouseEvent e);
+        bool is_mouse_pressed(MouseEvent e);
+        bool is_mouse_released(MouseEvent e);
         void mouse_click(MouseEvent e);
         void set_capture_mouse(bool on) { should_capture_mouse = on; }
         Vec2 get_mouse_pos() { return Vec2{last_x, last_y}; }

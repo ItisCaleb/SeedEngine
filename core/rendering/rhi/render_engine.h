@@ -16,10 +16,10 @@ namespace Seed {
 
 class RenderEngine {
     private:
-        struct RendererLayer{
-            u8 layer;
-            bool enabled;
-            Renderer *renderer;
+        struct RendererLayer {
+                u8 layer;
+                bool enabled;
+                Renderer *renderer;
         };
         inline static RenderEngine *instance = nullptr;
         RenderBackend *device;
@@ -31,7 +31,6 @@ class RenderEngine {
         Renderer *imgui_renderer;
 
         Window *current_window;
-        void bind_opengl(Window *window);
         void bind_vulken(Window *window);
         void bind_vulkan_xr(Window *window);
 
@@ -45,15 +44,10 @@ class RenderEngine {
         InstanceDataPool *get_instance_pool(const std::string &name);
 
         /* if not null, layout will be filled */
-        ShaderHandle compile_shader(const std::string &path,
-                                    const std::string &shader,
+        ShaderHandle compile_shader(const Path &path, const std::string &shader,
                                     ShaderLayout *layout);
-        Renderer *get_default_renderer(){
-            return default_renderer;
-        }
-        Renderer *get_imgui_renderer(){
-            return imgui_renderer;
-        }
+        Renderer *get_default_renderer() { return default_renderer; }
+        Renderer *get_imgui_renderer() { return imgui_renderer; }
         void set_renderer_layer(Renderer *renderer, u8 layer);
         void set_renderer_enable(Renderer *renderer, bool enable);
         RenderEngine(Window *window);

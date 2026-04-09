@@ -1,6 +1,7 @@
 #include "imgui_renderer.h"
 #include <imgui.h>
 #include "core/math/mat4.h"
+#include "core/rendering/render_common.h"
 
 namespace Seed {
 void ImguiRenderer::init(Window *window) {
@@ -29,7 +30,7 @@ void ImguiRenderer::create_font_material() {
     int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
     Ref<Texture> font_tex(TextureType::TEXTURE_2D, width, height,
-                          PixelFormat::RGBA, pixels);
+                          PixelFormat::RGBA, SamplerProperty{}, pixels);
     RenderBlendState blend_state = {
         .blend_on = true,
         .func = BlendFunc::create(

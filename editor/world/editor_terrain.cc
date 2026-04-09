@@ -1,5 +1,6 @@
 #include "editor_terrain.h"
 #include <fmt/format.h>
+#include "core/io/path.h"
 #include "core/ref.h"
 #include "core/rendering/render_common.h"
 #include "core/resource/image.h"
@@ -32,7 +33,6 @@ void EditorTerrainMaterial::set_light_map(Ref<Texture> texture) {
     this->set_texture("terrain_shadowMap", texture);
 }
 
-
 void EditorTerrain::build_mesh() {
     f32 tex_x_stride = (f32)CHUNK_SIZE / hmap_width;
     f32 tex_y_stride = (f32)CHUNK_SIZE / hmap_height;
@@ -44,9 +44,7 @@ void EditorTerrain::build_mesh() {
     for (i32 i = 0; i < vertex_row_cnt; i++) {
         for (i32 j = 0; j < vertex_row_cnt; j++) {
             vertices.push_back(TerrainVertex{
-                Vec2{offset * j - CHUNK_SIZE / 2, offset * i - CHUNK_SIZE / 2},
-                Vec2{(tex_x_stride / (f32)(vertex_row_cnt - 1)) * j,
-                     (tex_y_stride / (f32)(vertex_row_cnt - 1)) * i}});
+                Vec2{offset * j - CHUNK_SIZE / 2, offset * i - CHUNK_SIZE / 2}});
         }
     }
 
@@ -102,7 +100,6 @@ void EditorTerrain::create_chunk(Ref<MappableTexture> height_map, i32 left,
     // uv bottom left
     this->instances->insert_terrain_data(TerrainInstance{
         .pos = Vec2{left_f + CHUNK_SIZE / 2, bottom_f + CHUNK_SIZE / 2},
-        .tex_coord = Vec2{u, v},
         .max_height = max_height,
         .min_height = min_height});
 }
@@ -252,7 +249,7 @@ void EditorTerrain::gen_lightmap() {
     material->set_light_map(ref_cast<Texture>(this->light_map));
 }
 
-void EditorTerrain::dump(const std::string &dir) {
+void EditorTerrain::dump(const Path &dir) {
     Ref<File> f = File::open(fmt::format("{}/{}.json", dir, name), "wb");
     std::string height_map_name = fmt::format("{}_height_map.png", name);
     std::string splat_map_name = fmt::format("{}_splat_map.png", name);

@@ -32,12 +32,6 @@ class EntityManager {
             return (T *)_create_or_get_components(component_id, sizeof(T));
         }
 
-        template <typename T>
-        inline constexpr u64 get_type_id() {
-            auto tname = type_name<T>();
-            u64 component_id = fnv1a(tname);
-            return component_id;
-        }
         std::vector<u64> entity_component_masks;
         u32 next_component_bit = 0;
 
@@ -67,7 +61,7 @@ class EntityManager {
 
         template <typename T>
         bool has_component(Entity entity) {
-            u64 component_id = get_type_id<T>();
+            u64 component_id = type_id<T>();
             u64 result =
                 entity_component_masks[entity] & component_bit[component_id];
             return result;
@@ -75,7 +69,7 @@ class EntityManager {
 
         template <typename T>
         T *query_component(Entity entity) {
-            u64 component_id = get_type_id<T>();
+            u64 component_id = type_id<T>();
 
             T *component_array = create_or_get_components<T>(component_id);
             if (has_component<T>(entity)) {
@@ -87,7 +81,7 @@ class EntityManager {
         template <typename T, typename... Args>
         T* add_component(Entity entity, Args &&...args) {
             assert(entity > -1);
-            u64 component_id = get_type_id<T>();
+            u64 component_id = type_id<T>();
             T *component_array = create_or_get_components<T>(component_id);
             auto hook = on_add_hooks[component_id];
 
@@ -124,7 +118,7 @@ class EntityManager {
                     "Fn(EntityManager &, Entity, T *)");
             }
 
-            on_add_hooks[get_type_id<T>()] = [hook](EntityManager &w, Entity e,
+            on_add_hooks[type_id<T>()] = [hook](EntityManager &w, Entity e,
                                                     void *component,
                                                     void *args) {
                 T *comp = static_cast<T *>(component);
@@ -142,7 +136,7 @@ class EntityManager {
         template <typename T>
         void remove_component(Entity entity) {
             assert(entity > -1);
-            u64 component_id = get_type_id<T>();
+            u64 component_id = type_id<T>();
             T *component_array = create_or_get_components<T>(component_id);
             new (&component_array[entity]) T;
             component_array[entity].~T();
@@ -151,7 +145,7 @@ class EntityManager {
 
         template <typename... Args, typename Fn>
         void run_system(Fn &&system) {
-            std::array<u64, sizeof...(Args)> ids{get_type_id<Args>()...};
+            std::array<u64, sizeof...(Args)> ids{type_id<Args>()...};
             u64 system_mask = 0;
             for (u32 i = 0; i < sizeof...(Args); i++) {
                 auto iter = component_bit.find(ids[i]);

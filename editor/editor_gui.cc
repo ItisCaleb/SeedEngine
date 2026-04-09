@@ -1,13 +1,25 @@
 #include "editor_gui.h"
+#include <GLFW/glfw3.h>
+#include <imgui.h>
 #include <spdlog/spdlog.h>
 #include <nfd.h>
 #include <imgui_stdlib.h>
+#include "core/container/kstring.h"
 #include "editor.h"
 #include "core/types.h"
 #include "core/engine.h"
-#include "core/gui/imgui_helpers.h"
+#ifdef _WIN32
+#include "editor/asset/win_drag_dropper.h"
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+#endif
 
 namespace Seed {
+
+#ifdef _WIN32
+static WindowDropTarget *drag_dropper = nullptr;
+
+#endif
 
 using namespace ImGui;
 #define STATIC_GUI_FLAG                                              \
@@ -39,7 +51,7 @@ void EditorGUI::main_menu() {
                 }
             }
         }
-        EndMenu();
+        ImGui::EndMenu();
     };
 
     EndMainMenuBar();
@@ -84,24 +96,66 @@ void EditorGUI::create_project() {
 
 void EditorGUI::main_panel() {
     Window *window = SeedEngine::get_instance()->get_window();
-    SetNextWindowPos(ImVec2(0, main_menu_height), ImGuiCond_Always);
-    SetNextWindowSize(
+    // bool show_demo_window = true;
+
+    // ImGui::ShowDemoWindow(&show_demo_window);
+    ImGui::SetNextWindowPos(ImVec2(0, main_menu_height), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(
         ImVec2(window->get_width(), window->get_height() - main_menu_height));
-    ImGui::Begin("LeftPanel", nullptr,
+    ImGui::Begin("MainPanel", nullptr,
                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
                      ImGuiWindowFlags_NoScrollWithMouse |
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+    float total_h = window->get_height() - main_menu_height;
+    static float world_editor_h = 600.f;
+    static float inspector_w = 400.0f;
+    float asset_browser_h = total_h - world_editor_h;
+    float world_editor_w = window->get_width() - inspector_w;
+    float asset_browser_w = world_editor_w;
+
+    ImGui::BeginChild(
+        "##top", ImVec2(world_editor_w, world_editor_h), false,
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     if (ImGui::BeginTabBar("##TabBar")) {
-        if (ImGui::BeginTabItem("Assest viewer")) {
-            gEditor->asset_viewer.update();
-            ImGui::EndTabItem();
-        }
         if (ImGui::BeginTabItem("Terrain editor")) {
             gEditor->terrain_editor.update();
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
+    }
+    ImGui::EndChild();
+
+    /* sizable splittter*/
+    ImVec2 splitter_pos = ImGui::GetCursorScreenPos();
+    ImGui::InvisibleButton("##splitter", ImVec2(-1, 4.f));
+    if (ImGui::IsItemActive())
+        world_editor_h =
+            std::clamp(world_editor_h + ImGui::GetIO().MouseDelta.y, 100.f,
+                       total_h - 100.f);
+    if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        splitter_pos,
+        ImVec2(splitter_pos.x + world_editor_w, splitter_pos.y + 4.f),
+        IM_COL32(60, 60, 60, 255));
+
+    ImGui::BeginChild("##bottom",
+                      ImVec2(asset_browser_w, asset_browser_h - 4.f), false);
+    gEditor->asset_browser.update();
+    ImGui::EndChild();
+
+    ImGui::SetCursorScreenPos(ImVec2(world_editor_w, main_menu_height));
+    ImGui::BeginChild("##inspector", ImVec2(inspector_w, total_h), false);
+    gEditor->inspector.update();
+    ImGui::EndChild();
+
+    if (gEditor->ctx.current_popup != nullptr) {
+        gEditor->ctx.current_popup->draw();
+        if (gEditor->ctx.current_popup->should_close) {
+            gEditor->set_current_popup(nullptr);
+        }
     }
 
     ImGui::End();
@@ -109,6 +163,7 @@ void EditorGUI::main_panel() {
 
 void EditorGUI::update() {
     static bool b = true;
+    drag_dropper->feed_gui(ImGui::GetCurrentContext());
     PushFont((ImFont *)font);
     main_menu();
     main_panel();
@@ -117,6 +172,27 @@ void EditorGUI::update() {
 
 EditorGUI::EditorGUI() {
     font = GetIO().Fonts->AddFontFromFileTTF("assets/NotoSansMono.ttf", 20);
+    Window *window = SeedEngine::get_instance()->get_window();
+#ifdef _WIN32
+
+    // GLFW 取得 HWND
+    HWND hwnd = glfwGetWin32Window(window->get_window<GLFWwindow>());
+    OleInitialize(nullptr);
+    drag_dropper = new WindowDropTarget();
+    RegisterDragDrop(hwnd, drag_dropper);
+#endif
+}
+
+EditorGUI::~EditorGUI() {
+#ifdef _WIN32
+    Window *window = SeedEngine::get_instance()->get_window();
+
+    HWND hwnd = glfwGetWin32Window(window->get_window<GLFWwindow>());
+
+    RevokeDragDrop(hwnd);
+    drag_dropper->Release();
+    OleUninitialize();
+#endif
 }
 
 }  // namespace Seed

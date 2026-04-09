@@ -1,6 +1,5 @@
 #include <fmt/base.h>
 #include <gtest/gtest.h>
-#include <string_view>
 #include <vector>
 #include "core/container/kstring.h"
 
@@ -25,7 +24,6 @@ TEST(KStrTest, Contains) {
     EXPECT_TRUE(haystack.contains(needle));
 }
 
-
 TEST(KStrTest, FindFirst) {
     KStr haystack = "hello world";
     KStr needle = "world";
@@ -47,27 +45,33 @@ TEST(KStrTest, UTF8) {
 TEST(KStrTest, SplitPath) {
     KStr haystack = "/Users/abc/你好/我是/abc";
     KStr needle = "/";
-    std::vector<KStr> targets = {
-        "", "Users","abc","你好","我是", "abc"
-    };
+    std::vector<KStr> targets = {"", "Users", "abc", "你好", "我是", "abc"};
     auto splits = haystack.split(needle);
     EXPECT_EQ(splits.size(), targets.size());
-    for(u32 i = 0 ;i <splits.size();i++){
+    for (u32 i = 0; i < splits.size(); i++) {
         EXPECT_EQ(splits[i], targets[i]);
     }
 }
 
-TEST(KStrTest, SplitMultiPath) {
-    KStr haystack = "C:\\\\Users\\abc\\你好\\我是\\abc";
-    KStr needle = "\\";
-    std::vector<KStr> targets = {
-        "C:","", "Users","abc","你好","我是", "abc"
-    };
+TEST(KStrTest, SplitMulti) {
+    KStr haystack = "ab::cd::ef::gh";
+    KStr needle = "::";
+    std::vector<KStr> targets = {"ab", "cd", "ef", "gh"};
     auto splits = haystack.split(needle);
     EXPECT_EQ(splits.size(), targets.size());
-    for(u32 i = 0 ;i <splits.size();i++){
+    for (u32 i = 0; i < splits.size(); i++) {
         EXPECT_EQ(splits[i], targets[i]);
     }
+}
+
+TEST(KStrTest, SplitAt) {
+    KStr haystack = "hello world!";
+    KStr t1 = "he";
+
+    KStr t2 = "llo world!";
+    auto split = haystack.split_at(2);
+    EXPECT_EQ(split.first, t1);
+    EXPECT_EQ(split.second, t2);
 }
 
 TEST(KStrTest, Trim) {
@@ -79,7 +83,14 @@ TEST(KStrTest, Trim) {
 TEST(KStrTest, Replace) {
     KStr src = "C://a/b/c/d.txt";
     KStr target = "C:\\\\a\\b\\c\\d.txt";
-    EXPECT_EQ(src.replace("/","\\").to_str(), target);
+    EXPECT_EQ(src.replace("/", "\\").to_str(), target);
 }
 
 
+TEST(KStrTest, Pop) {
+    KStr src = "歡迎來到 Ave Mujica 的世界";
+    KStr target = "歡迎來到 Ave Mujica";
+    KString s(src);
+    s.pop(4);
+    EXPECT_EQ(s.to_str(), target);
+}

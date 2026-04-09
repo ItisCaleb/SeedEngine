@@ -5,6 +5,7 @@
 #include <slang.h>
 #include <slang-com-ptr.h>
 #include <slang-com-helper.h>
+#include "core/io/path.h"
 #include "core/rendering/rhi/render_resource.h"
 
 namespace Seed {
@@ -75,7 +76,7 @@ class ShaderProxy {
 
     public:
         ShaderProxy(const std::vector<std::string> &include_path);
-        ShaderHandle compile_shader(const std::string &path,
+        ShaderHandle compile_shader(const Path &path,
                                     const std::string &shader,
                                     ShaderLayout *layout);
         ~ShaderProxy();

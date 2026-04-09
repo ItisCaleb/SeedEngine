@@ -1,8 +1,12 @@
 #include "render_resource.h"
 #include <glad/glad.h>
 #include <fmt/core.h>
+#include "core/io/path.h"
+#include "core/rendering/render_common.h"
+#include "core/rendering/rhi/render_engine.h"
 #include "render_engine.h"
 #include <spdlog/spdlog.h>
+#include <cstdlib>
 
 namespace Seed {
 
@@ -41,6 +45,19 @@ TextureHandle alloc_texture(TextureType type, u32 w, u32 h, PixelFormat format,
         type, w, h, format, msaa_type, property, data);
 }
 
+[[nodiscard]]
+TextureHandle alloc_textures(TextureType type, u32 w, u32 h, PixelFormat format,
+                             u32 count, const SamplerProperty &property) {
+    return RenderEngine::get_instance()->get_device()->alloc_textures(
+        type, w, h, format, count, property);
+}
+[[nodiscard]]
+TextureHandle alloc_cubemap(u32 w, u32 h, PixelFormat format,
+                            const SamplerProperty &property) {
+    return RenderEngine::get_instance()->get_device()->alloc_cubemap(
+        w, h, format, property);
+}
+
 TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
                                      PixelFormat format, const void *data,
                                      const SamplerProperty &property) {
@@ -62,7 +79,7 @@ SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
         size, data, frequence);
 }
 
-ShaderHandle alloc_shader(const std::string &path, const std::string &code,
+ShaderHandle alloc_shader(const Path &path, const std::string &code,
                           ShaderLayout *layout) {
     return RenderEngine::get_instance()->compile_shader(path, code, layout);
 }
@@ -83,8 +100,14 @@ UpdateBufferInfo alloc_heap(u32 size) {
     return UpdateBufferInfo{.data = malloc(size), .size = size};
 }
 
+UpdateBufferInfo alloc_texture_heap(PixelFormat format, u32 w, u32 h) {
+    u32 size = get_pixel_format_size(format) * w * h;
+    return UpdateBufferInfo{.data = malloc(size),
+                            .image = {get_pixel_format_size(format), w, h}};
+}
+
 /* these commands will be execute at start of frame */
-void update(VertexHandle handle, u32 offset, u32 size, void *data) {
+void update(VertexHandle handle, u32 offset, u32 size, const void *data) {
     if (size == 0 || data == nullptr) {
         return;
     }
@@ -95,7 +118,7 @@ void update(VertexHandle handle, u32 offset, u32 size, void *data) {
 }
 
 /* these commands will be execute at start of frame */
-void update(IndexHandle handle, u32 offset, u32 size, void *data) {
+void update(IndexHandle handle, u32 offset, u32 size, const void *data) {
     if (size == 0 || data == nullptr) {
         return;
     }
@@ -106,7 +129,7 @@ void update(IndexHandle handle, u32 offset, u32 size, void *data) {
 }
 
 /* these commands will be execute at start of frame */
-void update(ConstantHandle handle, u32 offset, u32 size, void *data) {
+void update(ConstantHandle handle, u32 offset, u32 size, const void *data) {
     if (size == 0 || data == nullptr) {
         return;
     }
@@ -117,7 +140,7 @@ void update(ConstantHandle handle, u32 offset, u32 size, void *data) {
 }
 
 /* these commands will be execute at start of frame */
-void update(SSBOHandle handle, u32 offset, u32 size, void *data) {
+void update(SSBOHandle handle, u32 offset, u32 size, const void *data) {
     if (size == 0 || data == nullptr) {
         return;
     }
@@ -128,7 +151,7 @@ void update(SSBOHandle handle, u32 offset, u32 size, void *data) {
 }
 
 void update(TextureHandle handle, PixelFormat format, u32 layer, u32 offx,
-            u32 offy, u32 w, u32 h, void *data) {
+            u32 offy, u32 w, u32 h, const void *data) {
     u64 size = w * h * get_pixel_format_size(format);
     if (size == 0 || data == nullptr) {
         return;
@@ -158,7 +181,8 @@ void update_from_heap(IndexHandle handle, u32 offset, UpdateBufferInfo info) {
 }
 
 /* these commands will be execute at start of frame */
-void update_from_heap(ConstantHandle handle, u32 offset, UpdateBufferInfo info) {
+void update_from_heap(ConstantHandle handle, u32 offset,
+                      UpdateBufferInfo info) {
     RenderEngine::get_instance()->get_device()->update(
         RenderResourceType::CONSTANT, handle, offset, info.size, info.data);
 }
@@ -166,8 +190,19 @@ void update_from_heap(ConstantHandle handle, u32 offset, UpdateBufferInfo info) 
 /* these commands will be execute at start of frame */
 void update_from_heap(SSBOHandle handle, u32 offset, UpdateBufferInfo info) {
     RenderEngine::get_instance()->get_device()->update(
-        RenderResourceType::STORAGE_BUFFER, handle, offset,info.size, info.data);
+        RenderResourceType::STORAGE_BUFFER, handle, offset, info.size,
+        info.data);
 }
+
+void update_from_heap(TextureHandle handle, u32 layer, u32 offx, u32 offy,
+                      UpdateBufferInfo info) {
+    if (info.data == nullptr) {
+        return;
+    }
+    RenderEngine::get_instance()->get_device()->update(
+        handle, layer, offx, offy, info.image.w, info.image.h, info.data);
+}
+
 void bind_depth_attachment(RenderPassHandle handle, TextureHandle texture,
                            u32 face) {
     RenderEngine::get_instance()->get_device()->bind_depth_attachment(

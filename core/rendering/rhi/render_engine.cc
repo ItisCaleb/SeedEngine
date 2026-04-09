@@ -1,35 +1,19 @@
 #include "render_engine.h"
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
+#include <stdexcept>
+#include "core/io/path.h"
+#include "core/math/vec2.h"
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
+#ifdef SEED_XR
 #include "core/rendering/backend/xr_vulkan_backend.h"
+#endif
 #include "core/window.h"
-
-#include <spdlog/spdlog.h>
 
 namespace Seed {
 RenderEngine *RenderEngine::get_instance() { return instance; }
-
-void RenderEngine::bind_opengl(Window *window) {
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-#else
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-#endif
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
-    window->create();
-
-    GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
-
-    glfwMakeContextCurrent(glfw_window);
-    glfwSwapInterval(1);
-
-    // this->device = new RenderBackendGL;
-}
 
 void RenderEngine::bind_vulken(Window *window) {
     spdlog::info("Initializing Vulkan Rendering backend");
@@ -40,7 +24,8 @@ void RenderEngine::bind_vulken(Window *window) {
 
     this->device = new RenderBackendVK(window);
 }
-void RenderEngine::bind_vulkan_xr(Window *window){
+void RenderEngine::bind_vulkan_xr(Window *window) {
+#ifdef SEED_XR
     spdlog::info("Initializing Vulkan XR Rendering backend");
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     window->create();
@@ -48,6 +33,9 @@ void RenderEngine::bind_vulkan_xr(Window *window){
     GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
 
     this->device = new RenderBackendXRVk(window);
+#else
+    throw std::runtime_error("XR not supported!");
+#endif
 }
 
 static const std::vector<std::string> DEFAULT_INCLUDE_PATHS = {
@@ -86,7 +74,7 @@ RenderEngine::RenderEngine(Window *window) {
             "Can't initialize Render engine, window is null, exiting.");
         exit(1);
     }
-#ifdef SEED_XR 
+#ifdef SEED_XR
     bind_vulkan_xr(window);
 #else
     bind_vulken(window);
@@ -97,7 +85,7 @@ RenderEngine::RenderEngine(Window *window) {
     this->instance_pools[TRANSFORM_POOL_NAME] =
         new InstanceDataPool(sizeof(Mat4), 65536);
     this->instance_pools[TERRAIN_POOL_NAME] =
-        new InstanceDataPool(sizeof(Vec4), 1024);
+        new InstanceDataPool(sizeof(Vec2), 1024);
     this->instance_pools[SKELETON_POOL_NAME] =
         new InstanceDataPool(sizeof(Mat4), 65536);
 }
@@ -141,7 +129,7 @@ InstanceDataPool *RenderEngine::get_instance_pool(const std::string &name) {
     return nullptr;
 }
 
-ShaderHandle RenderEngine::compile_shader(const std::string &path,
+ShaderHandle RenderEngine::compile_shader(const Path &path,
                                           const std::string &shader,
                                           ShaderLayout *layout) {
     return this->shader_proxy->compile_shader(path, shader, layout);

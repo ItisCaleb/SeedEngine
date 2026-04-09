@@ -13,7 +13,7 @@ class HumanBehaviour : public Behaviour {
         Ref<SkeletonModel> model;
         AnimationState *state;
     public:
-        HumanBehaviour(Ref<SkeletonModel> model, AnimationState *state);
+        HumanBehaviour();
         virtual void start() override;
         virtual void update(float dt) override;
 };

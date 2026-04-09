@@ -17,7 +17,7 @@ void EditorCameraBehaviour::start() {
     pitch = 0;
     Input::get_instance()->on_mouse_move(
         [=](f32 last_x, f32 last_y, f32 x, f32 y) {
-            if (!Input::get_instance()->is_mouse_clicked(MouseEvent::RIGHT)) {
+            if (!Input::get_instance()->is_mouse_pressed(MouseEvent::RIGHT)) {
                 return;
             }
             f32 x_off = x - last_x;

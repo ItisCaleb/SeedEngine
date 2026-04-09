@@ -19,7 +19,7 @@ ConstantBuffer<PushConstant> gPC;
 StructuredBuffer<mat4> gTransform;
 
 [[vk::binding(2)]]
-StructuredBuffer<vec4> gTerrain;
+StructuredBuffer<vec2> gTerrain;
 
 [[vk::binding(3)]]
 StructuredBuffer<mat4> gBones;
@@ -82,7 +82,7 @@ inline mat4 GetTransform(uint id){
     return gTransform[gVisible[id + gPC.visible_index]];
 }
 
-inline vec4 GetTerrain(uint id){
+inline vec2 GetTerrain(uint id){
     return gTerrain[gVisible[id + gPC.visible_index]];
 }
 

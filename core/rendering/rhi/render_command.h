@@ -68,11 +68,14 @@ struct RenderDrawData {
                 union {
                         VertexHandle vertex_handle;
                         IndexHandle index_handle;
-                        ConstantHandle constant_handle;
                         struct {
                                 u32 unit;
                                 TextureHandle texture_handle;
                         } texture;
+                        struct {
+                                u32 unit;
+                                ConstantHandle constant_handle;
+                        } constant;
                         struct {
                                 void *data;
                                 u32 size;
@@ -158,6 +161,7 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
         void bind_index_data(Ref<IndexData> data, u32 offset = 0);
 
         void bind_texture(u32 unit, TextureHandle handle);
+        void bind_constant(u32 unit, ConstantHandle handle);
         void bind_description(VertexLayout *desc);
         void push_constant(u32 size, void *data);
 
@@ -272,7 +276,8 @@ class RenderCommandDispatcher {
 
         void render(RenderDrawDataBuilder &builder, RenderPrimitiveType type,
                     PipelineHandle pipeline, f32 depth);
-        void compute(PipelineHandle pipeline, u32 work_group_x, u32 work_group_y, u32 work_group_z);
+        void compute(PipelineHandle pipeline, u32 work_group_x,
+                     u32 work_group_y, u32 work_group_z);
 
         RenderCommandDispatcher();
         ~RenderCommandDispatcher();

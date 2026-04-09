@@ -3,9 +3,9 @@
   "type": "terrain",
   "width": 2816,
   "height": 1792,
-  "height_map": "terrain_01_height_map.png",
-  "splat_map": "terrain_01_splat_map.png",
-  "light_map": "terrain_01_light_map.png",
-  "tex1": "grass_tex.jpg",
-  "tex1_normal": "grass_tex_normal.png"
+  "height_map": "70c8f9e2-8f63-4ca3-9608-11dd40733163",
+  "splat_map": "5f9de3da-2135-406a-8a8c-ba2af18c4b23",
+  "light_map": "aff7c713-a9a2-46cd-a5c5-9c8c2749f06b",
+  "tex1": "56e552c5-8ccd-4a2f-86db-32f0f5e208c6",
+  "tex1_normal": "200f80e7-5ea5-4459-ad6b-2074960b9e87"
 }

@@ -21,7 +21,7 @@ void InputHandler::init(Window *window) {
         Input *input = Input::get_instance();
         if (action == GLFW_PRESS) {
             input->key_pressed.insert(k);
-        } else if (action == GLFW_RELEASE) {
+        }else if(action == GLFW_RELEASE){
             input->key_pressed.erase(k);
         }
     });
@@ -55,9 +55,15 @@ void InputHandler::init(Window *window) {
             }
             if (action == GLFW_PRESS) {
                 input->mouse_pressed.insert(me);
-            } else {
+            }else if(action == GLFW_RELEASE){
                 input->mouse_pressed.erase(me);
             }
         });
+}
+
+void InputHandler::update() {
+    Input *input = Input::get_instance();
+    input->last_mouse_pressed = input->mouse_pressed;
+    input->last_key_pressed = input->key_pressed;
 }
 }  // namespace Seed

@@ -1,0 +1,1 @@
+cmake --preset release && cmake --build build --preset release && .\bin\app.exe
