@@ -8,11 +8,12 @@ namespace Seed {
 static u32 internal_counter = 0;
 Resource::Resource() {}
 
-Path Resource::get_path() {
+const Path &Resource::get_path() const {
     ResourceEntry *entry =
         ResourceLoader::get_instance()->get_entries().get_entry(uuid);
     if (entry == nullptr) {
-        return Path("internal");
+        static Path p("internal");
+        return p;
     }
     return entry->path;
 }

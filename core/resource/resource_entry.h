@@ -19,7 +19,7 @@ class ResourceConfiguration {
 
     public:
         ResourceConfiguration() = default;
-        ResourceConfiguration(nlohmann::json &config) : config(config) {}
+        ResourceConfiguration(const nlohmann::json &config) : config(config) {}
         template <typename T>
         const T &get(KStr key);
         template <typename T>

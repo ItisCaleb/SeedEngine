@@ -301,8 +301,7 @@ Ref<Resource> ResourceLoader::load_terrain(ResourceLoader &loader,
                                            ResourceConfiguration &config,
                                            Ref<File> data) {
     Ref<Terrain> terrain;
-    auto terrain_info = config.get_json();
-    std::string name = terrain_info["name"];
+    auto &terrain_info = config.get_json();
     u32 width = terrain_info["width"];
     u32 height = terrain_info["height"];
     Ref<Image> height_map;

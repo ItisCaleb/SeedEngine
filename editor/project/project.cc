@@ -88,7 +88,7 @@ void Project::add_to_project(const Path &origin_path, const Path &target_dir) {
         KStr extension = origin_path.extension();
         u64 tid = extension_to_tid(extension);
         if (tid == 0) return;
-        entries.insert_entry(path, tid);
+        entries.insert_entry(moved_path, tid);
     }
     entries.save(get_entry_path());
 }

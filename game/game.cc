@@ -50,8 +50,8 @@ int main(void) {
     loader->get_entries().load("test_project/assets/.seed_entry");
     loader->set_root("test_project");
 
-    // auto terrain =
-    //     loader->load_async<Terrain>("test_project/assets/terrain_01.json");
+    auto terrain =
+        loader->load_internal<Terrain>("test_project/assets/terrain_01.json");
     // auto sky = loader->load_async<Sky>("assets/sky.json");
     // auto backpack = loader->load_async<BasicModel>(
     //     "test_project/assets/backpack.json", [=](Ref<BasicModel> rc) {
@@ -71,16 +71,15 @@ int main(void) {
 
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     World *world = engine->get_world();
-    // world->get_point_lights().push_back(
-    //     PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
-    // world->set_sky(sky->wait());
-    // Ref<WorldChunk> chunk;
-    // chunk.create(terrain->wait());
+    world->get_point_lights().push_back(
+        PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
+    Ref<WorldChunk> chunk;
+    chunk.create(terrain);
     Transform t;
     t.set_position(10, 10, 10);
     // auto model = backpack->wait();
     // chunk->add_object<BasicModel>(t, PhysicShape{}, model, t);
-    // world->add_chunk(chunk);
+    world->add_chunk(chunk);
     auto &ecs = world->ecs();
     Entity a = ecs.create_entity();
     PhysicBoxShape box(Vec3{1, 1, 1});

@@ -11,6 +11,7 @@
 #include "core/resource/resource_loader.h"
 #include "core/serialize/json_impl.h"
 #include "editor/asset/model_loader.h"
+#include "editor/editor.h"
 
 namespace Seed {
 
@@ -30,6 +31,8 @@ UUID PreprocessEntries::get_uuid(const Path &path) {
     return iter->second;
 }
 UUID PreprocessEntries::insert_entry(const Path &p, ResourceTypeID id) {
+    auto iter = path_to_uuid.find(p);
+    if (iter != path_to_uuid.end()) return iter->second;
     UUID uuid = UUID::generate();
 
     ResourceConfiguration config;
@@ -117,7 +120,8 @@ bool Preprocessor::preprocess(ResourceEntries &entries, Ref<File> file,
         return false;
     }
     Path out_path = preprocess_dir.append(result.out_file);
-    UUID to_uuid = entries.insert_entry(out_path, result.target_tid);
+    UUID to_uuid = entries.insert_entry(
+        out_path.relative(gEditor->project()->get_path()), result.target_tid);
     preprocess_entries.link_entry(from_uuid, to_uuid);
     entries.get_entry(to_uuid)->config = out_config;
 

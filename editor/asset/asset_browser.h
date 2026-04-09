@@ -30,6 +30,7 @@ class AssetBrowser {
         // Rename state
         int renaming_idx = -1;
         char rename_buf[256] = {};
+        bool show_popup;
 
         // Breadcrumb
         std::vector<Path> breadcrumbs;  // root → current_dir
@@ -42,6 +43,7 @@ class AssetBrowser {
         void draw_grid();
         void draw_list();
         void draw_entry_context_menu(int idx);
+        void draw_asset_option_menu();
         void begin_rename(int idx);
         void commit_rename();
         UUID get_asset_uuid(AssetEntry &entry);

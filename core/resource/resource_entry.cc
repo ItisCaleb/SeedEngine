@@ -32,6 +32,8 @@ UUID ResourceEntries::insert_entry(const Path &p, ResourceTypeID id,
             "Can't create entry with a type that doesn't registered yet!");
         return UUID{};
     }
+    auto iter = path_to_uuid.find(p);
+    if (iter != path_to_uuid.end()) return iter->second;
     UUID uuid = UUID::generate();
 
     ResourceConfiguration config;

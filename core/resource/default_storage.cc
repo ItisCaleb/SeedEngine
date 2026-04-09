@@ -34,7 +34,6 @@ DefaultStorage::DefaultStorage() {
     sky_desc.add_type_attr<Vec3>(0);
 
     terrain_desc.add_type_attr<Vec2>(0);
-    terrain_desc.add_type_attr<Vec2>(1);
 
     gui_desc.add_type_attr<Vec2>(0);
     gui_desc.add_type_attr<Vec2>(1);

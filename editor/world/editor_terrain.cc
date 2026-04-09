@@ -44,9 +44,7 @@ void EditorTerrain::build_mesh() {
     for (i32 i = 0; i < vertex_row_cnt; i++) {
         for (i32 j = 0; j < vertex_row_cnt; j++) {
             vertices.push_back(TerrainVertex{
-                Vec2{offset * j - CHUNK_SIZE / 2, offset * i - CHUNK_SIZE / 2},
-                Vec2{(tex_x_stride / (f32)(vertex_row_cnt - 1)) * j,
-                     (tex_y_stride / (f32)(vertex_row_cnt - 1)) * i}});
+                Vec2{offset * j - CHUNK_SIZE / 2, offset * i - CHUNK_SIZE / 2}});
         }
     }
 
@@ -102,7 +100,6 @@ void EditorTerrain::create_chunk(Ref<MappableTexture> height_map, i32 left,
     // uv bottom left
     this->instances->insert_terrain_data(TerrainInstance{
         .pos = Vec2{left_f + CHUNK_SIZE / 2, bottom_f + CHUNK_SIZE / 2},
-        .tex_coord = Vec2{u, v},
         .max_height = max_height,
         .min_height = min_height});
 }

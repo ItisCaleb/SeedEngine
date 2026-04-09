@@ -31,8 +31,8 @@ AssetType AssetBrowser::classify(const Path &p) {
         return AssetType::Texture;
     if (ext == ".obj" || ext == ".fbx" || ext == ".gltf" || ext == ".glb")
         return AssetType::Mesh;
-    if (ext == ".terrain" || ext == ".json")  // adjust to your format
-        return AssetType::Terrain;
+    if (ext == ".world")  // adjust to your format
+        return AssetType::World;
     if (ext == ".mat") return AssetType::Material;
     if (ext == ".wav" || ext == ".ogg" || ext == ".mp3")
         return AssetType::Audio;
@@ -49,8 +49,8 @@ const char *AssetBrowser::asset_type_icon(AssetType t) {
             return "[T]";
         case AssetType::Mesh:
             return "[M]";
-        case AssetType::Terrain:
-            return "[TR]";
+        case AssetType::World:
+            return "[W]";
         case AssetType::Material:
             return "[MT]";
         case AssetType::Audio:
@@ -70,7 +70,7 @@ ImVec4 AssetBrowser::asset_type_color(AssetType t) {
             return ImVec4(0.4f, 0.75f, 0.9f, 1.f);
         case AssetType::Mesh:
             return ImVec4(0.6f, 0.9f, 0.5f, 1.f);
-        case AssetType::Terrain:
+        case AssetType::World:
             return ImVec4(0.5f, 0.8f, 0.4f, 1.f);
         case AssetType::Material:
             return ImVec4(0.9f, 0.5f, 0.7f, 1.f);
@@ -140,6 +140,18 @@ void AssetBrowser::refresh() {
     needs_refresh = false;
 }
 
+void AssetBrowser::draw_asset_option_menu() {
+    if (ImGui::BeginMenu("Create")) {
+        if (ImGui::MenuItem("World")) {
+            gEditor->set_current_popup(new WorldCreatePopup);
+        }
+        if (ImGui::MenuItem("Sky")) {
+        }
+        ImGui::EndMenu();
+    }
+    ImGui::Separator();
+}
+
 // ── Main update ──────────────────────────────────────────
 void AssetBrowser::update() {
     if (needs_refresh) refresh();
@@ -195,6 +207,10 @@ void AssetBrowser::update() {
                 }
             }
             ImGui::EndDragDropTarget();
+        }
+        if (ImGui::BeginPopupContextItem("##option")) {
+            draw_asset_option_menu();
+            ImGui::EndPopup();
         }
     }
     ImGui::EndChild();
@@ -369,7 +385,7 @@ void AssetBrowser::draw_grid() {
             UUID uuid = get_asset_uuid(e);
             if (!uuid.is_null()) {
                 ImGui::SetDragDropPayload("UUID", &uuid, sizeof(uuid));
-                ImGui::TextUnformatted(uuid.to_string().c_str());
+                ImGui::TextUnformatted(e.path.filename().data());
             }
 
             ImGui::EndDragDropSource();

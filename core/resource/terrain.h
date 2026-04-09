@@ -15,19 +15,18 @@ namespace Seed {
 
 struct TerrainVertex {
         Vec2 pos;
-        Vec2 tex_coord;
 };
 
 struct TerrainInstance {
         Vec2 pos;
-        Vec2 tex_coord;
+        Vec2 total_size;
         f32 max_height, min_height;
 };
 
 class TerrainMaterial : public Material {
     public:
         TerrainMaterial(Ref<Texture> height_map, Ref<Texture> light_map,
-                        Ref<Texture> splat_map);
+                        Ref<Texture> splat_map, u32 width, u32 height);
         void set_height_map(Ref<Texture> height_map);
         void set_light_map(Ref<Texture> light_map);
         void set_tex(Ref<Texture> texture);

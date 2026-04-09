@@ -212,9 +212,6 @@ class RenderBackendVK : public RenderBackend {
 
         /* we'll assume global binding */
         /* won't be destroyed at all */
-        ConstantHandle dummy_constant;
-        SSBOHandle dummy_ssbo;
-        TextureHandle dummy_texture;
         std::vector<Binding> global_bindings;
 
 /* vulkan setup */
@@ -288,9 +285,9 @@ class RenderBackendVK : public RenderBackend {
         void stream_buffer(HardwareBufferVk *buffer, u64 size, u64 alignment,
                            void *data);
         VkDescriptorSet get_descriptor_set(DescriptorSetLayout *layout,
-                                           std::vector<Binding> &bindings);
+                                           std::vector<Binding> &bindings, bool is_global);
         void bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
-                                 std::vector<Binding> &bindings);
+                                 std::vector<Binding> &bindings, bool is_global);
         /* drawing commands */
         void handle_update(RenderCommand &cmd);
         void handle_state(RenderCommand &cmd);

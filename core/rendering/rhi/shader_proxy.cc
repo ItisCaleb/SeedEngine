@@ -2,7 +2,9 @@
 #include "core/container/kstring.h"
 #include "core/rendering/rhi/render_engine.h"
 #include <filesystem>
+#include "core/rendering/rhi/shader_proxy.h"
 #include "core/rendering/shader_layout.h"
+#include "core/types.h"
 
 namespace Seed {
 
@@ -67,7 +69,7 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
     u32 binding_cnt = layout->getBindingRangeCount();
     u32 push_constant_offset = 0;
     ShaderBindingSet binding_set;
-    for (uint32_t i = 0; i < binding_cnt; i++) {
+    for (u32 i = 0; i < binding_cnt; i++) {
         slang::BindingType _type = layout->getBindingRangeType(i);
         std::string name = layout->getBindingRangeLeafVariable(i)->getName();
         i64 count = layout->getBindingRangeBindingCount(i);
@@ -77,7 +79,9 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
             layout->getBindingRangeFirstDescriptorRangeIndex(i);
         i64 binding = layout->getDescriptorSetDescriptorRangeIndexOffset(
             set, descriptorRangeIndex);
-        shader_layout.texture_unit.emplace(name, binding);
+        u32 size = layout->getBindingRangeLeafTypeLayout(i)
+                       ->getElementTypeLayout()
+                       ->getSize();
         switch (_type) {
             case slang::BindingType::CombinedTextureSampler:
             case slang::BindingType::Sampler:
@@ -86,12 +90,14 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
                                   .type = ShaderResourceType::SAMPLER,
                                   .count = count,
                                   .name = name});
+                shader_layout.texture_unit.emplace(name, binding);
                 break;
             case slang::BindingType::ConstantBuffer:
                 binding_set.bindings.push_back(
                     ShaderBinding{.binding_point = binding,
                                   .type = ShaderResourceType::UBO,
                                   .count = count,
+                                  .size = size,
                                   .name = name});
                 break;
             case slang::BindingType::RawBuffer:
@@ -100,20 +106,49 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
                     ShaderBinding{.binding_point = binding,
                                   .type = ShaderResourceType::SSBO,
                                   .count = count,
+                                  .size = size,
                                   .name = name});
                 break;
-            case slang::BindingType::ParameterBlock:
-                append_binding_set(layout->getBindingRangeLeafTypeLayout(i)
-                                       ->getElementTypeLayout(),
-                                   shader_layout);
+            case slang::BindingType::ParameterBlock: {
+                /* we assume there is only one parameter block */
+                slang::TypeLayoutReflection *element_layout =
+                    layout->getBindingRangeLeafTypeLayout(i)
+                        ->getElementTypeLayout();
+
+                size_t total_size = size;
+
+                append_binding_set(element_layout, shader_layout);
+                if (total_size > 0) {
+                    shader_layout.ubo_binding.binding = binding;
+                    shader_layout.ubo_binding.total_size = total_size;
+                    shader_layout.sets.back().bindings.push_back(ShaderBinding{
+                        .binding_point = binding,
+                        .type = ShaderResourceType::UBO,
+                        .count = count,
+                        .size = total_size,
+                        .name = name,
+                    });
+
+                    for (u32 f = 0; f < element_layout->getFieldCount(); f++) {
+                        slang::VariableLayoutReflection *field =
+                            element_layout->getFieldByIndex(f);
+                        u32 offset =
+                            field->getOffset(SLANG_PARAMETER_CATEGORY_UNIFORM);
+                        u32 size = field->getTypeLayout()->getSize(
+                            SLANG_PARAMETER_CATEGORY_UNIFORM);
+                        if (size > 0) {
+                            shader_layout.ubo_binding
+                                .members[field->getName()] =
+                                BufferMember{.offset = offset, .size = size};
+                        }
+                    }
+                }
                 break;
+            }
             case slang::BindingType::PushConstant: {
                 u32 cnt = layout->getBindingRangeLeafTypeLayout(i)
                               ->getElementTypeLayout()
                               ->getFieldCount();
-                u32 size = layout->getBindingRangeLeafTypeLayout(i)
-                               ->getElementTypeLayout()
-                               ->getSize();
                 if (size > 256) {
                     spdlog::warn(
                         "Shader '{}.slang' push contant size {} exceeds 256",

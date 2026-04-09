@@ -5,6 +5,7 @@ struct VS_OUT{
     float4 sv_position: SV_Position;
 }
 
+
 struct Property{
     Sampler2D height_map; 
     Sampler2D terrain_shadowMap;
@@ -12,16 +13,18 @@ struct Property{
     Sampler2D tex1;
     Sampler2D tex1_normal;
     Sampler2D shadowMap;
+    vec2 terrain_size;
 };
 
 ParameterBlock<Property> prop;
 
 [shader("vertex")]
-VS_OUT vert(float2 aPos, float2 aTexCoord, uint id: SV_VulkanInstanceID){
+VS_OUT vert(float2 aPos, uint id: SV_VulkanInstanceID){
     VS_OUT out;
     vec4 terrain = GetTerrain(id);
+    vec2 size = prop.terrain_size + 1; 
     out.sv_position = vec4(aPos.x + terrain.x, 0.0f, aPos.y + terrain.y, 1.0);
-    out.uv = aTexCoord + terrain.zw;
+    out.uv = (out.sv_position.xz + size / 2)/size;
     return out;
 }
 
@@ -102,13 +105,16 @@ DS_OUT tese(
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
     out.texCoord = (t1 - t0) * v + t0;
-    float offset = 0.0001;
+    vec2 offset; 
+    float level;
+    prop.height_map.GetDimensions(0, offset[0], offset[1], level);
+    offset = 1 / offset;
     // lookup texel at patch coordinate for height and scale + shift as desired
     out.height = get_height(out.texCoord);
-    float rh = get_height(out.texCoord + vec2(offset, 0));
-    float lh = get_height(out.texCoord + vec2(-offset, 0));
-    float uh = get_height(out.texCoord + vec2(0, offset));
-    float dh = get_height(out.texCoord + vec2(0, -offset));
+    float rh = get_height(out.texCoord + vec2(offset.x, 0));
+    float lh = get_height(out.texCoord + vec2(-offset.x, 0));
+    float uh = get_height(out.texCoord + vec2(0, offset.y));
+    float dh = get_height(out.texCoord + vec2(0, -offset.y));
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates

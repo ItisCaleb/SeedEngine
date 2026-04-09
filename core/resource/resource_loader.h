@@ -83,16 +83,19 @@ class ResourceLoader {
             if (iter == infos.end()) {
                 return Ref<T>();
             }
-            Ref<File> file;
-            if (iter->second.has_data) {
-                file = File::open(entry->path.is_absolute()
-                                      ? entry->path
-                                      : root.append(entry->path));
-                if (file.is_null()) {
-                    return Ref<T>();
-                }
+            Ref<Resource> res;
+            Ref<File> file = File::open(entry->path.is_absolute()
+                                            ? entry->path
+                                            : root.append(entry->path));
+            if (file.is_null()) {
+                return Ref<T>();
             }
-            Ref<Resource> res = iter->second.load(*this, entry->config, file);
+            if (iter->second.has_data) {
+                res = iter->second.load(*this, entry->config, file);
+            } else {
+                ResourceConfiguration config(file->read_json());
+                res = iter->second.load(*this, config, file);
+            }
             if (res.is_null()) {
                 return ref_cast<T>(res);
             }
@@ -128,19 +131,23 @@ class ResourceLoader {
             static_assert(std::is_base_of_v<Resource, T>);
             u64 tid = type_id<T>();
             UUID uuid = entries.insert_entry(path, tid, true);
-            Ref<File> file;
             auto iter = infos.find(tid);
             if (iter == infos.end()) {
                 return Ref<T>();
             }
             ResourceEntry *entry = entries.get_entry(uuid);
-            if (iter->second.has_data) {
-                file = File::open(entry->path);
-                if (file.is_null()) {
-                    return Ref<T>();
-                }
+            Ref<Resource> res;
+            Ref<File> file = File::open(entry->path);
+            if (file.is_null()) {
+                return Ref<T>();
             }
-            Ref<Resource> res = iter->second.load(*this, entry->config, file);
+            if (iter->second.has_data) {
+                res = iter->second.load(*this, entry->config, file);
+            } else {
+                ResourceConfiguration config(file->read_json());
+                res = iter->second.load(*this, config, file);
+            }
+
             if (res.is_null()) {
                 return ref_cast<T>(res);
             }

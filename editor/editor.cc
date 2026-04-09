@@ -68,9 +68,19 @@ void Editor::set_current_inspect(Inspectable *inspectable) {
     if (this->ctx.current_inspect != nullptr) {
         this->ctx.current_inspect->save();
         delete this->ctx.current_inspect;
-        ResourceLoader::get_instance()->get_entries().save(current_project->get_entry_path());
+        ResourceLoader::get_instance()->get_entries().save(
+            current_project->get_entry_path());
     }
     this->ctx.current_inspect = inspectable;
+}
+
+void Editor::set_current_popup(Popup *popup) {
+    if (this->ctx.current_popup != nullptr) {
+        delete this->ctx.current_popup;
+        // ResourceLoader::get_instance()->get_entries().save(
+        //     current_project->get_entry_path());
+    }
+    this->ctx.current_popup = popup;
 }
 
 }  // namespace Seed

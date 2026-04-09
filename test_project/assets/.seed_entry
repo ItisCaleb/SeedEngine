@@ -1,6 +1,18 @@
 {
   "entries": [
     {
+      "UUID": "656824f6-ee32-44a7-81ce-1d4ae8f7cf41",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\rp_nathan_animated_003_mat_baseColor.jpeg",
+      "config": {}
+    },
+    {
+      "UUID": "ab38c952-3bdb-4651-8b64-7fa26f630f11",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\normal.png",
+      "config": {}
+    },
+    {
       "UUID": "ffda1b80-2136-42b6-b336-1af85e6c00fd",
       "resource_type_id": 14404195799590022334,
       "path": "C:\\Users\\happy\\Project\\SeedEngine\\test_project\\assets\\.preprocess\\scene.bin",
@@ -235,21 +247,9 @@
       }
     },
     {
-      "UUID": "ab38c952-3bdb-4651-8b64-7fa26f630f11",
+      "UUID": "70c8f9e2-8f63-4ca3-9608-11dd40733163",
       "resource_type_id": 5244098326367020329,
-      "path": "assets\\normal.png",
-      "config": {}
-    },
-    {
-      "UUID": "750a0356-7f95-4b92-8a59-571e0f8ff4ba",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\diffuse.jpg",
-      "config": {}
-    },
-    {
-      "UUID": "656824f6-ee32-44a7-81ce-1d4ae8f7cf41",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\rp_nathan_animated_003_mat_baseColor.jpeg",
+      "path": "assets\\terrain_01_height_map.png",
       "config": {}
     },
     {
@@ -259,21 +259,15 @@
       "config": {}
     },
     {
-      "UUID": "200f80e7-5ea5-4459-ad6b-2074960b9e87",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\grass_tex_normal.png",
-      "config": {}
-    },
-    {
       "UUID": "94d63e69-ed11-465a-ba26-45252803d664",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\specular.jpg",
       "config": {}
     },
     {
-      "UUID": "70c8f9e2-8f63-4ca3-9608-11dd40733163",
+      "UUID": "200f80e7-5ea5-4459-ad6b-2074960b9e87",
       "resource_type_id": 5244098326367020329,
-      "path": "assets\\terrain_01_height_map.png",
+      "path": "assets\\grass_tex_normal.png",
       "config": {}
     },
     {
@@ -286,6 +280,12 @@
       "UUID": "5f9de3da-2135-406a-8a8c-ba2af18c4b23",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\terrain_01_splat_map.png",
+      "config": {}
+    },
+    {
+      "UUID": "750a0356-7f95-4b92-8a59-571e0f8ff4ba",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\diffuse.jpg",
       "config": {}
     }
   ]

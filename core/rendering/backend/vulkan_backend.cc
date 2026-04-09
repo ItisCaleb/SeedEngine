@@ -1,6 +1,8 @@
 #include "vulkan_backend.h"
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan_core.h>
 #include <cstddef>
+#include <vector>
 #include "core/rendering/backend/vulkan_helper.h"
 #include "core/rendering/rhi/render_resource.h"
 #define VOLK_IMPLEMENTATION
@@ -77,15 +79,6 @@ RenderBackendVK::RenderBackendVK(Window *window) {
     vmaImportVulkanFunctionsFromVolk(&createInfo, &funcInfos);
     createInfo.pVulkanFunctions = &funcInfos;
     vmaCreateAllocator(&createInfo, &buffer_allocator);
-    dummy_constant =
-        this->alloc_constant(1, nullptr, UpdateFrequence::PERFRAME);
-    dummy_ssbo =
-        this->alloc_storage_buffer(1, nullptr, UpdateFrequence::PERFRAME);
-    u8 *data = (u8 *)malloc(1);
-    data[0] = 0;
-    dummy_texture =
-        this->alloc_texture(TextureType::TEXTURE_2D, 1, 1, PixelFormat::R,
-                            MSAAType::SAMPLE_COUNT_1, {}, data);
 }
 
 RenderBackendVK::~RenderBackendVK() {
@@ -234,6 +227,7 @@ void RenderBackendVK::create_logical_device() {
     VkPhysicalDeviceVulkan12Features features12{};
     features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     features12.separateDepthStencilLayouts = true;
+    features12.descriptorBindingPartiallyBound = true;
 
     VkPhysicalDeviceFeatures2 deviceFeatures2{};
     deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -464,16 +458,23 @@ void RenderBackendVK::create_command_buffer() {
 }
 
 void RenderBackendVK::create_descriptor_pool() {
+    VkDescriptorPoolSize ssbos_dynamic{};
+    VkDescriptorPoolSize ubos_dynamic{};
     VkDescriptorPoolSize ssbos{};
     VkDescriptorPoolSize ubos{};
     VkDescriptorPoolSize samplers{};
-    ssbos.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    ssbos.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     ssbos.descriptorCount = 16;
-    ubos.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    ubos.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     ubos.descriptorCount = 50;
+    ssbos_dynamic.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    ssbos_dynamic.descriptorCount = 16;
+    ubos_dynamic.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    ubos_dynamic.descriptorCount = 50;
     samplers.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     samplers.descriptorCount = 500;
-    std::vector<VkDescriptorPoolSize> size = {ssbos, ubos, samplers};
+    std::vector<VkDescriptorPoolSize> size = {ssbos, ubos, ssbos_dynamic,
+                                              ubos_dynamic, samplers};
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -769,7 +770,8 @@ void RenderBackendVK::stream_buffer(HardwareBufferVk *buffer, u64 size,
 }
 
 VkDescriptorSet RenderBackendVK::get_descriptor_set(
-    DescriptorSetLayout *layout, std::vector<Binding> &bindings) {
+    DescriptorSetLayout *layout, std::vector<Binding> &bindings,
+    bool is_global) {
     Hash _hash;
     for (auto &binding : bindings) {
         _hash.update(&binding.binding_point);
@@ -817,22 +819,23 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
             HardwareBufferVk *constant = nullptr;
             if (it != bindings.end())
                 constant = this->constants.get_or_null(it->handle);
-            if (!constant)
-                constant = this->constants.get_or_null(dummy_constant);
+            if (!constant) continue;
+
             VkDescriptorBufferInfo info{};
             info.buffer = constant->buffer;
             info.offset = 0;
-            info.range = VK_WHOLE_SIZE;
+            info.range = shader_binding.size;
             bufferInfos.push_back(info);
 
-            write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+            write.descriptorType =
+                is_global ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+                          : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
             write.pBufferInfo = &bufferInfos.back();
         } else if (shader_binding.type == ShaderResourceType::SSBO) {
             HardwareBufferVk *storage_buffer = nullptr;
             if (it != bindings.end())
                 storage_buffer = this->ssbos.get_or_null(it->handle);
-            if (!storage_buffer)
-                storage_buffer = this->ssbos.get_or_null(dummy_ssbo);
+            if (!storage_buffer) continue;
 
             VkDescriptorBufferInfo info{};
             info.buffer = storage_buffer->buffer;
@@ -840,13 +843,15 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
             info.range = VK_WHOLE_SIZE;
             bufferInfos.push_back(info);
 
-            write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+            write.descriptorType =
+                is_global ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+                          : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
             write.pBufferInfo = &bufferInfos.back();
         } else if (shader_binding.type == ShaderResourceType::SAMPLER) {
             HardwareTextureVk *texture = nullptr;
             if (it != bindings.end())
                 texture = this->textures.get_or_null(it->handle);
-            if (!texture) texture = this->textures.get_or_null(dummy_texture);
+            if (!texture) continue;
 
             VkDescriptorImageInfo info{};
             info.imageView = texture->view;
@@ -867,11 +872,12 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
 }
 
 void RenderBackendVK::bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
-                                          std::vector<Binding> &bindings) {
+                                          std::vector<Binding> &bindings,
+                                          bool is_global) {
     Frame &frame = frames[get_current_frame_index()];
 
     VkDescriptorSet set =
-        get_descriptor_set(shader->set_layouts[binding], bindings);
+        get_descriptor_set(shader->set_layouts[binding], bindings, is_global);
     std::vector<u32> offsets;
     for (ShaderBinding &binding : shader->set_layouts[binding]->set.bindings) {
         auto it = std::find_if(bindings.begin(), bindings.end(), [&](auto &b) {
@@ -881,16 +887,14 @@ void RenderBackendVK::bind_descriptor_set(HardwareShaderVk *shader, u32 binding,
             HardwareBufferVk *constant = nullptr;
             if (it != bindings.end())
                 constant = this->constants.get_or_null(it->handle);
-            if (!constant)
-                constant = this->constants.get_or_null(dummy_constant);
-            offsets.push_back(constant->current);
+            if (!constant) continue;
+            if (!is_global) offsets.push_back(constant->current);
         } else if (binding.type == ShaderResourceType::SSBO) {
             HardwareBufferVk *storage_buffer = nullptr;
             if (it != bindings.end())
                 storage_buffer = this->ssbos.get_or_null(it->handle);
-            if (!storage_buffer)
-                storage_buffer = this->ssbos.get_or_null(dummy_ssbo);
-            offsets.push_back(storage_buffer->current);
+            if (!storage_buffer) continue;
+            if (!is_global) offsets.push_back(storage_buffer->current);
         }
     }
 
@@ -1295,9 +1299,13 @@ void RenderBackendVK::setup_shader_layout(ShaderHandle handle,
     VkPipelineLayout pipelineLayout;
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     std::vector<VkPushConstantRange> ranges;
+    std::vector<VkDescriptorBindingFlags> binding_flags;
 
     std::vector<DescriptorSetLayout *> set_layouts;
+    /* set 0: global, set 1: local*/
+    i32 set_idx = -1;
     for (const ShaderBindingSet &set : shader_layout.get_binding_sets()) {
+        set_idx++;
         VkDescriptorSetLayout set_layout;
         std::vector<VkDescriptorSetLayoutBinding> bindings;
         Hash _hash;
@@ -1306,11 +1314,12 @@ void RenderBackendVK::setup_shader_layout(ShaderHandle handle,
             _binding.binding = binding.binding_point;
             _binding.descriptorCount = binding.count;
             _binding.descriptorType =
-                VulkanHelper::descriptor_type(binding.type);
+                VulkanHelper::descriptor_type(binding.type, set_idx == 1);
             _binding.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
             _hash.update(&_binding.binding);
             _hash.update(&_binding.descriptorCount);
             _hash.update(&_binding.descriptorType);
+            binding_flags.push_back(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
 
             bindings.push_back(_binding);
         }
@@ -1320,10 +1329,18 @@ void RenderBackendVK::setup_shader_layout(ShaderHandle handle,
             set_layouts.push_back(&iter->second);
             continue;
         }
+
+        VkDescriptorSetLayoutBindingFlagsCreateInfo flagInfo{};
+        flagInfo.sType =
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+        flagInfo.bindingCount = bindings.size();
+        flagInfo.pBindingFlags = binding_flags.data();
+
         VkDescriptorSetLayoutCreateInfo layoutInfo{};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         layoutInfo.bindingCount = bindings.size();
         layoutInfo.pBindings = bindings.data();
+        layoutInfo.pNext = &flagInfo;
 
         if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr,
                                         &set_layout) != VK_SUCCESS) {
@@ -2569,13 +2586,13 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
             }
             case RenderDrawData::OpType::BIND_CONSTANT: {
                 HardwareBufferVk *constant =
-                    this->constants.get_or_null(op->constant_handle);
+                    this->constants.get_or_null(op->constant.constant_handle);
                 EXPECT_NOT_NULL_BREAK(constant);
                 local_bindings.push_back(
-                    Binding{.type = RenderResourceType::TEXTURE,
+                    Binding{.type = RenderResourceType::CONSTANT,
                             .handle = op->texture.texture_handle,
-                            .resource_id = op->constant_handle,
-                            .binding_point = op->texture.unit});
+                            .resource_id = op->constant.constant_handle,
+                            .binding_point = op->constant.unit});
                 break;
             }
             case RenderDrawData::OpType::VIEWPORT: {
@@ -2620,11 +2637,9 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
     }
     HardwareRenderPassVk *rt = get_current_render_pass();
 
-    VkDescriptorSet globalSet =
-        get_descriptor_set(shader->set_layouts[0], global_bindings);
-    bind_descriptor_set(shader, 0, global_bindings);
+    bind_descriptor_set(shader, 0, global_bindings, true);
     if (shader->set_layouts.size() > 1) {
-        bind_descriptor_set(shader, 1, local_bindings);
+        bind_descriptor_set(shader, 1, local_bindings, false);
     }
     VkPrimitiveTopology primitive = VulkanHelper::primitive(draw_data->type);
 

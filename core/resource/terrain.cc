@@ -1,9 +1,11 @@
 #include "terrain.h"
+#include "core/math/vec2.h"
 #include "core/math/vec4.h"
 #include "core/resource/default_storage.h"
 #include "core/physic/physic_engine.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/resource/texture.h"
+#include "core/types.h"
 #include <math.h>
 #include <cfloat>
 
@@ -14,7 +16,8 @@ namespace Seed {
 #define HEIGHT_SCALE (1)
 
 TerrainMaterial::TerrainMaterial(Ref<Texture> height_map,
-                                 Ref<Texture> light_map, Ref<Texture> splat_map)
+                                 Ref<Texture> light_map, Ref<Texture> splat_map,
+                                 u32 width, u32 height)
     : Material(DS::get_instance()->terrain_shader) {
     this->set_texture("height_map", height_map);
     if (light_map.is_null()) {
@@ -24,9 +27,10 @@ TerrainMaterial::TerrainMaterial(Ref<Texture> height_map,
         this->set_texture("terrain_shadowMap", light_map);
     }
     this->set_texture("splat_map", splat_map);
-    this->raster_state = {.cull_mode = Cullmode::FRONT,
+    this->raster_state = {.cull_mode = Cullmode::BACK,
                           .patch_control_points = 4};
-    this->depth_state = {.depth_mode = DepthMode::ALPHA_TEST};
+    this->depth_state = {.depth_mode = DepthMode::OPAQUE};
+    this->set_parameter("terrain_size", Vec2{(f32)width, (f32)height});
 }
 void TerrainMaterial::set_height_map(Ref<Texture> height_map) {
     this->set_texture("height_map", height_map);
@@ -44,14 +48,13 @@ void TerrainMaterial::set_tex(Ref<Texture> texture) {
                                             .wrap_v = SamplerWrap::REPEAT});
     this->set_texture("tex1", texture);
 }
-
 void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {
     this->instances.push_back(instance);
 }
 
 void TerrainInstanceData::upload() {
-
-    RHI::UpdateBufferInfo instance_info = RHI::alloc_heap(sizeof(Vec4) * this->instances.size());
+    RHI::UpdateBufferInfo instance_info =
+        RHI::alloc_heap(sizeof(Vec4) * this->instances.size());
     Vec4 *vecs = (Vec4 *)instance_info.data;
     u32 i = 0;
     for (TerrainInstance &instance : this->instances) {
@@ -59,7 +62,6 @@ void TerrainInstanceData::upload() {
         i++;
     }
     _upload(instance_info);
-
 }
 void TerrainInstanceData::frustum_culling(const Frustum &frustum,
                                           const AABB &bounding_box,
@@ -119,14 +121,12 @@ void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
 
     // empty chunk
     if (max_height == min_height) return;
-    f32 u = (left + half_width) / (f32)hmap_width;
-    f32 v = (bottom + half_depth) / (f32)hmap_height;
 
     // postion center
     // uv bottom left
     this->instances->insert_terrain_data(TerrainInstance{
         .pos = Vec2{left_f + CHUNK_SIZE / 2, bottom_f + CHUNK_SIZE / 2},
-        .tex_coord = Vec2{u, v},
+        .total_size = Vec2{(f32)width, (f32)depth},
         .max_height = max_height,
         .min_height = min_height});
 
@@ -141,22 +141,18 @@ void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
 }
 
 void Terrain::build_mesh() {
-    f32 tex_x_stride = (f32)CHUNK_SIZE / hmap_width;
-    f32 tex_y_stride = (f32)CHUNK_SIZE / hmap_height;
-    u32 vertex_row_cnt = 5;
+    i32 half_chunk = CHUNK_SIZE / 2;
+    u32 vertex_row_cnt = 9;
     u32 chunk_cnt = vertex_row_cnt - 1;
     u32 step = (vertex_row_cnt - 1) / chunk_cnt;
     std::vector<TerrainVertex> vertices;
     f32 offset = CHUNK_SIZE / chunk_cnt;
     for (i32 i = 0; i < vertex_row_cnt; i++) {
         for (i32 j = 0; j < vertex_row_cnt; j++) {
-            vertices.push_back(TerrainVertex{
-                Vec2{offset * j - CHUNK_SIZE / 2, offset * i - CHUNK_SIZE / 2},
-                Vec2{(tex_x_stride / (f32)(vertex_row_cnt - 1)) * j,
-                     (tex_y_stride / (f32)(vertex_row_cnt - 1)) * i}});
+            vertices.push_back(TerrainVertex{Vec2{
+                offset * i - CHUNK_SIZE / 2, offset * j - CHUNK_SIZE / 2}});
         }
     }
-
     std::vector<u32> indices;
     for (i32 i = 0; i < chunk_cnt; i++) {
         for (i32 j = 0; j < chunk_cnt; j++) {
@@ -194,7 +190,7 @@ Terrain::Terrain(Ref<Image> height_map, Ref<Texture> light_map,
     u32 half_depth = this->depth / 2;
 
     Ref<Texture> height_map_tex = height_map->create_texture();
-    terrain_mat.create(height_map_tex, light_map, splat_map);
+    terrain_mat.create(height_map_tex, light_map, splat_map, width, depth);
     this->instances.create();
 
     build_mesh();
@@ -209,7 +205,6 @@ Terrain::Terrain(Ref<Image> height_map, Ref<Texture> light_map,
         }
     }
     this->instances->upload();
-
 }
 
 Terrain::~Terrain() {}

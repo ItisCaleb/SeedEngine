@@ -3,6 +3,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "core/types.h"
 
 namespace Seed {
@@ -13,15 +14,28 @@ struct ShaderBinding {
         i64 binding_point;
         ShaderResourceType type;
         i64 count;
+        u64 size;
         std::string name;
 };
 
 struct ShaderBindingSet {
         std::vector<ShaderBinding> bindings;
 };
+
+struct BufferMember {
+        u32 offset;
+        u32 size;
+};
+
 struct PushConstantRange {
         u8 offset;
         u8 size;
+};
+
+struct UBOBinding {
+        i32 binding = -1;
+        std::unordered_map<std::string, BufferMember> members;
+        u32 total_size;
 };
 
 class ShaderProxy;
@@ -32,6 +46,7 @@ class ShaderLayout {
         std::unordered_map<std::string, i32> texture_unit;
         std::vector<ShaderBindingSet> sets;
         std::vector<PushConstantRange> push_constants;
+        UBOBinding ubo_binding;
 
     public:
         ShaderLayout() = default;
@@ -41,6 +56,8 @@ class ShaderLayout {
         const std::vector<PushConstantRange> &get_push_contants() const {
             return push_constants;
         }
+
+        const UBOBinding &get_ubo_binding() const { return ubo_binding; }
 
         /* -1 if not found */
         i32 get_texture_unit(const std::string &name) {

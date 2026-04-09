@@ -4,7 +4,6 @@
 #include "core/macro.h"
 #include "core/resource/material.h"
 
-
 namespace Seed {
 
 #define RD RenderEngine::get_instance()->get_device()
@@ -50,6 +49,14 @@ void RenderDrawDataBuilder::bind_texture(u32 unit, TextureHandle handle) {
     op->texture.texture_handle = handle;
     op->texture.unit = unit;
 };
+
+void RenderDrawDataBuilder::bind_constant(u32 unit, ConstantHandle handle) {
+    RenderDrawData::Operation *op =
+        alloc_operation(RenderDrawData::OpType::BIND_CONSTANT);
+    op->constant.constant_handle = handle;
+    op->constant.unit = unit;
+}
+
 void RenderDrawDataBuilder::bind_description(VertexLayout *desc) {
     RenderDrawData::Operation *op =
         alloc_operation(RenderDrawData::OpType::BIND_DESC);

@@ -6,6 +6,7 @@
 #include "core/resource/resource.h"
 #include "editor_gui.h"
 #include "gui/inspectable.h"
+#include "gui/popup.h"
 #include "project/preprocessor.h"
 #include "project/project.h"
 #include <nlohmann/json.hpp>
@@ -23,6 +24,7 @@ class Editor {
     public:
         struct Context {
                 Inspectable *current_inspect = nullptr;
+                Popup *current_popup = nullptr;
         } ctx;
         TerrainEditor terrain_editor;
         AssetViewer asset_viewer;
@@ -32,6 +34,7 @@ class Editor {
         Inspector inspector;
         void set_last_open_world(const Path &path);
         void set_current_inspect(Inspectable *inspectable);
+        void set_current_popup(Popup *popup);
         Project *project() { return current_project; }
 
         Editor();

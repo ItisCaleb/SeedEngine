@@ -151,6 +151,13 @@ void EditorGUI::main_panel() {
     gEditor->inspector.update();
     ImGui::EndChild();
 
+    if (gEditor->ctx.current_popup != nullptr) {
+        gEditor->ctx.current_popup->draw();
+        if (gEditor->ctx.current_popup->should_close) {
+            gEditor->set_current_popup(nullptr);
+        }
+    }
+
     ImGui::End();
 }
 
