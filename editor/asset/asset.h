@@ -74,8 +74,11 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(WorldConfig, name, width, height, sky,
 class WorldCreatePopup : public Popup {
     private:
         char new_terrain_name[256] = {};
+        Path height_map_path;
         i32 new_terrain_w = 0, new_terrain_h = 0;
         bool load_from_heightmap;
+        void create_world();
+
     public:
         virtual void draw() override;
 };

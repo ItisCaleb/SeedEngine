@@ -1,27 +1,99 @@
 {
   "entries": [
     {
-      "UUID": "aff7c713-a9a2-46cd-a5c5-9c8c2749f06b",
+      "UUID": "ca6ef923-bd01-43d5-85c1-bccf0c3c272e",
       "resource_type_id": 5244098326367020329,
-      "path": "assets\\terrain_01_light_map.png",
+      "path": "assets\\terrain_01_height_map.png",
       "config": {}
     },
     {
-      "UUID": "656824f6-ee32-44a7-81ce-1d4ae8f7cf41",
+      "UUID": "5dd732a7-d446-4fed-a709-fd513ae23857",
       "resource_type_id": 5244098326367020329,
-      "path": "assets\\rp_nathan_animated_003_mat_baseColor.jpeg",
+      "path": "assets\\grass_tex_normal.png",
       "config": {}
     },
     {
-      "UUID": "ab38c952-3bdb-4651-8b64-7fa26f630f11",
+      "UUID": "ea5b2754-b98f-4dd1-8172-7459a74a1ff6",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\diffuse.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "60ab3ab1-c50f-4898-9946-466bd69fa160",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\front.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "715a55b0-193d-4ce3-9031-030d99448b66",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\grass_tex.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "ef8534d1-38fc-48c6-a580-ae07177a3b29",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\normal.png",
       "config": {}
     },
     {
-      "UUID": "ffda1b80-2136-42b6-b336-1af85e6c00fd",
+      "UUID": "4c4ba3db-109b-4b5c-874f-1ddd22aed57e",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\rp_nathan_animated_003_mat_baseColor.jpeg",
+      "config": {}
+    },
+    {
+      "UUID": "d671cdda-789f-42cd-93b0-ac22eac704b5",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\specular.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "4f2581cc-20e6-40cf-89b0-e90ae471966c",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\terrain_01_light_map.png",
+      "config": {}
+    },
+    {
+      "UUID": "aed6f212-c51e-4946-883f-6d86ee3c255e",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\right.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "d85a5bc5-0149-4af7-8d0d-6ddefe38e582",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\terrain_01_splat_map.png",
+      "config": {}
+    },
+    {
+      "UUID": "ac456a89-d36e-4742-b4f9-2406930ffdcf",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\back.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "200374e8-0b3e-4b6c-93db-972af4da1cc8",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\bottom.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "5ff550a5-afc6-4250-acc7-3b4e08dc8a5b",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\left.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "fd033937-4ee5-4096-b71e-0bfe84afbf8d",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\skybox\\top.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "897fb62e-ede8-4a2d-8434-97f48c91273d",
       "resource_type_id": 14404195799590022334,
-      "path": "C:\\Users\\happy\\Project\\SeedEngine\\test_project\\assets\\.preprocess\\scene.bin",
+      "path": "assets\\.internal\\scene.bin",
       "config": {
         "animations": [
           {
@@ -220,7 +292,7 @@
         },
         "materials": [
           {
-            "diffuse": "656824f6-ee32-44a7-81ce-1d4ae8f7cf41",
+            "diffuse": "4c4ba3db-109b-4b5c-874f-1ddd22aed57e",
             "name": "rp_nathan_animated_003_mat",
             "normal": "00000000-0000-0000-0000-000000000000",
             "opacity": 0.0,
@@ -251,78 +323,6 @@
         ],
         "type": "model"
       }
-    },
-    {
-      "UUID": "70c8f9e2-8f63-4ca3-9608-11dd40733163",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\terrain_01_height_map.png",
-      "config": {}
-    },
-    {
-      "UUID": "56e552c5-8ccd-4a2f-86db-32f0f5e208c6",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\grass_tex.jpg",
-      "config": {}
-    },
-    {
-      "UUID": "94d63e69-ed11-465a-ba26-45252803d664",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\specular.jpg",
-      "config": {}
-    },
-    {
-      "UUID": "200f80e7-5ea5-4459-ad6b-2074960b9e87",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\grass_tex_normal.png",
-      "config": {}
-    },
-    {
-      "UUID": "5f9de3da-2135-406a-8a8c-ba2af18c4b23",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\terrain_01_splat_map.png",
-      "config": {}
-    },
-    {
-      "UUID": "750a0356-7f95-4b92-8a59-571e0f8ff4ba",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\diffuse.jpg",
-      "config": {}
-    },
-    {
-      "UUID": "92fbc3c8-bbde-4731-b03d-78937b0ea1f8",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\skybox\\back.jpg",
-      "config": {}
-    },
-    {
-      "UUID": "620f87e0-0a10-42bf-b67b-50c8e38bb9a1",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\skybox\\bottom.jpg",
-      "config": {}
-    },
-    {
-      "UUID": "7f2de372-1c44-439f-8ae2-aba64eff6aa8",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\skybox\\front.jpg",
-      "config": {}
-    },
-    {
-      "UUID": "9e5ec450-5ada-444d-b995-cd0e4b6ef80f",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\skybox\\left.jpg",
-      "config": {}
-    },
-    {
-      "UUID": "aa311615-60d4-49cf-b7e2-16439664e236",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\skybox\\right.jpg",
-      "config": {}
-    },
-    {
-      "UUID": "b00fde8a-1922-49c4-b006-e047d30def75",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\skybox\\top.jpg",
-      "config": {}
     }
   ]
 }

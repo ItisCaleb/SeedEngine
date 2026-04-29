@@ -20,7 +20,6 @@
 #include "core/resource/texture.h"
 #include "core/resource/image.h"
 #include "core/types.h"
-#include "mappable_texture.h"
 #include "resource.h"
 #include "shader.h"
 
@@ -389,8 +388,6 @@ ResourceLoader::ResourceLoader() {
     register_type<BasicModel>(load_basic_model, true);
     register_type<SkeletonModel>(load_skeleton_model, true);
     register_type<Texture>(load_texture, true);
-    register_type<TextureArray>(load_texture_array);
-    register_type<TextureCubemap>(load_cubemap);
     register_type<MappableTexture>(load_mappable_texture, true);
     register_type<Image>(load_image, true);
     register_type<Terrain>(load_terrain);

@@ -24,18 +24,20 @@
     } else                                              \
         (void(0))
 
-#define EXPECT_INDEX_INBOUND(num, size)                               \
-    if ((num) >= (size) || (num) < 0) {                               \
-        SPDLOG_ERROR("{} is out of range, size is " #size " .", num); \
-        return;                                                       \
-    } else                                                            \
+#define EXPECT_INDEX_INBOUND(num, size)                                  \
+    if ((num) >= (size) || (num) < 0) {                                  \
+        SPDLOG_ERROR(#num "'{}' is out of range, max size is {} .", num, \
+                     size);                                              \
+        return;                                                          \
+    } else                                                               \
         (void(0))
 
-#define EXPECT_INDEX_INBOUND_THROW(num, size)                         \
-    if ((num) >= (size) || (num) < 0) {                               \
-        SPDLOG_ERROR("{} is out of range, size is " #size " .", num); \
-        throw std::out_of_range("");                                  \
-    } else                                                            \
+#define EXPECT_INDEX_INBOUND_THROW(num, size)                            \
+    if ((num) >= (size) || (num) < 0) {                                  \
+        SPDLOG_ERROR(#num "'{}' is out of range, max size is {} .", num, \
+                     size);                                              \
+        throw std::out_of_range("");                                     \
+    } else                                                               \
         (void(0))
 
 #define EXPECT_INDEX_INBOUND_RET(num, size, ret)                      \

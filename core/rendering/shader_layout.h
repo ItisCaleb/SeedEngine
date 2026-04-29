@@ -35,7 +35,7 @@ struct PushConstantRange {
 struct UBOBinding {
         i32 binding = -1;
         std::unordered_map<std::string, BufferMember> members;
-        u32 total_size;
+        u32 total_size = 0;
 };
 
 class ShaderProxy;

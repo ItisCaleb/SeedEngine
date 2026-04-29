@@ -5,8 +5,11 @@
 #include "core/io/file.h"
 #include "core/io/dir.h"
 #include "core/io/path.h"
+#include "core/misc/uuid.h"
+#include "core/resource/resource.h"
 #include "core/resource/resource_loader.h"
 #include "core/serialize/json_impl.h"
+#include "core/world/world.h"
 #include "editor/editor.h"
 
 namespace Seed {
@@ -18,12 +21,11 @@ Project *Project::load(const std::string &path) {
     Project *project = new Project;
     project->name = json["name"];
     project->path = file->get_fullpath().parent();
-    project->asset_dir = project->path;
-    project->asset_dir.push("assets");
-    project->entry_path = project->asset_dir;
-    project->entry_path.push(".seed_entry");
-    project->preprocess_entry_path = project->asset_dir;
-    project->preprocess_entry_path.push(".preprocess_entry");
+    project->asset_dir = project->path.append("assets");
+    project->internal_dir = project->asset_dir.append(".internal");
+    project->entry_path = project->asset_dir.append(".seed_entry");
+    project->preprocess_entry_path =
+        project->asset_dir.append(".preprocess_entry");
     Dir::create_if_not_exists(project->asset_dir);
     if (!File::exists(project->entry_path)) {
         ResourceLoader::get_instance()->get_entries().save(project->entry_path);
@@ -35,14 +37,12 @@ Project *Project::load(const std::string &path) {
     project->scan_assets();
     return project;
 }
-Path &Project::get_asset_dir() { return asset_dir; }
 
 ResourceTypeID Project::extension_to_tid(KStr ext) {
     if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" ||
         ext == ".exr" || ext == ".hdr")
         return type_id<Texture>();
-    // if (ext == ".obj" || ext == ".fbx" || ext == ".gltf" || ext == ".glb")
-    //     return type_id<BasicModel>();
+    if (ext == ".world") return type_id<World>();
     // if (ext == ".terrain")  // adjust to your format
     //     return type_id<Terrain>();
     return 0;
@@ -74,8 +74,14 @@ void Project::scan_assets() {
     }
     entries.save(get_entry_path());
 }
+UUID Project::create_asset(const Path &path, ResourceTypeID tid) {
+    ResourceEntries &entries = ResourceLoader::get_instance()->get_entries();
+    UUID uuid = entries.insert_entry(path, tid);
+    entries.save(get_entry_path());
+    return uuid;
+}
 
-void Project::add_to_project(const Path &origin_path, const Path &target_dir) {
+void Project::import_asset(const Path &origin_path, const Path &target_dir) {
     ResourceEntries &entries = ResourceLoader::get_instance()->get_entries();
     Path moved_path = target_dir.append(origin_path.filename());
     Ref<File> origin = File::open(origin_path);

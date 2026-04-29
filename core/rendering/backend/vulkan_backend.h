@@ -305,7 +305,6 @@ class RenderBackendVK : public RenderBackend {
         inline RenderBackendType get_type() override {
             return RenderBackendType::VULKAN;
         }
-        /* we defer the allocation to allow multithreading. */
         TextureHandle alloc_texture(TextureType type, u32 w, u32 h,
                                     PixelFormat format, MSAAType msaa_type,
                                     const SamplerProperty &property,
@@ -346,6 +345,7 @@ class RenderBackendVK : public RenderBackend {
             const RenderBlendState &blend_state) override;
 
         RenderPassHandle alloc_render_pass() override;
+        void copy_texture(TextureHandle dst, u32 dst_layer, TextureHandle src, u32 src_layer) override;
 
         /* We'll use different method for updating different type of buffer */
         /* for STATIC we create a staging buffer to transfer */

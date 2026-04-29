@@ -2,10 +2,13 @@
 #include <fmt/base.h>
 #include <imgui.h>
 #include <nlohmann/json_fwd.hpp>
+#include "core/container/kstring.h"
 #include "core/misc/uuid.h"
+#include "core/resource/resource_entry.h"
 #include "core/serialize/json_impl.h"
 #include <nfd.h>
 #include "core/resource/resource_loader.h"
+#include "editor/editor.h"
 #include <stb_image.h>
 
 namespace Seed {
@@ -44,6 +47,13 @@ void ModelInspector::save() {
         mat_j["opacity"] = mat.opacity;
         j["materials"].push_back(mat_j);
     }
+}
+
+void WorldCreatePopup::create_world(){
+    Ref<Dir> current_dir = gEditor->get_current_dir();
+    ResourceConfiguration config;
+    nlohmann::ordered_json &j = config.get_json();
+    Path name = current_dir->concat(KStr(new_terrain_name));
 }
 
 void WorldCreatePopup::draw() {
@@ -122,6 +132,7 @@ void WorldCreatePopup::draw() {
                 if (result) {
                     new_terrain_w = align_to(x, 256);
                     new_terrain_h = align_to(y, 256);
+                    height_map_path = KStr(path);
                     load_from_heightmap = true;
                 }
             }

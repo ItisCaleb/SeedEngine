@@ -1,7 +1,6 @@
 #ifndef _SEED_TERRAIN_EDITOR_RENDERER_H
 #define _SEED_TERRAIN_EDITOR_RENDERER_H
 #include "core/rendering/renderer/renderer.h"
-#include "core/resource/mappable_texture.h"
 #include "core/rendering/render_pass.h"
 #include "core/rendering/mesh.h"
 

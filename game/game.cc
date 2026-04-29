@@ -53,8 +53,6 @@ int main(void) {
 
     auto terrain =
         loader->load_internal<Terrain>("test_project/assets/terrain_01.json");
-    auto sky_cube = loader->load_internal<TextureCubemap>("test_project/assets/sky.json");
-    Ref<Sky> sky(sky_cube);
     // auto backpack = loader->load_async<BasicModel>(
     //     "test_project/assets/backpack.json", [=](Ref<BasicModel> rc) {
 
@@ -68,12 +66,11 @@ int main(void) {
     // //             rc->insert_transform(tf);
     // //         }
     // //     });
-    auto man = loader->load_async<SkeletonModel>(
-        UUID::from_string("ffda1b80-2136-42b6-b336-1af85e6c00fd"));
+    auto man = loader->load_async_from_path<SkeletonModel>(
+        "assets/.internal/scene.bin");
 
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     World *world = engine->get_world();
-    world->set_sky(sky);
     world->get_point_lights().push_back(
         PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
     Ref<WorldChunk> chunk;

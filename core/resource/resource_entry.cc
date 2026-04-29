@@ -60,13 +60,20 @@ void ResourceEntries::save(const Path &path) {
     Ref<File> file = File::open(path, "wb");
     nlohmann::ordered_json j;
     j["entries"] = nlohmann::json::array();
+    ResourceLoader *loader = ResourceLoader::get_instance();
     for (auto &[uuid, entry] : uuid_to_entry) {
         if (internal_entries.count(uuid) > 0) continue;
+        ResourceTypeInfo *info = loader->get_type_info(entry.type_id);
         nlohmann::ordered_json j_entry;
         j_entry["UUID"] = uuid;
         j_entry["resource_type_id"] = entry.type_id;
         j_entry["path"] = entry.path;
-        j_entry["config"] = entry.config.get_json();
+        if (!info->has_data) {
+            Ref<File> config = File::open(entry.path, "wb");
+            config->write_str(entry.config.get_json().dump(2));
+        }else{
+            j_entry["config"] = entry.config.get_json();
+        }
         j["entries"].push_back(j_entry);
     }
     file->write_str(j.dump(2));

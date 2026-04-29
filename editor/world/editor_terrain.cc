@@ -4,7 +4,6 @@
 #include "core/ref.h"
 #include "core/rendering/render_common.h"
 #include "core/resource/image.h"
-#include "core/resource/mappable_texture.h"
 #include "core/resource/texture.h"
 #include "editor/editor.h"
 #include "editor/editor_storage.h"
@@ -43,8 +42,8 @@ void EditorTerrain::build_mesh() {
     f32 offset = CHUNK_SIZE / 4;
     for (i32 i = 0; i < vertex_row_cnt; i++) {
         for (i32 j = 0; j < vertex_row_cnt; j++) {
-            vertices.push_back(TerrainVertex{
-                Vec2{offset * j - CHUNK_SIZE / 2, offset * i - CHUNK_SIZE / 2}});
+            vertices.push_back(TerrainVertex{Vec2{
+                offset * j - CHUNK_SIZE / 2, offset * i - CHUNK_SIZE / 2}});
         }
     }
 
@@ -265,11 +264,10 @@ void EditorTerrain::dump(const Path &dir) {
         j["light_map"] = light_map_name;
     }
     f->write_str(j.dump(2));
-    this->heightmap_texture->save_disk(
-        fmt::format("{}/{}", dir, height_map_name));
-    this->splat_map->save_disk(fmt::format("{}/{}", dir, splat_map_name));
+    this->heightmap_texture->save_disk(dir.append(height_map_name));
+    this->splat_map->save_disk(dir.append(splat_map_name));
     if (light_map_generated) {
-        this->light_map->save_disk(fmt::format("{}/{}", dir, light_map_name));
+        this->light_map->save_disk(dir.append(light_map_name));
     }
     gEditor->project()->add_to_assets(
         fmt::format("{}/{}", dir, height_map_name));

@@ -1,7 +1,6 @@
 #include "image.h"
 #include <spdlog/spdlog.h>
 #include "core/macro.h"
-#include "mappable_texture.h"
 #include <algorithm>
 #include <cstring>
 #if defined(__x86_64__) || defined(_M_X64)

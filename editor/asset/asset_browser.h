@@ -5,6 +5,7 @@
 #include <vector>
 #include "core/container/kstring.h"
 #include "core/io/dir.h"
+#include "core/math/vec2.h"
 #include "core/types.h"
 #include "editor/asset/asset.h"
 #include "editor/gui/inspectable.h"
@@ -15,6 +16,7 @@ class AssetBrowser {
     public:
         void init(KStr project_root);
         void update();  // call inside your panel
+        Ref<Dir> get_current_dir() { return current_dir; }
 
     private:
         // State
@@ -40,6 +42,7 @@ class AssetBrowser {
         void navigate_to(KStr dir);
         void draw_breadcrumb();
         void draw_toolbar();
+        void draw_icon(AssetEntry &e, Vec2 cell_size, u32 rename_idx);
         void draw_grid();
         void draw_list();
         void draw_entry_context_menu(int idx);
@@ -54,6 +57,5 @@ class AssetBrowser {
 };
 
 }  // namespace Seed
-
 
 #endif

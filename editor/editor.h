@@ -35,6 +35,7 @@ class Editor {
         void set_last_open_world(const Path &path);
         void set_current_inspect(Inspectable *inspectable);
         void set_current_popup(Popup *popup);
+        Ref<Dir> get_current_dir() { return asset_browser.get_current_dir(); }
         Project *project() { return current_project; }
 
         Editor();

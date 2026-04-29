@@ -59,7 +59,7 @@ class ResourceLoader {
         static RESOURCE_LOADER(load_image);
         static RESOURCE_LOADER(load_terrain);
         ResourceEntries entries;
-    
+
     public:
         static ResourceLoader *get_instance();
         void register_resource(Resource *res);
@@ -171,6 +171,23 @@ class ResourceLoader {
                 nullptr);
             return async_rc;
         }
+        template <typename T>
+        Ref<AsyncResource<T>> load_async_from_path(
+            const Path &path, std::function<void(Ref<T>)> callback = {}) {
+            Ref<AsyncResource<T>> async_rc;
+            async_rc.create();
+            async_rc->work_id = ThreadPool::get_instance()->add_work(
+                [=](void *) mutable {
+                    async_rc->resource = load_from_path<T>(path);
+                    async_rc->loaded = true;
+                    if (callback) {
+                        callback(async_rc->resource);
+                    }
+                },
+                nullptr);
+            return async_rc;
+        }
+
         template <typename T>
         void register_type(std::function<Ref<Resource>(
                                ResourceLoader &, ResourceConfiguration &config,

@@ -66,13 +66,15 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_
 
 [shader("fragment")]
 float4 frag(VS_OUT in){
-    vec3 light_out = prop.u_diffuse.Sample(in.texCoord).rgb * gLights.u_light_ambient;
     vec3 normal = prop.u_normal.Sample(in.texCoord).rgb;
     normal = normalize(normal * 2.0 - 1.0);   
     vec3 view_dir = normalize(in.tangent_view_pos - in.tangent_frag_pos);
     vec3 diffuse_sample = prop.u_diffuse.Sample(in.texCoord).xyz;
     vec3 specular_sample = prop.u_specular.Sample(in.texCoord).xyz;
     vec3 dir_light = -normalize(in.tangent_dir_light);
+
+    vec3 light_out = diffuse_sample * gLights.u_light_ambient;
+
     // direction
     float dir_shadow = (1.0 - CSMShadowCalculation(prop.shadowMap,
          vec4(in.frag_pos, 1.0), in.view_depth, normal, dir_light));

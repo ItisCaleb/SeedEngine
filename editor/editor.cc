@@ -1,5 +1,4 @@
 
-#include <stdio.h>
 #include "core/container/kstring.h"
 #include "core/io/dir.h"
 #include "core/io/path.h"
@@ -7,15 +6,10 @@
 #include "core/rendering/rhi/render_engine.h"
 #include "core/resource/model.h"
 #include "core/resource/resource_entry.h"
-#include "core/resource/texture.h"
-#include "editor/asset/model_loader.h"
 #include <nfd.h>
 #include <fmt/format.h>
-#include <queue>
-#include <vector>
 #include "core/engine.h"
 #include "core/gui/gui_engine.h"
-#include "editor_gui.h"
 #include "core/resource/resource_loader.h"
 #include "camera_entity.h"
 #include "editor.h"
@@ -98,6 +92,7 @@ int main(int, char **) {
     ResourceLoader *loader = ResourceLoader::get_instance();
     render_engine->set_renderer_enable(render_engine->get_default_renderer(),
                                        false);
+    
 
     engine->start();
     NFD_Quit();

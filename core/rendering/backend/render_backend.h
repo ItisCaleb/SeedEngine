@@ -80,6 +80,7 @@ class RenderBackend {
             const RenderDepthStencilState &depth_state,
             const RenderBlendState &blend_state) = 0;
         virtual RenderPassHandle alloc_render_pass() = 0;
+        virtual void copy_texture(TextureHandle dst, u32 dst_layer, TextureHandle src, u32 src_layer) = 0;
         virtual void update(RenderResourceType type, Handle handle, u32 offset,
                             u32 size, void *data) = 0;
         virtual void update(TextureHandle handle, u32 layer, u32 offx, u32 offy,

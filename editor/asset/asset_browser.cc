@@ -10,6 +10,7 @@
 #include "core/input.h"
 #include "core/io/dir.h"
 #include "core/io/path.h"
+#include "core/math/vec2.h"
 #include "core/misc/uuid.h"
 #include "core/resource/resource.h"
 #include "core/resource/resource_entry.h"
@@ -202,7 +203,7 @@ void AssetBrowser::update() {
 
                 for (auto file : files) {
                     if (file.is_empty()) continue;
-                    gEditor->project()->add_to_project(
+                    gEditor->project()->import_asset(
                         file, current_dir->get_path().directory());
                 }
             }
@@ -313,17 +314,78 @@ Inspectable *AssetBrowser::create_inspectable(AssetEntry &entry) {
     return nullptr;
 }
 
+void AssetBrowser::draw_icon(AssetEntry &e, Vec2 cell_size, u32 rename_idx) {
+    ImGui::BeginGroup();
+
+    // Icon area
+    ImVec4 col4 = asset_type_color(e.type);
+    ImVec2 icon_pos = ImGui::GetCursorScreenPos();
+    float icon_pad = 8.f;
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(icon_pos.x + icon_pad, icon_pos.y),
+        ImVec2(icon_pos.x + cell_size.x - icon_pad, icon_pos.y + icon_size),
+        ImGui::ColorConvertFloat4ToU32(
+            ImVec4(col4.x * 0.3f, col4.y * 0.3f, col4.z * 0.3f, 1.f)),
+        4.f);
+
+    // If thumbnail is available draw it, otherwise draw type label
+    if (e.thumbnail_handle != 0) {
+        ImGui::SetCursorScreenPos(ImVec2(icon_pos.x + icon_pad, icon_pos.y));
+        ImGui::Image((ImTextureID)e.thumbnail_handle,
+                     ImVec2(cell_size.x - icon_pad * 2, icon_size));
+    } else {
+        const char *type_label = asset_type_icon(e.type);
+        ImVec2 tl_size = ImGui::CalcTextSize(type_label);
+        ImGui::GetWindowDrawList()->AddText(
+            ImVec2(icon_pos.x + (cell_size.x - tl_size.x) * 0.5f,
+                   icon_pos.y + (icon_size - tl_size.y) * 0.5f),
+            ImGui::ColorConvertFloat4ToU32(col4), type_label);
+        ImGui::Dummy(ImVec2(cell_size.x, icon_size));
+    }
+
+    // Filename label — truncate if too long
+    KStr filename = e.path.filename();
+    filename = filename.split_at(10).first;
+
+    // Inline rename
+    if (renaming_idx == rename_idx) {
+        ImGui::SetNextItemWidth(cell_size.x - 4);
+        if (ImGui::InputText("##rename", rename_buf, sizeof(rename_buf),
+                             ImGuiInputTextFlags_EnterReturnsTrue |
+                                 ImGuiInputTextFlags_AutoSelectAll)) {
+            commit_rename();
+        }
+        if (!ImGui::IsItemActive() && !ImGui::IsItemActivated())
+            renaming_idx = -1;  // clicked away
+    } else {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.85f, 0.85f, 0.85f, 1.f));
+        // Centre the text
+        float text_w =
+            std::min(ImGui::CalcTextSize(filename.data(), filename.end()).x,
+                     cell_size.x);
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+                             (cell_size.x - text_w) * 0.5f);
+        ImGui::TextUnformatted(filename.data(), filename.end());
+        ImGui::PopStyleColor();
+    }
+
+    ImGui::EndGroup();
+}
+
 // ── Grid view ────────────────────────────────────────────
 void AssetBrowser::draw_grid() {
     KStr filter = search_buf;
 
-    float cell_w = icon_size + 16.f;
-    float cell_h = icon_size + 32.f;
+    float cell_w = icon_size + 8.f;
+    float cell_h = icon_size + 24.f;
+    float padding = 8.f;
     float avail_w = ImGui::GetContentRegionAvail().x;
-    int cols = std::max(1, (int)(avail_w / cell_w));
+    int cols = std::max(1, (int)((avail_w + padding) / (cell_w + padding)));
+
+    ImVec2 start = ImGui::GetCursorScreenPos();
+    float total_h = 0;
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
-    int col = 0;
     for (int i = 0; i < (int)entries.size(); i++) {
         auto &e = entries[i];
 
@@ -332,6 +394,11 @@ void AssetBrowser::draw_grid() {
             KStr name = e.path.filename().string();
             if (name.find_first(filter) != -1) continue;
         }
+        int row = i / cols;
+        int col = i % cols;
+
+        ImVec2 pos = ImVec2(start.x + col * (cell_w + padding),
+                            start.y + row * (cell_h + padding));
 
         if (col > 0 && col % cols != 0) ImGui::SameLine(0, 8);
 
@@ -339,6 +406,7 @@ void AssetBrowser::draw_grid() {
 
         bool is_selected = (i == selected_idx);
         ImVec2 cell_size = ImVec2(cell_w, cell_h);
+        ImGui::SetCursorScreenPos(pos);
         ImVec2 cursor = ImGui::GetCursorScreenPos();
 
         // Selection highlight
@@ -393,63 +461,7 @@ void AssetBrowser::draw_grid() {
 
         // Draw icon and label on top of the selectable
         ImGui::SetCursorScreenPos(cursor);
-        ImGui::BeginGroup();
-
-        // Icon area
-        ImVec4 col4 = asset_type_color(e.type);
-        ImVec2 icon_pos = ImGui::GetCursorScreenPos();
-        float icon_pad = 8.f;
-        ImGui::GetWindowDrawList()->AddRectFilled(
-            ImVec2(icon_pos.x + icon_pad, icon_pos.y),
-            ImVec2(icon_pos.x + cell_size.x - icon_pad, icon_pos.y + icon_size),
-            ImGui::ColorConvertFloat4ToU32(
-                ImVec4(col4.x * 0.3f, col4.y * 0.3f, col4.z * 0.3f, 1.f)),
-            4.f);
-
-        // If thumbnail is available draw it, otherwise draw type label
-        if (e.thumbnail_handle != 0) {
-            ImGui::SetCursorScreenPos(
-                ImVec2(icon_pos.x + icon_pad, icon_pos.y));
-            ImGui::Image((ImTextureID)e.thumbnail_handle,
-                         ImVec2(cell_size.x - icon_pad * 2, icon_size));
-        } else {
-            const char *type_label = asset_type_icon(e.type);
-            ImVec2 tl_size = ImGui::CalcTextSize(type_label);
-            ImGui::GetWindowDrawList()->AddText(
-                ImVec2(icon_pos.x + (cell_size.x - tl_size.x) * 0.5f,
-                       icon_pos.y + (icon_size - tl_size.y) * 0.5f),
-                ImGui::ColorConvertFloat4ToU32(col4), type_label);
-            ImGui::Dummy(ImVec2(cell_size.x, icon_size));
-        }
-
-        // Filename label — truncate if too long
-        KStr filename = e.path.filename();
-        filename = filename.split_at(10).first;
-
-        // Inline rename
-        if (renaming_idx == i) {
-            ImGui::SetNextItemWidth(cell_size.x - 4);
-            if (ImGui::InputText("##rename", rename_buf, sizeof(rename_buf),
-                                 ImGuiInputTextFlags_EnterReturnsTrue |
-                                     ImGuiInputTextFlags_AutoSelectAll)) {
-                commit_rename();
-            }
-            if (!ImGui::IsItemActive() && !ImGui::IsItemActivated())
-                renaming_idx = -1;  // clicked away
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Text,
-                                  ImVec4(0.85f, 0.85f, 0.85f, 1.f));
-            // Centre the text
-            float text_w =
-                std::min(ImGui::CalcTextSize(filename.data(), filename.end()).x,
-                         cell_size.x);
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
-                                 (cell_size.x - text_w) * 0.5f);
-            ImGui::TextUnformatted(filename.data(), filename.end());
-            ImGui::PopStyleColor();
-        }
-
-        ImGui::EndGroup();
+        draw_icon(e, Vec2{cell_size.x, cell_size.y}, i);
         ImGui::PopID();
 
         col++;

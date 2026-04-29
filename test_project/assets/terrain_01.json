@@ -3,9 +3,9 @@
   "type": "terrain",
   "width": 2816,
   "height": 1792,
-  "height_map": "70c8f9e2-8f63-4ca3-9608-11dd40733163",
-  "splat_map": "5f9de3da-2135-406a-8a8c-ba2af18c4b23",
-  "light_map": "aff7c713-a9a2-46cd-a5c5-9c8c2749f06b",
-  "tex1": "56e552c5-8ccd-4a2f-86db-32f0f5e208c6",
-  "tex1_normal": "200f80e7-5ea5-4459-ad6b-2074960b9e87"
+  "height_map": "ca6ef923-bd01-43d5-85c1-bccf0c3c272e",
+  "splat_map": "d85a5bc5-0149-4af7-8d0d-6ddefe38e582",
+  "light_map": "4f2581cc-20e6-40cf-89b0-e90ae471966c",
+  "tex1": "715a55b0-193d-4ce3-9031-030d99448b66",
+  "tex1_normal": "5dd732a7-d446-4fed-a709-fd513ae23857"
 }

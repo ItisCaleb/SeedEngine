@@ -4,7 +4,6 @@
 #include "core/types.h"
 #include "core/resource/resource.h"
 #include "core/resource/texture.h"
-#include "core/resource/mappable_texture.h"
 #include <vector>
 
 namespace Seed {

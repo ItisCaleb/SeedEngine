@@ -920,8 +920,9 @@ TextureHandle RenderBackendVK::create_texture(TextureType type, u32 w, u32 h,
     bool is_depth = VulkanHelper::is_depth(format);
     bool is_stencil = VulkanHelper::is_stencil(format);
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.usage =
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT |
+                      VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                      VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     if (is_stencil || is_depth) {
         imageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
@@ -1057,8 +1058,8 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
 TextureHandle RenderBackendVK::alloc_textures(TextureType type, u32 w, u32 h,
                                               PixelFormat format, u32 count,
                                               const SamplerProperty &property) {
-    TextureHandle handle = create_texture(type, w, h, format, count,
-                                          MSAAType::SAMPLE_COUNT_1, property,false);
+    TextureHandle handle = create_texture(
+        type, w, h, format, count, MSAAType::SAMPLE_COUNT_1, property, false);
 
     return handle;
 }
@@ -1075,7 +1076,7 @@ TextureHandle RenderBackendVK::alloc_cubemap(u32 w, u32 h, PixelFormat format,
 TextureHandle RenderBackendVK::alloc_mappable_texture(
     TextureType type, u32 w, u32 h, PixelFormat format,
     const SamplerProperty &property, const void *data) {
-    if (type != TextureType::TEXTURE_1D || type != TextureType::TEXTURE_2D ||
+    if (type != TextureType::TEXTURE_1D && type != TextureType::TEXTURE_2D &&
         type != TextureType::TEXTURE_3D) {
         SPDLOG_ERROR("Can't create mappable texture as target type");
         return NULL_HANDLE;
@@ -1989,6 +1990,9 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
 RenderPassHandle RenderBackendVK::alloc_render_pass() {
     return this->render_pass.insert({});
 }
+
+void RenderBackendVK::copy_texture(TextureHandle dst, u32 dst_layer,
+                                   TextureHandle src, u32 src_layer) {}
 
 void RenderBackendVK::update(RenderResourceType type, Handle handle, u32 offset,
                              u32 size, void *data) {

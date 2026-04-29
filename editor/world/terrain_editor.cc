@@ -6,7 +6,6 @@
 #include "core/ref.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/input.h"
-#include "core/resource/mappable_texture.h"
 #include "core/resource/resource_loader.h"
 #include "core/resource/texture.h"
 #include "core/types.h"
