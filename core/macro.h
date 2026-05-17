@@ -48,3 +48,7 @@
         (void(0))
 
 #endif
+
+#define CONCAT_INTERNAL(a, b) a ## b
+
+#define CONCAT(a, b) CONCAT_INTERNAL(a, b)

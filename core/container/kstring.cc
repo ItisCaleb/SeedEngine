@@ -41,6 +41,7 @@ KString::KString(const std::string &str) {
 }
 
 KString::KString(const KString &str) {
+    if(str._cap == 0) return;
     _size = str.size();
     _cap = str._cap;
     _data = (char *)malloc(_cap);

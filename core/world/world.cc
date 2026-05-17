@@ -1,8 +1,7 @@
 #include "world.h"
 #include <fmt/base.h>
-#include <functional>
-#include <string>
 #include "behaviour.h"
+#include "core/debug/profiler.h"
 #include "core/physic/physic_body.h"
 #include "core/physic/physic_engine.h"
 #include "core/ref.h"
@@ -46,8 +45,9 @@ Ref<Sky> World::get_sky() { return sky; }
 
 void World::set_sky(Ref<Sky> sky) { this->sky = sky; }
 
-
 void World::tick(f32 dt) {
+    PROFILE_SCOPE("World");
+
     PhysicEngine *phys = PhysicEngine::get_instance();
 
     // sync transform to physic

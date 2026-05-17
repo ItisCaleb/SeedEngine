@@ -114,7 +114,6 @@ Ref<Image> Image::median_filter(u32 kernel_size, bool process_alpha) {
     i32 r = kernel_size / 2;
     i32 mid = (kernel_size * kernel_size) / 2;
     output.create(format, width, height);
-    auto t1 = std::chrono::steady_clock::now();
     auto find_median = [&]() -> u8 {
         u32 cnt = 0;
         for (u32 i = 0; i < 255; i++) {
@@ -201,10 +200,6 @@ Ref<Image> Image::median_filter(u32 kernel_size, bool process_alpha) {
             }
         }
     }
-    auto t2 = std::chrono::steady_clock::now();
-    fmt::println(
-        "duration:{}",
-        std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count());
 
     return output;
 }

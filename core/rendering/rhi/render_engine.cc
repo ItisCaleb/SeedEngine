@@ -7,6 +7,7 @@
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
+#include "core/debug/profiler.h"
 #ifdef SEED_XR
 #include "core/rendering/backend/xr_vulkan_backend.h"
 #endif
@@ -106,6 +107,7 @@ void RenderEngine::register_renderer(u8 layer, Renderer *renderer) {
 }
 
 void RenderEngine::process() {
+    PROFILE_SCOPE("Rendering");
     for (RendererLayer &layer : this->renderers) {
         if (layer.enabled) {
             layer.renderer->preprocess();

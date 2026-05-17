@@ -1,5 +1,6 @@
 #include "engine.h"
 #include <GLFW/glfw3.h>
+#include "debug/profiler.h"
 #include "input.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/resource/resource_loader.h"
@@ -35,6 +36,7 @@ void SeedEngine::init_systems() {
     DebugDrawer *debug_drawer = new DebugDrawer();
     ThreadPool *pool = new ThreadPool(OS::cpu_count());
     PhysicEngine *phys_engine = new PhysicEngine();
+    Profiler *profiler = new Profiler;
     render_engine->init();
     this->world = new World;
 }
@@ -48,6 +50,7 @@ void SeedEngine::start() {
     RenderEngine *render_engine = RenderEngine::get_instance();
     f64 delta = frame_limit;
     GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
+    Profiler *profiler = Profiler::get_instance();
     while (!glfwWindowShouldClose(glfw_window)) {
         f64 start = glfwGetTime();
         if (input->is_key_pressed(KeyCode::Q)) {
@@ -66,6 +69,7 @@ void SeedEngine::start() {
             OS::delay(frame_limit - delta);
             delta = frame_limit;
         }
+        profiler->clear_records();
         last_fps = 1 / delta;
     }
 

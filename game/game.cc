@@ -1,4 +1,5 @@
 #include "camera_entity.h"
+#include "core/debug/profiler.h"
 #include "core/engine.h"
 #include "core/math/vec3.h"
 #include "core/misc/uuid.h"
@@ -6,6 +7,7 @@
 #include "core/physic/physic_shape.h"
 #include "core/resource/model.h"
 #include "core/resource/resource_loader.h"
+#include <imgui.h>
 #include <spdlog/spdlog.h>
 #include <memory>
 #include <string>
@@ -41,6 +43,13 @@ class DebugGUI : public GUI {
             ImGui::Text("FPS: %.2f", SeedEngine::get_instance()->get_fps());
             ImGui::SliderFloat("Shadow Lambda", &shadow_lambda, 0, 1.0);
             world->get_direction_light().set_csm_lamda(shadow_lambda);
+            if (ImGui::CollapsingHeader("Profiler")) {
+                for (auto &scopes : Profiler::get_instance()->get_recorded()) {
+                    ImGui::Text("%s %lld us", scopes.name.data(),
+                                scopes.cpu_time);
+                }
+            }
+
             ImGui::End();
         };
 };
