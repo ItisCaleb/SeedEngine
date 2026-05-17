@@ -203,7 +203,7 @@ void AssetBrowser::update() {
 
                 for (auto file : files) {
                     if (file.is_empty()) continue;
-                    gEditor->project()->import_asset(
+                    gEditor->import_asset(
                         file, current_dir->get_path().directory());
                 }
             }

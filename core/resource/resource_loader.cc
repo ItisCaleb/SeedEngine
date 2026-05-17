@@ -1,5 +1,6 @@
 #include "resource_loader.h"
 #include "core/container/kstring.h"
+#include "core/engine.h"
 #include "core/io/file.h"
 #include "core/io/dir.h"
 #include <spdlog/spdlog.h>
@@ -20,6 +21,7 @@
 #include "core/resource/texture.h"
 #include "core/resource/image.h"
 #include "core/types.h"
+#include "core/world/world.h"
 #include "resource.h"
 #include "shader.h"
 
@@ -220,8 +222,7 @@ RHI::UpdateBufferInfo ResourceLoader::load_image_to_upload(UUID uuid) {
     RHI::UpdateBufferInfo info;
     info.data = nullptr;
     if (!entry) return info;
-    Path path =
-        entry->path.is_absolute() ? entry->path : root.append(entry->path);
+    Path path = SeedEngine::get_instance()->get_project()->resolve_asset(entry->path);
     i32 w, h, comp;
     void *_data = stbi_load(path.data(), &w, &h, &comp, 4);
     info.data = _data;
@@ -330,21 +331,49 @@ Ref<Resource> ResourceLoader::load_mappable_texture(
 Ref<Resource> ResourceLoader::load_image(ResourceLoader &loader,
                                          ResourceConfiguration &config,
                                          Ref<File> data) {
-    Ref<Image> image;
-    int w, h, comp;
-    void *_data = stbi_load(data->get_fullpath().data(), &w, &h, &comp, 4);
+    Ref<Image> image = Image::load_from_file(data->get_fullpath());
 
-    if (!_data) {
-        spdlog::warn("Can't load image from {}", data->get_fullpath());
-        return Ref<Resource>();
-    }
-    image.create(PixelFormat::RGBA, w, h);
-    image->update((u8 *)_data, w, h);
-    stbi_image_free(_data);
     return ref_cast<Resource>(image);
 }
 
 Ref<Resource> ResourceLoader::load_terrain(ResourceLoader &loader,
+                                           ResourceConfiguration &config,
+                                           Ref<File> data) {
+    Ref<Terrain> terrain;
+    auto &terrain_info = config.get_json();
+    u32 width = terrain_info["width"];
+    u32 height = terrain_info["height"];
+    Ref<Image> height_map;
+    Ref<Texture> splat_map, light_map;
+    auto jheight_map = terrain_info["height_map"];
+    height_map = loader.load<Image>(jheight_map);
+
+    auto jsplat_map = terrain_info["splat_map"];
+    splat_map = loader.load<Texture>(jsplat_map);
+    if (terrain_info.contains("light_map")) {
+        auto jlight_map = terrain_info["light_map"];
+        light_map = loader.load<Texture>(jlight_map);
+    }
+    terrain.create(height_map, light_map, splat_map);
+    if (terrain_info.contains("tex1")) {
+        auto jtex1 = terrain_info["tex1"];
+        auto texture = loader.load<Texture>(jtex1);
+        terrain->get_material()->set_texture("tex1", texture);
+        texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+                                                .wrap_v = SamplerWrap::REPEAT});
+    }
+
+    if (terrain_info.contains("tex1_normal")) {
+        auto jtex1 = terrain_info["tex1_normal"];
+        auto texture = loader.load<Texture>(jtex1);
+        terrain->get_material()->set_texture("tex1_normal", texture);
+        texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+                                                .wrap_v = SamplerWrap::REPEAT});
+    }
+    return ref_cast<Resource>(terrain);
+}
+
+Ref<Resource> ResourceLoader::load_world(ResourceLoader &loader,
                                            ResourceConfiguration &config,
                                            Ref<File> data) {
     Ref<Terrain> terrain;
@@ -391,6 +420,7 @@ ResourceLoader::ResourceLoader() {
     register_type<MappableTexture>(load_mappable_texture, true);
     register_type<Image>(load_image, true);
     register_type<Terrain>(load_terrain);
+    register_type<World>(load_world);
 }
 
 void ResourceLoader::register_resource(Resource *res) {

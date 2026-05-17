@@ -46,9 +46,6 @@ Ref<Sky> World::get_sky() { return sky; }
 
 void World::set_sky(Ref<Sky> sky) { this->sky = sky; }
 
-void World::add_billboard(Ref<Billboard> billboard) {
-    this->billboards.push_back(billboard);
-}
 
 void World::tick(f32 dt) {
     PhysicEngine *phys = PhysicEngine::get_instance();

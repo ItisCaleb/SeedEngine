@@ -2,6 +2,7 @@
 #include <imgui.h>
 #include "core/concurrency/thread_pool.h"
 #include "core/container/kstring.h"
+#include "core/engine.h"
 #include "core/io/path.h"
 #include "core/ref.h"
 #include "core/rendering/rhi/render_engine.h"
@@ -197,7 +198,7 @@ void TerrainEditor::draw_left_panel() {
         }
 
         if (ImGui::Button("Save terrain", ImVec2(-1, 0))) {
-            this->current_terrain->dump(gEditor->project()->get_asset_dir());
+            this->current_terrain->dump(    SeedEngine::get_instance()->get_project()->get_asset_dir());
         }
     }
 }

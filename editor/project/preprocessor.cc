@@ -2,11 +2,13 @@
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 #include "core/container/kstring.h"
+#include "core/engine.h"
 #include "core/io/dir.h"
 #include "core/io/file.h"
 #include "core/io/path.h"
 #include "core/misc/type_name.h"
 #include "core/misc/uuid.h"
+#include "core/project.h"
 #include "core/resource/model.h"
 #include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
@@ -105,7 +107,8 @@ void PreprocessEntries::load(const Path &path) {
 bool Preprocessor::preprocess(ResourceEntries &entries, Ref<File> file,
                               const Path &moved_path,
                               PreprocessTypeInfo &info) {
-    Path &internal_dir = gEditor->project()->get_internal_dir();
+    Project *project = SeedEngine::get_instance()->get_project();
+    Path &internal_dir = project->get_internal_dir();
     Dir::create_if_not_exists(internal_dir);
 
     UUID from_uuid = preprocess_entries.insert_entry(moved_path, info.id);
@@ -123,7 +126,7 @@ bool Preprocessor::preprocess(ResourceEntries &entries, Ref<File> file,
     }
     Path out_path = internal_dir.append(result.out_file);
     UUID to_uuid = entries.insert_entry(
-        out_path.relative(gEditor->project()->get_path()), result.target_tid);
+        out_path.relative(project->get_path()), result.target_tid);
     preprocess_entries.link_entry(from_uuid, to_uuid);
     entries.get_entry(to_uuid)->config = out_config;
 

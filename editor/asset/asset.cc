@@ -1,14 +1,24 @@
 #include "asset.h"
 #include <fmt/base.h>
+#include <fmt/format.h>
 #include <imgui.h>
 #include <nlohmann/json_fwd.hpp>
 #include "core/container/kstring.h"
+#include "core/engine.h"
+#include "core/io/file.h"
+#include "core/misc/type_name.h"
 #include "core/misc/uuid.h"
+#include "core/rendering/render_common.h"
+#include "core/resource/image.h"
 #include "core/resource/resource_entry.h"
+#include "core/resource/terrain.h"
+#include "core/resource/texture.h"
 #include "core/serialize/json_impl.h"
 #include <nfd.h>
 #include "core/resource/resource_loader.h"
+#include "core/world/world.h"
 #include "editor/editor.h"
+#include <spdlog/spdlog.h>
 #include <stb_image.h>
 
 namespace Seed {
@@ -49,15 +59,32 @@ void ModelInspector::save() {
     }
 }
 
-void WorldCreatePopup::create_world(){
+void WorldCreatePopup::create_world() {
     Ref<Dir> current_dir = gEditor->get_current_dir();
-    ResourceConfiguration config;
-    nlohmann::ordered_json &j = config.get_json();
-    Path name = current_dir->concat(KStr(new_terrain_name));
+    ResourceEntry *entry = gEditor->create_asset(
+        fmt::format("{}.world", new_terrain_name), type_id<World>());
+    nlohmann::ordered_json &j = entry->config.get_json();
+    j["name"] = new_terrain_name;
+    j["width"] = new_terrain_w;
+    j["height"] = new_terrain_h;
+    Ref<Image> height_map;
+    if (load_from_heightmap) {
+        spdlog::info("Loading heightmap from {}", height_map_path);
+        height_map = Image::load_from_file(height_map_path);
+        height_map->resize(new_terrain_w, new_terrain_h);
+    } else {
+        height_map.create(PixelFormat::RGBA, new_terrain_w, new_terrain_h);
+    }
+    auto height_map_entry = gEditor->create_internal_asset(
+        fmt::format("{}_heightmap.png", new_terrain_name), type_id<Texture>());
+    height_map->save_disk(height_map_entry->path);
+    j["height_map"] = height_map_entry->uuid;
+    spdlog::info("Saving world {}", new_terrain_name);
+    gEditor->save_project();
 }
 
 void WorldCreatePopup::draw() {
-    if (!should_close) ImGui::OpenPopup("##new_terrain_modal");
+    if (!should_close) ImGui::OpenPopup("##new_world_modal");
 
     // Center the modal
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
@@ -66,11 +93,11 @@ void WorldCreatePopup::draw() {
 
     bool open = true;
     if (ImGui::BeginPopupModal(
-            "##new_terrain_modal", &open,
+            "##new_world_modal", &open,
             ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize)) {
         // Title row
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.75f, 0.85f, 1.f, 1.f));
-        ImGui::Text("New Terrain");
+        ImGui::Text("New World");
         ImGui::PopStyleColor();
         ImGui::Separator();
         ImGui::Spacing();
@@ -184,6 +211,7 @@ void WorldCreatePopup::draw() {
         if (ImGui::Button("Create", ImVec2(btn_w, 0))) {
             // Allocate terrain
             // init_default_splat_layers();
+            create_world();
             should_close = true;
             ImGui::CloseCurrentPopup();
         }

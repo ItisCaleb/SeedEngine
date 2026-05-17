@@ -99,7 +99,7 @@ void Terrain::create_chunk(Ref<Image> height_map, i32 left, i32 bottom,
     f32 min_height = FLT_MAX;
 
     /* start from bottom left to make bounding box right*/
-    auto &hm_data = height_map->get_data();
+    u8* hm_data = height_map->get_data();
     for (i32 i = CHUNK_SIZE - 1; i >= 0; i--) {
         for (i32 j = 0; j < CHUNK_SIZE; j++) {
             u32 sample_col = j + left + half_width;

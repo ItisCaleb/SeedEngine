@@ -45,9 +45,8 @@ void EditorGUI::main_menu() {
             nfdopendialogu8args_t args = {0};
             nfdresult_t r = NFD_OpenDialogU8_With(&path, &args);
             if (r == NFD_OKAY) {
-                gEditor->current_project = Project::load(path);
-                if (gEditor->current_project) {
-                    gEditor->set_last_open(gEditor->current_project->path);
+                if (SeedEngine::get_instance()->load_project(path)) {
+                    gEditor->set_last_open(path);
                 }
             }
         }
@@ -72,17 +71,17 @@ void EditorGUI::create_project() {
             project_path_input = path;
         }
     }
-    if (Button("Create")) {
-        if (!project_name_input.empty() && !project_path_input.empty()) {
-            Project *project = new Project();
-            project->name = project_name_input;
-            project->path = project_path_input;
-            gEditor->current_project = project;
-            project->save();
-            gEditor->set_last_open(project->path);
-            create_new_project = false;
-        }
-    }
+    // if (Button("Create")) {
+    //     if (!project_name_input.empty() && !project_path_input.empty()) {
+    //         Project *project = new Project();
+    //         project->name = project_name_input;
+    //         project->path = project_path_input;
+    //         gEditor->current_project = project;
+    //         project->save();
+    //         gEditor->set_last_open(project->path);
+    //         create_new_project = false;
+    //     }
+    // }
     SameLine();
     if (Button("Cancel")) {
         create_new_project = false;

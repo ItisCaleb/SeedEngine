@@ -69,7 +69,6 @@ class WorldChunk : public RefCounted {
 
 class World {
     private:
-        std::vector<Ref<Billboard>> billboards;
         Ref<Sky> sky;
         Vec3 ambient_light;
         DirectionalLight direction_light;
@@ -93,8 +92,6 @@ class World {
         void tick(f32 dt);
         void set_sky(Ref<Sky> sky);
         void add_chunk(Ref<WorldChunk> &chunk);
-
-        void add_billboard(Ref<Billboard> billboard);
 
         EntityManager &ecs() { return entity_manager; }
 

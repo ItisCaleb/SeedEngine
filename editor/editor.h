@@ -8,7 +8,6 @@
 #include "gui/inspectable.h"
 #include "gui/popup.h"
 #include "project/preprocessor.h"
-#include "project/project.h"
 #include <nlohmann/json.hpp>
 #include "editor/world/terrain_editor.h"
 #include "editor/asset/asset_viewer.h"
@@ -17,9 +16,8 @@
 namespace Seed {
 class Editor {
         friend EditorGUI;
-        Project *current_project = nullptr;
         nlohmann::json project_cache;
-        void set_last_open(Path &path);
+        void set_last_open(const Path &path);
 
     public:
         struct Context {
@@ -35,8 +33,15 @@ class Editor {
         void set_last_open_world(const Path &path);
         void set_current_inspect(Inspectable *inspectable);
         void set_current_popup(Popup *popup);
+
+        ResourceTypeID extension_to_tid(KStr ext);
+        void scan_assets();
+        ResourceEntry *create_asset(KStr name, ResourceTypeID tid);
+        ResourceEntry *create_internal_asset(KStr name, ResourceTypeID tid);
+        void save_project();
+
+        void import_asset(const Path &origin_path, const Path &target_dir);
         Ref<Dir> get_current_dir() { return asset_browser.get_current_dir(); }
-        Project *project() { return current_project; }
 
         Editor();
         ~Editor() = default;

@@ -1,7 +1,10 @@
 #include "image.h"
 #include <spdlog/spdlog.h>
 #include "core/macro.h"
+#include "core/rendering/render_common.h"
+#include "core/types.h"
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 #if defined(__x86_64__) || defined(_M_X64)
 #include <immintrin.h>
@@ -11,6 +14,9 @@
 #define SEED_ARCH_ARM
 #endif
 
+#include <stb_image.h>
+#include <stb_image_write.h>
+
 namespace Seed {
 
 void Image::update(u8 *data, u32 w, u32 h, u32 off_x, u32 off_y) {
@@ -18,7 +24,10 @@ void Image::update(u8 *data, u32 w, u32 h, u32 off_x, u32 off_y) {
     u32 offset = (off_x + off_y * width);
     /* resize if overflow */
     if (w * h + offset > width * height) {
-        this->data.resize((w * h + offset) * channel);
+        u8 *new_data = (u8 *)realloc(data, (w * h + offset) * channel);
+        if (new_data != nullptr) {
+            this->data = new_data;
+        }
         this->width = off_x + w;
         this->height = off_y + h;
     }
@@ -32,25 +41,25 @@ void Image::update(std::vector<u8> &data, u32 w, u32 h, u32 off_x, u32 off_y) {
 Ref<Texture> Image::create_texture(const SamplerProperty &property) {
     Ref<Texture> texture;
     texture.create(TextureType::TEXTURE_2D, width, height, format, property,
-                   this->data.data());
+                   this->data);
     return texture;
 }
 Ref<MappableTexture> Image::create_mappable_texture(
     const SamplerProperty &property) {
     Ref<MappableTexture> texture;
-    texture.create(TextureType::TEXTURE_2D, width, height, format,
-                   this->data.data(), property);
+    texture.create(TextureType::TEXTURE_2D, width, height, format, this->data,
+                   property);
     return texture;
 }
 
 void Image::upload(Ref<Texture> texture) {
     EXPECT_NOT_NULL_RET(texture.ptr());
-    texture->update(this->data.data(), width, height);
+    texture->update(this->data, width, height);
 }
 
 void Image::upload(Ref<MappableTexture> texture) {
     EXPECT_NOT_NULL_RET(texture.ptr());
-    texture->update(this->data.data(), width, height);
+    texture->update(this->data, width, height);
 }
 
 void Image::fill(Color color, u32 off_x, u32 off_y, u32 fill_w, u32 fill_h) {
@@ -68,6 +77,21 @@ void Image::fill(Color color, u32 off_x, u32 off_y, u32 fill_w, u32 fill_h) {
         u8 *dst = &data[(y * width + off_x) * pixel_size];
         memcpy(dst, row.data(), row.size());
     }
+}
+
+void Image::resize(u32 w, u32 h) {
+    u32 pixel_size = get_pixel_format_size(format);
+    u8 *new_data = (u8 *)malloc(w * h * pixel_size);
+    u32 min_w = std::min(w, this->width);
+    u32 min_h = std::min(h, this->height);
+    for (u32 i = 0; i < min_h; i++) {
+        memcpy(&new_data[i * w * pixel_size],
+               &data[i * this->width * pixel_size], min_w * pixel_size);
+    }
+    free(data);
+    this->data = new_data;
+    this->width = w;
+    this->height = h;
 }
 
 void Image::download(Ref<Texture> texture) {
@@ -185,9 +209,27 @@ Ref<Image> Image::median_filter(u32 kernel_size, bool process_alpha) {
     return output;
 }
 
+Ref<Image> Image::load_from_file(const Path &path) {
+    int w, h, comp;
+    void *_data = stbi_load(path.data(), &w, &h, &comp, 4);
+    Ref<Image> image(new Image(PixelFormat::RGBA, w, h, _data));
+    return image;
+}
+
+void Image::save_disk(const Path &path) {
+    stbi_write_png(path.data(), width, height, get_pixel_format_size(format),
+                   data, 0);
+}
+
+Image::Image(PixelFormat format, u32 w, u32 h, void *buffer)
+    : format(format), width(w), height(h) {
+    this->data = (u8 *)buffer;
+}
+
 Image::Image(PixelFormat format, u32 w, u32 h)
     : format(format), width(w), height(h) {
-    this->data.resize(w * h * get_pixel_format_size(format));
+    this->data = (u8 *)malloc(w * h * get_pixel_format_size(format));
 }
+Image::~Image() { free(this->data); }
 
 }  // namespace Seed

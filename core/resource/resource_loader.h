@@ -5,6 +5,7 @@
 #include <nlohmann/json_fwd.hpp>
 #include <unordered_map>
 #include "core/container/kstring.h"
+#include "core/engine.h"
 #include "core/io/file.h"
 #include "core/io/path.h"
 #include "core/misc/uuid.h"
@@ -45,7 +46,6 @@ class AsyncResource : public RefCounted {
 class ResourceLoader {
     private:
         inline static ResourceLoader *instance = nullptr;
-        Path root;
         std::unordered_map<UUID, Resource *> res_cache;
         std::unordered_map<ResourceTypeID, ResourceTypeInfo> infos;
         std::unordered_map<ResourceTypeID, Ref<Resource>> default_resources;
@@ -58,6 +58,7 @@ class ResourceLoader {
         static RESOURCE_LOADER(load_mappable_texture);
         static RESOURCE_LOADER(load_image);
         static RESOURCE_LOADER(load_terrain);
+        static RESOURCE_LOADER(load_world);
         ResourceEntries entries;
 
     public:
@@ -84,9 +85,11 @@ class ResourceLoader {
                 return Ref<T>();
             }
             Ref<Resource> res;
-            Ref<File> file = File::open(entry->path.is_absolute()
-                                            ? entry->path
-                                            : root.append(entry->path));
+
+            const Path path =
+                SeedEngine::get_instance()->get_project()->resolve_asset(
+                    entry->path);
+            Ref<File> file = File::open(path);
             if (file.is_null()) {
                 return Ref<T>();
             }
@@ -220,7 +223,6 @@ class ResourceLoader {
             }
             return &iter->second;
         }
-        void set_root(const Path &path) { root = path; }
         ResourceLoader(/* args */);
         ~ResourceLoader();
 };

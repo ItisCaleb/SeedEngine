@@ -47,9 +47,8 @@ class DebugGUI : public GUI {
 
 int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
+    engine->load_project("test_project/Ave Mujica.json");
     ResourceLoader *loader = ResourceLoader::get_instance();
-    loader->get_entries().load("test_project/assets/.seed_entry");
-    loader->set_root("test_project");
 
     auto terrain =
         loader->load_internal<Terrain>("test_project/assets/terrain_01.json");

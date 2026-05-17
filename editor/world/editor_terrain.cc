@@ -269,8 +269,6 @@ void EditorTerrain::dump(const Path &dir) {
     if (light_map_generated) {
         this->light_map->save_disk(dir.append(light_map_name));
     }
-    gEditor->project()->add_to_assets(
-        fmt::format("{}/{}", dir, height_map_name));
 }
 EditorTerrain::~EditorTerrain() {}
 }  // namespace Seed
