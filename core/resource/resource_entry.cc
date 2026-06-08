@@ -19,6 +19,10 @@ ResourceEntry *ResourceEntries::get_entry(const UUID uuid) {
     return &iter->second;
 }
 
+Path ResourceEntry::real_path() {
+    return SeedEngine::get_instance()->get_project()->resolve_asset(path);
+}
+
 UUID ResourceEntries::get_uuid(const Path &path) {
     auto iter = path_to_uuid.find(path);
     if (iter == path_to_uuid.end()) {

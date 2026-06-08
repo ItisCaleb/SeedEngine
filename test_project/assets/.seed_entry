@@ -241,12 +241,6 @@
       }
     },
     {
-      "UUID": "ca6ef923-bd01-43d5-85c1-bccf0c3c272e",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\terrain_01_height_map.png",
-      "config": {}
-    },
-    {
       "UUID": "4c4ba3db-109b-4b5c-874f-1ddd22aed57e",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\rp_nathan_animated_003_mat_baseColor.jpeg",
@@ -259,21 +253,9 @@
       "config": {}
     },
     {
-      "UUID": "4f2581cc-20e6-40cf-89b0-e90ae471966c",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\terrain_01_light_map.png",
-      "config": {}
-    },
-    {
       "UUID": "8bf592bd-7de5-46a9-8c6f-ee0c070cb30d",
       "resource_type_id": 7296292343309737622,
       "path": "assets\\new_world.world"
-    },
-    {
-      "UUID": "d85a5bc5-0149-4af7-8d0d-6ddefe38e582",
-      "resource_type_id": 5244098326367020329,
-      "path": "assets\\terrain_01_splat_map.png",
-      "config": {}
     },
     {
       "UUID": "715a55b0-193d-4ce3-9031-030d99448b66",
@@ -300,9 +282,9 @@
       "config": {}
     },
     {
-      "UUID": "646324ec-e652-4e1d-9ed6-2dd2352ee6bf",
+      "UUID": "b57dabec-06b3-4029-a13d-5b1ca71146e3",
       "resource_type_id": 5244098326367020329,
-      "path": "assets\\.internal\\new_world_heightmap.png",
+      "path": "assets\\.internal\\new_world_0_0.png",
       "config": {}
     },
     {

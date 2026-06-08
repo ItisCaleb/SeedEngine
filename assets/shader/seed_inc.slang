@@ -59,11 +59,11 @@ struct CSMShadow
 
 [[vk::binding(8)]]
 ConstantBuffer<Camera[64]> gCam;
-[[vk::binding(10)]]
+[[vk::binding(9)]]
 ConstantBuffer<Lights> gLights;
-[[vk::binding(11)]]
+[[vk::binding(10)]]
 ConstantBuffer<CSMShadow> gCSM;
-[[vk::binding(12)]]
+[[vk::binding(11)]]
 ConstantBuffer<mat4> gProj;
 
 

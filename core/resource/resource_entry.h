@@ -41,6 +41,7 @@ struct ResourceEntry {
         /* else it is the config path */
         Path path;
         ResourceConfiguration config;
+        Path real_path();
 };
 
 class ResourceEntries {

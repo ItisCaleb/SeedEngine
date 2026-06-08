@@ -11,6 +11,7 @@
 #include "editor/gui/inspectable.h"
 #include "editor_terrain.h"
 #include "world_renderer.h"
+#include "core/resource/sky.h"
 
 namespace Seed {
 
@@ -45,6 +46,8 @@ struct EditorSky {
         UUID right;
         UUID front;
         UUID back;
+        Ref<TextureCubemap> cubemap;
+        Ref<Sky> sky;
 };
 
 struct EditorChunk {
@@ -61,6 +64,7 @@ class WorldRenderer;
 class EditorWorld {
         friend WorldEditor;
         friend WorldRenderer;
+
     private:
         ResourceConfiguration *config = nullptr;
         KString name;
@@ -68,6 +72,7 @@ class EditorWorld {
         EditorDirectionalLight directional_light;
         std::vector<EditorChunk> chunks;
         Ref<EditorTerrain> terrain;
+        Ref<Image> default_heightmap;
 
     public:
         EditorWorld(ResourceConfiguration *config);
@@ -85,6 +90,7 @@ class EditorWorld {
         }
         std::vector<EditorChunk> &get_chunks() { return chunks; }
         const std::vector<EditorChunk> &get_chunks() const { return chunks; }
+        void add_new_chunk(u32 x, u32 y);
 };
 
 class EditorWorldInspector : public Inspectable {

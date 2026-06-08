@@ -96,6 +96,7 @@ void RenderEngine::init() {
     imgui_renderer = new ImguiRenderer;
     this->register_renderer(0, default_renderer);
     this->register_renderer(10, imgui_renderer);
+    g_frame.init();
 }
 
 RenderBackend *RenderEngine::get_device() { return device; }
@@ -108,6 +109,11 @@ void RenderEngine::register_renderer(u8 layer, Renderer *renderer) {
 
 void RenderEngine::process() {
     PROFILE_SCOPE("Rendering");
+    RenderCommandDispatcher dp;
+    RenderStateDataBuilder builder;
+    RenderEngine::get_instance()->get_frame_global().bind(builder);
+    dp.set_states(builder);
+
     for (RendererLayer &layer : this->renderers) {
         if (layer.enabled) {
             layer.renderer->preprocess();

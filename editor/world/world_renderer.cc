@@ -25,15 +25,6 @@ void WorldRenderer::rebind_textures(Ref<Texture> screen_texture,
 
 void WorldRenderer::init(Window *window) {
     color_pass.setup(screen_tex, screen_depth, picking_tex);
-    visible_ssbo = RHI::alloc_storage_buffer(sizeof(int) * 1024,
-                                             UpdateFrequence::PERFRAME);
-    camera = RHI::alloc_constant(sizeof(Mat4) * 64, UpdateFrequence::PERFRAME);
-    lights =
-        RHI::alloc_constant(sizeof(STB140Lights), UpdateFrequence::PERFRAME);
-
-    terrain_ssbo = RenderEngine::get_instance()
-                       ->get_instance_pool(TERRAIN_POOL_NAME)
-                       ->get_render_buffer();
 }
 void WorldRenderer::preprocess() {
     fd = {};
@@ -46,6 +37,8 @@ void WorldRenderer::preprocess() {
     fd.mesh = world->terrain->get_mesh();
     Ref<TerrainInstanceData> instance = world->terrain->get_instances();
     AABB bounding_box = fd.mesh->get_bounding_box();
+    FrameGlobal &g_frame = RenderEngine::get_instance()->get_frame_global();
+
     fd.screen_w = screen_tex->get_width();
     fd.screen_h = screen_tex->get_height();
     /* check instance mesh size > 0 */
@@ -60,7 +53,7 @@ void WorldRenderer::preprocess() {
     Camera::ShaderCamera *matrices = (Camera::ShaderCamera *)cam_info.data;
 
     cam->fill_shader_camera(matrices);
-    RHI::update_from_heap(camera, 0, cam_info);
+    RHI::update_from_heap(g_frame.camera, 0, cam_info);
 
     World *runtime_world = SeedEngine::get_instance()->get_world();
     RHI::UpdateBufferInfo light_info = RHI::alloc_heap(sizeof(STB140Lights));
@@ -71,7 +64,7 @@ void WorldRenderer::preprocess() {
     for (STB140Light &point_light : light_buf->u_point_lights) {
         point_light.enable = 0.0f;
     }
-    RHI::update_from_heap(lights, 0, light_info);
+    RHI::update_from_heap(g_frame.lights, 0, light_info);
 
     const Frustum &cam_frustum = cam->get_frustum();
 
@@ -82,7 +75,7 @@ void WorldRenderer::preprocess() {
                               depth);
     fd.visible_size = visible_instances.size();
     if (visible_instances.empty()) return;
-    RHI::update(visible_ssbo, 0, sizeof(u32) * visible_instances.size(),
+    RHI::update(g_frame.visible, 0, sizeof(u32) * visible_instances.size(),
                 visible_instances.data());
 }
 void WorldRenderer::_process(RenderCommandDispatcher &dp) {
@@ -90,12 +83,6 @@ void WorldRenderer::_process(RenderCommandDispatcher &dp) {
         return;
     }
 
-    RenderStateDataBuilder builder;
-    builder.bind_storage_buffer(visible_ssbo, 0);
-    builder.bind_storage_buffer(terrain_ssbo, 2);
-    builder.bind_constant(camera, 8);
-    builder.bind_constant(lights, 10);
-    dp.set_states(builder);
     color_pass.draw(dp, fd);
 }
 void WorldRenderer::cleanup() {}
@@ -116,6 +103,20 @@ void WorldRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
     mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
 
     dp.render(mesh_builder, fd.mesh->get_type(), material->get_pipeline(), 0);
+    EditorWorld *world = gEditor->world_editor.get_current_world();
+
+    if (!world) {
+        return;
+    }
+    Ref<Sky> sky = world->sky.sky;
+    RenderDrawDataBuilder sky_builder =
+        dp.generate_render_data(ref_cast<Material>(sky->get_material()));
+    sky_builder.push_constant(0);
+    sky_builder.push_constant(0);
+    sky_builder.bind_vertex_data(DS::get_instance()->sky_vertices);
+    sky_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
+    dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
+              sky->get_material()->get_pipeline(), 1.0);
 }
 
 }  // namespace Seed

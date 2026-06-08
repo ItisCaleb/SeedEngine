@@ -30,15 +30,6 @@ class DefaultRenderer : public Renderer {
                 std::vector<u32> visible_size;
                 std::vector<f32> depth;
         };
-
-        /* Lighting */
-        SSBOHandle visible_ssbo;
-        SSBOHandle transform_ssbo;
-        SSBOHandle terrain_ssbo;
-        SSBOHandle bone_ssbo;
-        ConstantHandle camera;
-        ConstantHandle u_lights;
-        ConstantHandle u_csm;
         /* for debugging */
 
         std::vector<AABB> entity_aabb;
@@ -53,7 +44,6 @@ class DefaultRenderer : public Renderer {
                 std::vector<MeshInstance> transparent_meshes;
                 Ref<Material> post_mat;
                 Ref<Material> debug_mat;
-                Ref<VertexData> sky_vert;
                 Ref<VertexData> debug_line;
                 Ref<VertexData> debug_triangle;
                 Ref<IndexData> debug_triangle_indices;

@@ -17,10 +17,6 @@ class WorldRenderer : public Renderer {
         Ref<Texture> picking_depth;
         Ref<Texture> screen_tex;
         Ref<Texture> screen_depth;
-        SSBOHandle visible_ssbo;
-        SSBOHandle terrain_ssbo;
-        ConstantHandle camera;
-        ConstantHandle lights;
 
         class ColorPass : public RenderPass<FrameData> {
             public:

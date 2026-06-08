@@ -16,6 +16,7 @@ namespace Seed {
 
 class RenderEngine {
     private:
+        FrameGlobal g_frame;
         struct RendererLayer {
                 u8 layer;
                 bool enabled;
@@ -50,6 +51,7 @@ class RenderEngine {
         Renderer *get_imgui_renderer() { return imgui_renderer; }
         void set_renderer_layer(Renderer *renderer, u8 layer);
         void set_renderer_enable(Renderer *renderer, bool enable);
+        FrameGlobal &get_frame_global() { return g_frame; }
         RenderEngine(Window *window);
         ~RenderEngine();
 };

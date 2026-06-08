@@ -27,8 +27,6 @@ static const char *safe_path_text(const Path &path) {
 }
 
 void WorldEditor::init() {
-    default_heightmap.create(PixelFormat::RG, 257, 257);
-    default_heightmap->fill(Color{0, 0}, 257, 257);
     screen_texture.create(TextureType::TEXTURE_2D, screen_width, screen_height,
                           PixelFormat::RGBA, nullptr);
     screen_depth.create(TextureType::TEXTURE_2D, screen_width, screen_height,
@@ -71,9 +69,7 @@ void WorldEditor::validate_selected_chunk() {
     if (selected_chunk >= chunk_count) selected_chunk = chunk_count - 1;
 }
 
-void WorldEditor::mark_preview_terrain_dirty() {
-    preview_terrain_dirty = true;
-}
+void WorldEditor::mark_preview_terrain_dirty() { preview_terrain_dirty = true; }
 
 bool WorldEditor::load_world(const Path &path) {
     status_text.clear();
@@ -138,13 +134,9 @@ void WorldEditor::save_current_world() {
 void WorldEditor::add_chunk() {
     if (current_world == nullptr) return;
     auto &chunks = current_world->get_chunks();
-
-    EditorChunk chunk;
-    chunk.x = (u32)chunks.size();
-    chunk.y = 0;
-    chunks.push_back(chunk);
+    current_world->add_new_chunk(chunks.size(), 0);
     selected_chunk = (i32)chunks.size() - 1;
-    current_world->terrain->add_chunk(chunk.x, chunk.y, default_heightmap);
+    save_current_world();
 }
 
 void WorldEditor::remove_selected_chunk() {

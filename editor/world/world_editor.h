@@ -16,7 +16,6 @@ class WorldEditor {
     friend WorldRenderer;
     private:
         std::unique_ptr<EditorWorld> current_world;
-        Ref<Image> default_heightmap;
         Ref<Texture> screen_texture;
         Ref<Texture> screen_depth;
         Ref<Texture> picking_texture;

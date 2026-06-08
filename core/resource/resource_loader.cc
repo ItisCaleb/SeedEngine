@@ -233,7 +233,8 @@ RHI::UpdateBufferInfo ResourceLoader::load_image_to_upload(UUID uuid) {
 }
 
 Ref<Resource> ResourceLoader::load_texture(ResourceLoader &loader,
-                           ResourceConfiguration &config, Ref<File> data) {
+                                           ResourceConfiguration &config,
+                                           Ref<File> data) {
     Ref<Texture> texture;
     int w, h, comp;
 
@@ -280,20 +281,18 @@ Ref<TextureArray> load_texture_array(ResourceLoader &loader,
     return texture;
 }
 
-Ref<TextureCubemap> load_cubemap(ResourceLoader &loader,
-                                 ResourceConfiguration &config,
-                                 const std::string &name) {
+Ref<TextureCubemap> ResourceLoader::load_cubemap(u32 w, u32 h, UUID right,
+                                                 UUID left, UUID top,
+                                                 UUID bottom, UUID front,
+                                                 UUID back) {
     Ref<TextureCubemap> texture;
-    auto &j = config.get_json()[name];
     RHI::UpdateBufferInfo infos[6];
-    infos[0] = loader.load_image_to_upload(j["right"]);
-    infos[1] = loader.load_image_to_upload(j["left"]);
-    infos[2] = loader.load_image_to_upload(j["top"]);
-    infos[3] = loader.load_image_to_upload(j["bottom"]);
-    infos[4] = loader.load_image_to_upload(j["front"]);
-    infos[5] = loader.load_image_to_upload(j["back"]);
-    u32 w = infos[0].image.w;
-    u32 h = infos[0].image.h;
+    infos[0] = load_image_to_upload(right);
+    infos[1] = load_image_to_upload(left);
+    infos[2] = load_image_to_upload(top);
+    infos[3] = load_image_to_upload(bottom);
+    infos[4] = load_image_to_upload(front);
+    infos[5] = load_image_to_upload(back);
     texture.create(w, h, PixelFormat::RGBA, SamplerProperty{});
     RHI::update_from_heap(texture->get_handle(), (u32)CubemapFace::RIGHT, 0, 0,
                           infos[0]);
@@ -373,13 +372,13 @@ Ref<Resource> ResourceLoader::load_terrain(ResourceLoader &loader,
 }
 
 Ref<Resource> ResourceLoader::load_world(ResourceLoader &loader,
-                                               ResourceConfiguration &config,
-                                               Ref<File> data) {
+                                         ResourceConfiguration &config,
+                                         Ref<File> data) {
     Ref<Sky> sky;
     Ref<Terrain> terrain;
     auto &world_info = config.get_json();
-    auto sky_cubemap = load_cubemap(loader, config, "sky");
-    sky.create(sky_cubemap);
+    // auto sky_cubemap = loader.load_cubemap(loader, config, "sky");
+    // sky.create(sky_cubemap);
     u32 width = world_info["width"];
     u32 height = world_info["height"];
     Ref<Image> height_map;

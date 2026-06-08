@@ -221,6 +221,8 @@ class ResourceLoader {
             }
             return &iter->second;
         }
+        Ref<TextureCubemap> load_cubemap(u32 w, u32 h, UUID right, UUID left, UUID top,
+                                         UUID bottom, UUID front, UUID back);
         ResourceLoader(/* args */);
         ~ResourceLoader();
 };

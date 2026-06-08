@@ -10,7 +10,6 @@ class ImguiRenderer : public Renderer {
         void create_font_material();
         struct FrameData {
                 Ref<Material> font_material;
-                ConstantHandle projection;
                 VertexHandle vertex;
                 IndexHandle indices;
         } fd;

@@ -8,7 +8,7 @@ namespace Seed {
 class Inspectable {
     protected:
         ResourceConfiguration *config = nullptr;
-        void drag_uuid(KStr name, UUID &uuid);
+        bool drag_uuid(KStr name, UUID &uuid);
 
     public:
         Inspectable() = default;

@@ -220,7 +220,7 @@ struct fmt::formatter<Seed::KString> : fmt::formatter<fmt::string_view> {
         auto format(const Seed::KString &sv, format_context &ctx) const {
             // Cast or convert your type to fmt::string_view and delegate
             return formatter<fmt::string_view>::format(
-                {(char *)sv.data(), sv.size() - 1}, ctx);
+                {(char *)sv.data(), sv.size()}, ctx);
         }
 };
 

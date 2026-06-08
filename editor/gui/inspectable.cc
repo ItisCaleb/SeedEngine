@@ -6,7 +6,7 @@
 
 namespace Seed {
 
-void Inspectable::drag_uuid(KStr name, UUID &uuid) {
+bool Inspectable::drag_uuid(KStr name, UUID &uuid) {
     ImGui::TextUnformatted(name.data(), name.end());
     ImGui::SameLine();
     KString uuid_text = uuid.to_string();
@@ -14,8 +14,10 @@ void Inspectable::drag_uuid(KStr name, UUID &uuid) {
     if (ImGui::BeginDragDropTarget()) {
         if (auto p = ImGui::AcceptDragDropPayload("UUID")) {
             uuid = *(UUID *)p->Data;
+            return true;
         }
     }
+    return false;
 }
 
 void Inspector::update() {

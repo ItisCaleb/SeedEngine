@@ -33,6 +33,7 @@ class DefaultStorage {
         VertexLayout gui_desc;
         VertexLayout quad_desc;
         Ref<VertexData> quad_vertices;
+        Ref<VertexData> sky_vertices;
 
         static DefaultStorage *get_instance() { return instance; }
         DefaultStorage();

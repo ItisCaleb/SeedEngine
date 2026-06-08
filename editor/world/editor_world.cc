@@ -1,9 +1,10 @@
 #include "editor_world.h"
-#include <algorithm>
 #include <cstdio>
 #include <string>
 #include <imgui.h>
 #include "core/serialize/json_impl.h"
+#include "core/resource/resource_loader.h"
+#include "editor/editor.h"
 
 namespace Seed {
 
@@ -21,6 +22,9 @@ static EditorSky read_sky(const Json &j) {
     sky.right = j.value("right", UUID{});
     sky.front = j.value("front", UUID{});
     sky.back = j.value("back", UUID{});
+    sky.cubemap = ResourceLoader::get_instance()->load_cubemap(
+        2048, 2048, sky.right, sky.left, sky.up, sky.down, sky.front, sky.back);
+    sky.sky.create(sky.cubemap);
     return sky;
 }
 
@@ -140,7 +144,22 @@ static Json write_chunk(EditorChunk &chunk) {
 
 EditorWorld::EditorWorld(ResourceConfiguration *config) : config(config) {
     terrain.create();
+    default_heightmap.create(PixelFormat::RG, 257, 257);
+    default_heightmap->fill(Color{0, 0}, 257, 257);
     reload();
+}
+
+void EditorWorld::add_new_chunk(u32 x, u32 y) {
+    ResourceEntry *entry = gEditor->create_internal_asset(
+        fmt::format("{}_{}_{}.png", name, x, y), type_id<Texture>());
+    EditorChunk chunk;
+    chunk.x = x;
+    chunk.y = y;
+    chunk.height_map = entry->uuid;
+    chunks.push_back(chunk);
+
+    terrain->add_chunk(chunk.x, chunk.y, default_heightmap);
+    default_heightmap->save_disk(entry->real_path());
 }
 
 void EditorWorld::reload() {
@@ -162,6 +181,10 @@ void EditorWorld::reload() {
     if (j.contains("chunks") && j["chunks"].is_array()) {
         for (const Json &chunk_j : j["chunks"]) {
             chunks.push_back(read_chunk(chunk_j));
+            EditorChunk &chunk = chunks.back();
+            terrain->add_chunk(
+                chunk.x, chunk.y,
+                ResourceLoader::get_instance()->load<Image>(chunk.height_map));
         }
     }
 }
@@ -181,8 +204,7 @@ void EditorWorld::save() {
     }
 }
 
-EditorWorldInspector::EditorWorldInspector(EditorWorld *world)
-    : world(world) {}
+EditorWorldInspector::EditorWorldInspector(EditorWorld *world) : world(world) {}
 
 void EditorWorldInspector::draw_vec3(KStr label, Vec3 &value) {
     ImGui::PushID(label.data());
@@ -205,12 +227,24 @@ void EditorWorldInspector::draw_inspector() {
 
     if (ImGui::CollapsingHeader("Sky", ImGuiTreeNodeFlags_DefaultOpen)) {
         EditorSky &sky = world->get_sky();
-        drag_uuid("up", sky.up);
-        drag_uuid("down", sky.down);
-        drag_uuid("left", sky.left);
-        drag_uuid("right", sky.right);
-        drag_uuid("front", sky.front);
-        drag_uuid("back", sky.back);
+        u32 width = sky.cubemap->get_width();
+        u32 height = sky.cubemap->get_height();
+        auto update_skybox = [&](UUID uuid, CubemapFace face) {
+            auto image = ResourceLoader::get_instance()->load<Image>(uuid);
+            sky.cubemap->update_face(width, height, face, image->get_data());
+        };
+
+        if (drag_uuid("up", sky.up)) update_skybox(sky.up, CubemapFace::TOP);
+        if (drag_uuid("down", sky.down))
+            update_skybox(sky.down, CubemapFace::BOTTOM);
+        if (drag_uuid("left", sky.left))
+            update_skybox(sky.left, CubemapFace::LEFT);
+        if (drag_uuid("right", sky.right))
+            update_skybox(sky.right, CubemapFace::RIGHT);
+        if (drag_uuid("front", sky.front))
+            update_skybox(sky.front, CubemapFace::FRONT);
+        if (drag_uuid("back", sky.back))
+            update_skybox(sky.back, CubemapFace::BACK);
     }
 
     if (ImGui::CollapsingHeader("Directional Light",
