@@ -31,6 +31,7 @@ class SeedEngine {
         World *world;
         f32 last_fps;
         EngineConfig config;
+        void setup_logger();
         void init_systems();
 
     public:

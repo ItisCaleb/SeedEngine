@@ -15,6 +15,9 @@
 #include "core/os.h"
 #include "core/debug/debug_drawer.h"
 #include "xr/xr_engine.h"
+#include <spdlog/sinks/callback_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+
 namespace Seed {
 
 static void error_callback(int error, const char *description) {
@@ -23,7 +26,20 @@ static void error_callback(int error, const char *description) {
 
 SeedEngine *SeedEngine::get_instance() { return instance; }
 
+void SeedEngine::setup_logger() {
+    auto callback_sink = std::make_shared<spdlog::sinks::callback_sink_mt>(
+        [](const spdlog::details::log_msg &msg) {
+            return;
+        });
+    callback_sink->set_level(spdlog::level::err);
+    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    spdlog::logger logger("Main",
+                          {console_sink, callback_sink});
+    spdlog::set_default_logger(std::make_shared<spdlog::logger>(logger));
+}
+
 void SeedEngine::init_systems() {
+    setup_logger();
     ResourceLoader *resource_loader = new ResourceLoader;
 #ifdef SEED_XR
     XREngine *xr_engine = new XREngine();
@@ -44,9 +60,11 @@ void SeedEngine::init_systems() {
 bool SeedEngine::load_project(const Path &path) {
     current_project = Project::load(path);
     if (!File::exists(current_project->get_entry_path())) {
-        ResourceLoader::get_instance()->get_entries().save(current_project->get_entry_path());
+        ResourceLoader::get_instance()->get_entries().save(
+            current_project->get_entry_path());
     } else {
-        ResourceLoader::get_instance()->get_entries().load(current_project->get_entry_path());
+        ResourceLoader::get_instance()->get_entries().load(
+            current_project->get_entry_path());
     }
     return current_project != nullptr;
 }
