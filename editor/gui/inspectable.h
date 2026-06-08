@@ -11,7 +11,7 @@ class Inspectable {
         void drag_uuid(KStr name, UUID &uuid);
 
     public:
-        Inspectable();
+        Inspectable() = default;
         Inspectable(ResourceConfiguration *config) : config(config) {}
         virtual void draw_inspector() {}
         virtual void save() {};

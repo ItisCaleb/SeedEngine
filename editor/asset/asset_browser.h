@@ -24,7 +24,7 @@ class AssetBrowser {
         Ref<Dir> current_dir;
         std::vector<AssetEntry> entries;  // contents of current_dir
         i32 selected_idx = -1;
-        i32 view_mode = 0;  // 0=grid 1=list
+        f32 folder_panel_width = 220.f;
         f32 icon_size = 72.f;
         char search_buf[128] = {};
         bool needs_refresh = true;
@@ -42,14 +42,21 @@ class AssetBrowser {
         void navigate_to(KStr dir);
         void draw_breadcrumb();
         void draw_toolbar();
+        void draw_folder_panel();
+        void draw_folder_tree(const Path &dir);
         void draw_icon(AssetEntry &e, Vec2 cell_size, u32 rename_idx);
         void draw_grid();
-        void draw_list();
         void draw_entry_context_menu(int idx);
         void draw_asset_option_menu();
+        void draw_empty_space_context_menu();
+        void handle_external_drop_target();
+        void open_asset(AssetEntry &entry);
         void begin_rename(int idx);
         void commit_rename();
         UUID get_asset_uuid(AssetEntry &entry);
+        Path get_project_asset_path(const AssetEntry &entry) const;
+        std::vector<Path> list_child_directories(const Path &dir);
+        bool matches_search(const Path &path, KStr filter);
         Inspectable *create_inspectable(AssetEntry &entry);
         AssetType classify(const Path &p);
         const char *asset_type_icon(AssetType t);

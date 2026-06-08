@@ -1,9 +1,11 @@
 #include "resource_entry.h"
 #include <spdlog/spdlog.h>
 #include <nlohmann/json_fwd.hpp>
+#include "core/engine.h"
 #include "core/io/file.h"
 #include "core/io/path.h"
 #include "core/misc/uuid.h"
+#include "core/project.h"
 #include "core/serialize/json_impl.h"
 #include "core/resource/resource.h"
 #include "core/resource/resource_loader.h"
@@ -61,6 +63,7 @@ void ResourceEntries::save(const Path &path) {
     nlohmann::ordered_json j;
     j["entries"] = nlohmann::json::array();
     ResourceLoader *loader = ResourceLoader::get_instance();
+    Project *project = SeedEngine::get_instance()->get_project();
     for (auto &[uuid, entry] : uuid_to_entry) {
         if (internal_entries.count(uuid) > 0) continue;
         ResourceTypeInfo *info = loader->get_type_info(entry.type_id);
@@ -69,9 +72,10 @@ void ResourceEntries::save(const Path &path) {
         j_entry["resource_type_id"] = entry.type_id;
         j_entry["path"] = entry.path;
         if (!info->has_data) {
-            Ref<File> config = File::open(entry.path, "wb");
+            Ref<File> config =
+                File::open(project->resolve_asset(entry.path), "wb");
             config->write_str(entry.config.get_json().dump(2));
-        }else{
+        } else {
             j_entry["config"] = entry.config.get_json();
         }
         j["entries"].push_back(j_entry);
@@ -83,6 +87,8 @@ void ResourceEntries::load(const Path &path) {
     nlohmann::json j = file->read_json();
     auto &j_entries = j["entries"];
     ResourceLoader *loader = ResourceLoader::get_instance();
+    Project *project = SeedEngine::get_instance()->get_project();
+
     for (auto &j_entry : j_entries) {
         UUID uuid = j_entry["UUID"];
         ResourceTypeID type_id = j_entry["resource_type_id"];
@@ -90,7 +96,7 @@ void ResourceEntries::load(const Path &path) {
         nlohmann::json jconfig;
         ResourceTypeInfo *info = loader->get_type_info(type_id);
         if (info && !info->has_data) {
-            Ref<File> config = File::open(p);
+            Ref<File> config = File::open(project->resolve_asset(p));
             if (config.is_null()) {
                 SPDLOG_ERROR(
                     "Resource entry loading error: Missing property of '{}'",

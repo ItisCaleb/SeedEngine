@@ -48,10 +48,7 @@ class SeedEngine {
             return this->config.debug_flag;
         }
 
-        bool load_project(const Path &path) {
-            current_project = Project::load(path);
-            return current_project != nullptr;
-        }
+        bool load_project(const Path &path);
         SeedEngine(f32 target_fps = 60.0);
         ~SeedEngine();
 

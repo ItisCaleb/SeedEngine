@@ -53,8 +53,6 @@ class ResourceLoader {
         static RESOURCE_LOADER(load_basic_model);
         static RESOURCE_LOADER(load_skeleton_model);
         static RESOURCE_LOADER(load_texture);
-        static RESOURCE_LOADER(load_texture_array);
-        static RESOURCE_LOADER(load_cubemap);
         static RESOURCE_LOADER(load_mappable_texture);
         static RESOURCE_LOADER(load_image);
         static RESOURCE_LOADER(load_terrain);

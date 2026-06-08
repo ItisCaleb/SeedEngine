@@ -448,7 +448,7 @@ void RenderBackendVK::create_command_buffer() {
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = command_pool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 2;
+    allocInfo.commandBufferCount = 1;
 
     for (u32 i = 0; i < FRAMES_IN_FLIGHT; i++) {
         if (vkAllocateCommandBuffers(device, &allocInfo,

@@ -9,7 +9,7 @@
 #include "gui/popup.h"
 #include "project/preprocessor.h"
 #include <nlohmann/json.hpp>
-#include "editor/world/terrain_editor.h"
+#include "editor/world/world_editor.h"
 #include "editor/asset/asset_viewer.h"
 #include "editor/asset/asset_browser.h"
 
@@ -24,7 +24,7 @@ class Editor {
                 Inspectable *current_inspect = nullptr;
                 Popup *current_popup = nullptr;
         } ctx;
-        TerrainEditor terrain_editor;
+        WorldEditor world_editor;
         AssetViewer asset_viewer;
         AssetBrowser asset_browser;
         Preprocessor preprocessor;

@@ -19,6 +19,7 @@ struct TerrainVertex {
 
 struct TerrainInstance {
         Vec2 pos;
+        u32 heightmap_index;
         f32 max_height, min_height;
 };
 

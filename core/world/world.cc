@@ -156,9 +156,7 @@ void World::register_engine_components() {
         });
 }
 
-World::World()
-    : direction_light(Vec3{-0.5, -0.5, 0}, Vec3{0.8, 0.8, 0.8},
-                      Vec3{0.4, 0.4, 0.4}) {
+World::World() {
     this->ambient_light = Vec3{0.25, 0.25, 0.25};
     this->camera.set_position(Vec3{0, 20, 0});
     this->camera.set_perspective(45, 1.33, 0.1, 2000.0);

@@ -3,13 +3,11 @@ import seed_inc;
 struct VS_OUT{
     float2 uv;
     float4 sv_position: SV_Position;
+    nointerpolation uint heightmap_index;
 }
 
 struct Property{
-    Sampler2D height_map; 
-    Sampler2D terrain_shadowMap;
-    Sampler2D splat_map;
-    vec2 terrain_size;
+    Sampler2DArray height_map; 
 };
 
 ParameterBlock<Property> prop;
@@ -17,10 +15,11 @@ ParameterBlock<Property> prop;
 [shader("vertex")]
 VS_OUT vert(float2 aPos, uint id: SV_VulkanInstanceID){
     VS_OUT out;
-    vec2 terrain = GetTerrain(id);
-    vec2 size = prop.terrain_size; 
-    out.sv_position = vec4(aPos.x + terrain.x, 0.0f, aPos.y + terrain.y, 1.0);
+    TerrainInstance terrain = GetTerrain(id);
+    vec2 size = 256; 
+    out.sv_position = vec4(aPos.x + terrain.pos.x, 0.0f, aPos.y + terrain.pos.y, 1.0);
     out.uv = (out.sv_position.xz + size / 2)/size;
+    out.heightmap_index = terrain.heightmap_index;
     return out;
 }
 
@@ -28,6 +27,7 @@ struct HSOutput
 {
     float4 position;
     float2 uv;
+    nointerpolation uint heightmap_index;
 };
 
 [shader("hull")]
@@ -40,6 +40,7 @@ HSOutput tesc(InputPatch<VS_OUT, 4> patch, uint cpID : SV_OutputControlPointID){
     HSOutput o;
     o.position = patch[cpID].sv_position;
     o.uv = patch[cpID].uv;
+    o.heightmap_index = patch[cpID].heightmap_index;
     return o;
 }
 
@@ -70,46 +71,46 @@ struct DS_OUT{
 };
 
 
-float get_height(vec2 tex_coord){
-    return prop.height_map.SampleLevelZero(tex_coord).y * 256.0 - 128.0;
+float get_height(uint layer, vec2 tex_coord){
+    return prop.height_map.SampleLevelZero(vec3(tex_coord, layer)).y * 256.0 - 128.0;
 }
 
-float SampleHorizonShadow(vec2 uv, vec3 light_dir){
-    // lookup texel at patch coordinate for height and scale + shift as desired
-    float4 slopes = prop.terrain_shadowMap.SampleLevelZero(uv);
+// float SampleHorizonShadow(vec2 uv, vec3 light_dir){
+//     // lookup texel at patch coordinate for height and scale + shift as desired
+//     float4 slopes = prop.terrain_shadowMap.SampleLevelZero(uv);
 
-    float sx = light_dir.x < 0 ? slopes.r : slopes.g;
-    float sz = light_dir.z < 0 ? slopes.b : slopes.a;
+//     float sx = light_dir.x < 0 ? slopes.r : slopes.g;
+//     float sz = light_dir.z < 0 ? slopes.b : slopes.a;
 
-    float wx = abs(light_dir.x);
-    float wz = abs(light_dir.z);
-    float total = wx + wz;  // L1 norm
-    float slope = (sx * wx + sz * wz) / total;
-    float angle = light_dir.y;
-    float soft_width = 0.15;
-    float shadow = smoothstep(angle - soft_width,
-                              angle + soft_width,
-                              slope);
+//     float wx = abs(light_dir.x);
+//     float wz = abs(light_dir.z);
+//     float total = wx + wz;  // L1 norm
+//     float slope = (sx * wx + sz * wz) / total;
+//     float angle = light_dir.y;
+//     float soft_width = 0.15;
+//     float shadow = smoothstep(angle - soft_width,
+//                               angle + soft_width,
+//                               slope);
 
-    return shadow;
-}
+//     return shadow;
+// }
 
-float HorizonShadow(vec2 uv, vec3 light_dir) {
-    float shadow = 0.0;
-    uint level;
-    uint2 size;
-    prop.terrain_shadowMap.GetDimensions(0u, size[0], size[1], level);
-    vec2 tex_scale = (1.0 / vec2(size));
+// float HorizonShadow(vec2 uv, vec3 light_dir) {
+//     float shadow = 0.0;
+//     uint level;
+//     uint2 size;
+//     prop.terrain_shadowMap.GetDimensions(0u, size[0], size[1], level);
+//     vec2 tex_scale = (1.0 / vec2(size));
     
-    int kernel_size = 3;
-    /* poisson disk */
-    for (int i = 0; i < 16; i++) {
-        vec2 sample_offset = poisson_disk[i] * kernel_size * tex_scale;
-        shadow += SampleHorizonShadow(uv + sample_offset, light_dir);
-    }
-    shadow /= 16.0;
-    return shadow;
-}
+//     int kernel_size = 3;
+//     /* poisson disk */
+//     for (int i = 0; i < 16; i++) {
+//         vec2 sample_offset = poisson_disk[i] * kernel_size * tex_scale;
+//         shadow += SampleHorizonShadow(uv + sample_offset, light_dir);
+//     }
+//     shadow /= 16.0;
+//     return shadow;
+// }
 
 [shader("domain")]
 [domain("quad")]
@@ -136,11 +137,12 @@ DS_OUT tese(
     out.texCoord = (t1 - t0) * v + t0;
     float offset = 0.0001;
     // lookup texel at patch coordinate for height and scale + shift as desired
-    out.height = get_height(out.texCoord);
-    float rh = get_height(out.texCoord + vec2(offset, 0));
-    float lh = get_height(out.texCoord + vec2(-offset, 0));
-    float uh = get_height(out.texCoord + vec2(0, offset));
-    float dh = get_height(out.texCoord + vec2(0, -offset));
+    uint index = patch[0].heightmap_index;
+    out.height = get_height(index,out.texCoord);
+    float rh = get_height(index,out.texCoord + vec2(offset, 0));
+    float lh = get_height(index,out.texCoord + vec2(-offset, 0));
+    float uh = get_height(index,out.texCoord + vec2(0, offset));
+    float dh = get_height(index,out.texCoord + vec2(0, -offset));
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
@@ -183,12 +185,13 @@ FS_OUT frag(DS_OUT in){
     vec3 diffuse_sample = vec3(1,1,1);
     vec3 specular_sample = vec3(1,1,1);
     vec3 dir_light = -normalize(vec3(-0.5,-0.5,0));
-    float horizon_shadow = HorizonShadow(in.texCoord, dir_light);
+    //float horizon_shadow = HorizonShadow(in.texCoord, dir_light);
     // direction
     light_out +=
         calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
             diffuse_sample, specular_sample, dir_light, view_dir,
-            1, in.normal) * (1.0 - horizon_shadow);
+            1, in.normal);
+    //light_out *=  (1.0 - horizon_shadow);
     light_out *= vec3(h, h, h);
     out.albedo = vec4(light_out, 1.0);
 

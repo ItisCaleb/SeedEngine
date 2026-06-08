@@ -41,6 +41,16 @@ void SeedEngine::init_systems() {
     this->world = new World;
 }
 
+bool SeedEngine::load_project(const Path &path) {
+    current_project = Project::load(path);
+    if (!File::exists(current_project->get_entry_path())) {
+        ResourceLoader::get_instance()->get_entries().save(current_project->get_entry_path());
+    } else {
+        ResourceLoader::get_instance()->get_entries().load(current_project->get_entry_path());
+    }
+    return current_project != nullptr;
+}
+
 void SeedEngine::start() {
     if (window == nullptr) {
         return;

@@ -18,8 +18,14 @@ ConstantBuffer<PushConstant> gPC;
 [[vk::binding(1)]]
 StructuredBuffer<mat4> gTransform;
 
+struct TerrainInstance{
+    vec2 pos;
+    uint heightmap_index;
+    uint dummy;
+};
+
 [[vk::binding(2)]]
-StructuredBuffer<vec2> gTerrain;
+StructuredBuffer<TerrainInstance> gTerrain;
 
 [[vk::binding(3)]]
 StructuredBuffer<mat4> gBones;
@@ -82,7 +88,7 @@ inline mat4 GetTransform(uint id){
     return gTransform[gVisible[id + gPC.visible_index]];
 }
 
-inline vec2 GetTerrain(uint id){
+inline TerrainInstance GetTerrain(uint id){
     return gTerrain[gVisible[id + gPC.visible_index]];
 }
 

@@ -73,8 +73,8 @@ void *MappableTexture::get_mapped() { return RHI::map_texture(handle); }
 void MappableTexture::save_disk(const Path &path) {
     void *data = get_mapped();
     u32 pixel_size = get_pixel_format_size(format);
-    if (w != real_w){
-         /* if the layout is different, we copy line by line */
+    if (w != real_w) {
+        /* if the layout is different, we copy line by line */
         /* else we copy line by line */
         void *tmp = malloc(w * h * pixel_size);
         for (u32 i = 0; i < h; i++) {
@@ -82,12 +82,15 @@ void MappableTexture::save_disk(const Path &path) {
                    (void *)((u64)data + i * real_w * pixel_size),
                    w * pixel_size);
         }
-        stbi_write_png(path.data(), w, h, get_pixel_format_size(format), tmp, 0);
+        stbi_write_png(path.data(), w, h, get_pixel_format_size(format), tmp,
+                       0);
         free(tmp);
-    }else{
-        stbi_write_png(path.data(), w, h, get_pixel_format_size(format), data, 0);
+    } else {
+        stbi_write_png(path.data(), w, h, get_pixel_format_size(format), data,
+                       0);
     }
 }
+
 
 TextureArray::TextureArray(TextureType type, u32 w, u32 h, u32 layers,
                            PixelFormat format,
@@ -97,6 +100,7 @@ TextureArray::TextureArray(TextureType type, u32 w, u32 h, u32 layers,
     this->h = h;
     this->format = format;
     this->property = property;
+    this->layers = layers;
     handle = RHI::alloc_textures(type, w, h, format, layers, property);
     RHI::query_texture_size(handle, &real_w, &real_h);
 }

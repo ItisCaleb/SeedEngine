@@ -21,7 +21,6 @@
 #include "core/resource/texture.h"
 #include "core/resource/image.h"
 #include "core/types.h"
-#include "core/world/world.h"
 #include "resource.h"
 #include "shader.h"
 
@@ -222,7 +221,8 @@ RHI::UpdateBufferInfo ResourceLoader::load_image_to_upload(UUID uuid) {
     RHI::UpdateBufferInfo info;
     info.data = nullptr;
     if (!entry) return info;
-    Path path = SeedEngine::get_instance()->get_project()->resolve_asset(entry->path);
+    Path path =
+        SeedEngine::get_instance()->get_project()->resolve_asset(entry->path);
     i32 w, h, comp;
     void *_data = stbi_load(path.data(), &w, &h, &comp, 4);
     info.data = _data;
@@ -233,8 +233,7 @@ RHI::UpdateBufferInfo ResourceLoader::load_image_to_upload(UUID uuid) {
 }
 
 Ref<Resource> ResourceLoader::load_texture(ResourceLoader &loader,
-                                           ResourceConfiguration &config,
-                                           Ref<File> data) {
+                           ResourceConfiguration &config, Ref<File> data) {
     Ref<Texture> texture;
     int w, h, comp;
 
@@ -251,13 +250,13 @@ Ref<Resource> ResourceLoader::load_texture(ResourceLoader &loader,
     return ref_cast<Resource>(texture);
 }
 
-Ref<Resource> ResourceLoader::load_texture_array(ResourceLoader &loader,
-                                                 ResourceConfiguration &config,
-                                                 Ref<File> data) {
+Ref<TextureArray> load_texture_array(ResourceLoader &loader,
+                                     ResourceConfiguration &config,
+                                     const std::string &name) {
     Ref<TextureArray> texture;
-    auto &j = config.get_json();
+    auto &j = config.get_json()[name];
     std::vector<RHI::UpdateBufferInfo> infos;
-    for (auto &tex : j["textures"]) {
+    for (auto &tex : j) {
         UUID uuid = tex;
         RHI::UpdateBufferInfo info = loader.load_image_to_upload(uuid);
         if (info.data == nullptr) {
@@ -267,7 +266,7 @@ Ref<Resource> ResourceLoader::load_texture_array(ResourceLoader &loader,
         infos.push_back(info);
     }
     if (infos.size() == 0) {
-        return ref_cast<Resource>(texture);
+        return texture;
     }
     u32 w = infos[0].image.w;
     u32 h = infos[0].image.h;
@@ -278,14 +277,14 @@ Ref<Resource> ResourceLoader::load_texture_array(ResourceLoader &loader,
         RHI::update_from_heap(texture->get_handle(), i, 0, 0, info);
         i++;
     }
-    return ref_cast<Resource>(texture);
+    return texture;
 }
 
-Ref<Resource> ResourceLoader::load_cubemap(ResourceLoader &loader,
-                                           ResourceConfiguration &config,
-                                           Ref<File> data) {
+Ref<TextureCubemap> load_cubemap(ResourceLoader &loader,
+                                 ResourceConfiguration &config,
+                                 const std::string &name) {
     Ref<TextureCubemap> texture;
-    auto &j = config.get_json();
+    auto &j = config.get_json()[name];
     RHI::UpdateBufferInfo infos[6];
     infos[0] = loader.load_image_to_upload(j["right"]);
     infos[1] = loader.load_image_to_upload(j["left"]);
@@ -308,7 +307,7 @@ Ref<Resource> ResourceLoader::load_cubemap(ResourceLoader &loader,
                           infos[4]);
     RHI::update_from_heap(texture->get_handle(), (u32)CubemapFace::BACK, 0, 0,
                           infos[5]);
-    return ref_cast<Resource>(texture);
+    return texture;
 }
 
 Ref<Resource> ResourceLoader::load_mappable_texture(
@@ -374,34 +373,37 @@ Ref<Resource> ResourceLoader::load_terrain(ResourceLoader &loader,
 }
 
 Ref<Resource> ResourceLoader::load_world(ResourceLoader &loader,
-                                           ResourceConfiguration &config,
-                                           Ref<File> data) {
+                                               ResourceConfiguration &config,
+                                               Ref<File> data) {
+    Ref<Sky> sky;
     Ref<Terrain> terrain;
-    auto &terrain_info = config.get_json();
-    u32 width = terrain_info["width"];
-    u32 height = terrain_info["height"];
+    auto &world_info = config.get_json();
+    auto sky_cubemap = load_cubemap(loader, config, "sky");
+    sky.create(sky_cubemap);
+    u32 width = world_info["width"];
+    u32 height = world_info["height"];
     Ref<Image> height_map;
     Ref<Texture> splat_map, light_map;
-    auto jheight_map = terrain_info["height_map"];
+    auto jheight_map = world_info["height_map"];
     height_map = loader.load<Image>(jheight_map);
 
-    auto jsplat_map = terrain_info["splat_map"];
+    auto jsplat_map = world_info["splat_map"];
     splat_map = loader.load<Texture>(jsplat_map);
-    if (terrain_info.contains("light_map")) {
-        auto jlight_map = terrain_info["light_map"];
+    if (world_info.contains("light_map")) {
+        auto jlight_map = world_info["light_map"];
         light_map = loader.load<Texture>(jlight_map);
     }
     terrain.create(height_map, light_map, splat_map);
-    if (terrain_info.contains("tex1")) {
-        auto jtex1 = terrain_info["tex1"];
+    if (world_info.contains("tex1")) {
+        auto jtex1 = world_info["tex1"];
         auto texture = loader.load<Texture>(jtex1);
         terrain->get_material()->set_texture("tex1", texture);
         texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
                                                 .wrap_v = SamplerWrap::REPEAT});
     }
 
-    if (terrain_info.contains("tex1_normal")) {
-        auto jtex1 = terrain_info["tex1_normal"];
+    if (world_info.contains("tex1_normal")) {
+        auto jtex1 = world_info["tex1_normal"];
         auto texture = loader.load<Texture>(jtex1);
         terrain->get_material()->set_texture("tex1_normal", texture);
         texture->update_sampler(SamplerProperty{.wrap_u = SamplerWrap::REPEAT,

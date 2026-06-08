@@ -28,11 +28,7 @@ Project *Project::load(const Path &path) {
     project->preprocess_entry_path =
         project->asset_dir.append(".preprocess_entry");
     Dir::create_if_not_exists(project->asset_dir);
-    if (!File::exists(project->entry_path)) {
-        ResourceLoader::get_instance()->get_entries().save(project->entry_path);
-    } else {
-        ResourceLoader::get_instance()->get_entries().load(project->entry_path);
-    }
+
     return project;
 }
 

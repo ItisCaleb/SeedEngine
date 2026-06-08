@@ -4,22 +4,12 @@
 #include <imgui.h>
 #include <nlohmann/json_fwd.hpp>
 #include "core/container/kstring.h"
-#include "core/engine.h"
-#include "core/io/file.h"
 #include "core/misc/type_name.h"
 #include "core/misc/uuid.h"
-#include "core/rendering/render_common.h"
-#include "core/resource/image.h"
-#include "core/resource/resource_entry.h"
-#include "core/resource/terrain.h"
-#include "core/resource/texture.h"
 #include "core/serialize/json_impl.h"
-#include <nfd.h>
-#include "core/resource/resource_loader.h"
 #include "core/world/world.h"
 #include "editor/editor.h"
 #include <spdlog/spdlog.h>
-#include <stb_image.h>
 
 namespace Seed {
 ModelInspector::ModelInspector(ResourceConfiguration &config)
@@ -60,27 +50,24 @@ void ModelInspector::save() {
 }
 
 void WorldCreatePopup::create_world() {
-    Ref<Dir> current_dir = gEditor->get_current_dir();
     ResourceEntry *entry = gEditor->create_asset(
-        fmt::format("{}.world", new_terrain_name), type_id<World>());
+        fmt::format("{}.world", new_world_name), type_id<World>());
     nlohmann::ordered_json &j = entry->config.get_json();
-    j["name"] = new_terrain_name;
-    j["width"] = new_terrain_w;
-    j["height"] = new_terrain_h;
-    Ref<Image> height_map;
-    if (load_from_heightmap) {
-        spdlog::info("Loading heightmap from {}", height_map_path);
-        height_map = Image::load_from_file(height_map_path);
-        height_map->resize(new_terrain_w, new_terrain_h);
-    } else {
-        height_map.create(PixelFormat::RGBA, new_terrain_w, new_terrain_h);
-    }
-    auto height_map_entry = gEditor->create_internal_asset(
-        fmt::format("{}_heightmap.png", new_terrain_name), type_id<Texture>());
-    height_map->save_disk(height_map_entry->path);
-    j["height_map"] = height_map_entry->uuid;
-    spdlog::info("Saving world {}", new_terrain_name);
+    j["name"] = new_world_name;
+    j["sky"] = {
+        {"up", UUID{}},    {"down", UUID{}},  {"left", UUID{}},
+        {"right", UUID{}}, {"front", UUID{}}, {"back", UUID{}},
+    };
+    j["directional_light"] = {
+        {"enabled", true},
+        {"direction", Vec3{-0.5f, -0.5f, 0.0f}},
+        {"diffuse", Vec3{0.8f, 0.8f, 0.8f}},
+        {"specular", Vec3{0.4f, 0.4f, 0.4f}},
+    };
+    j["chunks"] = nlohmann::ordered_json::array();
+    spdlog::info("Saving world {}", new_world_name);
     gEditor->save_project();
+    gEditor->world_editor.load_world(entry->path);
 }
 
 void WorldCreatePopup::draw() {
@@ -105,91 +92,12 @@ void WorldCreatePopup::draw() {
         // Name
         ImGui::Text("Name");
         ImGui::PushItemWidth(-1);
-        ImGui::InputText("##nt_name", new_terrain_name, 64);
+        ImGui::InputText("##nt_name", new_world_name, 64);
         ImGui::PopItemWidth();
-
-        ImGui::Spacing();
-
-        // Dimensions
-        ImGui::Text("Size");
-        ImGui::BeginDisabled(load_from_heightmap);
-        ImGui::PushItemWidth(100);
-        ImGui::InputInt("W##nt_w", &new_terrain_w);
-        ImGui::SameLine();
-        ImGui::InputInt("H##nt_h", &new_terrain_h);
-        ImGui::PopItemWidth();
-        ImGui::EndDisabled();
 
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
-
-        // Heightmap drop zone
-        ImGui::Text("Load Heightmap  (optional)");
-        ImVec2 dz_pos = ImGui::GetCursorScreenPos();
-        ImVec2 dz_size = ImVec2(ImGui::GetContentRegionAvail().x, 64);
-
-        ImDrawList *dl = ImGui::GetWindowDrawList();
-        dl->AddRectFilled(dz_pos,
-                          ImVec2(dz_pos.x + dz_size.x, dz_pos.y + dz_size.y),
-                          IM_COL32(20, 22, 26, 255), 4);
-        dl->AddRect(dz_pos, ImVec2(dz_pos.x + dz_size.x, dz_pos.y + dz_size.y),
-                    IM_COL32(80, 100, 130, 180), 4, 0, 1.f);
-
-        // Invisible button to catch click
-        ImGui::InvisibleButton("##dropzone", dz_size);
-        bool dz_hovered = ImGui::IsItemHovered();
-
-        const char *dz_label = "Drop  .png / .exr  or click to browse";
-        ImVec2 ts = ImGui::CalcTextSize(dz_label);
-        dl->AddText(ImVec2(dz_pos.x + (dz_size.x - ts.x) * 0.5f,
-                           dz_pos.y + (dz_size.y - ts.y) * 0.5f),
-                    dz_hovered ? IM_COL32(120, 180, 255, 255)
-                               : IM_COL32(80, 90, 100, 255),
-                    dz_label);
-        ResourceLoader *loader = ResourceLoader::get_instance();
-
-        if (ImGui::IsItemClicked()) {
-            nfdu8char_t *path;
-            nfdopendialogu8args_t args = {0};
-            nfdresult_t r = NFD_OpenDialogU8_With(&path, &args);
-            if (r == NFD_OKAY) {
-                i32 x, y, comp;
-                i32 result = stbi_info(path, &x, &y, &comp);
-                if (result) {
-                    new_terrain_w = align_to(x, 256);
-                    new_terrain_h = align_to(y, 256);
-                    height_map_path = KStr(path);
-                    load_from_heightmap = true;
-                }
-            }
-        }
-
-        // Handle actual drag-drop from the OS via ImGui payload
-        if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload *p =
-                    ImGui::AcceptDragDropPayload("EXTERNAL")) {
-                KStr data(KStr((char *)p->Data, p->DataSize - 1));
-                std::vector<KStr> files = data.split("\n");
-                fmt::println("{}", files);
-                i32 x, y, comp;
-                i32 result = stbi_info(files[0].string().data(), &x, &y, &comp);
-                if (result) {
-                    new_terrain_w = align_to(x, 256);
-                    new_terrain_h = align_to(y, 256);
-                    load_from_heightmap = true;
-                }
-            }
-            ImGui::EndDragDropTarget();
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Init options
-        // ImGui::Checkbox("Initialize flat (height = 0)", &init_flat);
-        // ImGui::Checkbox("Add base noise layer", &init_noise);
 
         ImGui::Spacing();
         ImGui::Spacing();
@@ -209,8 +117,6 @@ void WorldCreatePopup::draw() {
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
                               ImVec4(0.20f, 0.42f, 0.72f, 1.f));
         if (ImGui::Button("Create", ImVec2(btn_w, 0))) {
-            // Allocate terrain
-            // init_default_splat_layers();
             create_world();
             should_close = true;
             ImGui::CloseCurrentPopup();
@@ -223,26 +129,5 @@ void WorldCreatePopup::draw() {
     if (!open) should_close = false;
 }
 
-WorldInspector::WorldInspector(ResourceConfiguration &config)
-    : Inspectable(&config) {
-    auto &j = config.get_json();
-    world = j;
-}
-void WorldInspector::draw_inspector() {
-    ImGui::TextUnformatted("Sky");
-    drag_uuid("up", world.sky.up);
-    drag_uuid("down", world.sky.down);
-    drag_uuid("left", world.sky.left);
-    drag_uuid("right", world.sky.right);
-    drag_uuid("front", world.sky.front);
-    drag_uuid("back", world.sky.back);
-    ImGui::Separator();
-    ImGui::TextUnformatted("Textures");
-    drag_uuid("texture1", world.texture1);
-    drag_uuid("texture1_normal", world.texture1_normal);
-}
-void WorldInspector::save() {
-    auto &j = config->get_json();
-    j = world;
-}
+
 }  // namespace Seed

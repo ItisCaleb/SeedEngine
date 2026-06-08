@@ -41,7 +41,7 @@ KString::KString(const std::string &str) {
 }
 
 KString::KString(const KString &str) {
-    if(str._cap == 0) return;
+    if (str._cap == 0) return;
     _size = str.size();
     _cap = str._cap;
     _data = (char *)malloc(_cap);
@@ -53,6 +53,7 @@ KString::KString(KString &&str) noexcept { operator=(str); }
 KStr KString::to_str() const { return KStr(*this); }
 
 KString &KString::operator=(const KString &str) {
+    if (str._data == nullptr) return *this;
     if (str._cap > _cap) {
         if (_data) {
             free(_data);

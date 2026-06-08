@@ -86,7 +86,7 @@ RenderEngine::RenderEngine(Window *window) {
     this->instance_pools[TRANSFORM_POOL_NAME] =
         new InstanceDataPool(sizeof(Mat4), 65536);
     this->instance_pools[TERRAIN_POOL_NAME] =
-        new InstanceDataPool(sizeof(Vec2), 1024);
+        new InstanceDataPool(sizeof(Vec4), 1024);
     this->instance_pools[SKELETON_POOL_NAME] =
         new InstanceDataPool(sizeof(Mat4), 65536);
 }

@@ -34,7 +34,7 @@ Editor::Editor() {
     }
     new EditorStorage;
     GuiEngine::get_instance()->add_gui(&editor_gui);
-    terrain_editor.init();
+    world_editor.init();
     asset_viewer.init();
     Project *project = engine->get_project();
     if (engine->get_project()) {
@@ -45,7 +45,7 @@ Editor::Editor() {
         }
         asset_browser.init(project->get_asset_dir());
         if (project_cache.contains("last_open_world")) {
-            terrain_editor.load_terrain(project_cache["last_open_world"]);
+            world_editor.load_world(project_cache["last_open_world"]);
         }
     }
 }

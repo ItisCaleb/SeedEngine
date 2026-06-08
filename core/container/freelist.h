@@ -62,6 +62,12 @@ class FreeList {
             data->element.~T();
             data->next = first_free;
             first_free = n;
+            this->cap--;
+        }
+
+        void clear(){
+            first_free = -1;
+            this->cap = 0;
         }
 
         // Returns the usage count

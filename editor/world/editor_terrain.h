@@ -7,9 +7,8 @@
 namespace Seed {
 class EditorTerrainMaterial : public Material {
     public:
-        EditorTerrainMaterial(Ref<Texture> height_map, Ref<Texture> splat_map);
+        EditorTerrainMaterial(Ref<Texture> height_map);
         Ref<Texture> get_height_map();
-        void set_light_map(Ref<Texture> texture);
 };
 
 class TerrainEditor;
@@ -17,33 +16,24 @@ class EditorTerrain : public Resource {
         friend TerrainEditor;
 
     private:
-        std::string name;
-        u32 width, height;
-        u32 hmap_width, hmap_height;
+        u32 last_heightmap = 0;
         Ref<Mesh> mesh;
-        Ref<MappableTexture> heightmap_texture;
-        Ref<MappableTexture> light_map;
-        Ref<MappableTexture> splat_map;
+        Ref<TextureArray> heightmaps;
         Ref<EditorTerrainMaterial> material;
         Ref<TerrainInstanceData> instances;
         bool light_map_generated = false;
         void build_mesh();
-        void create_chunk(Ref<MappableTexture> height_map, i32 left, i32 bottom,
-                          u32 half_width, u32 half_depth);
-        void gen_lightmap();
+        // void gen_lightmap();
 
     public:
-        EditorTerrain(u32 width, u32 height, Ref<MappableTexture> height_map,
-                      Ref<MappableTexture> splat_map,
-                      Ref<MappableTexture> light_map);
-        Ref<MappableTexture> get_heightmap() { return heightmap_texture; }
-        Ref<MappableTexture> get_splatmap() { return splat_map; }
+        EditorTerrain();
+        /* add a chunk at (x,y)*/
+        /* x y is chunk position which will be multiplied by CHUNK SIZE */
+        void add_chunk(i32 x, i32 y, Ref<Image> height_map);
+        Ref<TextureArray> get_heightmap() { return heightmaps; }
         Ref<EditorTerrainMaterial> get_material() { return material;}
         Ref<Mesh> get_mesh() { return mesh; }
         Ref<TerrainInstanceData> get_instances() { return instances; }
-        u32 get_width() { return width; }
-        u32 get_height() { return height; }
-        void dump(const Path &dir);
         ~EditorTerrain();
 };
 }  // namespace Seed

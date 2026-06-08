@@ -53,12 +53,13 @@ void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {
 }
 
 void TerrainInstanceData::upload() {
+    u32 stride = sizeof(Vec4);
     RHI::UpdateBufferInfo instance_info =
-        RHI::alloc_heap(sizeof(Vec2) * this->instances.size());
-    Vec2 *vecs = (Vec2 *)instance_info.data;
+        RHI::alloc_heap(stride * this->instances.size());
+    void *instance_data = instance_info.data;
     u32 i = 0;
     for (TerrainInstance &instance : this->instances) {
-        memcpy(&vecs[i], &instance, sizeof(Vec2));
+        memcpy((void*)((u64)instance_data + stride * i), &instance, 12);
         i++;
     }
     _upload(instance_info);

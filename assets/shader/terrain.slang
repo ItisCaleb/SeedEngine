@@ -21,9 +21,9 @@ ParameterBlock<Property> prop;
 [shader("vertex")]
 VS_OUT vert(float2 aPos, uint id: SV_VulkanInstanceID){
     VS_OUT out;
-    vec2 terrain = GetTerrain(id);
+    TerrainInstance terrain = GetTerrain(id);
     vec2 size = prop.terrain_size; 
-    out.sv_position = vec4(aPos.x + terrain.x, 0.0f, aPos.y + terrain.y, 1.0);
+    out.sv_position = vec4(aPos.x + terrain.pos.x, 0.0f, aPos.y + terrain.pos.y, 1.0);
     out.uv = (out.sv_position.xz + size / 2)/size;
     return out;
 }

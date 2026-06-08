@@ -74,6 +74,9 @@ class TextureArray : public Texture {
     public:
         void update_layer(u32 w, u32 h, u32 layer, const void *data);
         TextureArray(TextureType type, u32 w, u32 h, u32 layers,
+                     PixelFormat format)
+            : TextureArray(type, w, h, layers, format, SamplerProperty{}) {};
+        TextureArray(TextureType type, u32 w, u32 h, u32 layers,
                      PixelFormat format, const SamplerProperty &property);
 };
 enum class CubemapFace : u8 { RIGHT = 0, LEFT, TOP, BOTTOM, FRONT, BACK };

@@ -118,8 +118,8 @@ void EditorGUI::main_panel() {
         "##top", ImVec2(world_editor_w, world_editor_h), false,
         ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     if (ImGui::BeginTabBar("##TabBar")) {
-        if (ImGui::BeginTabItem("Terrain editor")) {
-            gEditor->terrain_editor.update();
+        if (ImGui::BeginTabItem("World editor")) {
+            gEditor->world_editor.update();
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();

@@ -1,7 +1,6 @@
 #include "profiler.h"
 #include <algorithm>
 #include <chrono>
-#include <cstring>
 #include <utility>
 #include "core/container/kstring.h"
 
