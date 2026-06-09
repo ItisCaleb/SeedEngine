@@ -18,7 +18,7 @@ VS_OUT vert(float2 aPos, uint id: SV_VulkanInstanceID){
     TerrainInstance terrain = GetTerrain(id);
     vec2 size = 257; 
     out.sv_position = vec4(aPos.x + terrain.pos.x, 0.0f, aPos.y + terrain.pos.y, 1.0);
-    out.uv = (out.sv_position.xz + size / 2)/size;
+    out.uv = (aPos + size / 2)/size;
     out.heightmap_index = terrain.heightmap_index;
     return out;
 }
@@ -52,23 +52,21 @@ struct PatchTessFactors {
 PatchTessFactors PatchConstantFunction() {
     PatchTessFactors factors;
     // Set tessellation levels
-    factors.tessFactor[0] = 32;
-    factors.tessFactor[1] = 32;
-    factors.tessFactor[2] = 32;
-    factors.tessFactor[3] = 32;
-    factors.insideTessFactor[0] = 32;
-    factors.insideTessFactor[1] = 32;
+    factors.tessFactor[0] = 16;
+    factors.tessFactor[1] = 16;
+    factors.tessFactor[2] = 16;
+    factors.tessFactor[3] = 16;
+    factors.insideTessFactor[0] = 16;
+    factors.insideTessFactor[1] = 16;
     return factors;
 }
 
 struct DS_OUT{
     float4 position : SV_Position;
-    float2 map_pos;
     float height;
     vec3 normal;
     vec4 fragPos;
     vec2 texCoord;
-    nointerpolation uint heightmap_index;
 };
 
 
@@ -136,7 +134,7 @@ DS_OUT tese(
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
     out.texCoord = (t1 - t0) * v + t0;
-    float offset = 1 / 257;
+    float offset = 1.0 / 257.0;
     // lookup texel at patch coordinate for height and scale + shift as desired
     uint index = patch[0].heightmap_index;
     out.height = get_height(index,out.texCoord);
@@ -156,7 +154,6 @@ DS_OUT tese(
     vec4 p0 = (p01 - p00) * u + p00;
     vec4 p1 = (p11 - p10) * u + p10;
     vec4 p = (p1 - p0) * v + p0;
-    out.map_pos = vec2(p.x, p.z);
     // displace point along normal
     p += vec4(0, out.height, 0 , 0);
     
@@ -197,8 +194,8 @@ FS_OUT frag(DS_OUT in){
     out.albedo = vec4(light_out, 1.0);
 
     out.position = int4(
-        (int)(in.map_pos.x),
-        (int)(in.map_pos.y), 0, 0
+        (int)(in.fragPos.x),
+        (int)(in.fragPos.z), 1, 0
     );
     return out; 
 }

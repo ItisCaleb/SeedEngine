@@ -1102,7 +1102,7 @@ TextureHandle RenderBackendVK::alloc_mappable_texture(
     VkSubresourceLayout subResLayout;
     vkGetImageSubresourceLayout(device, texture->image, &subRes, &subResLayout);
     w = subResLayout.rowPitch / get_pixel_format_size(format);
-
+    texture->w = w;
     texture->mapped_ptr = mapped_ptr;
     mappable_image_transition_queue.push(handle);
     return handle;
@@ -1621,8 +1621,8 @@ void RenderBackendVK::handle_frame_update() {
         barrier = create_image_barrier(
             texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copy.face);
         transfer_barriers.push_back(barrier);
-        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier = create_image_barrier(
+            texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, copy.face);
         shader_barriers.push_back(barrier);
     }
     while (!mappable_image_transition_queue.is_empty()) {
@@ -2379,6 +2379,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
     std::vector<Binding> bindings;
     VkClearRect clear_rect{};
     Frame &frame = frames[get_current_frame_index()];
+    bool clear_color = false;
 
     for (i32 i = 0; i < state_data->operation_cnt; i++) {
         auto *op = &head[i];
@@ -2386,10 +2387,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
         switch (type) {
             case RenderStateData::OpType::CLEAR: {
                 if (op->clear_flag & CLEAR_COLOR) {
-                    attachments.emplace_back(VkClearAttachment{
-                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                        .colorAttachment = 0,
-                        .clearValue = VkClearValue{.color = {0, 0, 0, 1}}});
+                    clear_color = true;
                 }
                 if (op->clear_flag & CLEAR_DEPTH) {
                     attachments.emplace_back(VkClearAttachment{
@@ -2508,6 +2506,14 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
             viewport_rect.height = -viewport_rect.height;
         }
         vkCmdSetViewport(frame.render_cmd_buffer, 0, 1, &viewport_rect);
+    }
+    if (clear_color) {
+        for (u32 i = 0; i < rt->color_attachments.size(); i++) {
+            attachments.emplace_back(VkClearAttachment{
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .colorAttachment = i,
+                .clearValue = VkClearValue{.color = {0, 0, 0, 1}}});
+        }
     }
     if (!attachments.empty() && clear_rect.rect.extent.width > 0 &&
         clear_rect.rect.extent.height > 0) {

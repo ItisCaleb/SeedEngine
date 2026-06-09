@@ -2,7 +2,9 @@
 #define _SEED_WORLD_EDITOR_H_
 
 #include <memory>
+#include <set>
 #include <string>
+#include <imgui.h>
 #include "core/io/path.h"
 #include "core/resource/image.h"
 #include "core/resource/resource_entry.h"
@@ -12,13 +14,17 @@
 namespace Seed {
 class WorldRenderer;
 
+enum class WorldEditorMode { World, Terrain };
+
+enum class WorldTerrainTool { Raise, Lower, Smooth, Flatten, Pick };
+
 class WorldEditor {
     friend WorldRenderer;
     private:
         std::unique_ptr<EditorWorld> current_world;
         Ref<Texture> screen_texture;
         Ref<Texture> screen_depth;
-        Ref<Texture> picking_texture;
+        Ref<MappableTexture> picking_texture;
         ResourceConfiguration standalone_config;
         WorldRenderer *renderer = nullptr;
         ResourceEntry *current_entry = nullptr;
@@ -26,24 +32,44 @@ class WorldEditor {
         bool current_world_from_entry = false;
         u32 screen_width = 1024;
         u32 screen_height = 768;
-        i32 selected_chunk = -1;
         bool preview_terrain_dirty = false;
+        WorldEditorMode active_mode = WorldEditorMode::World;
+        WorldTerrainTool terrain_tool = WorldTerrainTool::Raise;
+        float brush_radius = 12.0f;
+        float brush_strength = 0.25f;
+        float flatten_height = 128.0f;
+        i32 last_pick_x = 0;
+        i32 last_pick_y = 0;
+        bool last_pick_valid = false;
+        i32 last_image_x = 0;
+        i32 last_image_y = 0;
+        bool last_image_valid = false;
+        bool heightmaps_dirty = false;
+        std::set<u32> dirty_heightmaps;
         std::string status_text;
 
         ResourceEntry *find_entry_for_path(const Path &path);
         void set_current_world_inspector();
-        void validate_selected_chunk();
         void mark_preview_terrain_dirty();
+        void save_dirty_heightmaps();
+        i32 find_chunk_index_at_world(i32 world_x, i32 world_y) const;
+        bool world_to_heightmap_pixel(i32 world_x, i32 world_y, u32 &chunk_idx,
+                                      u32 &pixel_x, u32 &pixel_y) const;
+        bool sample_terrain_pick(ImVec2 viewport_origin, float viewport_w,
+                                 float viewport_h, i32 &world_x,
+                                 i32 &world_y);
+        const char *terrain_tool_name(WorldTerrainTool tool) const;
         void draw_left_panel();
         void draw_center_panel();
         void draw_viewport(float viewport_w, float viewport_h);
+        void edit_terrain_viewport(ImVec2 viewport_origin, float viewport_w,
+                                   float viewport_h);
         void draw_right_panel();
-        void draw_uuid_field(const char *label, UUID &uuid);
+        void draw_world_panel();
+        void draw_terrain_panel();
         void draw_vec3_field(const char *label, Vec3 &value);
-        void draw_static_objects(EditorChunk &chunk);
-        void draw_point_lights(EditorChunk &chunk);
         void add_chunk();
-        void remove_selected_chunk();
+        void apply_terrain_brush(i32 world_x, i32 world_y);
         void save_current_world();
 
     public:

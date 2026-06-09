@@ -71,6 +71,7 @@ class EditorWorld {
         EditorSky sky;
         EditorDirectionalLight directional_light;
         std::vector<EditorChunk> chunks;
+        std::vector<Ref<Image>> heightmaps;
         Ref<EditorTerrain> terrain;
         Ref<Image> default_heightmap;
 

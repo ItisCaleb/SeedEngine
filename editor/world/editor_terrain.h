@@ -30,6 +30,8 @@ class EditorTerrain : public Resource {
         /* add a chunk at (x,y)*/
         /* x y is chunk position which will be multiplied by CHUNK SIZE */
         void add_chunk(i32 x, i32 y, Ref<Image> height_map);
+        void clear_chunks();
+        void update_chunk_heightmap(u32 chunk_index, Ref<Image> height_map);
         Ref<TextureArray> get_heightmap() { return heightmaps; }
         Ref<EditorTerrainMaterial> get_material() { return material;}
         Ref<Mesh> get_mesh() { return mesh; }

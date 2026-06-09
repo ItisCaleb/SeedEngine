@@ -94,6 +94,17 @@ void EditorTerrain::add_chunk(i32 x, i32 y, Ref<Image> height_map) {
     last_heightmap++;
 }
 
+void EditorTerrain::clear_chunks() {
+    last_heightmap = 0;
+    instances->clear();
+}
+
+void EditorTerrain::update_chunk_heightmap(u32 chunk_index,
+                                           Ref<Image> height_map) {
+    heightmaps->update_layer(CHUNK_SIZE + 1, CHUNK_SIZE + 1, chunk_index,
+                             height_map->get_data());
+}
+
 // void EditorTerrain::gen_lightmap() {
 //     Ref<Image> terrain_shadow_map(PixelFormat::RGBA, this->hmap_width,
 //                                   this->hmap_height);

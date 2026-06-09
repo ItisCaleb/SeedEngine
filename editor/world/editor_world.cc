@@ -1,4 +1,5 @@
 #include "editor_world.h"
+#include <algorithm>
 #include <cstdio>
 #include <string>
 #include <imgui.h>
@@ -9,6 +10,8 @@
 namespace Seed {
 
 using Json = nlohmann::ordered_json;
+
+static constexpr u32 EDITOR_HEIGHTMAP_SIZE = 257;
 
 static EditorSky read_sky(const Json &j) {
     EditorSky sky;
@@ -79,6 +82,30 @@ static EditorChunk read_chunk(const Json &j) {
         }
     }
     return chunk;
+}
+
+static Ref<Image> make_editor_heightmap(Ref<Image> source,
+                                        Ref<Image> fallback) {
+    Ref<Image> heightmap;
+    heightmap.create(PixelFormat::RG, EDITOR_HEIGHTMAP_SIZE,
+                     EDITOR_HEIGHTMAP_SIZE);
+    heightmap->fill(Color{0, 0}, EDITOR_HEIGHTMAP_SIZE,
+                    EDITOR_HEIGHTMAP_SIZE);
+
+    Ref<Image> image = source.is_null() ? fallback : source;
+    if (image.is_null()) return heightmap;
+
+    u32 copy_w = std::min(EDITOR_HEIGHTMAP_SIZE, image->get_width());
+    u32 copy_h = std::min(EDITOR_HEIGHTMAP_SIZE, image->get_height());
+    for (u32 y = 0; y < copy_h; y++) {
+        for (u32 x = 0; x < copy_w; x++) {
+            u8 *src = image->pixel(x, y);
+            u8 *dst = heightmap->pixel(x, y);
+            dst[0] = src[0];
+            dst[1] = src[1];
+        }
+    }
+    return heightmap;
 }
 
 static Json write_sky(EditorSky &sky) {
@@ -152,14 +179,21 @@ EditorWorld::EditorWorld(ResourceConfiguration *config) : config(config) {
 void EditorWorld::add_new_chunk(u32 x, u32 y) {
     ResourceEntry *entry = gEditor->create_internal_asset(
         fmt::format("{}_{}_{}.png", name, x, y), type_id<Texture>());
+    Ref<Image> heightmap;
+    heightmap.create(PixelFormat::RG, EDITOR_HEIGHTMAP_SIZE,
+                     EDITOR_HEIGHTMAP_SIZE);
+    heightmap->fill(Color{0, 0}, EDITOR_HEIGHTMAP_SIZE,
+                    EDITOR_HEIGHTMAP_SIZE);
+
     EditorChunk chunk;
     chunk.x = x;
     chunk.y = y;
     chunk.height_map = entry->uuid;
     chunks.push_back(chunk);
+    heightmaps.push_back(heightmap);
 
-    terrain->add_chunk(chunk.x, chunk.y, default_heightmap);
-    default_heightmap->save_disk(entry->real_path());
+    terrain->add_chunk(chunk.x, chunk.y, heightmap);
+    heightmap->save_disk(entry->real_path());
 }
 
 void EditorWorld::reload() {
@@ -167,6 +201,8 @@ void EditorWorld::reload() {
     sky = {};
     directional_light = {};
     chunks.clear();
+    heightmaps.clear();
+    terrain->clear_chunks();
     if (config == nullptr) return;
 
     Json &j = config->get_json();
@@ -182,9 +218,11 @@ void EditorWorld::reload() {
         for (const Json &chunk_j : j["chunks"]) {
             chunks.push_back(read_chunk(chunk_j));
             EditorChunk &chunk = chunks.back();
-            terrain->add_chunk(
-                chunk.x, chunk.y,
-                ResourceLoader::get_instance()->load<Image>(chunk.height_map));
+            Ref<Image> heightmap = make_editor_heightmap(
+                ResourceLoader::get_instance()->load<Image>(chunk.height_map),
+                default_heightmap);
+            heightmaps.push_back(heightmap);
+            terrain->add_chunk(chunk.x, chunk.y, heightmap);
         }
     }
 }
@@ -257,7 +295,7 @@ void EditorWorldInspector::draw_inspector() {
     }
 
     ImGui::Separator();
-    ImGui::Text("Chunks: %zu", world->get_chunks().size());
+    ImGui::Text("Terrain tiles: %zu", world->get_chunks().size());
 }
 
 void EditorWorldInspector::save() {
