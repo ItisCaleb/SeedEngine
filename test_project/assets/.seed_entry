@@ -276,15 +276,15 @@
       "config": {}
     },
     {
-      "UUID": "60ab3ab1-c50f-4898-9946-466bd69fa160",
+      "UUID": "e03c26c9-e252-411d-949a-5d83c86239e7",
       "resource_type_id": 5244098326367020329,
-      "path": "assets\\skybox\\front.jpg",
+      "path": "assets\\.internal\\new_world_0_0.png",
       "config": {}
     },
     {
-      "UUID": "b57dabec-06b3-4029-a13d-5b1ca71146e3",
+      "UUID": "60ab3ab1-c50f-4898-9946-466bd69fa160",
       "resource_type_id": 5244098326367020329,
-      "path": "assets\\.internal\\new_world_0_0.png",
+      "path": "assets\\skybox\\front.jpg",
       "config": {}
     },
     {

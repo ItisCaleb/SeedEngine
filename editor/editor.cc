@@ -142,6 +142,14 @@ ResourceEntry *Editor::create_internal_asset(KStr name, ResourceTypeID tid) {
     return entries.get_entry(uuid);
 }
 
+void Editor::remove_asset(UUID uuid) {
+    ResourceEntries &entries = ResourceLoader::get_instance()->get_entries();
+    ResourceEntry *entry = entries.get_entry(uuid);
+    if (!entry) return;
+    File::remove(entry->real_path());
+    entries.remove_entry(uuid);
+}
+
 void Editor::import_asset(const Path &origin_path, const Path &target_dir) {
     Project *project = SeedEngine::get_instance()->get_project();
 

@@ -2,7 +2,6 @@
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 #include <sys/stat.h>
-#include <utility>
 #include "path.h"
 #ifdef _WIN32
 #include <Windows.h>
@@ -39,6 +38,10 @@ bool File::exists(const Path &path) {
     stat(path, &s);
     return S_ISDIR(s.st_mode);
 #endif
+}
+
+bool File::remove(const Path &path) {
+    return std::remove(path.data()) == 0;
 }
 
 std::string File::read_str(size_t size) {

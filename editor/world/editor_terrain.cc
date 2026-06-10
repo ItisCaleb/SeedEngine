@@ -9,7 +9,7 @@
 
 namespace Seed {
 
-#define CHUNK_SIZE (256u)
+#define CHUNK_SIZE (256)
 #define HEIGHT_OFFSET (-128)
 #define HEIGHT_SCALE (1)
 

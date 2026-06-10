@@ -60,6 +60,10 @@ void WorldEditor::mark_preview_terrain_dirty() { preview_terrain_dirty = true; }
 
 static constexpr i32 WORLD_EDITOR_CHUNK_SIZE = 256;
 static constexpr i32 WORLD_EDITOR_CHUNK_HALF = WORLD_EDITOR_CHUNK_SIZE / 2;
+static constexpr i32 WORLD_EDITOR_CHUNK_EDGE_SNAP = 12;
+static constexpr u32 WORLD_EDITOR_HEIGHTMAP_SIZE = 257;
+static constexpr u32 WORLD_EDITOR_HEIGHTMAP_LAST =
+    WORLD_EDITOR_HEIGHTMAP_SIZE - 1;
 
 void WorldEditor::save_dirty_heightmaps() {
     if (current_world == nullptr || dirty_heightmaps.empty()) return;
@@ -81,6 +85,37 @@ void WorldEditor::save_dirty_heightmaps() {
     heightmaps_dirty = false;
 }
 
+i32 WorldEditor::find_chunk_index_at_chunk(i32 chunk_x, i32 chunk_y) const {
+    if (current_world == nullptr) return -1;
+
+    const auto &chunks = current_world->get_chunks();
+    for (i32 i = 0; i < (i32)chunks.size(); i++) {
+        if (chunks[i].x == chunk_x && chunks[i].y == chunk_y) return i;
+    }
+    return -1;
+}
+
+bool WorldEditor::chunk_exists_at(i32 chunk_x, i32 chunk_y) const {
+    return find_chunk_index_at_chunk(chunk_x, chunk_y) >= 0;
+}
+
+bool WorldEditor::add_chunk_at(i32 chunk_x, i32 chunk_y) {
+    if (current_world == nullptr) return false;
+    if (chunk_exists_at(chunk_x, chunk_y)) {
+        status_text = "Terrain tile already exists.";
+        return false;
+    }
+
+    current_world->add_new_chunk(chunk_x, chunk_y);
+    save_current_world();
+
+    char buffer[96] = {};
+    std::snprintf(buffer, sizeof(buffer), "Added terrain tile (%d, %d).",
+                  chunk_x, chunk_y);
+    status_text = buffer;
+    return true;
+}
+
 i32 WorldEditor::find_chunk_index_at_world(i32 world_x, i32 world_y) const {
     if (current_world == nullptr) return -1;
 
@@ -88,15 +123,8 @@ i32 WorldEditor::find_chunk_index_at_world(i32 world_x, i32 world_y) const {
         (world_x + WORLD_EDITOR_CHUNK_HALF) / (f32)WORLD_EDITOR_CHUNK_SIZE);
     i32 chunk_y = (i32)std::floor(
         (world_y + WORLD_EDITOR_CHUNK_HALF) / (f32)WORLD_EDITOR_CHUNK_SIZE);
-    if (chunk_x < 0 || chunk_y < 0) return -1;
 
-    const auto &chunks = current_world->get_chunks();
-    for (i32 i = 0; i < (i32)chunks.size(); i++) {
-        if ((i32)chunks[i].x == chunk_x && (i32)chunks[i].y == chunk_y) {
-            return i;
-        }
-    }
-    return -1;
+    return find_chunk_index_at_chunk(chunk_x, chunk_y);
 }
 
 bool WorldEditor::world_to_heightmap_pixel(i32 world_x, i32 world_y,
@@ -123,6 +151,18 @@ bool WorldEditor::world_to_heightmap_pixel(i32 world_x, i32 world_y,
     return true;
 }
 
+bool WorldEditor::sample_terrain_pick_pixel(u32 x, u32 y, u32 viewport_h,
+                                            i32 &world_x, i32 &world_y) {
+    if (picking_texture.is_null() || viewport_h == 0) return false;
+
+    u32 flipped_y = viewport_h - std::min(y, viewport_h);
+    i16 *coord = (i16 *)picking_texture->pixel_repeat(x, flipped_y);
+    if (coord[2] == 0) return false;
+    world_x = coord[0];
+    world_y = coord[1];
+    return true;
+}
+
 bool WorldEditor::sample_terrain_pick(ImVec2 viewport_origin, float viewport_w,
                                       float viewport_h, i32 &world_x,
                                       i32 &world_y) {
@@ -141,12 +181,144 @@ bool WorldEditor::sample_terrain_pick(ImVec2 viewport_origin, float viewport_w,
 
     u32 x = (u32)vp_coord.x;
     u32 y = (u32)vp_coord.y;
-    i16 *coord =
-        (i16 *)picking_texture->pixel_repeat(x, (u32)viewport_h - y);
-    if (coord[2] == 0) return false;
-    world_x = coord[0];
-    world_y = coord[1];
-    return true;
+    return sample_terrain_pick_pixel(x, y, (u32)viewport_h, world_x, world_y);
+}
+
+bool WorldEditor::find_nearest_terrain_pixel(u32 start_x, u32 start_y,
+                                             u32 viewport_w, u32 viewport_h,
+                                             i32 &world_x, i32 &world_y,
+                                             u32 &hit_x, u32 &hit_y) {
+    if (viewport_w == 0 || viewport_h == 0) return false;
+
+    u32 max_radius = std::max(viewport_w, viewport_h);
+    for (u32 radius = 1; radius <= max_radius; radius++) {
+        i32 min_x = std::max(0, (i32)start_x - (i32)radius);
+        i32 max_x = std::min((i32)viewport_w - 1,
+                             (i32)start_x + (i32)radius);
+        i32 min_y = std::max(0, (i32)start_y - (i32)radius);
+        i32 max_y = std::min((i32)viewport_h - 1,
+                             (i32)start_y + (i32)radius);
+
+        for (i32 x = min_x; x <= max_x; x++) {
+            if (sample_terrain_pick_pixel((u32)x, (u32)min_y, viewport_h,
+                                          world_x, world_y)) {
+                hit_x = (u32)x;
+                hit_y = (u32)min_y;
+                return true;
+            }
+            if (min_y != max_y &&
+                sample_terrain_pick_pixel((u32)x, (u32)max_y, viewport_h,
+                                          world_x, world_y)) {
+                hit_x = (u32)x;
+                hit_y = (u32)max_y;
+                return true;
+            }
+        }
+
+        for (i32 y = min_y + 1; y < max_y; y++) {
+            if (sample_terrain_pick_pixel((u32)min_x, (u32)y, viewport_h,
+                                          world_x, world_y)) {
+                hit_x = (u32)min_x;
+                hit_y = (u32)y;
+                return true;
+            }
+            if (min_x != max_x &&
+                sample_terrain_pick_pixel((u32)max_x, (u32)y, viewport_h,
+                                          world_x, world_y)) {
+                hit_x = (u32)max_x;
+                hit_y = (u32)y;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool WorldEditor::add_chunk_from_empty_viewport_click(ImVec2 viewport_origin,
+                                                     float viewport_w,
+                                                     float viewport_h) {
+    if (current_world == nullptr || !ImGui::IsItemHovered() ||
+        !ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        return false;
+    }
+
+    ImVec2 mouse = ImGui::GetMousePos();
+    if (mouse.x < viewport_origin.x || mouse.y < viewport_origin.y ||
+        mouse.x >= viewport_origin.x + viewport_w ||
+        mouse.y >= viewport_origin.y + viewport_h) {
+        return false;
+    }
+
+    auto &chunks = current_world->get_chunks();
+    if (chunks.empty()) {
+        return add_chunk_at(0, 0);
+    }
+
+    Viewport vp = Viewport{(u32)viewport_w, (u32)viewport_h};
+    Vec2 vp_coord = vp.to_viewport_coord(
+        Vec2{mouse.x - viewport_origin.x, mouse.y - viewport_origin.y});
+
+    u32 mouse_x = std::min((u32)viewport_w - 1, (u32)vp_coord.x);
+    u32 mouse_y = std::min((u32)viewport_h - 1, (u32)vp_coord.y);
+    i32 world_x = 0;
+    i32 world_y = 0;
+    if (sample_terrain_pick_pixel(mouse_x, mouse_y, (u32)viewport_h, world_x,
+                                  world_y)) {
+        return false;
+    }
+
+    u32 hit_x = 0;
+    u32 hit_y = 0;
+    if (!find_nearest_terrain_pixel(mouse_x, mouse_y, (u32)viewport_w,
+                                    (u32)viewport_h, world_x, world_y, hit_x,
+                                    hit_y)) {
+        status_text = "No nearby terrain tile edge.";
+        return false;
+    }
+
+    i32 chunk_idx = find_chunk_index_at_world(world_x, world_y);
+    if (chunk_idx < 0) return false;
+
+    const EditorChunk &chunk = chunks[chunk_idx];
+    i32 chunk_origin_x =
+        chunk.x * WORLD_EDITOR_CHUNK_SIZE - WORLD_EDITOR_CHUNK_HALF;
+    i32 chunk_origin_y =
+        chunk.y * WORLD_EDITOR_CHUNK_SIZE - WORLD_EDITOR_CHUNK_HALF;
+    i32 local_x = std::clamp(world_x - chunk_origin_x, 0,
+                             WORLD_EDITOR_CHUNK_SIZE);
+    i32 local_y = std::clamp(world_y - chunk_origin_y, 0,
+                             WORLD_EDITOR_CHUNK_SIZE);
+
+    i32 dist_left = local_x;
+    i32 dist_right = WORLD_EDITOR_CHUNK_SIZE - local_x;
+    i32 dist_bottom = local_y;
+    i32 dist_top = WORLD_EDITOR_CHUNK_SIZE - local_y;
+    i32 min_dist =
+        std::min(std::min(dist_left, dist_right),
+                 std::min(dist_bottom, dist_top));
+    if (min_dist > WORLD_EDITOR_CHUNK_EDGE_SNAP) {
+        status_text = "Click closer to a terrain tile edge.";
+        return false;
+    }
+
+    i32 target_x = chunk.x;
+    i32 target_y = chunk.y;
+    if (min_dist == dist_left) {
+        target_x--;
+    } else if (min_dist == dist_right) {
+        target_x++;
+    } else if (min_dist == dist_bottom) {
+        target_y--;
+    } else {
+        target_y++;
+    }
+
+    if (chunk_exists_at(target_x, target_y)) {
+        status_text = "Terrain tile already exists.";
+        return false;
+    }
+
+    return add_chunk_at(target_x, target_y);
 }
 
 const char *WorldEditor::terrain_tool_name(WorldTerrainTool tool) const {
@@ -227,9 +399,67 @@ void WorldEditor::save_current_world() {
 
 void WorldEditor::add_chunk() {
     if (current_world == nullptr) return;
-    auto &chunks = current_world->get_chunks();
-    current_world->add_new_chunk(chunks.size(), 0);
+    std::vector<EditorChunk> chunks = current_world->get_chunks();
+    if (chunks.empty()) {
+        add_chunk_at(0, 0);
+        return;
+    }
+
+    static const i32 dirs[][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+    for (const EditorChunk &chunk : chunks) {
+        for (const auto &dir : dirs) {
+            i32 next_x = chunk.x + dir[0];
+            i32 next_y = chunk.y + dir[1];
+            if (!chunk_exists_at(next_x, next_y)) {
+                add_chunk_at(next_x, next_y);
+                return;
+            }
+        }
+    }
+}
+
+void WorldEditor::clear_tiles() {
+    if (current_world == nullptr) return;
+
+    std::vector<UUID> heightmap_assets;
+    heightmap_assets.reserve(current_world->chunks.size());
+    for (const EditorChunk &chunk : current_world->chunks) {
+        UUID height_map = chunk.height_map;
+        if (!height_map.is_null()) {
+            heightmap_assets.push_back(height_map);
+        }
+    }
+
+    for (UUID uuid : heightmap_assets) {
+        gEditor->remove_asset(uuid);
+    }
+
+    current_world->clear_tiles();
+    dirty_heightmaps.clear();
+    heightmaps_dirty = false;
+    last_pick_valid = false;
     save_current_world();
+    status_text = "All terrain tiles cleared.";
+}
+
+void WorldEditor::draw_clear_tiles_confirmation_popup() {
+    if (ImGui::BeginPopupModal("Clear Terrain Tiles?", nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextWrapped(
+            "This removes every terrain tile from the current world.");
+        ImGui::TextDisabled("Heightmap assets referenced by those tiles are deleted.");
+        ImGui::Separator();
+
+        if (ImGui::Button("Confirm", ImVec2(120, 0))) {
+            clear_tiles();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
 }
 
 void WorldEditor::draw_vec3_field(const char *label, Vec3 &value) {
@@ -279,6 +509,14 @@ void WorldEditor::draw_left_panel() {
     if (ImGui::Button("Add Terrain Tile", ImVec2(-1, 0))) {
         add_chunk();
     }
+
+    bool has_tiles = !current_world->get_chunks().empty();
+    if (!has_tiles) ImGui::BeginDisabled();
+    if (ImGui::Button("Clear Terrain Tiles", ImVec2(-1, 0))) {
+        ImGui::OpenPopup("Clear Terrain Tiles?");
+    }
+    if (!has_tiles) ImGui::EndDisabled();
+    draw_clear_tiles_confirmation_popup();
 
     ImGui::Text("Tiles: %zu", current_world->get_chunks().size());
     if (heightmaps_dirty) {
@@ -338,6 +576,9 @@ void WorldEditor::draw_viewport(float viewport_w, float viewport_h) {
                    origin.y + (viewport_h - text_size.y) * 0.5f),
             IM_COL32(90, 96, 108, 255), message);
         ImGui::Dummy(ImVec2(viewport_w, viewport_h));
+        if (active_mode == WorldEditorMode::World) {
+            add_chunk_from_empty_viewport_click(origin, viewport_w, viewport_h);
+        }
         return;
     }
 
@@ -355,6 +596,8 @@ void WorldEditor::draw_viewport(float viewport_w, float viewport_h) {
 
     if (active_mode == WorldEditorMode::Terrain) {
         edit_terrain_viewport(origin, viewport_w, viewport_h);
+    } else {
+        add_chunk_from_empty_viewport_click(origin, viewport_w, viewport_h);
     }
 
     char overlay[96] = {};
@@ -493,6 +736,70 @@ void WorldEditor::draw_terrain_panel() {
     }
 }
 
+static bool valid_editor_heightmap(Ref<Image> heightmap) {
+    return !heightmap.is_null() &&
+           heightmap->get_width() >= WORLD_EDITOR_HEIGHTMAP_SIZE &&
+           heightmap->get_height() >= WORLD_EDITOR_HEIGHTMAP_SIZE;
+}
+
+static void copy_editor_height_pixel(Ref<Image> src, u32 src_x, u32 src_y,
+                                     Ref<Image> dst, u32 dst_x, u32 dst_y) {
+    u8 *src_pixel = src->pixel(src_x, src_y);
+    u8 *dst_pixel = dst->pixel(dst_x, dst_y);
+    dst_pixel[0] = src_pixel[0];
+    dst_pixel[1] = src_pixel[1];
+}
+
+static void copy_editor_heightmap_column(Ref<Image> src, u32 src_x,
+                                         Ref<Image> dst, u32 dst_x) {
+    if (!valid_editor_heightmap(src) || !valid_editor_heightmap(dst)) return;
+    for (u32 y = 0; y < WORLD_EDITOR_HEIGHTMAP_SIZE; y++) {
+        copy_editor_height_pixel(src, src_x, y, dst, dst_x, y);
+    }
+}
+
+static void copy_editor_heightmap_row(Ref<Image> src, u32 src_y,
+                                      Ref<Image> dst, u32 dst_y) {
+    if (!valid_editor_heightmap(src) || !valid_editor_heightmap(dst)) return;
+    for (u32 x = 0; x < WORLD_EDITOR_HEIGHTMAP_SIZE; x++) {
+        copy_editor_height_pixel(src, x, src_y, dst, x, dst_y);
+    }
+}
+
+void WorldEditor::sync_heightmap_seams(std::set<u32> &touched_chunks) {
+    if (current_world == nullptr) return;
+
+    std::set<u32> source_chunks = touched_chunks;
+    for (u32 chunk_idx : source_chunks) {
+        if (chunk_idx >= current_world->chunks.size() ||
+            chunk_idx >= current_world->heightmaps.size()) {
+            continue;
+        }
+
+        const EditorChunk &chunk = current_world->chunks[chunk_idx];
+        Ref<Image> src = current_world->heightmaps[chunk_idx];
+        if (!valid_editor_heightmap(src)) continue;
+
+        i32 left_idx = find_chunk_index_at_chunk(chunk.x - 1, chunk.y);
+        if (left_idx >= 0 &&
+            (u32)left_idx < current_world->heightmaps.size()) {
+            Ref<Image> dst = current_world->heightmaps[left_idx];
+            copy_editor_heightmap_column(src, 0, dst,
+                                         WORLD_EDITOR_HEIGHTMAP_LAST);
+            touched_chunks.insert((u32)left_idx);
+        }
+
+        i32 bottom_idx = find_chunk_index_at_chunk(chunk.x, chunk.y - 1);
+        if (bottom_idx >= 0 &&
+            (u32)bottom_idx < current_world->heightmaps.size()) {
+            Ref<Image> dst = current_world->heightmaps[bottom_idx];
+            copy_editor_heightmap_row(src, 0, dst,
+                                      WORLD_EDITOR_HEIGHTMAP_LAST);
+            touched_chunks.insert((u32)bottom_idx);
+        }
+    }
+}
+
 void WorldEditor::apply_terrain_brush(i32 world_x, i32 world_y) {
     if (current_world == nullptr || current_world->terrain.is_null()) return;
 
@@ -579,6 +886,8 @@ void WorldEditor::apply_terrain_brush(i32 world_x, i32 world_y) {
             write_height(sample_x, sample_y, (u8)next);
         }
     }
+
+    sync_heightmap_seams(touched_chunks);
 
     for (u32 chunk_idx : touched_chunks) {
         current_world->terrain->update_chunk_heightmap(

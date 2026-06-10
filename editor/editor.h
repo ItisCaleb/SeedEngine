@@ -38,6 +38,7 @@ class Editor {
         void scan_assets();
         ResourceEntry *create_asset(KStr name, ResourceTypeID tid);
         ResourceEntry *create_internal_asset(KStr name, ResourceTypeID tid);
+        void remove_asset(UUID uuid);
         void save_project();
 
         void import_asset(const Path &origin_path, const Path &target_dir);

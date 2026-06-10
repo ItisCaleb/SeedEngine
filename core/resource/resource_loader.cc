@@ -216,15 +216,15 @@ Ref<Resource> ResourceLoader::load_skeleton_model(ResourceLoader &loader,
     return ref_cast<Resource>(model);
 }
 /* since we now use malloc in update heap, we do not need to free here */
-RHI::UpdateBufferInfo ResourceLoader::load_image_to_upload(UUID uuid) {
+RHI::UpdateBufferInfo ResourceLoader::load_image_to_upload(UUID uuid,
+                                                           bool force_rgba) {
     ResourceEntry *entry = entries.get_entry(uuid);
     RHI::UpdateBufferInfo info;
     info.data = nullptr;
     if (!entry) return info;
-    Path path =
-        SeedEngine::get_instance()->get_project()->resolve_asset(entry->path);
+    Path path = entry->real_path();
     i32 w, h, comp;
-    void *_data = stbi_load(path.data(), &w, &h, &comp, 4);
+    void *_data = stbi_load(path.data(), &w, &h, &comp, force_rgba ? 4 : 0);
     info.data = _data;
     info.image.w = w;
     info.image.h = h;
@@ -238,7 +238,11 @@ Ref<Resource> ResourceLoader::load_texture(ResourceLoader &loader,
     Ref<Texture> texture;
     int w, h, comp;
 
-    void *_data = stbi_load(data->get_fullpath().data(), &w, &h, &comp, 4);
+    void *_data = stbi_load(data->get_fullpath().data(), &w, &h, &comp, 0);
+    PixelFormat format = comp == 1   ? PixelFormat::R
+                         : comp == 2 ? PixelFormat::RG
+                         : comp == 3 ? PixelFormat::RGB
+                                     : PixelFormat::RGBA;
 
     if (!_data) {
         spdlog::warn("Can't load texture from {}", data->get_fullpath());
@@ -287,12 +291,13 @@ Ref<TextureCubemap> ResourceLoader::load_cubemap(u32 w, u32 h, UUID right,
                                                  UUID back) {
     Ref<TextureCubemap> texture;
     RHI::UpdateBufferInfo infos[6];
-    infos[0] = load_image_to_upload(right);
-    infos[1] = load_image_to_upload(left);
-    infos[2] = load_image_to_upload(top);
-    infos[3] = load_image_to_upload(bottom);
-    infos[4] = load_image_to_upload(front);
-    infos[5] = load_image_to_upload(back);
+    infos[0] = load_image_to_upload(right, true);
+    infos[1] = load_image_to_upload(left, true);
+    infos[2] = load_image_to_upload(top, true);
+    infos[3] = load_image_to_upload(bottom, true);
+    infos[4] = load_image_to_upload(front, true);
+    infos[5] = load_image_to_upload(back, true);
+
     texture.create(w, h, PixelFormat::RGBA, SamplerProperty{});
     RHI::update_from_heap(texture->get_handle(), (u32)CubemapFace::RIGHT, 0, 0,
                           infos[0]);
@@ -313,14 +318,17 @@ Ref<Resource> ResourceLoader::load_mappable_texture(
     ResourceLoader &loader, ResourceConfiguration &config, Ref<File> data) {
     Ref<MappableTexture> texture;
     int w, h, comp;
-    void *_data = stbi_load(data->get_fullpath().data(), &w, &h, &comp, 4);
+    void *_data = stbi_load(data->get_fullpath().data(), &w, &h, &comp, 0);
+    PixelFormat format = comp == 1   ? PixelFormat::R
+                         : comp == 2 ? PixelFormat::RG
+                         : comp == 3 ? PixelFormat::RGB
+                                     : PixelFormat::RGBA;
 
     if (!_data) {
         spdlog::warn("Can't load texture from {}", data->get_fullpath());
         return ref_cast<Resource>(texture);
     }
-    texture.create(TextureType::TEXTURE_2D, w, h, PixelFormat::RGBA,
-                   (const u8 *)_data);
+    texture.create(TextureType::TEXTURE_2D, w, h, format, (const u8 *)_data);
 
     stbi_image_free(_data);
     return ref_cast<Resource>(texture);

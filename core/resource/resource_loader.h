@@ -65,7 +65,7 @@ class ResourceLoader {
         void unregister_resource(Resource *res);
         ResourceEntries &get_entries() { return entries; }
 
-        RHI::UpdateBufferInfo load_image_to_upload(UUID uuid);
+        RHI::UpdateBufferInfo load_image_to_upload(UUID uuid, bool force_rgba = false);
 
         template <typename T>
         Ref<T> load(UUID uuid) {

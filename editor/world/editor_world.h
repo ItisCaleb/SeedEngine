@@ -52,8 +52,8 @@ struct EditorSky {
 
 struct EditorChunk {
         nlohmann::ordered_json raw = nlohmann::ordered_json::object();
-        u32 x = 0;
-        u32 y = 0;
+        i32 x = 0;
+        i32 y = 0;
         UUID height_map;
         std::vector<EditorPointLight> lights;
         std::vector<EditorStaticObject> static_objects;
@@ -73,7 +73,6 @@ class EditorWorld {
         std::vector<EditorChunk> chunks;
         std::vector<Ref<Image>> heightmaps;
         Ref<EditorTerrain> terrain;
-        Ref<Image> default_heightmap;
 
     public:
         EditorWorld(ResourceConfiguration *config);
@@ -91,7 +90,8 @@ class EditorWorld {
         }
         std::vector<EditorChunk> &get_chunks() { return chunks; }
         const std::vector<EditorChunk> &get_chunks() const { return chunks; }
-        void add_new_chunk(u32 x, u32 y);
+        void add_new_chunk(i32 x, i32 y);
+        void clear_tiles();
 };
 
 class EditorWorldInspector : public Inspectable {

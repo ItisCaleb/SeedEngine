@@ -62,10 +62,10 @@ void Image::upload(Ref<MappableTexture> texture) {
     texture->update(this->data, width, height);
 }
 
-void Image::fill(Color color, u32 off_x, u32 off_y, u32 fill_w, u32 fill_h) {
+void Image::fill(Color color, u32 w, u32 h, u32 off_x, u32 off_y) {
     u32 pixel_size = get_pixel_format_size(format);
-    u32 end_x = std::min(off_x + fill_w, width);
-    u32 end_y = std::min(off_y + fill_h, height);
+    u32 end_x = std::min(off_x + w, width);
+    u32 end_y = std::min(off_y + h, height);
     u32 actual_w = end_x - off_x;
 
     std::vector<u8> row(actual_w * pixel_size);
@@ -206,8 +206,12 @@ Ref<Image> Image::median_filter(u32 kernel_size, bool process_alpha) {
 
 Ref<Image> Image::load_from_file(const Path &path) {
     int w, h, comp;
-    void *_data = stbi_load(path.data(), &w, &h, &comp, 4);
-    Ref<Image> image(new Image(PixelFormat::RGBA, w, h, _data));
+    void *_data = stbi_load(path.data(), &w, &h, &comp, 0);
+    PixelFormat format = comp == 1   ? PixelFormat::R
+                         : comp == 2 ? PixelFormat::RG
+                         : comp == 3 ? PixelFormat::RGB
+                                     : PixelFormat::RGBA;
+    Ref<Image> image(new Image(format, w, h, _data));
     return image;
 }
 

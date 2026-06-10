@@ -12,6 +12,7 @@ namespace Seed {
 using Json = nlohmann::ordered_json;
 
 static constexpr u32 EDITOR_HEIGHTMAP_SIZE = 257;
+static constexpr u32 EDITOR_HEIGHTMAP_LAST = EDITOR_HEIGHTMAP_SIZE - 1;
 
 static EditorSky read_sky(const Json &j) {
     EditorSky sky;
@@ -67,8 +68,8 @@ static EditorChunk read_chunk(const Json &j) {
     EditorChunk chunk;
     if (!j.is_object()) return chunk;
     chunk.raw = j;
-    chunk.x = j.value("x", 0u);
-    chunk.y = j.value("y", 0u);
+    chunk.x = j.value("x", 0);
+    chunk.y = j.value("y", 0);
     chunk.height_map = j.value("height_map", UUID{});
 
     if (j.contains("position_lights") && j["position_lights"].is_array()) {
@@ -84,28 +85,93 @@ static EditorChunk read_chunk(const Json &j) {
     return chunk;
 }
 
-static Ref<Image> make_editor_heightmap(Ref<Image> source,
-                                        Ref<Image> fallback) {
-    Ref<Image> heightmap;
-    heightmap.create(PixelFormat::RG, EDITOR_HEIGHTMAP_SIZE,
-                     EDITOR_HEIGHTMAP_SIZE);
-    heightmap->fill(Color{0, 0}, EDITOR_HEIGHTMAP_SIZE,
-                    EDITOR_HEIGHTMAP_SIZE);
+static i32 find_chunk_index_at(const std::vector<EditorChunk> &chunks, i32 x,
+                               i32 y) {
+    for (i32 i = 0; i < (i32)chunks.size(); i++) {
+        if (chunks[i].x == x && chunks[i].y == y) return i;
+    }
+    return -1;
+}
 
-    Ref<Image> image = source.is_null() ? fallback : source;
-    if (image.is_null()) return heightmap;
+static bool valid_heightmap(Ref<Image> heightmap) {
+    return !heightmap.is_null() &&
+           heightmap->get_width() >= EDITOR_HEIGHTMAP_SIZE &&
+           heightmap->get_height() >= EDITOR_HEIGHTMAP_SIZE;
+}
 
-    u32 copy_w = std::min(EDITOR_HEIGHTMAP_SIZE, image->get_width());
-    u32 copy_h = std::min(EDITOR_HEIGHTMAP_SIZE, image->get_height());
-    for (u32 y = 0; y < copy_h; y++) {
-        for (u32 x = 0; x < copy_w; x++) {
-            u8 *src = image->pixel(x, y);
-            u8 *dst = heightmap->pixel(x, y);
-            dst[0] = src[0];
-            dst[1] = src[1];
+static void copy_height_pixel(Ref<Image> src, u32 src_x, u32 src_y,
+                              Ref<Image> dst, u32 dst_x, u32 dst_y) {
+    u8 *src_pixel = src->pixel(src_x, src_y);
+    u8 *dst_pixel = dst->pixel(dst_x, dst_y);
+    dst_pixel[0] = src_pixel[0];
+    dst_pixel[1] = src_pixel[1];
+}
+
+static void copy_heightmap_column(Ref<Image> src, u32 src_x, Ref<Image> dst,
+                                  u32 dst_x) {
+    if (!valid_heightmap(src) || !valid_heightmap(dst)) return;
+    for (u32 y = 0; y < EDITOR_HEIGHTMAP_SIZE; y++) {
+        copy_height_pixel(src, src_x, y, dst, dst_x, y);
+    }
+}
+
+static void copy_heightmap_row(Ref<Image> src, u32 src_y, Ref<Image> dst,
+                               u32 dst_y) {
+    if (!valid_heightmap(src) || !valid_heightmap(dst)) return;
+    for (u32 x = 0; x < EDITOR_HEIGHTMAP_SIZE; x++) {
+        copy_height_pixel(src, x, src_y, dst, x, dst_y);
+    }
+}
+
+static void copy_neighbor_edges_to_new_chunk(
+    const std::vector<EditorChunk> &chunks,
+    const std::vector<Ref<Image>> &heightmaps, i32 x, i32 y,
+    Ref<Image> heightmap) {
+    i32 left = find_chunk_index_at(chunks, x - 1, y);
+    if (left >= 0 && (u32)left < heightmaps.size()) {
+        copy_heightmap_column(heightmaps[left], EDITOR_HEIGHTMAP_LAST,
+                              heightmap, 0);
+    }
+
+    i32 right = find_chunk_index_at(chunks, x + 1, y);
+    if (right >= 0 && (u32)right < heightmaps.size()) {
+        copy_heightmap_column(heightmaps[right], 0, heightmap,
+                              EDITOR_HEIGHTMAP_LAST);
+    }
+
+    i32 bottom = find_chunk_index_at(chunks, x, y - 1);
+    if (bottom >= 0 && (u32)bottom < heightmaps.size()) {
+        copy_heightmap_row(heightmaps[bottom], EDITOR_HEIGHTMAP_LAST,
+                           heightmap, 0);
+    }
+
+    i32 top = find_chunk_index_at(chunks, x, y + 1);
+    if (top >= 0 && (u32)top < heightmaps.size()) {
+        copy_heightmap_row(heightmaps[top], 0, heightmap,
+                           EDITOR_HEIGHTMAP_LAST);
+    }
+}
+
+static void sync_loaded_heightmap_seams(std::vector<EditorChunk> &chunks,
+                                        std::vector<Ref<Image>> &heightmaps) {
+    for (u32 i = 0; i < chunks.size(); i++) {
+        if (i >= heightmaps.size() || !valid_heightmap(heightmaps[i])) {
+            continue;
+        }
+
+        EditorChunk &chunk = chunks[i];
+        i32 left = find_chunk_index_at(chunks, chunk.x - 1, chunk.y);
+        if (left >= 0 && (u32)left < heightmaps.size()) {
+            copy_heightmap_column(heightmaps[i], 0, heightmaps[left],
+                                  EDITOR_HEIGHTMAP_LAST);
+        }
+
+        i32 bottom = find_chunk_index_at(chunks, chunk.x, chunk.y - 1);
+        if (bottom >= 0 && (u32)bottom < heightmaps.size()) {
+            copy_heightmap_row(heightmaps[i], 0, heightmaps[bottom],
+                               EDITOR_HEIGHTMAP_LAST);
         }
     }
-    return heightmap;
 }
 
 static Json write_sky(EditorSky &sky) {
@@ -171,19 +237,18 @@ static Json write_chunk(EditorChunk &chunk) {
 
 EditorWorld::EditorWorld(ResourceConfiguration *config) : config(config) {
     terrain.create();
-    default_heightmap.create(PixelFormat::RG, 257, 257);
-    default_heightmap->fill(Color{0, 0}, 257, 257);
     reload();
 }
 
-void EditorWorld::add_new_chunk(u32 x, u32 y) {
+void EditorWorld::add_new_chunk(i32 x, i32 y) {
     ResourceEntry *entry = gEditor->create_internal_asset(
         fmt::format("{}_{}_{}.png", name, x, y), type_id<Texture>());
     Ref<Image> heightmap;
     heightmap.create(PixelFormat::RG, EDITOR_HEIGHTMAP_SIZE,
                      EDITOR_HEIGHTMAP_SIZE);
-    heightmap->fill(Color{0, 0}, EDITOR_HEIGHTMAP_SIZE,
+    heightmap->fill(Color{64, 64}, EDITOR_HEIGHTMAP_SIZE,
                     EDITOR_HEIGHTMAP_SIZE);
+    copy_neighbor_edges_to_new_chunk(chunks, heightmaps, x, y, heightmap);
 
     EditorChunk chunk;
     chunk.x = x;
@@ -194,6 +259,12 @@ void EditorWorld::add_new_chunk(u32 x, u32 y) {
 
     terrain->add_chunk(chunk.x, chunk.y, heightmap);
     heightmap->save_disk(entry->real_path());
+}
+
+void EditorWorld::clear_tiles() {
+    chunks.clear();
+    heightmaps.clear();
+    terrain->clear_chunks();
 }
 
 void EditorWorld::reload() {
@@ -218,11 +289,16 @@ void EditorWorld::reload() {
         for (const Json &chunk_j : j["chunks"]) {
             chunks.push_back(read_chunk(chunk_j));
             EditorChunk &chunk = chunks.back();
-            Ref<Image> heightmap = make_editor_heightmap(
-                ResourceLoader::get_instance()->load<Image>(chunk.height_map),
-                default_heightmap);
+            Ref<Image> heightmap =
+                ResourceLoader::get_instance()->load<Image>(chunk.height_map);
             heightmaps.push_back(heightmap);
-            terrain->add_chunk(chunk.x, chunk.y, heightmap);
+        }
+    }
+
+    sync_loaded_heightmap_seams(chunks, heightmaps);
+    for (u32 i = 0; i < chunks.size(); i++) {
+        if (i < heightmaps.size() && !heightmaps[i].is_null()) {
+            terrain->add_chunk(chunks[i].x, chunks[i].y, heightmaps[i]);
         }
     }
 }

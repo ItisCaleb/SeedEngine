@@ -52,12 +52,24 @@ class WorldEditor {
         void set_current_world_inspector();
         void mark_preview_terrain_dirty();
         void save_dirty_heightmaps();
+        i32 find_chunk_index_at_chunk(i32 chunk_x, i32 chunk_y) const;
+        bool chunk_exists_at(i32 chunk_x, i32 chunk_y) const;
+        bool add_chunk_at(i32 chunk_x, i32 chunk_y);
         i32 find_chunk_index_at_world(i32 world_x, i32 world_y) const;
         bool world_to_heightmap_pixel(i32 world_x, i32 world_y, u32 &chunk_idx,
                                       u32 &pixel_x, u32 &pixel_y) const;
+        bool sample_terrain_pick_pixel(u32 x, u32 y, u32 viewport_h,
+                                       i32 &world_x, i32 &world_y);
         bool sample_terrain_pick(ImVec2 viewport_origin, float viewport_w,
                                  float viewport_h, i32 &world_x,
                                  i32 &world_y);
+        bool find_nearest_terrain_pixel(u32 start_x, u32 start_y,
+                                        u32 viewport_w, u32 viewport_h,
+                                        i32 &world_x, i32 &world_y,
+                                        u32 &hit_x, u32 &hit_y);
+        bool add_chunk_from_empty_viewport_click(ImVec2 viewport_origin,
+                                                float viewport_w,
+                                                float viewport_h);
         const char *terrain_tool_name(WorldTerrainTool tool) const;
         void draw_left_panel();
         void draw_center_panel();
@@ -69,6 +81,9 @@ class WorldEditor {
         void draw_terrain_panel();
         void draw_vec3_field(const char *label, Vec3 &value);
         void add_chunk();
+        void clear_tiles();
+        void draw_clear_tiles_confirmation_popup();
+        void sync_heightmap_seams(std::set<u32> &touched_chunks);
         void apply_terrain_brush(i32 world_x, i32 world_y);
         void save_current_world();
 

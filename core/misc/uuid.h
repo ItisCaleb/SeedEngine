@@ -38,7 +38,7 @@ class UUID {
                    (this->data[1] == o.data[1] && this->data[0] < o.data[0]);
         }
 
-        bool is_null() { return data[0] == 0 && data[1] == 0; }
+        bool is_null() const { return data[0] == 0 && data[1] == 0; }
 
         std::string to_string() const;
 };

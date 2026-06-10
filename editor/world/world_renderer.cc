@@ -79,30 +79,27 @@ void WorldRenderer::preprocess() {
                 visible_instances.data());
 }
 void WorldRenderer::_process(RenderCommandDispatcher &dp) {
-    if (fd.mesh.is_null()) {
-        return;
-    }
-
     color_pass.draw(dp, fd);
 }
 void WorldRenderer::cleanup() {}
 
 void WorldRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
                                        Viewport &viewport, FrameData &fd) {
-    if (fd.mesh.is_null() || fd.visible_size == 0) {
-        return;
-    }
-    Ref<Material> material = fd.mesh->get_material();
-    RenderDrawDataBuilder mesh_builder = dp.generate_render_data(material);
-    u32 visible_offset = 0;
-    mesh_builder.push_constant(sizeof(u32), &visible_offset);
-    mesh_builder.bind_vertex_data(fd.mesh->vertex_data);
-    mesh_builder.set_instance(fd.visible_size);
-    mesh_builder.bind_index_data(fd.mesh->lod_indices[0]);
-    mesh_builder.set_depth_write(true);
-    mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
+    if (!(fd.mesh.is_null() || fd.visible_size == 0)) {
+        Ref<Material> material = fd.mesh->get_material();
+        RenderDrawDataBuilder mesh_builder = dp.generate_render_data(material);
+        u32 visible_offset = 0;
+        mesh_builder.push_constant(sizeof(u32), &visible_offset);
+        mesh_builder.bind_vertex_data(fd.mesh->vertex_data);
+        mesh_builder.set_instance(fd.visible_size);
+        mesh_builder.bind_index_data(fd.mesh->lod_indices[0]);
+        mesh_builder.set_depth_write(true);
+        mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
 
-    dp.render(mesh_builder, fd.mesh->get_type(), material->get_pipeline(), 0);
+        dp.render(mesh_builder, fd.mesh->get_type(), material->get_pipeline(),
+                  0);
+    }
+
     EditorWorld *world = gEditor->world_editor.get_current_world();
 
     if (!world) {

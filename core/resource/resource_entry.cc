@@ -59,6 +59,8 @@ UUID ResourceEntries::insert_entry(const Path &p, ResourceTypeID id,
 void ResourceEntries::remove_entry(const UUID uuid) {
     auto iter = uuid_to_entry.find(uuid);
     if (iter != uuid_to_entry.end()) {
+        path_to_uuid.erase(iter->second.path);
+        internal_entries.erase(uuid);
         uuid_to_entry.erase(iter);
     }
 }
