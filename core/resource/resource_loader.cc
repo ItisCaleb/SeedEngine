@@ -36,7 +36,7 @@ Ref<Resource> ResourceLoader::load_shader(ResourceLoader &loader,
                                           ResourceConfiguration &config,
                                           Ref<File> data) {
     Ref<Shader> shader;
-    std::string shader_code;
+    KString shader_code;
     shader_code = data->read_str();
     shader.create(data->get_fullpath(), shader_code);
     return ref_cast<Resource>(shader);

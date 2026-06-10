@@ -62,7 +62,6 @@ class FreeList {
             data->element.~T();
             data->next = first_free;
             first_free = n;
-            this->cap--;
         }
 
         void clear(){

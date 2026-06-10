@@ -138,7 +138,7 @@ InstanceDataPool *RenderEngine::get_instance_pool(const std::string &name) {
 }
 
 ShaderHandle RenderEngine::compile_shader(const Path &path,
-                                          const std::string &shader,
+                                          const KString &shader,
                                           ShaderLayout *layout) {
     return this->shader_proxy->compile_shader(path, shader, layout);
 }

@@ -56,11 +56,11 @@ struct DescriptorSetLayout {
 };
 
 struct HardwareShaderVk {
-        std::string vertex_src;
-        std::string geo_src;
-        std::string tess_ctrl_src;
-        std::string tess_eval_src;
-        std::string fragment_src;
+        KString vertex_src;
+        KString geo_src;
+        KString tess_ctrl_src;
+        KString tess_eval_src;
+        KString fragment_src;
         std::vector<DescriptorSetLayout *> set_layouts;
         VkPipelineLayout layout;
 };
@@ -137,7 +137,7 @@ class RenderBackendVK : public RenderBackend {
         HandleOwner<HardwareBufferVk> constants;
         HandleOwner<HardwareBufferVk> ssbos;
         HandleIdOwner<HardwareTextureVk> textures;
-        HandleOwner<HardwareShaderVk> shaders;
+        HandleIdOwner<HardwareShaderVk> shaders;
         HandleOwner<HardwarePipelineVk> pipelines;
         HandleOwner<HardwareRenderPassVk> render_pass;
 
@@ -276,7 +276,7 @@ class RenderBackendVK : public RenderBackend {
         void create_framebuffer(HardwareRenderPassVk *render_target);
         HardwareRenderPassVk *get_current_render_pass();
 
-        VkShaderModule create_shader_module(const std::string &shader);
+        VkShaderModule create_shader_module(const KString &shader);
         bool pick_queue_family(VkPhysicalDevice device);
         void push_buffer_update(HardwareBufferVk *buffer, u64 offset, u64 size,
                                 void *data);
@@ -331,11 +331,11 @@ class RenderBackendVK : public RenderBackend {
                                       UpdateFrequence frequence) override;
         SSBOHandle alloc_storage_buffer(u32 size, const void *data,
                                         UpdateFrequence frequence) override;
-        ShaderHandle alloc_shader(const std::string &vertex_code,
-                                  const std::string &fragment_code,
-                                  const std::string &geometry_code,
-                                  const std::string &tess_ctrl_code,
-                                  const std::string &tess_eval_code) override;
+        ShaderHandle alloc_shader(const KString &vertex_code,
+                                  const KString &fragment_code,
+                                  const KString &geometry_code,
+                                  const KString &tess_ctrl_code,
+                                  const KString &tess_eval_code) override;
         void setup_shader_layout(ShaderHandle handle,
                                  const ShaderLayout &layout) override;
 

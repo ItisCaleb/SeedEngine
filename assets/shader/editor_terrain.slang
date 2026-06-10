@@ -16,9 +16,17 @@ ParameterBlock<Property> prop;
 VS_OUT vert(float2 aPos, uint id: SV_VulkanInstanceID){
     VS_OUT out;
     TerrainInstance terrain = GetTerrain(id);
-    vec2 size = 257; 
+    float chunk_size = 256;
+    float border_size = 1;
+    float texture_size = 256 + 1 + 2;
+
     out.sv_position = vec4(aPos.x + terrain.pos.x, 0.0f, aPos.y + terrain.pos.y, 1.0);
-    out.uv = (aPos + size / 2)/size;
+    /* convert to [0~256] */
+    vec2 uv =  (aPos + chunk_size / 2);
+    uv += border_size;
+    /* sample texel center */
+    uv += 0.5;
+    out.uv = uv / texture_size;
     out.heightmap_index = terrain.heightmap_index;
     return out;
 }
@@ -134,7 +142,7 @@ DS_OUT tese(
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
     out.texCoord = (t1 - t0) * v + t0;
-    float offset = 1.0 / 257.0;
+    float offset = 1.0 / 259.0;
     // lookup texel at patch coordinate for height and scale + shift as desired
     uint index = patch[0].heightmap_index;
     out.height = get_height(index,out.texCoord);

@@ -1246,9 +1246,9 @@ SSBOHandle RenderBackendVK::alloc_storage_buffer(u32 size, const void *data,
 }
 
 VkShaderModule RenderBackendVK::create_shader_module(
-    const std::string &shader) {
+    const KString &shader) {
     VkShaderModule module = nullptr;
-    if (shader.empty()) return module;
+    if (shader.is_empty()) return module;
 
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1258,11 +1258,11 @@ VkShaderModule RenderBackendVK::create_shader_module(
     return module;
 }
 
-ShaderHandle RenderBackendVK::alloc_shader(const std::string &vertex_code,
-                                           const std::string &fragment_code,
-                                           const std::string &geometry_code,
-                                           const std::string &tess_ctrl_code,
-                                           const std::string &tess_eval_code) {
+ShaderHandle RenderBackendVK::alloc_shader(const KString &vertex_code,
+                                           const KString &fragment_code,
+                                           const KString &geometry_code,
+                                           const KString &tess_ctrl_code,
+                                           const KString &tess_eval_code) {
     return shaders.insert(HardwareShaderVk{.vertex_src = vertex_code,
                                            .geo_src = geometry_code,
                                            .tess_ctrl_src = tess_ctrl_code,
@@ -1584,11 +1584,12 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     _hash.update(&sample_count);
     _hash.update(&draw_depth_only);
     _hash.update(&depth_clamp);
+    i32 shader_id = shaders.get_id(pipeline->shader);
+    _hash.update(&shader_id);
 
-    /* since we usually don't create multiple shader/render target/layout with
+    /* since we usually don't create multiple render target/layout with
      * same config */
     /* we just hash its handle and address here*/
-    _hash.update(&pipeline->shader);
     _hash.update(&render_target->render_pass_cache);
     for (auto layout : layouts) {
         _hash.update(&layout);

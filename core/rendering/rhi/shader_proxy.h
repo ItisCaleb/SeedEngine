@@ -77,7 +77,7 @@ class ShaderProxy {
     public:
         ShaderProxy(const std::vector<std::string> &include_path);
         ShaderHandle compile_shader(const Path &path,
-                                    const std::string &shader,
+                                    const KString &shader,
                                     ShaderLayout *layout);
         ~ShaderProxy();
 };

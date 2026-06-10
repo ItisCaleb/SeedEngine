@@ -103,6 +103,7 @@ class KString {
                 this->_data[0] = '\0';
             }
         }
+        void resize(u32 size);
 
         /* pop utf8 chars */
         void pop(u32 utf8_count = 1);

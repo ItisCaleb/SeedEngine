@@ -33,7 +33,7 @@ class File : public RefCounted {
         static bool exists(const Path &path);
         static bool remove(const Path &path);
 
-        std::string read_str(size_t size = SIZE_MAX);
+        KString read_str(size_t size = SIZE_MAX);
 
         void read(void *data, size_t size);
 

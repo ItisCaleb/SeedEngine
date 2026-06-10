@@ -11,8 +11,15 @@ namespace Seed {
 
 using Json = nlohmann::ordered_json;
 
-static constexpr u32 EDITOR_HEIGHTMAP_SIZE = 257;
-static constexpr u32 EDITOR_HEIGHTMAP_LAST = EDITOR_HEIGHTMAP_SIZE - 1;
+static constexpr u32 EDITOR_HEIGHTMAP_INNER_SIZE = 257;
+static constexpr u32 EDITOR_HEIGHTMAP_BORDER = 1;
+static constexpr u32 EDITOR_HEIGHTMAP_SIZE =
+    EDITOR_HEIGHTMAP_INNER_SIZE + EDITOR_HEIGHTMAP_BORDER * 2;
+static constexpr u32 EDITOR_HEIGHTMAP_INNER_FIRST = EDITOR_HEIGHTMAP_BORDER;
+static constexpr u32 EDITOR_HEIGHTMAP_INNER_LAST =
+    EDITOR_HEIGHTMAP_INNER_FIRST + EDITOR_HEIGHTMAP_INNER_SIZE - 1;
+static constexpr u32 EDITOR_HEIGHTMAP_GHOST_FIRST = 0;
+static constexpr u32 EDITOR_HEIGHTMAP_GHOST_LAST = EDITOR_HEIGHTMAP_SIZE - 1;
 
 static EditorSky read_sky(const Json &j) {
     EditorSky sky;
@@ -107,19 +114,91 @@ static void copy_height_pixel(Ref<Image> src, u32 src_x, u32 src_y,
     dst_pixel[1] = src_pixel[1];
 }
 
-static void copy_heightmap_column(Ref<Image> src, u32 src_x, Ref<Image> dst,
-                                  u32 dst_x) {
+static void copy_heightmap_column(Ref<Image> src, u32 src_x, u32 src_y,
+                                  Ref<Image> dst, u32 dst_x, u32 dst_y,
+                                  u32 count) {
     if (!valid_heightmap(src) || !valid_heightmap(dst)) return;
-    for (u32 y = 0; y < EDITOR_HEIGHTMAP_SIZE; y++) {
-        copy_height_pixel(src, src_x, y, dst, dst_x, y);
+    for (u32 i = 0; i < count; i++) {
+        copy_height_pixel(src, src_x, src_y + i, dst, dst_x, dst_y + i);
     }
 }
 
-static void copy_heightmap_row(Ref<Image> src, u32 src_y, Ref<Image> dst,
-                               u32 dst_y) {
+static void copy_heightmap_row(Ref<Image> src, u32 src_x, u32 src_y,
+                               Ref<Image> dst, u32 dst_x, u32 dst_y,
+                               u32 count) {
     if (!valid_heightmap(src) || !valid_heightmap(dst)) return;
-    for (u32 x = 0; x < EDITOR_HEIGHTMAP_SIZE; x++) {
-        copy_height_pixel(src, x, src_y, dst, x, dst_y);
+    for (u32 i = 0; i < count; i++) {
+        copy_height_pixel(src, src_x + i, src_y, dst, dst_x + i, dst_y);
+    }
+}
+
+static void clamp_heightmap_border(Ref<Image> heightmap) {
+    if (!valid_heightmap(heightmap)) return;
+
+    for (u32 y = EDITOR_HEIGHTMAP_INNER_FIRST;
+         y <= EDITOR_HEIGHTMAP_INNER_LAST; y++) {
+        copy_height_pixel(heightmap, EDITOR_HEIGHTMAP_INNER_FIRST, y,
+                          heightmap, EDITOR_HEIGHTMAP_GHOST_FIRST, y);
+        copy_height_pixel(heightmap, EDITOR_HEIGHTMAP_INNER_LAST, y, heightmap,
+                          EDITOR_HEIGHTMAP_GHOST_LAST, y);
+    }
+
+    for (u32 x = EDITOR_HEIGHTMAP_GHOST_FIRST;
+         x <= EDITOR_HEIGHTMAP_GHOST_LAST; x++) {
+        copy_height_pixel(heightmap, x, EDITOR_HEIGHTMAP_INNER_FIRST,
+                          heightmap, x, EDITOR_HEIGHTMAP_GHOST_FIRST);
+        copy_height_pixel(heightmap, x, EDITOR_HEIGHTMAP_INNER_LAST, heightmap,
+                          x, EDITOR_HEIGHTMAP_GHOST_LAST);
+    }
+}
+
+static void rebuild_heightmap_border(const std::vector<EditorChunk> &chunks,
+                                     std::vector<Ref<Image>> &heightmaps,
+                                     u32 chunk_index) {
+    if (chunk_index >= chunks.size() || chunk_index >= heightmaps.size() ||
+        !valid_heightmap(heightmaps[chunk_index])) {
+        return;
+    }
+
+    const EditorChunk &chunk = chunks[chunk_index];
+    Ref<Image> heightmap = heightmaps[chunk_index];
+    clamp_heightmap_border(heightmap);
+
+    i32 left = find_chunk_index_at(chunks, chunk.x - 1, chunk.y);
+    if (left >= 0 && (u32)left < heightmaps.size()) {
+        copy_heightmap_column(heightmaps[left], EDITOR_HEIGHTMAP_INNER_LAST - 1,
+                              EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
+                              EDITOR_HEIGHTMAP_GHOST_FIRST,
+                              EDITOR_HEIGHTMAP_INNER_FIRST,
+                              EDITOR_HEIGHTMAP_INNER_SIZE);
+    }
+
+    i32 right = find_chunk_index_at(chunks, chunk.x + 1, chunk.y);
+    if (right >= 0 && (u32)right < heightmaps.size()) {
+        copy_heightmap_column(heightmaps[right],
+                              EDITOR_HEIGHTMAP_INNER_FIRST + 1,
+                              EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
+                              EDITOR_HEIGHTMAP_GHOST_LAST,
+                              EDITOR_HEIGHTMAP_INNER_FIRST,
+                              EDITOR_HEIGHTMAP_INNER_SIZE);
+    }
+
+    i32 bottom = find_chunk_index_at(chunks, chunk.x, chunk.y - 1);
+    if (bottom >= 0 && (u32)bottom < heightmaps.size()) {
+        copy_heightmap_row(heightmaps[bottom], EDITOR_HEIGHTMAP_INNER_FIRST,
+                           EDITOR_HEIGHTMAP_INNER_LAST - 1, heightmap,
+                           EDITOR_HEIGHTMAP_INNER_FIRST,
+                           EDITOR_HEIGHTMAP_GHOST_FIRST,
+                           EDITOR_HEIGHTMAP_INNER_SIZE);
+    }
+
+    i32 top = find_chunk_index_at(chunks, chunk.x, chunk.y + 1);
+    if (top >= 0 && (u32)top < heightmaps.size()) {
+        copy_heightmap_row(heightmaps[top], EDITOR_HEIGHTMAP_INNER_FIRST,
+                           EDITOR_HEIGHTMAP_INNER_FIRST + 1, heightmap,
+                           EDITOR_HEIGHTMAP_INNER_FIRST,
+                           EDITOR_HEIGHTMAP_GHOST_LAST,
+                           EDITOR_HEIGHTMAP_INNER_SIZE);
     }
 }
 
@@ -129,26 +208,38 @@ static void copy_neighbor_edges_to_new_chunk(
     Ref<Image> heightmap) {
     i32 left = find_chunk_index_at(chunks, x - 1, y);
     if (left >= 0 && (u32)left < heightmaps.size()) {
-        copy_heightmap_column(heightmaps[left], EDITOR_HEIGHTMAP_LAST,
-                              heightmap, 0);
+        copy_heightmap_column(heightmaps[left], EDITOR_HEIGHTMAP_INNER_LAST,
+                              EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
+                              EDITOR_HEIGHTMAP_INNER_FIRST,
+                              EDITOR_HEIGHTMAP_INNER_FIRST,
+                              EDITOR_HEIGHTMAP_INNER_SIZE);
     }
 
     i32 right = find_chunk_index_at(chunks, x + 1, y);
     if (right >= 0 && (u32)right < heightmaps.size()) {
-        copy_heightmap_column(heightmaps[right], 0, heightmap,
-                              EDITOR_HEIGHTMAP_LAST);
+        copy_heightmap_column(heightmaps[right], EDITOR_HEIGHTMAP_INNER_FIRST,
+                              EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
+                              EDITOR_HEIGHTMAP_INNER_LAST,
+                              EDITOR_HEIGHTMAP_INNER_FIRST,
+                              EDITOR_HEIGHTMAP_INNER_SIZE);
     }
 
     i32 bottom = find_chunk_index_at(chunks, x, y - 1);
     if (bottom >= 0 && (u32)bottom < heightmaps.size()) {
-        copy_heightmap_row(heightmaps[bottom], EDITOR_HEIGHTMAP_LAST,
-                           heightmap, 0);
+        copy_heightmap_row(heightmaps[bottom], EDITOR_HEIGHTMAP_INNER_FIRST,
+                           EDITOR_HEIGHTMAP_INNER_LAST, heightmap,
+                           EDITOR_HEIGHTMAP_INNER_FIRST,
+                           EDITOR_HEIGHTMAP_INNER_FIRST,
+                           EDITOR_HEIGHTMAP_INNER_SIZE);
     }
 
     i32 top = find_chunk_index_at(chunks, x, y + 1);
     if (top >= 0 && (u32)top < heightmaps.size()) {
-        copy_heightmap_row(heightmaps[top], 0, heightmap,
-                           EDITOR_HEIGHTMAP_LAST);
+        copy_heightmap_row(heightmaps[top], EDITOR_HEIGHTMAP_INNER_FIRST,
+                           EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
+                           EDITOR_HEIGHTMAP_INNER_FIRST,
+                           EDITOR_HEIGHTMAP_INNER_LAST,
+                           EDITOR_HEIGHTMAP_INNER_SIZE);
     }
 }
 
@@ -162,15 +253,27 @@ static void sync_loaded_heightmap_seams(std::vector<EditorChunk> &chunks,
         EditorChunk &chunk = chunks[i];
         i32 left = find_chunk_index_at(chunks, chunk.x - 1, chunk.y);
         if (left >= 0 && (u32)left < heightmaps.size()) {
-            copy_heightmap_column(heightmaps[i], 0, heightmaps[left],
-                                  EDITOR_HEIGHTMAP_LAST);
+            copy_heightmap_column(heightmaps[i], EDITOR_HEIGHTMAP_INNER_FIRST,
+                                  EDITOR_HEIGHTMAP_INNER_FIRST,
+                                  heightmaps[left],
+                                  EDITOR_HEIGHTMAP_INNER_LAST,
+                                  EDITOR_HEIGHTMAP_INNER_FIRST,
+                                  EDITOR_HEIGHTMAP_INNER_SIZE);
         }
 
         i32 bottom = find_chunk_index_at(chunks, chunk.x, chunk.y - 1);
         if (bottom >= 0 && (u32)bottom < heightmaps.size()) {
-            copy_heightmap_row(heightmaps[i], 0, heightmaps[bottom],
-                               EDITOR_HEIGHTMAP_LAST);
+            copy_heightmap_row(heightmaps[i], EDITOR_HEIGHTMAP_INNER_FIRST,
+                               EDITOR_HEIGHTMAP_INNER_FIRST,
+                               heightmaps[bottom],
+                               EDITOR_HEIGHTMAP_INNER_FIRST,
+                               EDITOR_HEIGHTMAP_INNER_LAST,
+                               EDITOR_HEIGHTMAP_INNER_SIZE);
         }
+    }
+
+    for (u32 i = 0; i < chunks.size(); i++) {
+        rebuild_heightmap_border(chunks, heightmaps, i);
     }
 }
 
@@ -256,6 +359,7 @@ void EditorWorld::add_new_chunk(i32 x, i32 y) {
     chunk.height_map = entry->uuid;
     chunks.push_back(chunk);
     heightmaps.push_back(heightmap);
+    sync_loaded_heightmap_seams(chunks, heightmaps);
 
     terrain->add_chunk(chunk.x, chunk.y, heightmap);
     heightmap->save_disk(entry->real_path());

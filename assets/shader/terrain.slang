@@ -3,15 +3,13 @@ import seed_inc;
 struct VS_OUT{
     float2 uv;
     float4 sv_position: SV_Position;
+    nointerpolation uint heightmap_index;
 }
 
 
 struct Property{
-    Sampler2D height_map; 
+    Sampler2DArray height_map;
     Sampler2D terrain_shadowMap;
-    Sampler2D splat_map;
-    Sampler2D tex1;
-    Sampler2D tex1_normal;
     Sampler2D shadowMap;
     vec2 terrain_size;
 };
@@ -22,9 +20,10 @@ ParameterBlock<Property> prop;
 VS_OUT vert(float2 aPos, uint id: SV_VulkanInstanceID){
     VS_OUT out;
     TerrainInstance terrain = GetTerrain(id);
-    vec2 size = prop.terrain_size; 
+    vec2 size = 257; 
     out.sv_position = vec4(aPos.x + terrain.pos.x, 0.0f, aPos.y + terrain.pos.y, 1.0);
-    out.uv = (out.sv_position.xz + size / 2)/size;
+    out.uv = (aPos + size / 2)/size;
+    out.heightmap_index = terrain.heightmap_index;
     return out;
 }
 
@@ -32,6 +31,7 @@ struct HSOutput
 {
     float4 position;
     float2 uv;
+    nointerpolation uint heightmap_index;
 };
 
 [shader("hull")]
@@ -44,6 +44,7 @@ HSOutput tesc(InputPatch<VS_OUT, 4> patch, uint cpID : SV_OutputControlPointID){
     HSOutput o;
     o.position = patch[cpID].sv_position;
     o.uv = patch[cpID].uv;
+    o.heightmap_index = patch[cpID].heightmap_index;
     return o;
 }
 
@@ -96,9 +97,10 @@ struct DS_OUT{
 };
 
 
-float get_height(vec2 tex_coord){
-    return prop.height_map.SampleLevelZero(tex_coord).y * 256.0 - 128.0;
+float get_height(uint layer, vec2 tex_coord){
+    return prop.height_map.SampleLevelZero(vec3(tex_coord, layer)).y * 256.0 - 128.0;
 }
+
 
 [shader("domain")]
 [domain("quad")]
@@ -123,16 +125,14 @@ DS_OUT tese(
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
     out.texCoord = (t1 - t0) * v + t0;
-    vec2 offset; 
-    float level;
-    prop.height_map.GetDimensions(0, offset[0], offset[1], level);
-    offset = 1 / offset;
+    uint index = patch[0].heightmap_index;
+    float offset = 1.0 / 257.0;
     // lookup texel at patch coordinate for height and scale + shift as desired
-    float h = get_height(out.texCoord);
-    float rh = get_height(out.texCoord + vec2(offset.x, 0));
-    float lh = get_height(out.texCoord + vec2(-offset.x, 0));
-    float uh = get_height(out.texCoord + vec2(0, offset.y));
-    float dh = get_height(out.texCoord + vec2(0, -offset.y));
+    float h = get_height(index, out.texCoord);
+    float rh = get_height(index,out.texCoord + vec2(offset, 0));
+    float lh = get_height(index,out.texCoord + vec2(-offset, 0));
+    float uh = get_height(index,out.texCoord + vec2(0, offset));
+    float dh = get_height(index,out.texCoord + vec2(0, -offset));
     out.height = (h + rh + lh + uh + dh) / 5;
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
@@ -211,17 +211,17 @@ float HorizonShadow(vec2 uv, vec3 light_dir) {
     return shadow;
 }
 
-vec3 diffuse_blend(vec2 uv1, vec2 uv2){
-    vec3 diffuse1 = prop.tex1.Sample(uv1).xyz;
-    vec3 diffuse2 = prop.tex1.Sample(uv2).xyz;
-    return diffuse1 * diffuse2 * 2.0;
-}
+// vec3 diffuse_blend(vec2 uv1, vec2 uv2){
+//     vec3 diffuse1 = prop.tex1.Sample(uv1).xyz;
+//     vec3 diffuse2 = prop.tex1.Sample(uv2).xyz;
+//     return diffuse1 * diffuse2 * 2.0;
+// }
 
-vec3 normal_blend(vec2 uv1, vec2 uv2){
-    vec3 n1 = sample_normal(uv1, prop.tex1_normal); 
-    vec3 n2 = sample_normal(uv2, prop.tex1_normal); 
-    return blend_normal_rnm(n1, n2);
-}
+// vec3 normal_blend(vec2 uv1, vec2 uv2){
+//     vec3 n1 = sample_normal(uv1, prop.tex1_normal); 
+//     vec3 n2 = sample_normal(uv2, prop.tex1_normal); 
+//     return blend_normal_rnm(n1, n2);
+// }
 
 vec3 triplanar_mapping(vec3 frag_pos, vec3 world_normal, Sampler2D texture, float scale){
     vec2 uv_x = frag_pos.zy / scale;
@@ -247,9 +247,10 @@ float4 frag(DS_OUT in){
     // vec3 diffuse_sample = diffuse_blend(uv1, uv2);
     // vec3 normal = normal_blend(uv1, uv2);
     vec3 world_normal = normalize(in.normal);
-    vec3 diffuse_sample = triplanar_mapping(in.frag_pos.xyz, world_normal, prop.tex1, 32);
-    vec3 normal = sample_normal(uv1,  prop.tex1_normal);
-
+    // vec3 diffuse_sample = triplanar_mapping(in.frag_pos.xyz, world_normal, prop.tex1, 32);
+    // vec3 normal = sample_normal(uv1,  prop.tex1_normal);
+    vec3 normal = vec3(0, 0, 1);
+    vec3 diffuse_sample = vec3(0.5, 0.5, 0.5);
     vec3 light_out = diffuse_sample * gLights.u_light_ambient;
     Camera cam = GetCamera();
     vec3 view_dir = normalize(in.tangent_view_pos - in.tangent_frag_pos.xyz);

@@ -84,7 +84,7 @@ TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
 void query_texture_size(TextureHandle handle, u32 *w, u32 *h);
 
 [[nodiscard]]
-ShaderHandle alloc_shader(const Path &path, const std::string &code,
+ShaderHandle alloc_shader(const Path &path, const KString &code,
                           ShaderLayout *layout);
 
 [[nodiscard]]

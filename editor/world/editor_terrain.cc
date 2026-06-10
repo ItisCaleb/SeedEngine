@@ -10,6 +10,10 @@
 namespace Seed {
 
 #define CHUNK_SIZE (256)
+#define HEIGHTMAP_INNER_SIZE (CHUNK_SIZE + 1)
+#define HEIGHTMAP_BORDER (1)
+#define HEIGHTMAP_SIZE (HEIGHTMAP_INNER_SIZE + HEIGHTMAP_BORDER * 2)
+#define HEIGHTMAP_INNER_FIRST (HEIGHTMAP_BORDER)
 #define HEIGHT_OFFSET (-128)
 #define HEIGHT_SCALE (1)
 
@@ -59,7 +63,7 @@ void EditorTerrain::build_mesh() {
 }
 
 EditorTerrain::EditorTerrain() {
-    heightmaps.create(TextureType::TEXTURE_2D_ARRAY, CHUNK_SIZE + 1, CHUNK_SIZE + 1,
+    heightmaps.create(TextureType::TEXTURE_2D_ARRAY, HEIGHTMAP_SIZE, HEIGHTMAP_SIZE,
                       256, PixelFormat::RG, SamplerProperty{});
     material.create(ref_cast<Texture>(heightmaps));
 
@@ -70,7 +74,7 @@ EditorTerrain::EditorTerrain() {
 }
 
 void EditorTerrain::add_chunk(i32 x, i32 y, Ref<Image> height_map) {
-    heightmaps->update_layer(CHUNK_SIZE + 1, CHUNK_SIZE + 1, last_heightmap,
+    heightmaps->update_layer(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE, last_heightmap,
                              height_map->get_data());
 
     f32 max_height = -FLT_MAX;
@@ -79,8 +83,11 @@ void EditorTerrain::add_chunk(i32 x, i32 y, Ref<Image> height_map) {
     for (i32 i = 0; i <= CHUNK_SIZE; i++) {
         for (i32 j = 0; j <= CHUNK_SIZE; j++) {
             // get height from y value
-            f32 height =
-                (f32)height_map->pixel(i, j)[1] * HEIGHT_SCALE + HEIGHT_OFFSET;
+            f32 height = (f32)height_map
+                             ->pixel(i + HEIGHTMAP_INNER_FIRST,
+                                     j + HEIGHTMAP_INNER_FIRST)[1] *
+                             HEIGHT_SCALE +
+                         HEIGHT_OFFSET;
             max_height = std::max(max_height, height);
             min_height = std::min(min_height, height);
         }
@@ -101,7 +108,7 @@ void EditorTerrain::clear_chunks() {
 
 void EditorTerrain::update_chunk_heightmap(u32 chunk_index,
                                            Ref<Image> height_map) {
-    heightmaps->update_layer(CHUNK_SIZE + 1, CHUNK_SIZE + 1, chunk_index,
+    heightmaps->update_layer(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE, chunk_index,
                              height_map->get_data());
 }
 

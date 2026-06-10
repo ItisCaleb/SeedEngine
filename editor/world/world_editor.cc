@@ -61,8 +61,16 @@ void WorldEditor::mark_preview_terrain_dirty() { preview_terrain_dirty = true; }
 static constexpr i32 WORLD_EDITOR_CHUNK_SIZE = 256;
 static constexpr i32 WORLD_EDITOR_CHUNK_HALF = WORLD_EDITOR_CHUNK_SIZE / 2;
 static constexpr i32 WORLD_EDITOR_CHUNK_EDGE_SNAP = 12;
-static constexpr u32 WORLD_EDITOR_HEIGHTMAP_SIZE = 257;
-static constexpr u32 WORLD_EDITOR_HEIGHTMAP_LAST =
+static constexpr u32 WORLD_EDITOR_HEIGHTMAP_INNER_SIZE = 257;
+static constexpr u32 WORLD_EDITOR_HEIGHTMAP_BORDER = 1;
+static constexpr u32 WORLD_EDITOR_HEIGHTMAP_SIZE =
+    WORLD_EDITOR_HEIGHTMAP_INNER_SIZE + WORLD_EDITOR_HEIGHTMAP_BORDER * 2;
+static constexpr u32 WORLD_EDITOR_HEIGHTMAP_INNER_FIRST =
+    WORLD_EDITOR_HEIGHTMAP_BORDER;
+static constexpr u32 WORLD_EDITOR_HEIGHTMAP_INNER_LAST =
+    WORLD_EDITOR_HEIGHTMAP_INNER_FIRST + WORLD_EDITOR_HEIGHTMAP_INNER_SIZE - 1;
+static constexpr u32 WORLD_EDITOR_HEIGHTMAP_GHOST_FIRST = 0;
+static constexpr u32 WORLD_EDITOR_HEIGHTMAP_GHOST_LAST =
     WORLD_EDITOR_HEIGHTMAP_SIZE - 1;
 
 void WorldEditor::save_dirty_heightmaps() {
@@ -107,6 +115,19 @@ bool WorldEditor::add_chunk_at(i32 chunk_x, i32 chunk_y) {
     }
 
     current_world->add_new_chunk(chunk_x, chunk_y);
+    u32 chunk_idx = (u32)current_world->get_chunks().size() - 1;
+    std::set<u32> touched_chunks = {chunk_idx};
+    sync_heightmap_seams(touched_chunks);
+    for (u32 touched_idx : touched_chunks) {
+        if (touched_idx >= current_world->heightmaps.size() ||
+            current_world->heightmaps[touched_idx].is_null()) {
+            continue;
+        }
+        current_world->terrain->update_chunk_heightmap(
+            touched_idx, current_world->heightmaps[touched_idx]);
+        dirty_heightmaps.insert(touched_idx);
+    }
+    heightmaps_dirty = !dirty_heightmaps.empty();
     save_current_world();
 
     char buffer[96] = {};
@@ -119,12 +140,31 @@ bool WorldEditor::add_chunk_at(i32 chunk_x, i32 chunk_y) {
 i32 WorldEditor::find_chunk_index_at_world(i32 world_x, i32 world_y) const {
     if (current_world == nullptr) return -1;
 
-    i32 chunk_x = (i32)std::floor(
-        (world_x + WORLD_EDITOR_CHUNK_HALF) / (f32)WORLD_EDITOR_CHUNK_SIZE);
-    i32 chunk_y = (i32)std::floor(
-        (world_y + WORLD_EDITOR_CHUNK_HALF) / (f32)WORLD_EDITOR_CHUNK_SIZE);
+    const auto &chunks = current_world->get_chunks();
+    i32 best_idx = -1;
+    i32 best_score = -1;
+    for (i32 i = 0; i < (i32)chunks.size(); i++) {
+        i32 chunk_origin_x =
+            chunks[i].x * WORLD_EDITOR_CHUNK_SIZE - WORLD_EDITOR_CHUNK_HALF;
+        i32 chunk_origin_y =
+            chunks[i].y * WORLD_EDITOR_CHUNK_SIZE - WORLD_EDITOR_CHUNK_HALF;
+        i32 local_x = world_x - chunk_origin_x;
+        i32 local_y = world_y - chunk_origin_y;
+        if (local_x < 0 || local_y < 0 ||
+            local_x > WORLD_EDITOR_CHUNK_SIZE ||
+            local_y > WORLD_EDITOR_CHUNK_SIZE) {
+            continue;
+        }
 
-    return find_chunk_index_at_chunk(chunk_x, chunk_y);
+        i32 score = 0;
+        if (local_x == WORLD_EDITOR_CHUNK_SIZE) score++;
+        if (local_y == WORLD_EDITOR_CHUNK_SIZE) score++;
+        if (score > best_score) {
+            best_idx = i;
+            best_score = score;
+        }
+    }
+    return best_idx;
 }
 
 bool WorldEditor::world_to_heightmap_pixel(i32 world_x, i32 world_y,
@@ -146,8 +186,8 @@ bool WorldEditor::world_to_heightmap_pixel(i32 world_x, i32 world_y,
     }
 
     chunk_idx = (u32)idx;
-    pixel_x = (u32)local_x;
-    pixel_y = (u32)local_y;
+    pixel_x = (u32)local_x + WORLD_EDITOR_HEIGHTMAP_BORDER;
+    pixel_y = (u32)local_y + WORLD_EDITOR_HEIGHTMAP_BORDER;
     return true;
 }
 
@@ -363,6 +403,9 @@ bool WorldEditor::load_world(const Path &path) {
         current_world = std::make_unique<EditorWorld>(&standalone_config);
         current_world_path = path;
     }
+
+    dirty_heightmaps.clear();
+    heightmaps_dirty = false;
 
     mark_preview_terrain_dirty();
     set_current_world_inspector();
@@ -751,23 +794,88 @@ static void copy_editor_height_pixel(Ref<Image> src, u32 src_x, u32 src_y,
 }
 
 static void copy_editor_heightmap_column(Ref<Image> src, u32 src_x,
-                                         Ref<Image> dst, u32 dst_x) {
+                                         u32 src_y, Ref<Image> dst,
+                                         u32 dst_x, u32 dst_y, u32 count) {
     if (!valid_editor_heightmap(src) || !valid_editor_heightmap(dst)) return;
-    for (u32 y = 0; y < WORLD_EDITOR_HEIGHTMAP_SIZE; y++) {
-        copy_editor_height_pixel(src, src_x, y, dst, dst_x, y);
+    for (u32 i = 0; i < count; i++) {
+        copy_editor_height_pixel(src, src_x, src_y + i, dst, dst_x,
+                                 dst_y + i);
     }
 }
 
-static void copy_editor_heightmap_row(Ref<Image> src, u32 src_y,
-                                      Ref<Image> dst, u32 dst_y) {
+static void copy_editor_heightmap_row(Ref<Image> src, u32 src_x,
+                                      u32 src_y, Ref<Image> dst, u32 dst_x,
+                                      u32 dst_y, u32 count) {
     if (!valid_editor_heightmap(src) || !valid_editor_heightmap(dst)) return;
-    for (u32 x = 0; x < WORLD_EDITOR_HEIGHTMAP_SIZE; x++) {
-        copy_editor_height_pixel(src, x, src_y, dst, x, dst_y);
+    for (u32 i = 0; i < count; i++) {
+        copy_editor_height_pixel(src, src_x + i, src_y, dst, dst_x + i,
+                                 dst_y);
+    }
+}
+
+static void clamp_editor_heightmap_border(Ref<Image> heightmap) {
+    if (!valid_editor_heightmap(heightmap)) return;
+
+    for (u32 y = WORLD_EDITOR_HEIGHTMAP_INNER_FIRST;
+         y <= WORLD_EDITOR_HEIGHTMAP_INNER_LAST; y++) {
+        copy_editor_height_pixel(heightmap, WORLD_EDITOR_HEIGHTMAP_INNER_FIRST,
+                                 y, heightmap,
+                                 WORLD_EDITOR_HEIGHTMAP_GHOST_FIRST, y);
+        copy_editor_height_pixel(heightmap, WORLD_EDITOR_HEIGHTMAP_INNER_LAST,
+                                 y, heightmap,
+                                 WORLD_EDITOR_HEIGHTMAP_GHOST_LAST, y);
+    }
+
+    for (u32 x = WORLD_EDITOR_HEIGHTMAP_GHOST_FIRST;
+         x <= WORLD_EDITOR_HEIGHTMAP_GHOST_LAST; x++) {
+        copy_editor_height_pixel(heightmap, x,
+                                 WORLD_EDITOR_HEIGHTMAP_INNER_FIRST,
+                                 heightmap, x,
+                                 WORLD_EDITOR_HEIGHTMAP_GHOST_FIRST);
+        copy_editor_height_pixel(heightmap, x,
+                                 WORLD_EDITOR_HEIGHTMAP_INNER_LAST, heightmap,
+                                 x, WORLD_EDITOR_HEIGHTMAP_GHOST_LAST);
     }
 }
 
 void WorldEditor::sync_heightmap_seams(std::set<u32> &touched_chunks) {
     if (current_world == nullptr) return;
+
+    auto sync_neighbor = [&](u32 chunk_idx, i32 neighbor_idx, bool vertical,
+                             bool positive_side) {
+        if (neighbor_idx < 0 ||
+            (u32)neighbor_idx >= current_world->heightmaps.size()) {
+            return;
+        }
+
+        Ref<Image> src = current_world->heightmaps[chunk_idx];
+        Ref<Image> dst = current_world->heightmaps[neighbor_idx];
+        if (!valid_editor_heightmap(src) || !valid_editor_heightmap(dst)) {
+            return;
+        }
+
+        if (vertical) {
+            u32 src_x = positive_side ? WORLD_EDITOR_HEIGHTMAP_INNER_LAST
+                                      : WORLD_EDITOR_HEIGHTMAP_INNER_FIRST;
+            u32 dst_x = positive_side ? WORLD_EDITOR_HEIGHTMAP_INNER_FIRST
+                                      : WORLD_EDITOR_HEIGHTMAP_INNER_LAST;
+            copy_editor_heightmap_column(
+                src, src_x, WORLD_EDITOR_HEIGHTMAP_INNER_FIRST, dst, dst_x,
+                WORLD_EDITOR_HEIGHTMAP_INNER_FIRST,
+                WORLD_EDITOR_HEIGHTMAP_INNER_SIZE);
+        } else {
+            u32 src_y = positive_side ? WORLD_EDITOR_HEIGHTMAP_INNER_LAST
+                                      : WORLD_EDITOR_HEIGHTMAP_INNER_FIRST;
+            u32 dst_y = positive_side ? WORLD_EDITOR_HEIGHTMAP_INNER_FIRST
+                                      : WORLD_EDITOR_HEIGHTMAP_INNER_LAST;
+            copy_editor_heightmap_row(src, WORLD_EDITOR_HEIGHTMAP_INNER_FIRST,
+                                      src_y, dst,
+                                      WORLD_EDITOR_HEIGHTMAP_INNER_FIRST,
+                                      dst_y,
+                                      WORLD_EDITOR_HEIGHTMAP_INNER_SIZE);
+        }
+        touched_chunks.insert((u32)neighbor_idx);
+    };
 
     std::set<u32> source_chunks = touched_chunks;
     for (u32 chunk_idx : source_chunks) {
@@ -777,25 +885,75 @@ void WorldEditor::sync_heightmap_seams(std::set<u32> &touched_chunks) {
         }
 
         const EditorChunk &chunk = current_world->chunks[chunk_idx];
-        Ref<Image> src = current_world->heightmaps[chunk_idx];
-        if (!valid_editor_heightmap(src)) continue;
+        sync_neighbor(chunk_idx, find_chunk_index_at_chunk(chunk.x - 1, chunk.y),
+                      true, false);
+        sync_neighbor(chunk_idx, find_chunk_index_at_chunk(chunk.x + 1, chunk.y),
+                      true, true);
+        sync_neighbor(chunk_idx, find_chunk_index_at_chunk(chunk.x, chunk.y - 1),
+                      false, false);
+        sync_neighbor(chunk_idx, find_chunk_index_at_chunk(chunk.x, chunk.y + 1),
+                      false, true);
+    }
+
+    std::set<u32> border_chunks = touched_chunks;
+    for (u32 chunk_idx : border_chunks) {
+        if (chunk_idx >= current_world->chunks.size() ||
+            chunk_idx >= current_world->heightmaps.size()) {
+            continue;
+        }
+
+        const EditorChunk &chunk = current_world->chunks[chunk_idx];
+        Ref<Image> heightmap = current_world->heightmaps[chunk_idx];
+        if (!valid_editor_heightmap(heightmap)) continue;
+
+        clamp_editor_heightmap_border(heightmap);
 
         i32 left_idx = find_chunk_index_at_chunk(chunk.x - 1, chunk.y);
         if (left_idx >= 0 &&
             (u32)left_idx < current_world->heightmaps.size()) {
-            Ref<Image> dst = current_world->heightmaps[left_idx];
-            copy_editor_heightmap_column(src, 0, dst,
-                                         WORLD_EDITOR_HEIGHTMAP_LAST);
-            touched_chunks.insert((u32)left_idx);
+            copy_editor_heightmap_column(
+                current_world->heightmaps[left_idx],
+                WORLD_EDITOR_HEIGHTMAP_INNER_LAST - 1,
+                WORLD_EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
+                WORLD_EDITOR_HEIGHTMAP_GHOST_FIRST,
+                WORLD_EDITOR_HEIGHTMAP_INNER_FIRST,
+                WORLD_EDITOR_HEIGHTMAP_INNER_SIZE);
+        }
+
+        i32 right_idx = find_chunk_index_at_chunk(chunk.x + 1, chunk.y);
+        if (right_idx >= 0 &&
+            (u32)right_idx < current_world->heightmaps.size()) {
+            copy_editor_heightmap_column(
+                current_world->heightmaps[right_idx],
+                WORLD_EDITOR_HEIGHTMAP_INNER_FIRST + 1,
+                WORLD_EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
+                WORLD_EDITOR_HEIGHTMAP_GHOST_LAST,
+                WORLD_EDITOR_HEIGHTMAP_INNER_FIRST,
+                WORLD_EDITOR_HEIGHTMAP_INNER_SIZE);
         }
 
         i32 bottom_idx = find_chunk_index_at_chunk(chunk.x, chunk.y - 1);
         if (bottom_idx >= 0 &&
             (u32)bottom_idx < current_world->heightmaps.size()) {
-            Ref<Image> dst = current_world->heightmaps[bottom_idx];
-            copy_editor_heightmap_row(src, 0, dst,
-                                      WORLD_EDITOR_HEIGHTMAP_LAST);
-            touched_chunks.insert((u32)bottom_idx);
+            copy_editor_heightmap_row(
+                current_world->heightmaps[bottom_idx],
+                WORLD_EDITOR_HEIGHTMAP_INNER_FIRST,
+                WORLD_EDITOR_HEIGHTMAP_INNER_LAST - 1, heightmap,
+                WORLD_EDITOR_HEIGHTMAP_INNER_FIRST,
+                WORLD_EDITOR_HEIGHTMAP_GHOST_FIRST,
+                WORLD_EDITOR_HEIGHTMAP_INNER_SIZE);
+        }
+
+        i32 top_idx = find_chunk_index_at_chunk(chunk.x, chunk.y + 1);
+        if (top_idx >= 0 &&
+            (u32)top_idx < current_world->heightmaps.size()) {
+            copy_editor_heightmap_row(
+                current_world->heightmaps[top_idx],
+                WORLD_EDITOR_HEIGHTMAP_INNER_FIRST,
+                WORLD_EDITOR_HEIGHTMAP_INNER_FIRST + 1, heightmap,
+                WORLD_EDITOR_HEIGHTMAP_INNER_FIRST,
+                WORLD_EDITOR_HEIGHTMAP_GHOST_LAST,
+                WORLD_EDITOR_HEIGHTMAP_INNER_SIZE);
         }
     }
 }

@@ -41,6 +41,7 @@ struct ResourceEntry {
         /* else it is the config path */
         Path path;
         ResourceConfiguration config;
+        bool is_internal;
         Path real_path();
 };
 
@@ -49,7 +50,6 @@ class ResourceEntries {
         /* use map here to prevent entry rearrange every time */
         std::map<UUID, ResourceEntry> uuid_to_entry;
         std::unordered_map<Path, UUID> path_to_uuid;
-        std::unordered_set<UUID> internal_entries;
 
     public:
         ResourceEntry *get_entry(const UUID uuid);

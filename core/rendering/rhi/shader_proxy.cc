@@ -172,7 +172,7 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
 }
 
 ShaderHandle ShaderProxy::compile_shader(const Path &path,
-                                         const std::string &shader,
+                                         const KString &shader,
                                          ShaderLayout *layout) {
     RenderBackend *backend = RenderEngine::get_instance()->get_device();
     Slang::ComPtr<slang::ISession> session;
@@ -194,6 +194,7 @@ ShaderHandle ShaderProxy::compile_shader(const Path &path,
     if (diagnostics) {
         SPDLOG_ERROR("Slang shader diagnostic: {}",
                      (const char *)diagnostics->getBufferPointer());
+        return NULL_HANDLE;
     }
     std::vector<slang::IComponentType *> com_types;
     com_types.push_back(module);
@@ -223,6 +224,7 @@ ShaderHandle ShaderProxy::compile_shader(const Path &path,
     if (diagnostics) {
         SPDLOG_ERROR("Slang shader diagnostic: {}",
                      (const char *)diagnostics->getBufferPointer());
+        return NULL_HANDLE;
     }
     slang::ProgramLayout *programLayout = linkedProgram->getLayout(0);
     slang::TypeLayoutReflection *globlalLayout =
@@ -231,11 +233,11 @@ ShaderHandle ShaderProxy::compile_shader(const Path &path,
     append_binding_set(globlalLayout, _layout);
     std::reverse(_layout.sets.begin(), _layout.sets.end());
 
-    std::string vert;
-    std::string tesc;
-    std::string tese;
-    std::string geom;
-    std::string frag;
+    KString vert;
+    KString tesc;
+    KString tese;
+    KString geom;
+    KString frag;
     for (auto &ep : entry_points) {
         Slang::ComPtr<slang::IBlob> code;
         Slang::ComPtr<slang::IBlob> diagnostics;
@@ -244,30 +246,30 @@ ShaderHandle ShaderProxy::compile_shader(const Path &path,
         if (diagnostics) {
             SPDLOG_ERROR("Slang shader diagnostic: {}",
                          (const char *)diagnostics->getBufferPointer());
+            return NULL_HANDLE;
         }
         switch (ep.stage) {
             case ShaderStage::VERTEX:
-                vert.assign((char *)code->getBufferPointer(),
-                            code->getBufferSize());
+                vert.append(KStr((char *)code->getBufferPointer(),
+                                 code->getBufferSize()));
                 break;
             case ShaderStage::TESS_CTRL:
-                tesc.assign((char *)code->getBufferPointer(),
-                            code->getBufferSize());
-
+                tesc.append(KStr((char *)code->getBufferPointer(),
+                                 code->getBufferSize()));
                 break;
             case ShaderStage::TESS_EVAL:
-                tese.assign((char *)code->getBufferPointer(),
-                            code->getBufferSize());
+                tese.append(KStr((char *)code->getBufferPointer(),
+                                 code->getBufferSize()));
 
                 break;
             case ShaderStage::GEOMETRY:
-                geom.assign((char *)code->getBufferPointer(),
-                            code->getBufferSize());
+                geom.append(KStr((char *)code->getBufferPointer(),
+                                 code->getBufferSize()));
 
                 break;
             case ShaderStage::FRAGMENT:
-                frag.assign((char *)code->getBufferPointer(),
-                            code->getBufferSize());
+                frag.append(KStr((char *)code->getBufferPointer(),
+                                 code->getBufferSize()));
 
                 break;
         }

@@ -44,15 +44,15 @@ bool File::remove(const Path &path) {
     return std::remove(path.data()) == 0;
 }
 
-std::string File::read_str(size_t size) {
-    std::string data;
+KString File::read_str(size_t size) {
+    KString data;
     if (file && read_cnt < file_size) {
         if (size > file_size) {
             size = file_size;
         }
         read_cnt += size;
         data.resize(size);
-        fread((void *)data.c_str(), 1, size, file);
+        fread((void *)data.data(), 1, size, file);
     }
     return data;
 }

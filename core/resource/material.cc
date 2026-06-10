@@ -20,6 +20,7 @@ Material::Material(Ref<Shader> shader, const RenderRasterizerState &rst_state,
       raster_state(rst_state),
       depth_state(depth_state),
       blend_state(blend_state) {
+    last_shader_version = shader->get_version();
     shadow_map_unit = shader->get_layout().get_texture_unit("shadowMap");
     param_size = shader->get_layout().get_ubo_binding().total_size;
     if (param_size > 0) {
@@ -71,7 +72,9 @@ void Material::remove_texture(const std::string &name) {
 }
 
 PipelineHandle Material::get_pipeline() {
-    if (pipeline.handle == NULL_HANDLE) {
+    if (shader->get_version() != last_shader_version ||
+        pipeline.handle == NULL_HANDLE) {
+        last_shader_version = shader->get_version();
         this->pipeline = RHI::alloc_pipeline(shader->get_handle(), raster_state,
                                              depth_state, blend_state);
     }

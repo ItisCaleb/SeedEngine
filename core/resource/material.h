@@ -18,6 +18,7 @@ class Material : public Resource {
         i16 shadow_map_unit = -1;
         std::unordered_map<u32, Ref<Texture>> textures;
         PipelineHandle pipeline = NULL_HANDLE;
+        u32 last_shader_version;
         Ref<Shader> shader;
         RenderRasterizerState raster_state;
         RenderDepthStencilState depth_state;

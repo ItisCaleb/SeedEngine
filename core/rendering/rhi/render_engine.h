@@ -45,7 +45,7 @@ class RenderEngine {
         InstanceDataPool *get_instance_pool(const std::string &name);
 
         /* if not null, layout will be filled */
-        ShaderHandle compile_shader(const Path &path, const std::string &shader,
+        ShaderHandle compile_shader(const Path &path, const KString &shader,
                                     ShaderLayout *layout);
         Renderer *get_default_renderer() { return default_renderer; }
         Renderer *get_imgui_renderer() { return imgui_renderer; }

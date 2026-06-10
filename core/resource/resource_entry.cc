@@ -20,7 +20,10 @@ ResourceEntry *ResourceEntries::get_entry(const UUID uuid) {
 }
 
 Path ResourceEntry::real_path() {
-    return SeedEngine::get_instance()->get_project()->resolve_asset(path);
+    if (is_internal)
+        return path;
+    else
+        return SeedEngine::get_instance()->get_project()->resolve_asset(path);
 }
 
 UUID ResourceEntries::get_uuid(const Path &path) {
@@ -47,12 +50,12 @@ UUID ResourceEntries::insert_entry(const Path &p, ResourceTypeID id,
     if (info && info->generate_config) {
         info->generate_config(config);
     }
-    this->uuid_to_entry[uuid] =
-        ResourceEntry{.uuid = uuid, .type_id = id, .path = p, .config = config};
+    this->uuid_to_entry[uuid] = ResourceEntry{.uuid = uuid,
+                                              .type_id = id,
+                                              .path = p,
+                                              .config = config,
+                                              .is_internal = is_internal};
     this->path_to_uuid[p] = uuid;
-    if (is_internal) {
-        this->internal_entries.insert(uuid);
-    }
 
     return uuid;
 }
@@ -60,7 +63,6 @@ void ResourceEntries::remove_entry(const UUID uuid) {
     auto iter = uuid_to_entry.find(uuid);
     if (iter != uuid_to_entry.end()) {
         path_to_uuid.erase(iter->second.path);
-        internal_entries.erase(uuid);
         uuid_to_entry.erase(iter);
     }
 }
@@ -71,7 +73,7 @@ void ResourceEntries::save(const Path &path) {
     ResourceLoader *loader = ResourceLoader::get_instance();
     Project *project = SeedEngine::get_instance()->get_project();
     for (auto &[uuid, entry] : uuid_to_entry) {
-        if (internal_entries.count(uuid) > 0) continue;
+        if (entry.is_internal) continue;
         ResourceTypeInfo *info = loader->get_type_info(entry.type_id);
         nlohmann::ordered_json j_entry;
         j_entry["UUID"] = uuid;

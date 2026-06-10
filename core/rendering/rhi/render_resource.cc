@@ -79,7 +79,7 @@ SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
         size, data, frequence);
 }
 
-ShaderHandle alloc_shader(const Path &path, const std::string &code,
+ShaderHandle alloc_shader(const Path &path, const KString &code,
                           ShaderLayout *layout) {
     return RenderEngine::get_instance()->compile_shader(path, code, layout);
 }
