@@ -55,7 +55,6 @@ class ResourceLoader {
         static RESOURCE_LOADER(load_texture);
         static RESOURCE_LOADER(load_mappable_texture);
         static RESOURCE_LOADER(load_image);
-        static RESOURCE_LOADER(load_terrain);
         static RESOURCE_LOADER(load_world);
         ResourceEntries entries;
 

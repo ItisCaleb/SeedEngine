@@ -6,8 +6,8 @@
 #include "core/container/kstring.h"
 #include "core/misc/type_name.h"
 #include "core/misc/uuid.h"
+#include "core/resource/world_setting.h"
 #include "core/serialize/json_impl.h"
-#include "core/world/world.h"
 #include "editor/editor.h"
 #include <spdlog/spdlog.h>
 
@@ -51,7 +51,7 @@ void ModelInspector::save() {
 
 void WorldCreatePopup::create_world() {
     ResourceEntry *entry = gEditor->create_asset(
-        fmt::format("{}.world", new_world_name), type_id<World>());
+        fmt::format("{}.world", new_world_name), type_id<WorldSetting>());
     nlohmann::ordered_json &j = entry->config.get_json();
     j["name"] = new_world_name;
     j["sky"] = {

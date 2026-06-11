@@ -78,12 +78,13 @@ void WorldEditor::save_dirty_heightmaps() {
 
     ResourceLoader *loader = ResourceLoader::get_instance();
     for (u32 chunk_idx : dirty_heightmaps) {
-        if (chunk_idx >= current_world->chunks.size() ||
+        if (chunk_idx >= current_world->get_chunks().size() ||
             chunk_idx >= current_world->heightmaps.size()) {
             continue;
         }
         ResourceEntry *entry =
-            loader->get_entries().get_entry(current_world->chunks[chunk_idx].height_map);
+            loader->get_entries().get_entry(
+                current_world->get_chunks()[chunk_idx].height_map);
         if (entry == nullptr || current_world->heightmaps[chunk_idx].is_null()) {
             continue;
         }
@@ -387,22 +388,13 @@ bool WorldEditor::load_world(const Path &path) {
 
     current_world.reset();
     current_entry = find_entry_for_path(path);
-    current_world_from_entry = current_entry != nullptr;
-
-    if (current_entry != nullptr) {
-        current_world = std::make_unique<EditorWorld>(&current_entry->config);
-        current_world_path = current_entry->path;
-    } else {
-        Ref<File> file = File::open(path, "rb");
-        if (file.is_null()) {
-            status_text = "Failed to open world file.";
-            return false;
-        }
-
-        standalone_config = ResourceConfiguration(file->read_json());
-        current_world = std::make_unique<EditorWorld>(&standalone_config);
-        current_world_path = path;
+    if (current_entry == nullptr) {
+        status_text = "World file is not registered in resource entries.";
+        return false;
     }
+
+    current_world = std::make_unique<EditorWorld>(current_entry);
+    current_world_path = current_entry->path;
 
     dirty_heightmaps.clear();
     heightmaps_dirty = false;
@@ -422,21 +414,10 @@ void WorldEditor::save_current_world() {
     current_world->save();
 
     Project *project = SeedEngine::get_instance()->get_project();
-    if (current_world_from_entry && project != nullptr) {
+    if (project != nullptr) {
         ResourceLoader::get_instance()->get_entries().save(
             project->get_entry_path());
         status_text = "World saved through resource entries.";
-        return;
-    }
-
-    if (!current_world_path.to_str().is_empty()) {
-        Ref<File> file = File::open(current_world_path, "wb");
-        if (file.is_null()) {
-            status_text = "Failed to save world file.";
-            return;
-        }
-        file->write_str(standalone_config.get_json().dump(2));
-        status_text = "World saved.";
     }
 }
 
@@ -465,8 +446,8 @@ void WorldEditor::clear_tiles() {
     if (current_world == nullptr) return;
 
     std::vector<UUID> heightmap_assets;
-    heightmap_assets.reserve(current_world->chunks.size());
-    for (const EditorChunk &chunk : current_world->chunks) {
+    heightmap_assets.reserve(current_world->get_chunks().size());
+    for (const EditorChunk &chunk : current_world->get_chunks()) {
         UUID height_map = chunk.height_map;
         if (!height_map.is_null()) {
             heightmap_assets.push_back(height_map);
@@ -505,11 +486,12 @@ void WorldEditor::draw_clear_tiles_confirmation_popup() {
     }
 }
 
-void WorldEditor::draw_vec3_field(const char *label, Vec3 &value) {
+bool WorldEditor::draw_vec3_field(const char *label, Vec3 &value) {
     ImGui::PushID(label);
     ImGui::TextUnformatted(label);
-    ImGui::DragFloat3("##value", value.coord, 0.05f);
+    bool changed = ImGui::DragFloat3("##value", value.coord, 0.05f);
     ImGui::PopID();
+    return changed;
 }
 
 void WorldEditor::draw_left_panel() {
@@ -724,10 +706,12 @@ void WorldEditor::draw_world_panel() {
 
     world_editor_section("Directional Light");
     EditorDirectionalLight &light = current_world->get_directional_light();
-    ImGui::Checkbox("Enabled", &light.enabled);
-    draw_vec3_field("Direction", light.direction);
-    draw_vec3_field("Diffuse", light.diffuse);
-    draw_vec3_field("Specular", light.specular);
+    bool changed = draw_vec3_field("Direction", light.direction);
+    changed |= draw_vec3_field("Diffuse", light.diffuse);
+    changed |= draw_vec3_field("Specular", light.specular);
+    if (changed) {
+        current_world->apply_directional_light_to_runtime();
+    }
 }
 
 void WorldEditor::draw_terrain_panel() {
@@ -879,12 +863,12 @@ void WorldEditor::sync_heightmap_seams(std::set<u32> &touched_chunks) {
 
     std::set<u32> source_chunks = touched_chunks;
     for (u32 chunk_idx : source_chunks) {
-        if (chunk_idx >= current_world->chunks.size() ||
+        if (chunk_idx >= current_world->get_chunks().size() ||
             chunk_idx >= current_world->heightmaps.size()) {
             continue;
         }
 
-        const EditorChunk &chunk = current_world->chunks[chunk_idx];
+        const EditorChunk &chunk = current_world->get_chunks()[chunk_idx];
         sync_neighbor(chunk_idx, find_chunk_index_at_chunk(chunk.x - 1, chunk.y),
                       true, false);
         sync_neighbor(chunk_idx, find_chunk_index_at_chunk(chunk.x + 1, chunk.y),
@@ -897,12 +881,12 @@ void WorldEditor::sync_heightmap_seams(std::set<u32> &touched_chunks) {
 
     std::set<u32> border_chunks = touched_chunks;
     for (u32 chunk_idx : border_chunks) {
-        if (chunk_idx >= current_world->chunks.size() ||
+        if (chunk_idx >= current_world->get_chunks().size() ||
             chunk_idx >= current_world->heightmaps.size()) {
             continue;
         }
 
-        const EditorChunk &chunk = current_world->chunks[chunk_idx];
+        const EditorChunk &chunk = current_world->get_chunks()[chunk_idx];
         Ref<Image> heightmap = current_world->heightmaps[chunk_idx];
         if (!valid_editor_heightmap(heightmap)) continue;
 

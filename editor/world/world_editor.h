@@ -25,11 +25,9 @@ class WorldEditor {
         Ref<Texture> screen_texture;
         Ref<Texture> screen_depth;
         Ref<MappableTexture> picking_texture;
-        ResourceConfiguration standalone_config;
         WorldRenderer *renderer = nullptr;
         ResourceEntry *current_entry = nullptr;
         Path current_world_path;
-        bool current_world_from_entry = false;
         u32 screen_width = 1024;
         u32 screen_height = 768;
         bool preview_terrain_dirty = false;
@@ -79,7 +77,7 @@ class WorldEditor {
         void draw_right_panel();
         void draw_world_panel();
         void draw_terrain_panel();
-        void draw_vec3_field(const char *label, Vec3 &value);
+        bool draw_vec3_field(const char *label, Vec3 &value);
         void add_chunk();
         void clear_tiles();
         void draw_clear_tiles_confirmation_popup();

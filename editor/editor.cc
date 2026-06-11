@@ -7,6 +7,7 @@
 #include "core/rendering/rhi/render_engine.h"
 #include "core/resource/model.h"
 #include "core/resource/resource_entry.h"
+#include "core/resource/world_setting.h"
 #include <nfd.h>
 #include <fmt/format.h>
 #include "core/engine.h"
@@ -87,7 +88,7 @@ ResourceTypeID Editor::extension_to_tid(KStr ext) {
     if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" ||
         ext == ".exr" || ext == ".hdr")
         return type_id<Texture>();
-    if (ext == ".world") return type_id<World>();
+    if (ext == ".world") return type_id<WorldSetting>();
     // if (ext == ".terrain")  // adjust to your format
     //     return type_id<Terrain>();
     return 0;

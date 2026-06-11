@@ -1,17 +1,16 @@
 {
   "chunks": [],
   "directional_light": {
-    "diffuse": [
-      0.800000011920929,
-      0.800000011920929,
-      0.800000011920929
-    ],
     "direction": [
       -0.5,
       -0.5,
       0.0
     ],
-    "enabled": true,
+    "diffuse": [
+      0.800000011920929,
+      0.800000011920929,
+      0.800000011920929
+    ],
     "specular": [
       0.4000000059604645,
       0.4000000059604645,
@@ -20,11 +19,11 @@
   },
   "name": "new_world",
   "sky": {
-    "back": "ac456a89-d36e-4742-b4f9-2406930ffdcf",
+    "up": "fd033937-4ee5-4096-b71e-0bfe84afbf8d",
     "down": "200374e8-0b3e-4b6c-93db-972af4da1cc8",
-    "front": "60ab3ab1-c50f-4898-9946-466bd69fa160",
     "left": "5ff550a5-afc6-4250-acc7-3b4e08dc8a5b",
     "right": "aed6f212-c51e-4946-883f-6d86ee3c255e",
-    "up": "fd033937-4ee5-4096-b71e-0bfe84afbf8d"
+    "front": "60ab3ab1-c50f-4898-9946-466bd69fa160",
+    "back": "ac456a89-d36e-4742-b4f9-2406930ffdcf"
   }
 }

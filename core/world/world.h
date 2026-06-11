@@ -6,12 +6,13 @@
 #include "core/ref.h"
 #include "core/rendering/instance_data.h"
 #include "core/resource/model.h"
-#include "core/resource/terrain.h"
+#include "core/world/terrain.h"
 #include "core/resource/sky.h"
 #include "core/rendering/light.h"
 #include "core/resource/billboard.h"
 #include "core/transform.h"
 #include "core/world/entity.h"
+#include "core/resource/world_setting.h"
 #include <unordered_map>
 #include <vector>
 
@@ -61,14 +62,13 @@ class WorldChunk : public RefCounted {
             }
         }
 
-        Ref<Terrain> get_terrain(){
-            return terrain;
-        }
+        Ref<Terrain> get_terrain() { return terrain; }
         ~WorldChunk();
 };
 
 class World {
     private:
+        Ref<WorldSetting> setting;
         Ref<Sky> sky;
         Vec3 ambient_light;
         DirectionalLight direction_light;
@@ -76,12 +76,13 @@ class World {
         Camera camera;
         std::vector<Ref<WorldChunk>> chunks;
         std::unordered_map<Model *, Ref<InstanceData>> model_instances;
-        std::set<Ref<Terrain>> terrains;
+        Ref<Terrain> terrain;
 
         EntityManager entity_manager;
         void register_engine_components();
         void register_model_instance(Ref<Model> model,
                                      Ref<InstanceData> instance);
+
     public:
         Ref<Sky> get_sky();
         Vec3 get_ambient_light() { return ambient_light; }
@@ -90,12 +91,11 @@ class World {
         std::vector<Ref<WorldChunk>> &get_chunks() { return chunks; }
         Camera &get_camera() { return camera; }
         void tick(f32 dt);
-        void set_sky(Ref<Sky> sky);
-        void add_chunk(Ref<WorldChunk> &chunk);
 
         EntityManager &ecs() { return entity_manager; }
 
         World(/* args */);
+        void load_setting(Ref<WorldSetting> setting);
         ~World() = default;
 };
 

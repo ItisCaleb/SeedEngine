@@ -6,7 +6,6 @@
 #include "core/resource/texture.h"
 #include "editor/editor_storage.h"
 
-
 namespace Seed {
 
 #define CHUNK_SIZE (256)
@@ -29,8 +28,8 @@ Ref<Texture> EditorTerrainMaterial::get_height_map() {
 }
 
 void EditorTerrain::build_mesh() {
-    u32 vertex_row_cnt = 5;
     u32 chunk_cnt = 4;
+    u32 vertex_row_cnt = chunk_cnt + 1;
     u32 step = (vertex_row_cnt - 1) / chunk_cnt;
     std::vector<TerrainVertex> vertices;
     f32 offset = CHUNK_SIZE / chunk_cnt;
@@ -63,8 +62,8 @@ void EditorTerrain::build_mesh() {
 }
 
 EditorTerrain::EditorTerrain() {
-    heightmaps.create(TextureType::TEXTURE_2D_ARRAY, HEIGHTMAP_SIZE, HEIGHTMAP_SIZE,
-                      256, PixelFormat::RG, SamplerProperty{});
+    heightmaps.create(TextureType::TEXTURE_2D_ARRAY, HEIGHTMAP_SIZE,
+                      HEIGHTMAP_SIZE, 256, PixelFormat::RG, SamplerProperty{});
     material.create(ref_cast<Texture>(heightmaps));
 
     this->instances.create();
@@ -80,12 +79,11 @@ void EditorTerrain::add_chunk(i32 x, i32 y, Ref<Image> height_map) {
     f32 max_height = -FLT_MAX;
     f32 min_height = FLT_MAX;
 
-    for (i32 i = 0; i <= CHUNK_SIZE; i++) {
-        for (i32 j = 0; j <= CHUNK_SIZE; j++) {
+    for (i32 i = 0; i < CHUNK_SIZE; i++) {
+        for (i32 j = 0; j < CHUNK_SIZE; j++) {
             // get height from y value
-            f32 height = (f32)height_map
-                             ->pixel(i + HEIGHTMAP_INNER_FIRST,
-                                     j + HEIGHTMAP_INNER_FIRST)[1] *
+            f32 height = (f32)height_map->pixel(i + HEIGHTMAP_INNER_FIRST,
+                                                j + HEIGHTMAP_INNER_FIRST)[1] *
                              HEIGHT_SCALE +
                          HEIGHT_OFFSET;
             max_height = std::max(max_height, height);

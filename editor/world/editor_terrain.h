@@ -1,7 +1,7 @@
 #ifndef _SEED_EDITOR_TERRAIN_H_
 #define _SEED_EDITOR_TERRAIN_H_
 #include "core/ref.h"
-#include "core/resource/terrain.h"
+#include "core/world/terrain.h"
 #include "core/resource/texture.h"
 
 namespace Seed {

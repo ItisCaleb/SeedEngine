@@ -271,7 +271,7 @@ vec3 default_lighting(DS_OUT in){
     // vec3 normal = sample_normal(uv1,  prop.tex1_normal);
     vec3 normal = vec3(0, 0, 1);
     vec3 diffuse_sample = vec3(0.5, 0.5, 0.5);
-    vec3 light_out = diffuse_sample * gLights.u_light_ambient;
+    vec3 ambient = diffuse_sample * gLights.u_light_ambient;
     Camera cam = GetCamera();
     vec3 view_dir = normalize(in.tangent_view_pos - in.tangent_frag_pos.xyz);
     vec3 specular_sample = vec3(1,1,1);
@@ -281,13 +281,14 @@ vec3 default_lighting(DS_OUT in){
     float csm_shadow = CSMShadowCalculation(prop.shadowMap, in.frag_pos, in.view_depth, world_normal, dir_light);
     float horizon_shadow = 0;//HorizonShadow(in.texCoord, dir_light);
     float shadow = max(csm_shadow, horizon_shadow);
-    
-    // direction
-    light_out +=
-        calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
+    vec3 direct = calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
             diffuse_sample, specular_sample, tangent_dir_light, view_dir,
             1, normal);
-    light_out *= (1.0 - shadow);
+    direct *= (1.0 - shadow);
+
+    vec3 light_out = ambient + direct;
+
+
     for (int i = 0; i < 8; i++) {
         Light light = gLights.u_point_lights[i];
         if (light.enable == 0)

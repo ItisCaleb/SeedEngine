@@ -58,9 +58,6 @@ int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
     engine->load_project("test_project/Ave Mujica.json");
     ResourceLoader *loader = ResourceLoader::get_instance();
-
-    auto terrain =
-        loader->load_internal<Terrain>("test_project/assets/terrain_01.json");
     // auto backpack = loader->load_async<BasicModel>(
     //     "test_project/assets/backpack.json", [=](Ref<BasicModel> rc) {
 
@@ -76,18 +73,16 @@ int main(void) {
     // //     });
     auto man = loader->load_async_from_path<SkeletonModel>(
         "assets/.internal/scene.bin");
-
+    auto world_setting = loader->load_from_path<WorldSetting>("assets/new_world.world");
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     World *world = engine->get_world();
+    world->load_setting(world_setting);
     world->get_point_lights().push_back(
         PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
-    Ref<WorldChunk> chunk;
-    chunk.create(terrain);
     Transform t;
     t.set_position(10, 10, 10);
     // auto model = backpack->wait();
     // chunk->add_object<BasicModel>(t, PhysicShape{}, model, t);
-    world->add_chunk(chunk);
     auto &ecs = world->ecs();
     Entity a = ecs.create_entity();
     PhysicBoxShape box(Vec3{1, 1, 1});

@@ -9,9 +9,10 @@
 #include "core/rendering/mesh_storage.h"
 #include "core/resource/animation.h"
 #include "core/resource/model.h"
-#include "core/resource/terrain.h"
+#include "core/resource/texture.h"
 #include "core/transform.h"
 #include "core/world/components.h"
+#include "core/resource/resource_loader.h"
 #include "entity.h"
 
 namespace Seed {
@@ -42,8 +43,6 @@ WorldChunk::~WorldChunk() {
 }
 
 Ref<Sky> World::get_sky() { return sky; }
-
-void World::set_sky(Ref<Sky> sky) { this->sky = sky; }
 
 void World::tick(f32 dt) {
     PROFILE_SCOPE("World");
@@ -92,16 +91,6 @@ void World::tick(f32 dt) {
             }
             inst->model->_add_instance(data, *tf, state);
         });
-}
-
-void World::add_chunk(Ref<WorldChunk> &chunk) {
-    this->chunks.push_back(chunk);
-    Ref<Terrain> terrain = chunk->get_terrain();
-    if (terrains.count(terrain) == 0) {
-        MeshStorage::get_instance()->add_mesh(
-            terrain->get_mesh(),
-            ref_cast<InstanceData>(terrain->get_instance()));
-    }
 }
 
 void World::register_model_instance(Ref<Model> model,
@@ -157,10 +146,28 @@ void World::register_engine_components() {
 }
 
 World::World() {
+    this->terrain.create();
     this->ambient_light = Vec3{0.25, 0.25, 0.25};
     this->camera.set_position(Vec3{0, 20, 0});
     this->camera.set_perspective(45, 1.33, 0.1, 2000.0);
     register_engine_components();
+}
+
+void World::load_setting(Ref<WorldSetting> setting) {
+    this->setting = setting;
+    Ref<TextureCubemap> sky_cubemap =
+        ResourceLoader::get_instance()->load_cubemap(
+            2048, 2048, setting->sky.right, setting->sky.left, setting->sky.up,
+            setting->sky.down, setting->sky.front, setting->sky.back);
+    sky.create(sky_cubemap);
+    direction_light = DirectionalLight(setting->dir_light.direction,
+                                       setting->dir_light.diffuse,
+                                       setting->dir_light.specular, true);
+    for (ChunkSetting &chunk : setting->chunks) {
+        Ref<Image> heightmap =
+            ResourceLoader::get_instance()->load<Image>(chunk.height_map);
+        terrain->add_chunk(chunk.x, chunk.y, heightmap);
+    }
 }
 
 }  // namespace Seed

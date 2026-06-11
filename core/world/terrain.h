@@ -25,11 +25,8 @@ struct TerrainInstance {
 
 class TerrainMaterial : public Material {
     public:
-        TerrainMaterial(Ref<Texture> height_map, Ref<Texture> light_map,
-                        Ref<Texture> splat_map, u32 width, u32 height);
+        TerrainMaterial(Ref<Texture> height_map);
         void set_height_map(Ref<Texture> height_map);
-        void set_light_map(Ref<Texture> light_map);
-        void set_tex(Ref<Texture> texture);
         Ref<Texture> get_height_map();
 };
 
@@ -49,30 +46,25 @@ class TerrainInstanceData : public InstanceData {
         TerrainInstanceData();
 };
 
-class Terrain : public Resource {
+class Terrain : public RefCounted {
     private:
-        u32 width, depth;
-        u32 hmap_width, hmap_height;
-        Vec3 position;
+        u32 last_heightmap = 0;
+
         std::vector<PhysicBody> bodies;
-        Ref<TerrainMaterial> terrain_mat;
+        Ref<TextureArray> heightmaps;
+
+        Ref<TerrainMaterial> material;
         Ref<Mesh> mesh;
 
         Ref<TerrainInstanceData> instances;
         void build_mesh();
-        void create_chunk(Ref<Image> height_map, i32 left, i32 top,
-                          u32 half_width, u32 half_depth);
 
     public:
-        Terrain(Ref<Image> height_map, Ref<Texture> light_map,
-                Ref<Texture> splat_map);
-        void set_material(Ref<TerrainMaterial> mat) {
-            this->mesh->set_material(ref_cast<Material>(mat));
-            this->terrain_mat = mat;
-        }
-        Ref<TerrainMaterial> get_material() { return terrain_mat; }
+        Terrain();
+        Ref<TerrainMaterial> get_material() { return material; }
         Ref<TerrainInstanceData> get_instance() { return instances; }
         Ref<Mesh> get_mesh() { return mesh; }
+        void add_chunk(i32 x, i32 y, Ref<Image> height_map);
         ~Terrain();
 };
 

@@ -7,6 +7,7 @@
 #include "core/math/vec3.h"
 #include "core/misc/uuid.h"
 #include "core/resource/resource_entry.h"
+#include "core/resource/world_setting.h"
 #include "core/types.h"
 #include "editor/gui/inspectable.h"
 #include "editor_terrain.h"
@@ -15,48 +16,14 @@
 
 namespace Seed {
 
-struct EditorStaticObject {
-        nlohmann::ordered_json raw = nlohmann::ordered_json::object();
-        KString name;
-        i32 x = 0;
-        i32 y = 0;
-        UUID model;
-};
+using EditorStaticObject = StaticObjectSetting;
+using EditorPointLight = PointLightSetting;
+using EditorDirectionalLight = DirectionalLightSetting;
+using EditorChunk = ChunkSetting;
 
-struct EditorPointLight {
-        nlohmann::ordered_json raw = nlohmann::ordered_json::object();
-        Vec3 position{};
-        Vec3 diffuse{1.0f, 1.0f, 1.0f};
-        Vec3 specular{1.0f, 1.0f, 1.0f};
-};
-
-struct EditorDirectionalLight {
-        nlohmann::ordered_json raw = nlohmann::ordered_json::object();
-        Vec3 direction{-0.5f, -0.5f, 0.0f};
-        Vec3 diffuse{0.8f, 0.8f, 0.8f};
-        Vec3 specular{0.4f, 0.4f, 0.4f};
-        bool enabled = true;
-};
-
-struct EditorSky {
-        nlohmann::ordered_json raw = nlohmann::ordered_json::object();
-        UUID up;
-        UUID down;
-        UUID left;
-        UUID right;
-        UUID front;
-        UUID back;
+struct EditorSky : public SkySetting {
         Ref<TextureCubemap> cubemap;
         Ref<Sky> sky;
-};
-
-struct EditorChunk {
-        nlohmann::ordered_json raw = nlohmann::ordered_json::object();
-        i32 x = 0;
-        i32 y = 0;
-        UUID height_map;
-        std::vector<EditorPointLight> lights;
-        std::vector<EditorStaticObject> static_objects;
 };
 
 class WorldEditor;
@@ -66,30 +33,32 @@ class EditorWorld {
         friend WorldRenderer;
 
     private:
+        ResourceEntry *entry = nullptr;
         ResourceConfiguration *config = nullptr;
-        KString name;
+        Ref<WorldSetting> setting;
         EditorSky sky;
-        EditorDirectionalLight directional_light;
-        std::vector<EditorChunk> chunks;
         std::vector<Ref<Image>> heightmaps;
         Ref<EditorTerrain> terrain;
 
     public:
-        EditorWorld(ResourceConfiguration *config);
+        EditorWorld(ResourceEntry *entry);
         ~EditorWorld() = default;
 
         void reload();
         void save();
+        void apply_directional_light_to_runtime();
 
         ResourceConfiguration *get_config() { return config; }
-        const KString &get_name() const { return name; }
-        void set_name(KStr name) { this->name = name; }
+        const KString &get_name() const { return setting->name; }
+        void set_name(KStr name) { setting->name = name; }
         EditorSky &get_sky() { return sky; }
         EditorDirectionalLight &get_directional_light() {
-            return directional_light;
+            return setting->dir_light;
         }
-        std::vector<EditorChunk> &get_chunks() { return chunks; }
-        const std::vector<EditorChunk> &get_chunks() const { return chunks; }
+        std::vector<EditorChunk> &get_chunks() { return setting->chunks; }
+        const std::vector<EditorChunk> &get_chunks() const {
+            return setting->chunks;
+        }
         void add_new_chunk(i32 x, i32 y);
         void clear_tiles();
 };
@@ -97,7 +66,7 @@ class EditorWorld {
 class EditorWorldInspector : public Inspectable {
     private:
         EditorWorld *world;
-        void draw_vec3(KStr label, Vec3 &value);
+        bool draw_vec3(KStr label, Vec3 &value);
 
     public:
         EditorWorldInspector(EditorWorld *world);
