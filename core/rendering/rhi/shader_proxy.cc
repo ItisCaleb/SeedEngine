@@ -171,23 +171,32 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
     shader_layout.sets.push_back(binding_set);
 }
 
-ShaderHandle ShaderProxy::compile_shader(const Path &path,
-                                         const KString &shader,
-                                         ShaderLayout *layout) {
+ShaderHandle ShaderProxy::compile_shader(
+    const Path &path, const KString &shader, ShaderLayout *layout,
+    const std::vector<ShaderDefine> &defines) {
     RenderBackend *backend = RenderEngine::get_instance()->get_device();
     Slang::ComPtr<slang::ISession> session;
-    KStr module_name = path.filename_without_ext();
+    std::vector<slang::PreprocessorMacroDesc> macros;
+    for (const ShaderDefine &define : defines) {
+        macros.push_back(slang::PreprocessorMacroDesc{
+            .name = define.name.data(), .value = define.value.data()});
+    }
+
+    KStr module_name = path.filename();
     Slang::ComPtr<slang::IBlob> diagnostics;
     Slang::ComPtr<slang::IModule> module;
+    slang::SessionDesc desc;
     switch (backend->get_type()) {
         case RenderBackendType::VULKAN:
         case RenderBackendType::XR_VULKAN:
-            global_session->createSession(spirv_session_desc,
-                                          session.writeRef());
+            desc = spirv_session_desc;
             break;
         default:
             break;
     }
+    desc.preprocessorMacros = macros.data();
+    desc.preprocessorMacroCount = macros.size();
+    global_session->createSession(desc, session.writeRef());
 
     module = session->loadModuleFromSourceString(
         module_name.data(), path.data(), shader.data(), diagnostics.writeRef());

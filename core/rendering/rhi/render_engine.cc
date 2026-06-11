@@ -137,10 +137,10 @@ InstanceDataPool *RenderEngine::get_instance_pool(const std::string &name) {
     return nullptr;
 }
 
-ShaderHandle RenderEngine::compile_shader(const Path &path,
-                                          const KString &shader,
-                                          ShaderLayout *layout) {
-    return this->shader_proxy->compile_shader(path, shader, layout);
+ShaderHandle RenderEngine::compile_shader(
+    const Path &path, const KString &shader, ShaderLayout *layout,
+    const std::vector<ShaderDefine> &defines) {
+    return this->shader_proxy->compile_shader(path, shader, layout, defines);
 }
 
 RenderEngine::~RenderEngine() { instance = nullptr; }

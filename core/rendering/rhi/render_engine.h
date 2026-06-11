@@ -46,7 +46,8 @@ class RenderEngine {
 
         /* if not null, layout will be filled */
         ShaderHandle compile_shader(const Path &path, const KString &shader,
-                                    ShaderLayout *layout);
+                                    ShaderLayout *layout,
+                                    const std::vector<ShaderDefine> &defines);
         Renderer *get_default_renderer() { return default_renderer; }
         Renderer *get_imgui_renderer() { return imgui_renderer; }
         void set_renderer_layer(Renderer *renderer, u8 layer);

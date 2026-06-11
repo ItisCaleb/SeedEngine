@@ -3,10 +3,10 @@
 #include <vulkan/vulkan_core.h>
 #include <cstddef>
 #include <vector>
+#include <set>
 #include "core/rendering/backend/vulkan_helper.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_resource.h"
-#include "core/resource/texture.h"
 #define VOLK_IMPLEMENTATION
 #include <volk.h>
 #define VMA_IMPLEMENTATION
@@ -1245,8 +1245,7 @@ SSBOHandle RenderBackendVK::alloc_storage_buffer(u32 size, const void *data,
                                .mapped_ptr = mapped_ptr});
 }
 
-VkShaderModule RenderBackendVK::create_shader_module(
-    const KString &shader) {
+VkShaderModule RenderBackendVK::create_shader_module(const KString &shader) {
     VkShaderModule module = nullptr;
     if (shader.is_empty()) return module;
 
@@ -1616,15 +1615,22 @@ void RenderBackendVK::handle_frame_update() {
     shader_barriers.reserve(image_copy_queue.size() +
                             mappable_image_transition_queue.size());
 
+    std::set<std::pair<u32, u32>> transitioned;
     for (ImageUpdate &copy : image_copy_queue) {
+        /* make sure only transition once every frame */
+        if (transitioned.count({copy.texture, copy.face}) > 0) continue;
+
         VkImageMemoryBarrier barrier{};
         HardwareTextureVk *texture = this->textures.get_or_null(copy.texture);
+
         barrier = create_image_barrier(
             texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copy.face);
         transfer_barriers.push_back(barrier);
+
         barrier = create_image_barrier(
             texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, copy.face);
         shader_barriers.push_back(barrier);
+        transitioned.insert({copy.texture, copy.face});
     }
     while (!mappable_image_transition_queue.is_empty()) {
         TextureHandle handle = mappable_image_transition_queue.peek();

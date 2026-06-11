@@ -80,8 +80,10 @@ SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
 }
 
 ShaderHandle alloc_shader(const Path &path, const KString &code,
-                          ShaderLayout *layout) {
-    return RenderEngine::get_instance()->compile_shader(path, code, layout);
+                          ShaderLayout *layout,
+                          const std::vector<ShaderDefine> &defines) {
+    return RenderEngine::get_instance()->compile_shader(path, code, layout,
+                                                        defines);
 }
 
 PipelineHandle alloc_pipeline(ShaderHandle shader,

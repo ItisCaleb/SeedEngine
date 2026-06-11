@@ -20,9 +20,17 @@ ParameterBlock<Property> prop;
 VS_OUT vert(float2 aPos, uint id: SV_VulkanInstanceID){
     VS_OUT out;
     TerrainInstance terrain = GetTerrain(id);
-    vec2 size = 257; 
+    float chunk_size = 256;
+    float border_size = 1;
+    float texture_size = 256 + 1 + 2;
+
     out.sv_position = vec4(aPos.x + terrain.pos.x, 0.0f, aPos.y + terrain.pos.y, 1.0);
-    out.uv = (aPos + size / 2)/size;
+    /* convert to [0~256] */
+    vec2 uv =  (aPos + chunk_size / 2);
+    uv += border_size;
+    /* sample texel center */
+    uv += 0.5;
+    out.uv = uv / texture_size;
     out.heightmap_index = terrain.heightmap_index;
     return out;
 }
@@ -39,7 +47,11 @@ struct HSOutput
 [partitioning("fractional_odd")]
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(4)]
+#ifdef EDITOR
 [patchconstantfunc("PatchConstantFunction")]
+#else
+[patchconstantfunc("PatchDynamicFunction")]
+#endif
 HSOutput tesc(InputPatch<VS_OUT, 4> patch, uint cpID : SV_OutputControlPointID){
     HSOutput o;
     o.position = patch[cpID].sv_position;
@@ -54,6 +66,18 @@ struct PatchTessFactors {
 };
 
 PatchTessFactors PatchConstantFunction(InputPatch<VS_OUT, 4> patch) {
+    PatchTessFactors factors;
+    // Set tessellation levels
+    factors.tessFactor[0] = 16;
+    factors.tessFactor[1] = 16;
+    factors.tessFactor[2] = 16;
+    factors.tessFactor[3] = 16;
+    factors.insideTessFactor[0] = 16;
+    factors.insideTessFactor[1] = 16;
+    return factors;
+}
+
+PatchTessFactors PatchDynamicFunction(InputPatch<VS_OUT, 4> patch) {
     PatchTessFactors factors;
 
     const uint min_tess = 2;
@@ -126,7 +150,7 @@ DS_OUT tese(
     vec2 t1 = (t11 - t10) * u + t10;
     out.texCoord = (t1 - t0) * v + t0;
     uint index = patch[0].heightmap_index;
-    float offset = 1.0 / 257.0;
+    float offset = 1.0 / 259.0;
     // lookup texel at patch coordinate for height and scale + shift as desired
     float h = get_height(index, out.texCoord);
     float rh = get_height(index,out.texCoord + vec2(offset, 0));
@@ -236,12 +260,8 @@ vec3 triplanar_mapping(vec3 frag_pos, vec3 world_normal, Sampler2D texture, floa
     return sampled;
 }
 
-[shader("fragment")]
-float4 frag(DS_OUT in){
+vec3 default_lighting(DS_OUT in){
     float h = (in.height + 128)/256.0f;
-    if(h < 0.1){
-        discard;
-    }
     vec2 uv1 = in.frag_pos.xz/32;
     vec2 uv2 = in.frag_pos.xz/128;
     // vec3 diffuse_sample = diffuse_blend(uv1, uv2);
@@ -259,14 +279,15 @@ float4 frag(DS_OUT in){
     vec3 tangent_dir_light = -normalize(in.tangent_dir_light);
 
     float csm_shadow = CSMShadowCalculation(prop.shadowMap, in.frag_pos, in.view_depth, world_normal, dir_light);
-    float horizon_shadow = HorizonShadow(in.texCoord, dir_light);
+    float horizon_shadow = 0;//HorizonShadow(in.texCoord, dir_light);
     float shadow = max(csm_shadow, horizon_shadow);
     
     // direction
     light_out +=
         calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
             diffuse_sample, specular_sample, tangent_dir_light, view_dir,
-            1, normal) * (1.0 - shadow);
+            1, normal);
+    light_out *= (1.0 - shadow);
     for (int i = 0; i < 8; i++) {
         Light light = gLights.u_point_lights[i];
         if (light.enable == 0)
@@ -278,10 +299,30 @@ float4 frag(DS_OUT in){
             diffuse_sample, specular_sample,
             light_dir, view_dir, d, normal);
     }
-    light_out *= vec3(h, h, h);
+#ifndef EDITOR
     float dist = length(cam.u_cam_pos - in.frag_pos.xyz);
     float fog_factor = clamp((dist - 700) / 100, 0.0, 0.95);
-    vec3 final_color = lerp(light_out, vec3(0.48, 0.80, 0.80), fog_factor);
+    light_out = lerp(light_out, vec3(0.48, 0.80, 0.80), fog_factor);
+#endif
+    return light_out;
+}
 
-    return vec4(final_color, 1.0);
+struct FS_OUT{
+    vec4 albedo: SV_Target0;
+#ifdef EDITOR
+    int4 position: SV_Target1;
+#endif
+};
+
+[shader("fragment")]
+FS_OUT frag(DS_OUT in){
+    FS_OUT out;
+    out.albedo = vec4(default_lighting(in), 1.0);
+#ifdef EDITOR
+    out.position = int4(
+        (int)(in.frag_pos.x),
+        (int)(in.frag_pos.z), 1, 0
+    );
+#endif
+    return out;
 }
