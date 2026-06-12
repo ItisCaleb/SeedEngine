@@ -224,11 +224,11 @@ RHI::UpdateBufferInfo ResourceLoader::load_image_to_upload(UUID uuid,
     if (!entry) return info;
     Path path = entry->real_path();
     i32 w, h, comp;
-    void *_data = stbi_load(path.data(), &w, &h, &comp, force_rgba ? 4 : 0);
+    void *_data = stbi_load(path.data(), &w, &h, &comp, 4);
     info.data = _data;
     info.image.w = w;
     info.image.h = h;
-    info.image.pixel_size = comp;
+    info.image.pixel_size = 4;
     return info;
 }
 

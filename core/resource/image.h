@@ -43,8 +43,9 @@ class Image : public Resource {
         u8* get_data() { return data; }
 
         Ref<Image> median_filter(u32 kernel_size, bool process_alpha = false);
+        Ref<Image> downscale(u32 w, u32 h);
 
-        static Ref<Image> load_from_file(const Path &path);
+        static Ref<Image> load_from_file(const Path &path, bool force_rgba = false);
         void save_disk(const Path &path);
 
         Image(PixelFormat format, u32 w, u32 h);

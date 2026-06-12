@@ -13,7 +13,7 @@
 #include <arm_neon.h>
 #define SEED_ARCH_ARM
 #endif
-
+#include <algorithm>
 #include <stb_image.h>
 #include <stb_image_write.h>
 
@@ -204,9 +204,60 @@ Ref<Image> Image::median_filter(u32 kernel_size, bool process_alpha) {
     return output;
 }
 
-Ref<Image> Image::load_from_file(const Path &path) {
+__attribute__((target("no-avx512f,no-avx512vl,no-avx512bw")))
+Ref<Image> Image::downscale(u32 w, u32 h) {
+    if (w >= this->width || h >= this->height) {
+        return Ref<Image>(this);
+    }
+    u32 pixel_size = get_pixel_format_size(format);
+    u8 *target = (u8 *)malloc(w * h * pixel_size);
+    i32 source_w = (i32)this->width;
+    i32 source_h = (i32)this->height;
+    f32 h_ratio = (f32)this->width / w;
+    f32 w_ratio = (f32)this->height / h;
+    for (u32 y = 0; y < h; y++) {
+        float src_y = ((float)y + 0.5f) * h_ratio - 0.5f;
+        i32 y0 = (i32)std::floor(src_y);
+        float ty = src_y - y0;
+        if (y0 < 0) {
+            y0 = 0;
+            ty = 0.0f;
+        }
+        i32 y1 = std::min(y0 + 1, source_h - 1);
+
+        for (u32 x = 0; x < w; x++) {
+            float src_x = ((float)x + 0.5f) * w_ratio - 0.5f;
+            i32 x0 = (i32)std::floor(src_x);
+            float tx = src_x - x0;
+            if (x0 < 0) {
+                x0 = 0;
+                tx = 0.0f;
+            }
+            i32 x1 = std::min(x0 + 1, source_w - 1);
+
+            for (u32 c = 0; c < pixel_size; c++) {
+                float c00 = data[(y0 * source_w + x0) * pixel_size + c];
+                float c10 = data[(y0 * source_w + x1) * pixel_size + c];
+                float c01 = data[(y1 * source_w + x0) * pixel_size + c];
+                float c11 = data[(y1 * source_w + x1) * pixel_size + c];
+                float cx0 = c00 + (c10 - c00) * tx;
+                float cx1 = c01 + (c11 - c01) * tx;
+                float value = cx0 + (cx1 - cx0) * ty;
+                target[(y * w + x) * pixel_size + c] =
+                    (u8)std::clamp((i32)(value + 0.5f), 0, 255);
+            }
+        }
+    }
+    Ref<Image> image(new Image(format, w, h, target));
+    return image;
+}
+
+Ref<Image> Image::load_from_file(const Path &path, bool force_rgba) {
     int w, h, comp;
-    void *_data = stbi_load(path.data(), &w, &h, &comp, 0);
+
+    void *_data = stbi_load(path.data(), &w, &h, &comp, force_rgba ? 4 : 0);
+    if (!_data) return Ref<Image>();
+    comp = force_rgba ? 4 : comp;
     PixelFormat format = comp == 1   ? PixelFormat::R
                          : comp == 2 ? PixelFormat::RG
                          : comp == 3 ? PixelFormat::RGB

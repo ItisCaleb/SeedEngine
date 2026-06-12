@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 #include "asset.h"
+#include "core/concurrency/thread_pool.h"
 #include "core/container/kstring.h"
 #include "core/engine.h"
 #include "core/input.h"
@@ -112,9 +113,23 @@ void AssetBrowser::navigate_to(KStr dir) {
     }
 }
 
+void AssetBrowser::invalidate_current_folder_cache() {
+    if (!current_dir.is_valid()) return;
+    folder_entry_cache.erase(current_dir->get_path());
+}
+
 void AssetBrowser::refresh() {
     entries.clear();
     if (!current_dir.is_valid()) return;
+
+    Path folder_path = current_dir->get_path();
+    auto cached = folder_entry_cache.find(folder_path);
+    if (cached != folder_entry_cache.end()) {
+        entries = cached->second;
+        if (selected_idx >= (i32)entries.size()) selected_idx = -1;
+        needs_refresh = false;
+        return;
+    }
 
     // Dirs first, then files, both sorted alphabetically
     std::vector<Path> dirs, files;
@@ -136,14 +151,123 @@ void AssetBrowser::refresh() {
         });
     for (auto &f : files) {
         AssetType type = classify(f);
-        entries.push_back(AssetEntry{
+        AssetEntry entry{
             .path = std::move(f),
             .type = type,
-        });
+        };
+        if (entry.type == AssetType::Texture) request_texture_thumbnail(entry);
+        entries.push_back(std::move(entry));
     }
 
+    folder_entry_cache[folder_path] = entries;
     if (selected_idx >= (i32)entries.size()) selected_idx = -1;
     needs_refresh = false;
+}
+
+void AssetBrowser::request_texture_thumbnail(AssetEntry &entry) {
+    if (entry.thumbnail_requested || entry.thumbnail_failed ||
+        !entry.thumbnail_texture.is_null())
+        return;
+
+    constexpr u32 max_preview_edge = 96;
+    entry.thumbnail_requested = true;
+
+    struct ThumbnailRequest {
+            AssetBrowser *browser;
+            Path path;
+    };
+
+    ThreadPool *pool = ThreadPool::get_instance();
+    if (pool == nullptr) {
+        Ref<Image> original = Image::load_from_file(entry.path, true);
+        if (original.is_null()) {
+            entry.thumbnail_failed = true;
+            entry.thumbnail_requested = false;
+            return;
+        }
+
+        Ref<Image> preview =
+            original->downscale(max_preview_edge, max_preview_edge);
+        entry.texture_width = original->get_width();
+        entry.texture_height = original->get_height();
+        entry.thumbnail_texture = preview->create_texture(
+            SamplerProperty{.min_filter = SamplerFilter::LINEAR,
+                            .mag_filter = SamplerFilter::LINEAR,
+                            .wrap_u = SamplerWrap::CLAMP_TO_EDGE,
+                            .wrap_v = SamplerWrap::CLAMP_TO_EDGE});
+        return;
+    }
+
+    ThumbnailRequest *request = new ThumbnailRequest{this, entry.path};
+    pool->add_work(
+        [](void *data) {
+            ThumbnailRequest *request = (ThumbnailRequest *)data;
+            ThumbnailResult result;
+            result.path = request->path;
+
+            Ref<Image> original = Image::load_from_file(request->path, true);
+            if (original.is_null()) {
+                result.failed = true;
+            } else {
+                result.source_width = original->get_width();
+                result.source_height = original->get_height();
+                result.image =
+                    original->downscale(max_preview_edge, max_preview_edge);
+                result.failed = result.image.is_null();
+            }
+
+            request->browser->queue_thumbnail_result(std::move(result));
+            delete request;
+        },
+        request);
+}
+
+void AssetBrowser::queue_thumbnail_result(ThumbnailResult result) {
+    std::lock_guard lock(thumbnail_results_mutex);
+    thumbnail_results.push_back(std::move(result));
+}
+
+bool AssetBrowser::apply_thumbnail_result(
+    std::vector<AssetEntry> &target_entries, const ThumbnailResult &result,
+    Ref<Texture> texture) {
+    for (AssetEntry &entry : target_entries) {
+        if (entry.path != result.path) continue;
+
+        entry.thumbnail_requested = false;
+        entry.thumbnail_failed = result.failed || texture.is_null();
+        entry.texture_width = result.source_width;
+        entry.texture_height = result.source_height;
+        if (!texture.is_null()) entry.thumbnail_texture = texture;
+        return true;
+    }
+    return false;
+}
+
+void AssetBrowser::process_thumbnail_results() {
+    std::vector<ThumbnailResult> results;
+    {
+        std::lock_guard lock(thumbnail_results_mutex);
+        results.swap(thumbnail_results);
+    }
+
+    SamplerProperty thumbnail_sampler{
+        .min_filter = SamplerFilter::LINEAR,
+        .mag_filter = SamplerFilter::LINEAR,
+        .wrap_u = SamplerWrap::CLAMP_TO_EDGE,
+        .wrap_v = SamplerWrap::CLAMP_TO_EDGE};
+
+    for (const ThumbnailResult &result : results) {
+        Ref<Texture> texture;
+        if (!result.failed && !result.image.is_null()) {
+            texture = result.image->create_texture(thumbnail_sampler);
+        }
+
+        apply_thumbnail_result(entries, result, texture);
+
+        for (auto &[_, cached_entries] : folder_entry_cache) {
+            apply_thumbnail_result(cached_entries, result, texture);
+        }
+    }
 }
 
 void AssetBrowser::draw_asset_option_menu() {
@@ -158,6 +282,7 @@ void AssetBrowser::draw_asset_option_menu() {
 
 // ── Main update ──────────────────────────────────────────
 void AssetBrowser::update() {
+    process_thumbnail_results();
     if (needs_refresh) refresh();
 
     draw_toolbar();
@@ -213,7 +338,10 @@ void AssetBrowser::draw_toolbar() {
     ImGui::SameLine(0, 12);
 
     // Refresh button
-    if (ImGui::SmallButton("Refresh")) needs_refresh = true;
+    if (ImGui::SmallButton("Refresh")) {
+        invalidate_current_folder_cache();
+        needs_refresh = true;
+    }
 
     ImGui::SameLine(0, 12);
 
@@ -227,6 +355,7 @@ void AssetBrowser::draw_toolbar() {
             new_dir.push("New Folder " + std::to_string(++suffix));
         }
         Dir::create_if_not_exists(new_dir);
+        invalidate_current_folder_cache();
         needs_refresh = true;
     }
 }
@@ -319,7 +448,8 @@ bool AssetBrowser::matches_search(const Path &path, KStr filter) {
 Path AssetBrowser::get_project_asset_path(const AssetEntry &entry) const {
     Project *project = SeedEngine::get_instance()->get_project();
     if (project == nullptr) return entry.path;
-    if (entry.path.is_absolute()) return entry.path.relative(project->get_path());
+    if (entry.path.is_absolute())
+        return entry.path.relative(project->get_path());
     return entry.path;
 }
 
@@ -393,9 +523,8 @@ static void draw_centered_wrapped_text(KStr text, ImVec2 min, ImVec2 max,
             if (text_size.x > wrap_width && best_fit > line_begin) break;
 
             best_fit = next;
-            bool is_separator =
-                *cursor == '_' || *cursor == '-' || *cursor == ' ' ||
-                *cursor == '.';
+            bool is_separator = *cursor == '_' || *cursor == '-' ||
+                                *cursor == ' ' || *cursor == '.';
             bool is_leading_dot = cursor == text_begin && *cursor == '.';
             if (is_separator && !is_leading_dot) {
                 const char *candidate = *cursor == '.' ? cursor : next;
@@ -406,7 +535,8 @@ static void draw_centered_wrapped_text(KStr text, ImVec2 min, ImVec2 max,
         }
 
         line_end = best_fit;
-        if (best_separator_break != nullptr && best_separator_break > line_begin)
+        if (best_separator_break != nullptr &&
+            best_separator_break > line_begin)
             line_end = best_separator_break;
         if (line_end <= line_begin) {
             line_end = line_begin + 1;
@@ -431,14 +561,30 @@ static void draw_centered_wrapped_text(KStr text, ImVec2 min, ImVec2 max,
     }
 }
 
+static void draw_checkerboard(ImDrawList *draw_list, ImVec2 min, ImVec2 max,
+                              float tile_size) {
+    const ImU32 col_a = IM_COL32(58, 58, 58, 255);
+    const ImU32 col_b = IM_COL32(82, 82, 82, 255);
+    int row = 0;
+    for (float y = min.y; y < max.y; y += tile_size, row++) {
+        int col = row & 1;
+        for (float x = min.x; x < max.x; x += tile_size, col++) {
+            ImVec2 tile_min(x, y);
+            ImVec2 tile_max(std::min(x + tile_size, max.x),
+                            std::min(y + tile_size, max.y));
+            draw_list->AddRectFilled(tile_min, tile_max,
+                                     (col & 1) ? col_a : col_b);
+        }
+    }
+}
+
 void AssetBrowser::draw_icon(AssetEntry &e, Vec2 cell_size, u32 rename_idx) {
     ImGui::BeginGroup();
 
     // Icon area
     ImVec4 col4 = asset_type_color(e.type);
     ImVec2 cell_pos = ImGui::GetCursorScreenPos();
-    ImVec2 icon_pos(cell_pos.x + (cell_size.x - icon_size) * 0.5f,
-                    cell_pos.y);
+    ImVec2 icon_pos(cell_pos.x + (cell_size.x - icon_size) * 0.5f, cell_pos.y);
     float icon_pad = 8.f;
     ImGui::GetWindowDrawList()->AddRectFilled(
         ImVec2(icon_pos.x + icon_pad, icon_pos.y),
@@ -447,11 +593,26 @@ void AssetBrowser::draw_icon(AssetEntry &e, Vec2 cell_size, u32 rename_idx) {
             ImVec4(col4.x * 0.3f, col4.y * 0.3f, col4.z * 0.3f, 1.f)),
         4.f);
 
+    ImVec2 icon_min(icon_pos.x + icon_pad, icon_pos.y);
+    ImVec2 icon_max(icon_pos.x + icon_size - icon_pad, icon_pos.y + icon_size);
+
     // If thumbnail is available draw it, otherwise draw type label
-    if (e.thumbnail_handle != 0) {
-        ImGui::SetCursorScreenPos(ImVec2(icon_pos.x + icon_pad, icon_pos.y));
-        ImGui::Image((ImTextureID)e.thumbnail_handle,
-                     ImVec2(icon_size - icon_pad * 2, icon_size));
+    if (!e.thumbnail_texture.is_null()) {
+        draw_checkerboard(ImGui::GetWindowDrawList(), icon_min, icon_max, 6.f);
+        u32 preview_w = e.thumbnail_texture->get_width();
+        u32 preview_h = e.thumbnail_texture->get_height();
+        float fit_scale =
+            std::min((icon_max.x - icon_min.x) / (float)preview_w,
+                     (icon_max.y - icon_min.y) / (float)preview_h);
+        ImVec2 image_size(preview_w * fit_scale, preview_h * fit_scale);
+        ImVec2 image_pos(
+            icon_min.x + (icon_max.x - icon_min.x - image_size.x) * 0.5f,
+            icon_min.y + (icon_max.y - icon_min.y - image_size.y) * 0.5f);
+        ImGui::SetCursorScreenPos(image_pos);
+        ImGui::Image((ImTextureID)(u64)e.thumbnail_texture->get_handle(),
+                     image_size);
+        ImGui::GetWindowDrawList()->AddRect(icon_min, icon_max,
+                                            IM_COL32(25, 25, 25, 180), 3.f);
     } else {
         const char *type_label = asset_type_icon(e.type);
         ImVec2 tl_size = ImGui::CalcTextSize(type_label);
@@ -459,15 +620,16 @@ void AssetBrowser::draw_icon(AssetEntry &e, Vec2 cell_size, u32 rename_idx) {
             ImVec2(icon_pos.x + (icon_size - tl_size.x) * 0.5f,
                    icon_pos.y + (icon_size - tl_size.y) * 0.5f),
             ImGui::ColorConvertFloat4ToU32(col4), type_label);
-        ImGui::SetCursorScreenPos(cell_pos);
-        ImGui::Dummy(ImVec2(cell_size.x, icon_size));
     }
+    ImGui::SetCursorScreenPos(cell_pos);
+    ImGui::Dummy(ImVec2(cell_size.x, icon_size));
 
     KStr filename = e.path.filename();
     float label_gap = 6.f;
     float label_pad = 4.f;
     float label_h = cell_size.y - icon_size - label_gap;
-    ImVec2 label_min(cell_pos.x + label_pad, cell_pos.y + icon_size + label_gap);
+    ImVec2 label_min(cell_pos.x + label_pad,
+                     cell_pos.y + icon_size + label_gap);
     ImVec2 label_max(cell_pos.x + cell_size.x - label_pad,
                      label_min.y + label_h);
 
@@ -539,10 +701,12 @@ void AssetBrowser::draw_grid() {
             if (e.type != AssetType::Directory) open_asset(e);
         }
         bool cell_hovered = ImGui::IsItemHovered();
-        bool tooltip_hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip);
+        bool tooltip_hovered =
+            ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip);
 
         // Double-click to open
-        if (cell_hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+        if (cell_hovered &&
+            ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
             selected_idx = i;
             open_asset(e);
         }
@@ -579,6 +743,11 @@ void AssetBrowser::draw_grid() {
             KStr asset_path_str = asset_path.to_str();
             ImGui::BeginTooltip();
             ImGui::TextUnformatted(filename.data(), filename.end());
+            if (e.type == AssetType::Texture && e.texture_width != 0 &&
+                e.texture_height != 0) {
+                ImGui::TextDisabled("%u x %u", e.texture_width,
+                                    e.texture_height);
+            }
             ImGui::TextDisabled("%.*s", (int)asset_path_str.length(),
                                 asset_path_str.data());
             ImGui::EndTooltip();
@@ -605,7 +774,6 @@ void AssetBrowser::draw_grid() {
     ImGui::SetCursorScreenPos(ImVec2(start.x, start.y + total_h));
     ImGui::Dummy(ImVec2(1.f, 1.f));
 }
-
 
 // ── Context menu ─────────────────────────────────────────
 void AssetBrowser::draw_entry_context_menu(int idx) {
@@ -637,6 +805,7 @@ void AssetBrowser::draw_entry_context_menu(int idx) {
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.4f, 0.4f, 1.f));
     if (ImGui::MenuItem("Delete")) {
         // fs::remove_all(e.path);
+        invalidate_current_folder_cache();
         needs_refresh = true;
         if (selected_idx == idx) selected_idx = -1;
     }
@@ -665,9 +834,8 @@ void AssetBrowser::handle_external_drop_target() {
     ImGuiWindow *window = ImGui::GetCurrentWindow();
     if (window == nullptr || window->SkipItems) return;
 
-    ImRect drop_rect(
-        window->Pos,
-        ImVec2(window->Pos.x + window->Size.x, window->Pos.y + window->Size.y));
+    ImRect drop_rect(window->Pos, ImVec2(window->Pos.x + window->Size.x,
+                                         window->Pos.y + window->Size.y));
     if (!ImGui::BeginDragDropTargetCustom(drop_rect, window->ID)) return;
 
     if (auto p = ImGui::AcceptDragDropPayload("EXTERNAL")) {
@@ -675,13 +843,15 @@ void AssetBrowser::handle_external_drop_target() {
         std::vector<KStr> files = data.split("\n");
         Project *project = SeedEngine::get_instance()->get_project();
         Path target_dir =
-            project != nullptr ? current_dir->get_path().relative(project->get_path())
-                               : current_dir->get_path();
+            project != nullptr
+                ? current_dir->get_path().relative(project->get_path())
+                : current_dir->get_path();
 
         for (auto file : files) {
             if (file.is_empty()) continue;
             gEditor->import_asset(file, target_dir);
         }
+        invalidate_current_folder_cache();
         needs_refresh = true;
     }
     ImGui::EndDragDropTarget();

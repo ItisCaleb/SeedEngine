@@ -6,7 +6,9 @@
 #include "core/container/kstring.h"
 #include "core/io/path.h"
 #include "core/misc/uuid.h"
+#include "core/ref.h"
 #include "core/resource/resource_entry.h"
+#include "core/resource/texture.h"
 #include "core/types.h"
 #include "editor/gui/inspectable.h"
 #include "editor/gui/popup.h"
@@ -25,8 +27,11 @@ enum class AssetType {
 struct AssetEntry {
         Path path;
         AssetType type;
-        // thumbnail texture handle — 0 if not loaded yet
-        u64 thumbnail_handle = 0;
+        Ref<Texture> thumbnail_texture;
+        u32 texture_width = 0;
+        u32 texture_height = 0;
+        bool thumbnail_requested = false;
+        bool thumbnail_failed = false;
 };
 
 class ModelInspector : public Inspectable {
