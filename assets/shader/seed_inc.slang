@@ -247,8 +247,8 @@ float SampleCasacade(Sampler2D shadow_map, int casacade, vec4 frag_pos, vec3 nor
     uint level;
     shadow_map.GetDimensions(0u, size[0], size[1], level);
     vec2 tex_scale = (1.0 / vec2(size));
-    vec4 normal_bias = vec4(0.02, 0.02, 0.03, 0.05);
-    float bias = normal_bias[casacade] * (dot(normal, light_dir));
+    float ndotl = max(dot(normal, light_dir), 0.0);
+    float bias = max(0.0005, 0.002 * (1.0 - ndotl));
     float currentDepth = projCoords.z - bias;
     // float penumbra = CalculatePCSSPenumbra(shadow_map, projCoords, currentDepth, tex_scale);
     // if(penumbra == 0.0) return 0.0f;

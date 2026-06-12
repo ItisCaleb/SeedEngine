@@ -13,7 +13,6 @@
 #include <string>
 #include "core/concurrency/thread_pool.h"
 #include "core/os.h"
-#include "core/resource/sky.h"
 #include "core/gui/gui.h"
 #include "core/gui/gui_engine.h"
 #include "core/resource/texture.h"

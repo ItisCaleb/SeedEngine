@@ -76,7 +76,7 @@ TerrainInstanceData::TerrainInstanceData()
 
 void Terrain::build_mesh() {
     i32 half_chunk = CHUNK_SIZE / 2;
-    u32 chunk_cnt = 4;
+    u32 chunk_cnt = 16;
     u32 vertex_row_cnt = chunk_cnt + 1;
     std::vector<TerrainVertex> vertices;
     f32 offset = CHUNK_SIZE / chunk_cnt;

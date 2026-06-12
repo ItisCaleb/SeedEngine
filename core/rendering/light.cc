@@ -76,6 +76,7 @@ void DirectionalLight::calculate_csm_lightspace(
         Vec4 center_ws = light_lookat.transpose() * center_ls;
         center.x = center_ws.x;
         center.y = center_ws.y;
+        center.z = center_ws.z;
 
         Mat4 light_view = light_lookat * Mat4::translate_mat(-center);
         light_space_cam[i - 1].projection = light_projection;

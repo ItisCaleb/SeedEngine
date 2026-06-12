@@ -50,7 +50,7 @@ struct HSOutput
 #ifdef EDITOR
 [patchconstantfunc("PatchConstantFunction")]
 #else
-[patchconstantfunc("PatchDynamicFunction")]
+[patchconstantfunc("PatchConstantFunction")]
 #endif
 HSOutput tesc(InputPatch<VS_OUT, 4> patch, uint cpID : SV_OutputControlPointID){
     HSOutput o;
