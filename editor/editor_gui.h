@@ -4,6 +4,7 @@
 #include <string>
 #include "core/gui/gui.h"
 #include "core/io/file.h"
+#include "core/types.h"
 
 namespace Seed {
 
@@ -14,10 +15,9 @@ class EditorGUI : public GUI {
         std::string project_path_input;
         std::string project_error;
         std::string shader_reload_message;
-        float main_menu_height;
+        f32 main_menu_height = 0.0f;
 
-
-        void *font;
+        void *font = nullptr;
         void main_menu();
         void main_panel();
         void reload_all_shaders();

@@ -13,7 +13,7 @@ class EditorCameraBehaviour : public Behaviour {
 
     public:
         virtual void start() override;
-        virtual void update(float dt) override;
+        virtual void update(f32 dt) override;
 };
 
 class EditorCameraEntity {

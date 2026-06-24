@@ -1,11 +1,13 @@
 #ifndef _SEED_ASSET_VIEWER_
 #define _SEED_ASSET_VIEWER_
-#include "editor/asset/model_loader.h"
+#include "core/resource/model.h"
 
 namespace Seed {
+class EditorModel;
 class ModelRenderer;
 class AssetViewer {
-    friend ModelRenderer;
+        friend ModelRenderer;
+
     private:
         EditorModel *current_model = nullptr;
         Ref<Model> model;

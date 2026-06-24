@@ -17,7 +17,6 @@ class WindowDropTarget : public ::IDropTarget {
         bool dragging = false;
 
     public:
-        // ── IUnknown ─────────────────────────────────────────
         ULONG STDMETHODCALLTYPE AddRef() override { return ++ref_count; }
         ULONG STDMETHODCALLTYPE Release() override {
             if (--ref_count == 0) {
@@ -36,8 +35,6 @@ class WindowDropTarget : public ::IDropTarget {
             *ppv = nullptr;
             return E_NOINTERFACE;
         }
-
-        // ── IDropTarget ──────────────────────────────────────
         HRESULT STDMETHODCALLTYPE DragEnter(IDataObject *data, DWORD key_state,
                                             POINTL pt, DWORD *effect) override {
             if (has_files(data)) {

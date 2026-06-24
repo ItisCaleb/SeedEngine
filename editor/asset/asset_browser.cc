@@ -1,5 +1,4 @@
 #include "asset_browser.h"
-#include <fmt/base.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <algorithm>
@@ -13,22 +12,19 @@
 #include "core/input.h"
 #include "core/io/dir.h"
 #include "core/io/path.h"
-#include "core/math/vec2.h"
 #include "core/misc/uuid.h"
 #include "core/project.h"
 #include "core/resource/resource.h"
 #include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
 #include "editor/editor.h"
+#include "editor/gui/editor_ui.h"
 #include "editor/project/preprocessor.h"
 
 namespace Seed {
-
-// ── Classification ───────────────────────────────────────
 AssetType AssetBrowser::classify(const Path &p) {
     if (p.is_directory()) return AssetType::Directory;
     KString extension = p.extension().string().to_lower();
-    // lowercase
     KStr ext = extension;
 
     if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" ||
@@ -36,8 +32,7 @@ AssetType AssetBrowser::classify(const Path &p) {
         return AssetType::Texture;
     if (ext == ".obj" || ext == ".fbx" || ext == ".gltf" || ext == ".glb")
         return AssetType::Mesh;
-    if (ext == ".world")  // adjust to your format
-        return AssetType::World;
+    if (ext == ".world") return AssetType::World;
     if (ext == ".mat") return AssetType::Material;
     if (ext == ".wav" || ext == ".ogg" || ext == ".mp3")
         return AssetType::Audio;
@@ -87,8 +82,6 @@ ImVec4 AssetBrowser::asset_type_color(AssetType t) {
             return ImVec4(0.5f, 0.5f, 0.5f, 1.f);
     }
 }
-
-// ── Init / Navigate ──────────────────────────────────────
 void AssetBrowser::init(KStr project_root) {
     root_dir = Dir::open(project_root);
     current_dir = Dir::open(project_root);
@@ -100,8 +93,6 @@ void AssetBrowser::navigate_to(KStr dir) {
     selected_idx = -1;
     renaming_idx = -1;
     needs_refresh = true;
-
-    // Rebuild breadcrumbs: root → dir
     breadcrumbs.clear();
     Path p = dir;
     while (true) {
@@ -130,8 +121,6 @@ void AssetBrowser::refresh() {
         needs_refresh = false;
         return;
     }
-
-    // Dirs first, then files, both sorted alphabetically
     std::vector<Path> dirs, files;
     std::vector<Path> childrens = current_dir->list();
     for (auto &path : childrens) {
@@ -250,11 +239,10 @@ void AssetBrowser::process_thumbnail_results() {
         results.swap(thumbnail_results);
     }
 
-    SamplerProperty thumbnail_sampler{
-        .min_filter = SamplerFilter::LINEAR,
-        .mag_filter = SamplerFilter::LINEAR,
-        .wrap_u = SamplerWrap::CLAMP_TO_EDGE,
-        .wrap_v = SamplerWrap::CLAMP_TO_EDGE};
+    SamplerProperty thumbnail_sampler{.min_filter = SamplerFilter::LINEAR,
+                                      .mag_filter = SamplerFilter::LINEAR,
+                                      .wrap_u = SamplerWrap::CLAMP_TO_EDGE,
+                                      .wrap_v = SamplerWrap::CLAMP_TO_EDGE};
 
     for (const ThumbnailResult &result : results) {
         Ref<Texture> texture;
@@ -280,7 +268,6 @@ void AssetBrowser::draw_asset_option_menu() {
     ImGui::Separator();
 }
 
-// ── Main update ──────────────────────────────────────────
 void AssetBrowser::update() {
     process_thumbnail_results();
     if (needs_refresh) refresh();
@@ -289,13 +276,11 @@ void AssetBrowser::update() {
     ImGui::Separator();
     draw_breadcrumb();
     ImGui::Separator();
-
-    // Main content area
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    const float splitter_w = 4.f;
-    const float min_folder_w = 150.f;
-    const float min_asset_w = 180.f;
-    float max_folder_w =
+    const f32 splitter_w = 4.f;
+    const f32 min_folder_w = 150.f;
+    const f32 min_asset_w = 180.f;
+    f32 max_folder_w =
         std::max(min_folder_w, avail.x - splitter_w - min_asset_w);
     folder_panel_width =
         std::clamp(folder_panel_width, min_folder_w, max_folder_w);
@@ -306,19 +291,8 @@ void AssetBrowser::update() {
     ImGui::EndChild();
 
     ImGui::SameLine(0, 0);
-    ImVec2 splitter_pos = ImGui::GetCursorScreenPos();
-    ImGui::InvisibleButton("##ab_splitter", ImVec2(splitter_w, avail.y));
-    if (ImGui::IsItemActive()) {
-        folder_panel_width =
-            std::clamp(folder_panel_width + ImGui::GetIO().MouseDelta.x,
-                       min_folder_w, max_folder_w);
-    }
-    if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-    ImGui::GetWindowDrawList()->AddRectFilled(
-        splitter_pos,
-        ImVec2(splitter_pos.x + splitter_w, splitter_pos.y + avail.y),
-        IM_COL32(55, 55, 55, 255));
+    EditorUI::vertical_splitter("##ab_splitter", avail.y, splitter_w,
+                                folder_panel_width, min_folder_w, max_folder_w);
 
     ImGui::SameLine(0, 0);
     ImGui::BeginChild("##ab_assets", ImVec2(0, avail.y), false);
@@ -328,28 +302,22 @@ void AssetBrowser::update() {
     ImGui::EndChild();
 }
 
-// ── Toolbar ──────────────────────────────────────────────
 void AssetBrowser::draw_toolbar() {
-    // Search box
     ImGui::SetNextItemWidth(200);
     ImGui::InputTextWithHint("##ab_search", "Search...", search_buf,
                              sizeof(search_buf));
 
     ImGui::SameLine(0, 12);
-
-    // Refresh button
     if (ImGui::SmallButton("Refresh")) {
         invalidate_current_folder_cache();
         needs_refresh = true;
     }
 
     ImGui::SameLine(0, 12);
-
-    // "New folder" shortcut
     if (ImGui::SmallButton("+ Folder")) {
         Path new_dir = current_dir->get_path();
         new_dir.push("New Folder");
-        int suffix = 0;
+        i32 suffix = 0;
         while (Dir::exists(new_dir)) {
             new_dir.pop();
             new_dir.push("New Folder " + std::to_string(++suffix));
@@ -360,33 +328,29 @@ void AssetBrowser::draw_toolbar() {
     }
 }
 
-// ── Breadcrumb ───────────────────────────────────────────
 void AssetBrowser::draw_breadcrumb() {
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 4));
-    for (int i = 0; i < (int)breadcrumbs.size(); i++) {
+    EditorUI::ScopedStyleVar spacing(ImGuiStyleVar_ItemSpacing, ImVec2(2, 4));
+    for (i32 i = 0; i < (i32)breadcrumbs.size(); i++) {
         if (i > 0) {
             ImGui::SameLine();
             ImGui::TextDisabled(">");
             ImGui::SameLine();
         }
-        KStr label =
-            i == 0
-                ? root_dir->get_path().filename()  // show project name for root
-                : breadcrumbs[i].filename();
+        KStr label = i == 0 ? root_dir->get_path().filename()
+                            : breadcrumbs[i].filename();
 
         bool is_current = (breadcrumbs[i] == current_dir->get_path());
         if (is_current) {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.9f, 0.9f, 1.f));
-            ImGui::TextUnformatted(label.data());
-            ImGui::PopStyleColor();
+            EditorUI::ScopedStyleColor text_color(
+                ImGuiCol_Text, ImVec4(0.9f, 0.9f, 0.9f, 1.f));
+            ImGui::TextUnformatted(label.data(), label.end());
         } else {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.9f, 1.f));
+            EditorUI::ScopedStyleColor text_color(
+                ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.9f, 1.f));
             if (ImGui::SmallButton(label.data()))
                 navigate_to(breadcrumbs[i].to_str());
-            ImGui::PopStyleColor();
         }
     }
-    ImGui::PopStyleVar();
 }
 
 void AssetBrowser::draw_folder_panel() {
@@ -410,16 +374,15 @@ void AssetBrowser::draw_folder_tree(const Path &dir) {
     KStr label = dir.filename();
     if (label.is_empty()) label = "Assets";
 
-    ImGui::PushID(dir.data());
+    EditorUI::ScopedID folder_id(dir.data());
     bool open = ImGui::TreeNodeEx("##folder", flags, "%.*s",
-                                  (int)label.length(), label.data());
+                                  (i32)label.length(), label.data());
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) navigate_to(dir.to_str());
 
     if (open && !child_dirs.empty()) {
         for (const Path &child : child_dirs) draw_folder_tree(child);
         ImGui::TreePop();
     }
-    ImGui::PopID();
 }
 
 std::vector<Path> AssetBrowser::list_child_directories(const Path &dir) {
@@ -494,295 +457,223 @@ void AssetBrowser::open_asset(AssetEntry &entry) {
     gEditor->set_current_inspect(create_inspectable(entry));
 }
 
-static void draw_centered_wrapped_text(KStr text, ImVec2 min, ImVec2 max,
-                                       int max_lines) {
-    ImDrawList *draw_list = ImGui::GetWindowDrawList();
-    const char *text_begin = text.data();
-    const char *text_end = text.end();
-    const float line_height = ImGui::GetTextLineHeight();
-    const float wrap_width = max.x - min.x;
-    const ImU32 color = ImGui::GetColorU32(ImGuiCol_Text);
-
-    const char *line_begin = text_begin;
-    for (int line = 0; line < max_lines && line_begin < text_end; line++) {
-        while (line_begin < text_end &&
-               (*line_begin == ' ' || *line_begin == '\n' ||
-                *line_begin == '\r')) {
-            line_begin++;
-        }
-        if (line_begin >= text_end) break;
-
-        const char *line_end = line_begin;
-        const char *best_fit = line_begin;
-        const char *best_separator_break = nullptr;
-        for (const char *cursor = line_begin; cursor < text_end;) {
-            const char *next = cursor + 1;
-            while (next < text_end && ((*next & 0xC0) == 0x80)) next++;
-
-            ImVec2 text_size = ImGui::CalcTextSize(line_begin, next);
-            if (text_size.x > wrap_width && best_fit > line_begin) break;
-
-            best_fit = next;
-            bool is_separator = *cursor == '_' || *cursor == '-' ||
-                                *cursor == ' ' || *cursor == '.';
-            bool is_leading_dot = cursor == text_begin && *cursor == '.';
-            if (is_separator && !is_leading_dot) {
-                const char *candidate = *cursor == '.' ? cursor : next;
-                if (candidate > line_begin) best_separator_break = candidate;
-            }
-
-            cursor = next;
-        }
-
-        line_end = best_fit;
-        if (best_separator_break != nullptr &&
-            best_separator_break > line_begin)
-            line_end = best_separator_break;
-        if (line_end <= line_begin) {
-            line_end = line_begin + 1;
-            while (line_end < text_end && ((*line_end & 0xC0) == 0x80))
-                line_end++;
-        }
-
-        const char *draw_end = line_end;
-        while (draw_end > line_begin &&
-               (draw_end[-1] == ' ' || draw_end[-1] == '\n' ||
-                draw_end[-1] == '\r')) {
-            draw_end--;
-        }
-
-        ImVec2 text_size = ImGui::CalcTextSize(line_begin, draw_end);
-        float x = min.x + std::max(0.f, (wrap_width - text_size.x) * 0.5f);
-        float y = min.y + line * line_height;
-        if (y + line_height > max.y) break;
-
-        draw_list->AddText(ImVec2(x, y), color, line_begin, draw_end);
-        line_begin = line_end;
-    }
+AssetBrowser::GridLayout AssetBrowser::make_grid_layout() const {
+    GridLayout layout;
+    layout.cell_width = 156.f;
+    layout.padding = 8.f;
+    f32 label_h = ImGui::GetTextLineHeight() * 3.f + 8.f;
+    layout.cell_height = icon_size + label_h + 6.f;
+    f32 avail_w = ImGui::GetContentRegionAvail().x;
+    layout.columns = std::max(1, (i32)((avail_w + layout.padding) /
+                                       (layout.cell_width + layout.padding)));
+    layout.start = ImGui::GetCursorScreenPos();
+    return layout;
 }
 
-static void draw_checkerboard(ImDrawList *draw_list, ImVec2 min, ImVec2 max,
-                              float tile_size) {
-    const ImU32 col_a = IM_COL32(58, 58, 58, 255);
-    const ImU32 col_b = IM_COL32(82, 82, 82, 255);
-    int row = 0;
-    for (float y = min.y; y < max.y; y += tile_size, row++) {
-        int col = row & 1;
-        for (float x = min.x; x < max.x; x += tile_size, col++) {
-            ImVec2 tile_min(x, y);
-            ImVec2 tile_max(std::min(x + tile_size, max.x),
-                            std::min(y + tile_size, max.y));
-            draw_list->AddRectFilled(tile_min, tile_max,
-                                     (col & 1) ? col_a : col_b);
-        }
-    }
-}
+AssetBrowser::AssetCellRects AssetBrowser::make_asset_cell_rects(
+    ImVec2 cell_pos, ImVec2 cell_size) const {
+    static constexpr f32 ICON_PAD = 8.f;
+    static constexpr f32 LABEL_GAP = 6.f;
+    static constexpr f32 LABEL_PAD = 4.f;
 
-void AssetBrowser::draw_icon(AssetEntry &e, Vec2 cell_size, u32 rename_idx) {
-    ImGui::BeginGroup();
+    AssetCellRects rects;
+    rects.min = cell_pos;
+    rects.max = ImVec2(cell_pos.x + cell_size.x, cell_pos.y + cell_size.y);
 
-    // Icon area
-    ImVec4 col4 = asset_type_color(e.type);
-    ImVec2 cell_pos = ImGui::GetCursorScreenPos();
     ImVec2 icon_pos(cell_pos.x + (cell_size.x - icon_size) * 0.5f, cell_pos.y);
-    float icon_pad = 8.f;
-    ImGui::GetWindowDrawList()->AddRectFilled(
-        ImVec2(icon_pos.x + icon_pad, icon_pos.y),
-        ImVec2(icon_pos.x + icon_size - icon_pad, icon_pos.y + icon_size),
-        ImGui::ColorConvertFloat4ToU32(
-            ImVec4(col4.x * 0.3f, col4.y * 0.3f, col4.z * 0.3f, 1.f)),
-        4.f);
+    rects.icon_min = ImVec2(icon_pos.x + ICON_PAD, icon_pos.y);
+    rects.icon_max =
+        ImVec2(icon_pos.x + icon_size - ICON_PAD, icon_pos.y + icon_size);
 
-    ImVec2 icon_min(icon_pos.x + icon_pad, icon_pos.y);
-    ImVec2 icon_max(icon_pos.x + icon_size - icon_pad, icon_pos.y + icon_size);
+    f32 label_h = cell_size.y - icon_size - LABEL_GAP;
+    rects.label_min =
+        ImVec2(cell_pos.x + LABEL_PAD, cell_pos.y + icon_size + LABEL_GAP);
+    rects.label_max = ImVec2(cell_pos.x + cell_size.x - LABEL_PAD,
+                             rects.label_min.y + label_h);
+    return rects;
+}
 
-    // If thumbnail is available draw it, otherwise draw type label
-    if (!e.thumbnail_texture.is_null()) {
-        draw_checkerboard(ImGui::GetWindowDrawList(), icon_min, icon_max, 6.f);
-        u32 preview_w = e.thumbnail_texture->get_width();
-        u32 preview_h = e.thumbnail_texture->get_height();
-        float fit_scale =
-            std::min((icon_max.x - icon_min.x) / (float)preview_w,
-                     (icon_max.y - icon_min.y) / (float)preview_h);
-        ImVec2 image_size(preview_w * fit_scale, preview_h * fit_scale);
-        ImVec2 image_pos(
-            icon_min.x + (icon_max.x - icon_min.x - image_size.x) * 0.5f,
-            icon_min.y + (icon_max.y - icon_min.y - image_size.y) * 0.5f);
-        ImGui::SetCursorScreenPos(image_pos);
-        ImGui::Image((ImTextureID)(u64)e.thumbnail_texture->get_handle(),
-                     image_size);
-        ImGui::GetWindowDrawList()->AddRect(icon_min, icon_max,
-                                            IM_COL32(25, 25, 25, 180), 3.f);
-    } else {
-        const char *type_label = asset_type_icon(e.type);
-        ImVec2 tl_size = ImGui::CalcTextSize(type_label);
-        ImGui::GetWindowDrawList()->AddText(
-            ImVec2(icon_pos.x + (icon_size - tl_size.x) * 0.5f,
-                   icon_pos.y + (icon_size - tl_size.y) * 0.5f),
-            ImGui::ColorConvertFloat4ToU32(col4), type_label);
-    }
-    ImGui::SetCursorScreenPos(cell_pos);
-    ImGui::Dummy(ImVec2(cell_size.x, icon_size));
-
-    KStr filename = e.path.filename();
-    float label_gap = 6.f;
-    float label_pad = 4.f;
-    float label_h = cell_size.y - icon_size - label_gap;
-    ImVec2 label_min(cell_pos.x + label_pad,
-                     cell_pos.y + icon_size + label_gap);
-    ImVec2 label_max(cell_pos.x + cell_size.x - label_pad,
-                     label_min.y + label_h);
-
-    // Inline rename
-    if (renaming_idx == rename_idx) {
-        ImGui::SetCursorScreenPos(label_min);
-        ImGui::SetNextItemWidth(label_max.x - label_min.x);
+void AssetBrowser::draw_asset_label(AssetEntry &entry,
+                                    const AssetCellRects &rects, i32 idx) {
+    if (renaming_idx == idx) {
+        ImGui::SetCursorScreenPos(rects.label_min);
+        ImGui::SetNextItemWidth(rects.label_max.x - rects.label_min.x);
         if (ImGui::InputText("##rename", rename_buf, sizeof(rename_buf),
                              ImGuiInputTextFlags_EnterReturnsTrue |
                                  ImGuiInputTextFlags_AutoSelectAll)) {
             commit_rename();
         }
         if (!ImGui::IsItemActive() && !ImGui::IsItemActivated())
-            renaming_idx = -1;  // clicked away
-    } else {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.85f, 0.85f, 0.85f, 1.f));
-        ImGui::PushClipRect(label_min, label_max, true);
-        draw_centered_wrapped_text(filename, label_min, label_max, 3);
-        ImGui::PopClipRect();
-        ImGui::PopStyleColor();
+            renaming_idx = -1;
+        return;
     }
 
-    ImGui::EndGroup();
+    EditorUI::ScopedStyleColor text_color(ImGuiCol_Text,
+                                          ImVec4(0.85f, 0.85f, 0.85f, 1.f));
+    EditorUI::ScopedClipRect clip(rects.label_min, rects.label_max, true);
+    EditorUI::draw_centered_wrapped_text(entry.path.filename(), rects.label_min,
+                                         rects.label_max, 3);
 }
 
-// ── Grid view ────────────────────────────────────────────
+void AssetBrowser::draw_asset_visual(AssetEntry &entry,
+                                     const AssetCellRects &rects, i32 idx) {
+    EditorUI::ScopedGroup group;
+
+    ImVec4 color = asset_type_color(entry.type);
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        rects.icon_min, rects.icon_max,
+        ImGui::ColorConvertFloat4ToU32(
+            ImVec4(color.x * 0.3f, color.y * 0.3f, color.z * 0.3f, 1.f)),
+        4.f);
+
+    if (!entry.thumbnail_texture.is_null()) {
+        EditorUI::TexturePreview preview;
+        preview.texture = entry.thumbnail_texture;
+        preview.width = entry.texture_width != 0
+                            ? entry.texture_width
+                            : entry.thumbnail_texture->get_width();
+        preview.height = entry.texture_height != 0
+                             ? entry.texture_height
+                             : entry.thumbnail_texture->get_height();
+        EditorUI::draw_texture_preview(&preview, rects.icon_min, rects.icon_max,
+                                       false);
+    } else {
+        EditorUI::draw_centered_text(ImGui::GetWindowDrawList(),
+                                     asset_type_icon(entry.type),
+                                     rects.icon_min, rects.icon_max,
+                                     ImGui::ColorConvertFloat4ToU32(color));
+    }
+
+    ImGui::SetCursorScreenPos(rects.min);
+    ImGui::Dummy(ImVec2(rects.max.x - rects.min.x, icon_size));
+    draw_asset_label(entry, rects, idx);
+}
+
+void AssetBrowser::draw_asset_tooltip(AssetEntry &entry) {
+    Path asset_path = get_project_asset_path(entry);
+    KStr filename = entry.path.filename();
+    KStr asset_path_str = asset_path.to_str();
+    ImGui::BeginTooltip();
+    ImGui::TextUnformatted(filename.data(), filename.end());
+    if (entry.type == AssetType::Texture && entry.texture_width != 0 &&
+        entry.texture_height != 0) {
+        ImGui::TextDisabled("%u x %u", entry.texture_width,
+                            entry.texture_height);
+    }
+    ImGui::TextDisabled("%.*s", (i32)asset_path_str.length(),
+                        asset_path_str.data());
+    ImGui::EndTooltip();
+}
+
+void AssetBrowser::draw_asset_drag_source(AssetEntry &entry) {
+    if (entry.type == AssetType::Directory) return;
+    if (!ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+        return;
+
+    UUID uuid = get_asset_uuid(entry);
+    if (!uuid.is_null()) {
+        ImGui::SetDragDropPayload("UUID", &uuid, sizeof(uuid));
+        ImGui::TextUnformatted(entry.path.filename().data());
+    }
+
+    ImGui::EndDragDropSource();
+}
+
+void AssetBrowser::draw_asset_cell(AssetEntry &entry, i32 idx,
+                                   const AssetCellRects &rects) {
+    bool is_selected = idx == selected_idx;
+    ImDrawList *draw_list = ImGui::GetWindowDrawList();
+    ImVec2 cell_size(rects.max.x - rects.min.x, rects.max.y - rects.min.y);
+
+    if (is_selected) {
+        draw_list->AddRectFilled(rects.min, rects.max,
+                                 IM_COL32(60, 100, 160, 180), 4.f);
+    }
+
+    ImGui::SetCursorScreenPos(rects.min);
+    if (ImGui::InvisibleButton("##cell", cell_size)) {
+        selected_idx = idx;
+        if (entry.type != AssetType::Directory) open_asset(entry);
+    }
+
+    bool cell_hovered = ImGui::IsItemHovered();
+    bool tooltip_hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip);
+
+    if (cell_hovered && !is_selected) {
+        draw_list->AddRectFilled(rects.min, rects.max,
+                                 IM_COL32(80, 80, 80, 120), 4.f);
+    }
+
+    if (cell_hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+        selected_idx = idx;
+        open_asset(entry);
+    }
+
+    if (ImGui::BeginPopupContextItem("##ctx")) {
+        selected_idx = idx;
+        draw_entry_context_menu(idx);
+        ImGui::EndPopup();
+    }
+
+    draw_asset_drag_source(entry);
+
+    if (tooltip_hovered) {
+        draw_asset_tooltip(entry);
+    }
+
+    ImGui::SetCursorScreenPos(rects.min);
+    draw_asset_visual(entry, rects, idx);
+}
+
 void AssetBrowser::draw_grid() {
     KStr filter = search_buf;
 
-    float cell_w = 156.f;
-    float label_h = ImGui::GetTextLineHeight() * 3.f + 8.f;
-    float cell_h = icon_size + label_h + 6.f;
-    float padding = 8.f;
-    float avail_w = ImGui::GetContentRegionAvail().x;
-    int cols = std::max(1, (int)((avail_w + padding) / (cell_w + padding)));
+    GridLayout layout = make_grid_layout();
+    i32 visible_count = 0;
 
-    ImVec2 start = ImGui::GetCursorScreenPos();
-    int visible_count = 0;
-
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
-    for (int i = 0; i < (int)entries.size(); i++) {
+    EditorUI::ScopedStyleVar spacing(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
+    for (i32 i = 0; i < (i32)entries.size(); i++) {
         auto &e = entries[i];
 
         if (!matches_search(e.path, filter)) continue;
 
-        int row = visible_count / cols;
-        int col = visible_count % cols;
+        i32 row = visible_count / layout.columns;
+        i32 col = visible_count % layout.columns;
 
-        ImVec2 pos = ImVec2(start.x + col * (cell_w + padding),
-                            start.y + row * (cell_h + padding));
+        ImVec2 pos = ImVec2(
+            layout.start.x + col * (layout.cell_width + layout.padding),
+            layout.start.y + row * (layout.cell_height + layout.padding));
+        ImVec2 cell_size(layout.cell_width, layout.cell_height);
 
-        ImGui::PushID(i);
-
-        bool is_selected = (i == selected_idx);
-        ImVec2 cell_size = ImVec2(cell_w, cell_h);
-        ImGui::SetCursorScreenPos(pos);
-        ImVec2 cursor = ImGui::GetCursorScreenPos();
-
-        // Selection highlight
-        if (is_selected) {
-            ImGui::GetWindowDrawList()->AddRectFilled(
-                cursor, ImVec2(cursor.x + cell_size.x, cursor.y + cell_size.y),
-                IM_COL32(60, 100, 160, 180), 4.f);
-        }
-
-        // Invisible selectable covering the whole cell
-        if (ImGui::InvisibleButton("##cell", cell_size)) {
-            selected_idx = i;
-            if (e.type != AssetType::Directory) open_asset(e);
-        }
-        bool cell_hovered = ImGui::IsItemHovered();
-        bool tooltip_hovered =
-            ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip);
-
-        // Double-click to open
-        if (cell_hovered &&
-            ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-            selected_idx = i;
-            open_asset(e);
-        }
-
-        // Hover highlight
-        if (cell_hovered && !is_selected) {
-            ImGui::GetWindowDrawList()->AddRectFilled(
-                cursor, ImVec2(cursor.x + cell_size.x, cursor.y + cell_size.y),
-                IM_COL32(80, 80, 80, 120), 4.f);
-        }
-
-        // Right-click context menu
-        if (ImGui::BeginPopupContextItem("##ctx")) {
-            selected_idx = i;
-            draw_entry_context_menu(i);
-            ImGui::EndPopup();
-        }
-
-        // Drag source — payload is the absolute path string
-        if (e.type != AssetType::Directory &&
-            ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-            UUID uuid = get_asset_uuid(e);
-            if (!uuid.is_null()) {
-                ImGui::SetDragDropPayload("UUID", &uuid, sizeof(uuid));
-                ImGui::TextUnformatted(e.path.filename().data());
-            }
-
-            ImGui::EndDragDropSource();
-        }
-
-        if (tooltip_hovered) {
-            Path asset_path = get_project_asset_path(e);
-            KStr filename = e.path.filename();
-            KStr asset_path_str = asset_path.to_str();
-            ImGui::BeginTooltip();
-            ImGui::TextUnformatted(filename.data(), filename.end());
-            if (e.type == AssetType::Texture && e.texture_width != 0 &&
-                e.texture_height != 0) {
-                ImGui::TextDisabled("%u x %u", e.texture_width,
-                                    e.texture_height);
-            }
-            ImGui::TextDisabled("%.*s", (int)asset_path_str.length(),
-                                asset_path_str.data());
-            ImGui::EndTooltip();
-        }
-
-        // Draw icon and label on top of the selectable
-        ImGui::SetCursorScreenPos(cursor);
-        draw_icon(e, Vec2{cell_size.x, cell_size.y}, i);
-        ImGui::PopID();
+        EditorUI::ScopedID id(i);
+        AssetCellRects rects = make_asset_cell_rects(pos, cell_size);
+        draw_asset_cell(e, i, rects);
 
         visible_count++;
     }
 
-    ImGui::PopStyleVar();
-
     if (visible_count == 0) {
-        ImGui::SetCursorScreenPos(start);
+        ImGui::SetCursorScreenPos(layout.start);
         ImGui::TextDisabled("No assets");
         return;
     }
 
-    int rows = (visible_count + cols - 1) / cols;
-    float total_h = rows * cell_h + std::max(0, rows - 1) * padding;
-    ImGui::SetCursorScreenPos(ImVec2(start.x, start.y + total_h));
+    i32 rows = (visible_count + layout.columns - 1) / layout.columns;
+    f32 total_h =
+        rows * layout.cell_height + std::max(0, rows - 1) * layout.padding;
+    ImGui::SetCursorScreenPos(ImVec2(layout.start.x, layout.start.y + total_h));
     ImGui::Dummy(ImVec2(1.f, 1.f));
 }
 
-// ── Context menu ─────────────────────────────────────────
-void AssetBrowser::draw_entry_context_menu(int idx) {
+void AssetBrowser::draw_entry_context_menu(i32 idx) {
     auto &e = entries[idx];
     KStr filename = e.path.filename();
 
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.8f, 1.f, 1.f));
-    ImGui::TextUnformatted(filename.data());
-    ImGui::PopStyleColor();
+    {
+        EditorUI::ScopedStyleColor text_color(ImGuiCol_Text,
+                                              ImVec4(0.7f, 0.8f, 1.f, 1.f));
+        ImGui::TextUnformatted(filename.data());
+    }
     ImGui::Separator();
 
     if (e.type == AssetType::Directory) {
@@ -792,8 +683,6 @@ void AssetBrowser::draw_entry_context_menu(int idx) {
         if (ImGui::MenuItem("Open")) {
             open_asset(e);
         }
-        if (ImGui::MenuItem("Show in Explorer")) {
-        }  // platform open
         ImGui::Separator();
     }
 
@@ -801,15 +690,6 @@ void AssetBrowser::draw_entry_context_menu(int idx) {
         begin_rename(idx);
         ImGui::CloseCurrentPopup();
     }
-
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.4f, 0.4f, 1.f));
-    if (ImGui::MenuItem("Delete")) {
-        // fs::remove_all(e.path);
-        invalidate_current_folder_cache();
-        needs_refresh = true;
-        if (selected_idx == idx) selected_idx = -1;
-    }
-    ImGui::PopStyleColor();
 }
 
 void AssetBrowser::draw_empty_space_context_menu() {
@@ -857,8 +737,7 @@ void AssetBrowser::handle_external_drop_target() {
     ImGui::EndDragDropTarget();
 }
 
-// ── Rename ───────────────────────────────────────────────
-void AssetBrowser::begin_rename(int idx) {
+void AssetBrowser::begin_rename(i32 idx) {
     renaming_idx = idx;
     KStr name = entries[idx].path.filename();
     strncpy(rename_buf, name.data(), sizeof(rename_buf) - 1);
@@ -867,14 +746,7 @@ void AssetBrowser::begin_rename(int idx) {
 }
 
 void AssetBrowser::commit_rename() {
-    if (renaming_idx < 0 || renaming_idx >= (int)entries.size()) return;
-    auto &e = entries[renaming_idx];
-    Path new_path = e.path.parent();
-    new_path.push(rename_buf);
-    // if (!fs::exists(new_path) && rename_buf[0] != '\0') {
-    //     fs::rename(e.path, new_path);
-    //     needs_refresh = true;
-    // }
+    if (renaming_idx < 0 || renaming_idx >= (i32)entries.size()) return;
     renaming_idx = -1;
 }
 

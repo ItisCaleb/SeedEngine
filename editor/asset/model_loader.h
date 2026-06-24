@@ -37,7 +37,7 @@ struct Bone {
 
 struct EditorAnimation {
         std::string name;
-        float duration;
+        f32 duration;
         std::vector<Seed::AnimationClip> clips;
 };
 

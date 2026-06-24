@@ -91,7 +91,6 @@ void MappableTexture::save_disk(const Path &path) {
     }
 }
 
-
 TextureArray::TextureArray(TextureType type, u32 w, u32 h, u32 layers,
                            PixelFormat format,
                            const SamplerProperty &property) {
@@ -107,6 +106,11 @@ TextureArray::TextureArray(TextureType type, u32 w, u32 h, u32 layers,
 void TextureArray::update_layer(u32 w, u32 h, u32 layer, const void *data) {
     EXPECT_INDEX_INBOUND(layer, this->layers);
     RHI::update(handle, format, layer, 0, 0, w, h, data);
+}
+
+void TextureArray::update_layer(u32 layer, RHI::UpdateBufferInfo info) {
+    EXPECT_INDEX_INBOUND(layer, this->layers);
+    RHI::update_from_heap(handle, layer, 0, 0, info);
 }
 
 TextureCubemap::TextureCubemap(u32 w, u32 h, PixelFormat format,

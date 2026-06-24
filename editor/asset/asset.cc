@@ -3,12 +3,14 @@
 #include <fmt/format.h>
 #include <imgui.h>
 #include <nlohmann/json_fwd.hpp>
+#include <algorithm>
 #include "core/container/kstring.h"
 #include "core/misc/type_name.h"
 #include "core/misc/uuid.h"
 #include "core/resource/world_setting.h"
 #include "core/serialize/json_impl.h"
 #include "editor/editor.h"
+#include "editor/gui/editor_ui.h"
 #include <spdlog/spdlog.h>
 
 namespace Seed {
@@ -27,7 +29,12 @@ ModelInspector::ModelInspector(ResourceConfiguration &config)
     }
 }
 void ModelInspector::draw_inspector() {
-    ImGui::TextUnformatted("Materials");
+    EditorUI::section("Materials");
+    if (materials.empty()) {
+        ImGui::TextDisabled("No materials.");
+        return;
+    }
+
     for (auto &mat : materials) {
         ImGui::TextUnformatted(mat.name.data());
         drag_uuid("diffuse", mat.diffuse);
@@ -72,8 +79,6 @@ void WorldCreatePopup::create_world() {
 
 void WorldCreatePopup::draw() {
     if (!should_close) ImGui::OpenPopup("##new_world_modal");
-
-    // Center the modal
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(360, 0), ImGuiCond_Appearing);
@@ -82,29 +87,27 @@ void WorldCreatePopup::draw() {
     if (ImGui::BeginPopupModal(
             "##new_world_modal", &open,
             ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize)) {
-        // Title row
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.75f, 0.85f, 1.f, 1.f));
-        ImGui::Text("New World");
-        ImGui::PopStyleColor();
+        {
+            EditorUI::ScopedStyleColor title_color(
+                ImGuiCol_Text, ImVec4(0.75f, 0.85f, 1.f, 1.f));
+            ImGui::TextUnformatted("New World");
+        }
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Name
-        ImGui::Text("Name");
-        ImGui::PushItemWidth(-1);
+        ImGui::TextUnformatted("Name");
+        ImGui::SetNextItemWidth(-1);
         ImGui::InputText("##nt_name", new_world_name, 64);
-        ImGui::PopItemWidth();
 
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
 
-        ImGui::Spacing();
-        ImGui::Spacing();
-
-        // Footer buttons — right-aligned
-        float btn_w = 90.f;
-        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - btn_w * 2 + 24);
+        f32 btn_w = 90.f;
+        f32 footer_w = btn_w * 2.f + 8.f;
+        ImGui::SetCursorPosX(
+            ImGui::GetCursorPosX() +
+            std::max(0.f, ImGui::GetContentRegionAvail().x - footer_w));
 
         if (ImGui::Button("Cancel", ImVec2(btn_w, 0))) {
             should_close = true;
@@ -112,22 +115,23 @@ void WorldCreatePopup::draw() {
         }
         ImGui::SameLine(0, 8);
 
-        ImGui::PushStyleColor(ImGuiCol_Button,
-                              ImVec4(0.15f, 0.35f, 0.60f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                              ImVec4(0.20f, 0.42f, 0.72f, 1.f));
-        if (ImGui::Button("Create", ImVec2(btn_w, 0))) {
-            create_world();
-            should_close = true;
-            ImGui::CloseCurrentPopup();
+        {
+            EditorUI::ScopedStyleColor button(ImGuiCol_Button,
+                                              ImVec4(0.15f, 0.35f, 0.60f, 1.f));
+            EditorUI::ScopedStyleColor hovered(
+                ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.42f, 0.72f, 1.f));
+            EditorUI::DisabledScope disabled(new_world_name[0] == '\0');
+            if (ImGui::Button("Create", ImVec2(btn_w, 0))) {
+                create_world();
+                should_close = true;
+                ImGui::CloseCurrentPopup();
+            }
         }
-        ImGui::PopStyleColor(2);
 
         ImGui::EndPopup();
     }
 
-    if (!open) should_close = false;
+    if (!open) should_close = true;
 }
-
 
 }  // namespace Seed

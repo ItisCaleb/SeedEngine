@@ -1,8 +1,11 @@
 #include "editor_terrain.h"
+#include <stb_image.h>
 #include <fmt/format.h>
 #include "core/ref.h"
 #include "core/rendering/render_common.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/resource/image.h"
+#include "core/resource/resource_loader.h"
 #include "core/resource/texture.h"
 #include "editor/editor_storage.h"
 
@@ -16,9 +19,15 @@ namespace Seed {
 #define HEIGHT_OFFSET (-128)
 #define HEIGHT_SCALE (1)
 
-EditorTerrainMaterial::EditorTerrainMaterial(Ref<Texture> height_map)
+EditorTerrainMaterial::EditorTerrainMaterial(Ref<TextureArray> heightmaps,
+                                             Ref<TextureArray> controlmaps,
+                                             Ref<TextureArray> textures,
+                                             Ref<TextureArray> texture_normals)
     : Material(ES::get_instance()->editor_terrain_shader) {
-    this->set_texture("height_map", height_map);
+    this->set_texture("height_map", ref_cast<Texture>(heightmaps));
+    this->set_texture("control_map", ref_cast<Texture>(controlmaps));
+    this->set_texture("textures", ref_cast<Texture>(textures));
+    this->set_texture("texture_normals", ref_cast<Texture>(texture_normals));
     this->raster_state = {.cull_mode = Cullmode::FRONT,
                           .patch_control_points = 4};
 }
@@ -64,7 +73,22 @@ void EditorTerrain::build_mesh() {
 EditorTerrain::EditorTerrain() {
     heightmaps.create(TextureType::TEXTURE_2D_ARRAY, HEIGHTMAP_SIZE,
                       HEIGHTMAP_SIZE, 256, PixelFormat::RG, SamplerProperty{});
-    material.create(ref_cast<Texture>(heightmaps));
+    controlmaps.create(TextureType::TEXTURE_2D_ARRAY, HEIGHTMAP_SIZE,
+                       HEIGHTMAP_SIZE, 256, PixelFormat::RGBA,
+                       SamplerProperty{.min_filter = SamplerFilter::NEAREST,
+                                       .mag_filter = SamplerFilter::NEAREST});
+    textures.create(TextureType::TEXTURE_2D_ARRAY, EDITOR_TERRAIN_TEXTURE_SIZE,
+                    EDITOR_TERRAIN_TEXTURE_SIZE, EDITOR_TERRAIN_TEXTURE_LAYERS,
+                    PixelFormat::RGBA,
+                    SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+                                    .wrap_v = SamplerWrap::REPEAT});
+    texture_normals.create(TextureType::TEXTURE_2D_ARRAY,
+                           EDITOR_TERRAIN_TEXTURE_SIZE,
+                           EDITOR_TERRAIN_TEXTURE_SIZE,
+                           EDITOR_TERRAIN_TEXTURE_LAYERS, PixelFormat::RGBA,
+                           SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+                                           .wrap_v = SamplerWrap::REPEAT});
+    material.create(heightmaps, controlmaps, textures, texture_normals);
 
     this->instances.create();
 
@@ -72,9 +96,12 @@ EditorTerrain::EditorTerrain() {
     this->mesh->set_material(ref_cast<Material>(material));
 }
 
-void EditorTerrain::add_chunk(i32 x, i32 y, Ref<Image> height_map) {
+void EditorTerrain::add_chunk(i32 x, i32 y, Ref<Image> height_map,
+                              Ref<Image> control_map) {
     heightmaps->update_layer(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE, last_heightmap,
                              height_map->get_data());
+    controlmaps->update_layer(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE, last_heightmap,
+                              control_map->get_data());
 
     f32 max_height = -FLT_MAX;
     f32 min_height = FLT_MAX;
@@ -110,101 +137,47 @@ void EditorTerrain::update_chunk_heightmap(u32 chunk_index,
                              height_map->get_data());
 }
 
-// void EditorTerrain::gen_lightmap() {
-//     Ref<Image> terrain_shadow_map(PixelFormat::RGBA, this->hmap_width,
-//                                   this->hmap_height);
+void EditorTerrain::update_chunk_controlmap(u32 chunk_index,
+                                            Ref<Image> control_map) {
+    if (control_map.is_null()) return;
+    controlmaps->update_layer(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE, chunk_index,
+                              control_map->get_data());
+}
 
-//     auto get_height = [&](Vec2 p) {
-//         return heightmap_texture->pixel(p.x, p.y)[1];
-//     };
+static bool update_terrain_texture_array_layer(Ref<TextureArray> texture_array,
+                                               u32 layer, UUID texture,
+                                               bool force_rgba,
+                                               u32 expected_pixel_size) {
+    if (texture_array.is_null() || texture.is_null() ||
+        layer >= EDITOR_TERRAIN_TEXTURE_LAYERS) {
+        return false;
+    }
 
-//     auto angle = [&](Vec2 p, Vec2 q) {
-//         f32 dist_sqr = (q - p).length_sqr();
-//         f32 ph = get_height(p);
-//         f32 qh = get_height(q);
-//         f32 dh = qh - ph;
-//         f32 angle = dh / sqrt(dh * dh + dist_sqr);
-//         return angle;
-//     };
+    RHI::UpdateBufferInfo info =
+        ResourceLoader::get_instance()->load_image_to_upload(texture,
+                                                             force_rgba);
+    if (info.data == nullptr) return false;
 
-//     auto slope = [&](Vec2 p, Vec2 q) {
-//         f32 dist = (q - p).length();
-//         f32 ph = get_height(p);
-//         f32 qh = get_height(q);
-//         f32 dh = qh - ph;
-//         f32 slope = dh / dist;
-//         return slope;
-//     };
-//     auto calculate_lightmap = [&](Vec3 light_dir, u32 light_map_channel) {
-//         std::vector<Vec2> starts;
+    if (info.image.w != EDITOR_TERRAIN_TEXTURE_SIZE ||
+        info.image.h != EDITOR_TERRAIN_TEXTURE_SIZE ||
+        info.image.pixel_size != expected_pixel_size) {
+        stbi_image_free(info.data);
+        return false;
+    }
 
-//         if (light_dir.x > 0) {
-//             for (int z = 0; z < this->hmap_height; ++z)
-//                 starts.push_back({0.0f, (float)z});
-//         } else if (light_dir.x < 0) {
-//             for (int z = 0; z < this->hmap_height; ++z)
-//                 starts.push_back({(float)(hmap_width - 1), (float)z});
-//         }
+    RHI::update_from_heap(texture_array->get_handle(), layer, 0, 0, info);
+    return true;
+}
 
-//         if (light_dir.z > 0) {
-//             for (int x = 0; x < this->hmap_width; ++x)
-//                 starts.push_back({(float)x, 0.0f});
-//         } else if (light_dir.z < 0) {
-//             for (int x = 0; x < this->hmap_width; ++x)
-//                 starts.push_back({(float)x, (float)(this->hmap_height - 1)});
-//         }
-//         std::deque<Vec2> hull;
+bool EditorTerrain::update_texture_layer(u32 layer, UUID texture) {
+    return update_terrain_texture_array_layer(textures, layer, texture, true,
+                                              4);
+}
 
-//         for (Vec2 &sp : starts) {
-//             f32 row = sp.y;
-//             f32 col = sp.x;
-//             row += light_dir.z;
-//             col += light_dir.x;
-//             i32 irow = row;
-//             i32 icol = col;
-//             hull.clear();
-//             while (icol >= 0 && icol < this->hmap_width && irow >= 0 &&
-//                    irow < this->hmap_height) {
-//                 Vec2 cur = Vec2{col, row};
-//                 while (hull.size() >= 2 &&
-//                        slope(cur, hull[0]) < slope(cur, hull[1])) {
-//                     hull.pop_front();
-//                 }
-//                 if (hull.empty())
-//                     terrain_shadow_map->pixel(icol, irow)[light_map_channel]
-//                     =
-//                         0;
-//                 else {
-//                     f32 s = slope(cur, hull[0]);
-//                     terrain_shadow_map->pixel(icol, irow)[light_map_channel]
-//                     =
-//                         s > 0 ? 255 * angle(cur, hull[0]) : 0;
-//                 }
-
-//                 while (!hull.empty() && get_height(cur) >
-//                 get_height(hull[0])) {
-//                     hull.pop_front();
-//                 }
-//                 hull.push_front(cur);
-
-//                 col += light_dir.x;
-//                 row += light_dir.z;
-//                 icol = col;
-//                 irow = row;
-//             }
-//         }
-//     };
-//     calculate_lightmap(Vec3{1, 0, 0}, 0);
-//     calculate_lightmap(Vec3{-1, 0, 0}, 1);
-//     calculate_lightmap(Vec3{0, 0, 1}, 2);
-//     calculate_lightmap(Vec3{0, 0, -1}, 3);
-
-//     this->light_map =
-//         terrain_shadow_map->median_filter(7,
-//         true)->create_mappable_texture();
-//     light_map_generated = true;
-//     material->set_light_map(ref_cast<Texture>(this->light_map));
-// }
+bool EditorTerrain::update_normal_layer(u32 layer, UUID texture) {
+    return update_terrain_texture_array_layer(texture_normals, layer, texture,
+                                              false, 3);
+}
 
 EditorTerrain::~EditorTerrain() {}
 }  // namespace Seed

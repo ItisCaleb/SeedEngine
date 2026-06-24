@@ -1,4 +1,5 @@
 #include "world_renderer.h"
+#include "editor/world/editor_world.h"
 #include <cstring>
 #include "editor/editor.h"
 #include "core/engine.h"

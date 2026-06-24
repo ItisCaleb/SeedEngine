@@ -3,6 +3,7 @@
 #include "core/container/kstring.h"
 #include "core/misc/uuid.h"
 #include "editor/editor.h"
+#include "editor_ui.h"
 
 namespace Seed {
 
@@ -11,13 +12,12 @@ bool Inspectable::drag_uuid(KStr name, UUID &uuid) {
     ImGui::SameLine();
     KString uuid_text = uuid.to_string();
     ImGui::TextUnformatted(uuid_text.data());
-    if (ImGui::BeginDragDropTarget()) {
-        if (auto p = ImGui::AcceptDragDropPayload("UUID")) {
-            uuid = *(UUID *)p->Data;
-            return true;
-        }
+    bool changed = false;
+    uuid = EditorUI::accept_uuid();
+    if (!uuid.is_null()) {
+        changed = true;
     }
-    return false;
+    return changed;
 }
 
 void Inspector::update() {

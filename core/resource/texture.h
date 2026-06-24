@@ -73,6 +73,8 @@ class TextureArray : public Texture {
 
     public:
         void update_layer(u32 w, u32 h, u32 layer, const void *data);
+        void update_layer(u32 layer, RHI::UpdateBufferInfo info);
+
         TextureArray(TextureType type, u32 w, u32 h, u32 layers,
                      PixelFormat format)
             : TextureArray(type, w, h, layers, format, SamplerProperty{}) {};

@@ -224,11 +224,12 @@ RHI::UpdateBufferInfo ResourceLoader::load_image_to_upload(UUID uuid,
     if (!entry) return info;
     Path path = entry->real_path();
     i32 w, h, comp;
-    void *_data = stbi_load(path.data(), &w, &h, &comp, 4);
+    void *_data = stbi_load(path.data(), &w, &h, &comp, force_rgba ? 4 : 0);
+    comp = force_rgba ? 4 : comp;
     info.data = _data;
     info.image.w = w;
     info.image.h = h;
-    info.image.pixel_size = 4;
+    info.image.pixel_size = comp;
     return info;
 }
 
@@ -345,6 +346,8 @@ Ref<Resource> ResourceLoader::load_world(ResourceLoader &loader,
     Ref<WorldSetting> world;
     world.create();
     world->name = j.value<KString>("name", "");
+    world->terrain_textures = j.value("terrain_textures", std::vector<UUID>{});
+    world->terrain_normals = j.value("terrain_normals", std::vector<UUID>{});
 
     auto read_sky = [&](const nlohmann::json &j) -> SkySetting {
         SkySetting sky;
@@ -396,6 +399,7 @@ Ref<Resource> ResourceLoader::load_world(ResourceLoader &loader,
         chunk.x = j.value("x", 0);
         chunk.y = j.value("y", 0);
         chunk.height_map = j.value("height_map", UUID{});
+        chunk.control_map = j.value("control_map", UUID{});
 
         if (j.contains("position_lights") && j["position_lights"].is_array()) {
             for (const auto &light_j : j["position_lights"]) {

@@ -13,6 +13,7 @@ class Inspectable {
     public:
         Inspectable() = default;
         Inspectable(ResourceConfiguration *config) : config(config) {}
+        virtual ~Inspectable() = default;
         virtual void draw_inspector() {}
         virtual void save() {};
 };

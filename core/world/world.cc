@@ -7,6 +7,7 @@
 #include "core/ref.h"
 #include "core/rendering/instance_data.h"
 #include "core/rendering/mesh_storage.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/resource/animation.h"
 #include "core/resource/model.h"
 #include "core/resource/texture.h"
@@ -155,6 +156,7 @@ World::World() {
 
 void World::load_setting(Ref<WorldSetting> setting) {
     this->setting = setting;
+    ResourceLoader *loader = ResourceLoader::get_instance();
     Ref<TextureCubemap> sky_cubemap =
         ResourceLoader::get_instance()->load_cubemap(
             2048, 2048, setting->sky.right, setting->sky.left, setting->sky.up,
@@ -164,9 +166,20 @@ void World::load_setting(Ref<WorldSetting> setting) {
                                        setting->dir_light.diffuse,
                                        setting->dir_light.specular, true);
     for (ChunkSetting &chunk : setting->chunks) {
-        Ref<Image> heightmap =
-            ResourceLoader::get_instance()->load<Image>(chunk.height_map);
-        terrain->add_chunk(chunk.x, chunk.y, heightmap);
+        Ref<Image> heightmap = loader->load<Image>(chunk.height_map);
+        Ref<Image> control_map = loader->load<Image>(chunk.control_map);
+        terrain->add_chunk(chunk.x, chunk.y, heightmap, control_map);
+    }
+    u32 i = 0;
+    for (u32 i = 0; i < setting->terrain_textures.size(); i++) {
+        RHI::UpdateBufferInfo tex_info =
+            loader->load_image_to_upload(setting->terrain_textures[i], true);
+        RHI::UpdateBufferInfo norm_info =
+            loader->load_image_to_upload(setting->terrain_normals[i], true);
+
+        terrain->get_material()->get_textures()->update_layer(i, tex_info);
+        terrain->get_material()->get_texture_normals()->update_layer(i,
+                                                                     norm_info);
     }
 }
 

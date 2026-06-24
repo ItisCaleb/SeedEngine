@@ -18,19 +18,23 @@ namespace Seed {
 #define HEIGHTMAP_INNER_FIRST (HEIGHTMAP_BORDER)
 #define HEIGHT_OFFSET (-128)
 #define HEIGHT_SCALE (1)
+#define TERRAIN_TEXTURE_SIZE (1024)
+#define TERRAIN_TEXTURE_LAYERS (16)
 
-TerrainMaterial::TerrainMaterial(Ref<Texture> height_map)
+TerrainMaterial::TerrainMaterial(Ref<TextureArray> heightmaps,
+                                 Ref<TextureArray> controlmaps,
+                                 Ref<TextureArray> textures,
+                                 Ref<TextureArray> texture_normals)
     : Material(DS::get_instance()->terrain_shader) {
-    this->set_texture("height_map", height_map);
+    this->set_texture("height_map", ref_cast<Texture>(heightmaps));
+    this->set_texture("control_map", ref_cast<Texture>(controlmaps));
+    this->set_texture("textures", ref_cast<Texture>(textures));
+    this->set_texture("texture_normals", ref_cast<Texture>(texture_normals));
+    this->textures = textures;
+    this->texture_normals = texture_normals;
     this->raster_state = {.cull_mode = Cullmode::BACK,
                           .patch_control_points = 4};
     this->depth_state = {.depth_mode = DepthMode::OPAQUE};
-}
-void TerrainMaterial::set_height_map(Ref<Texture> height_map) {
-    this->set_texture("height_map", height_map);
-}
-Ref<Texture> TerrainMaterial::get_height_map() {
-    return this->get_texture("height_map");
 }
 
 void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {
@@ -112,7 +116,21 @@ void Terrain::build_mesh() {
 Terrain::Terrain() {
     heightmaps.create(TextureType::TEXTURE_2D_ARRAY, HEIGHTMAP_SIZE,
                       HEIGHTMAP_SIZE, 256, PixelFormat::RG, SamplerProperty{});
-    material.create(ref_cast<Texture>(heightmaps));
+    controlmaps.create(TextureType::TEXTURE_2D_ARRAY, HEIGHTMAP_SIZE,
+                       HEIGHTMAP_SIZE, 256, PixelFormat::RGBA,
+                       SamplerProperty{.min_filter = SamplerFilter::NEAREST,
+                                       .mag_filter = SamplerFilter::NEAREST});
+    textures.create(TextureType::TEXTURE_2D_ARRAY, TERRAIN_TEXTURE_SIZE,
+                    TERRAIN_TEXTURE_SIZE, TERRAIN_TEXTURE_LAYERS,
+                    PixelFormat::RGBA,
+                    SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+                                    .wrap_v = SamplerWrap::REPEAT});
+    texture_normals.create(TextureType::TEXTURE_2D_ARRAY, TERRAIN_TEXTURE_SIZE,
+                           TERRAIN_TEXTURE_SIZE, TERRAIN_TEXTURE_LAYERS,
+                           PixelFormat::RGBA,
+                           SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
+                                           .wrap_v = SamplerWrap::REPEAT});
+    material.create(heightmaps, controlmaps, textures, texture_normals);
     this->instances.create();
 
     build_mesh();
@@ -121,9 +139,11 @@ Terrain::Terrain() {
         this->mesh, ref_cast<InstanceData>(this->instances));
 }
 
-void Terrain::add_chunk(i32 x, i32 y, Ref<Image> height_map) {
+void Terrain::add_chunk(i32 x, i32 y, Ref<Image> height_map, Ref<Image> control_map) {
     heightmaps->update_layer(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE, last_heightmap,
                              height_map->get_data());
+    controlmaps->update_layer(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE, last_heightmap,
+                             control_map->get_data());
 
     f32 max_height = -FLT_MAX;
     f32 min_height = FLT_MAX;

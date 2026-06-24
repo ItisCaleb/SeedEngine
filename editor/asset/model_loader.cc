@@ -99,7 +99,7 @@ void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
     EditorMesh &m = meshes.emplace_back(EditorMesh{});
     std::vector<ModelVertex> &vertices = m.vertices;
     std::vector<u32> &indices = m.indices;
-    for (int i = 0; i < mesh->mNumVertices; i++) {
+    for (i32 i = 0; i < mesh->mNumVertices; i++) {
         aiVector3D ai_vertex = mesh->mVertices[i];
         aiVector3D *ai_tex_coord = mesh->mTextureCoords[0];
         ModelVertex vertex;
@@ -115,9 +115,9 @@ void EditorModel::processMesh(aiMesh *mesh, const aiScene *scene) {
         }
         vertices.push_back(vertex);
     }
-    for (int i = 0; i < mesh->mNumFaces; i++) {
+    for (i32 i = 0; i < mesh->mNumFaces; i++) {
         aiFace face = mesh->mFaces[i];
-        for (int j = 0; j < face.mNumIndices; j++)
+        for (i32 j = 0; j < face.mNumIndices; j++)
             indices.push_back(face.mIndices[j]);
     }
     m.material_id = mesh->mMaterialIndex;
@@ -128,7 +128,7 @@ void EditorModel::processBoneMesh(aiMesh *mesh, const aiScene *scene) {
     std::vector<SkeletonVertex> &vertices = m.vertices;
     std::vector<u32> &indices = m.indices;
     std::vector<u32> vertice_weights;
-    for (int i = 0; i < mesh->mNumVertices; i++) {
+    for (i32 i = 0; i < mesh->mNumVertices; i++) {
         aiVector3D ai_vertex = mesh->mVertices[i];
         aiVector3D *ai_tex_coord = mesh->mTextureCoords[0];
         SkeletonVertex vertex;
@@ -169,16 +169,16 @@ void EditorModel::processBoneMesh(aiMesh *mesh, const aiScene *scene) {
             }
         }
     }
-    for (int i = 0; i < mesh->mNumFaces; i++) {
+    for (i32 i = 0; i < mesh->mNumFaces; i++) {
         aiFace face = mesh->mFaces[i];
-        for (int j = 0; j < face.mNumIndices; j++)
+        for (i32 j = 0; j < face.mNumIndices; j++)
             indices.push_back(face.mIndices[j]);
     }
     m.material_id = mesh->mMaterialIndex;
 }
 
 void EditorModel::processNode(aiNode *node, const aiScene *scene) {
-    for (int i = 0; i < node->mNumMeshes; i++) {
+    for (i32 i = 0; i < node->mNumMeshes; i++) {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
         if (mesh->mBones) {
             processBoneMesh(mesh, scene);
@@ -186,7 +186,7 @@ void EditorModel::processNode(aiNode *node, const aiScene *scene) {
             processMesh(mesh, scene);
         }
     }
-    for (int i = 0; i < node->mNumChildren; i++) {
+    for (i32 i = 0; i < node->mNumChildren; i++) {
         processNode(node->mChildren[i], scene);
     }
 }
@@ -239,13 +239,13 @@ void EditorModel::processBoneHierachy(aiNode *node, const aiScene *scene,
         this->bone_map[name] = parent_id;
         this->bones.push_back(bone);
     }
-    for (int i = 0; i < node->mNumChildren; i++) {
+    for (i32 i = 0; i < node->mNumChildren; i++) {
         processBoneHierachy(node->mChildren[i], scene, parent_id);
     }
 }
 
 void EditorModel::collectBoneNames(aiNode *node, const aiScene *scene) {
-    for (int i = 0; i < node->mNumMeshes; i++) {
+    for (i32 i = 0; i < node->mNumMeshes; i++) {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
         if (mesh->mBones) {
             for (u32 i = 0; i < mesh->mNumBones; i++) {
@@ -254,7 +254,7 @@ void EditorModel::collectBoneNames(aiNode *node, const aiScene *scene) {
             }
         }
     }
-    for (int i = 0; i < node->mNumChildren; i++) {
+    for (i32 i = 0; i < node->mNumChildren; i++) {
         collectBoneNames(node->mChildren[i], scene);
     }
 }

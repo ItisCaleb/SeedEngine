@@ -5,7 +5,7 @@
 
 namespace Seed {
 ModelRenderer::ModelRenderer(Ref<Texture> screen_texture,
-                                             Ref<Texture> screen_depth) {
+                             Ref<Texture> screen_depth) {
     this->screen_tex = screen_texture;
     this->screen_depth = screen_depth;
 }
@@ -15,13 +15,13 @@ void ModelRenderer::init(Window *window) {
                        screen_depth->get_height(), PixelFormat::RGBA16I,
                        nullptr);
     color_pass.setup(screen_tex, screen_depth, picking_tex);
-    visible_ssbo = RHI::alloc_storage_buffer(sizeof(int) * 1024,
+    visible_ssbo = RHI::alloc_storage_buffer(sizeof(i32) * 1024,
                                              UpdateFrequence::PERFRAME);
     mvp = RHI::alloc_constant(sizeof(Mat4) * 2, UpdateFrequence::PERFRAME);
 
     transform_ssbo = RenderEngine::get_instance()
-                       ->get_instance_pool(TRANSFORM_POOL_NAME)
-                       ->get_render_buffer();
+                         ->get_instance_pool(TRANSFORM_POOL_NAME)
+                         ->get_render_buffer();
 }
 void ModelRenderer::preprocess() {
     EditorModel *model = gEditor->asset_viewer.current_model;
@@ -35,8 +35,7 @@ void ModelRenderer::preprocess() {
     fd.screen_w = screen_tex->get_width();
     fd.screen_h = screen_tex->get_height();
     /* check instance mesh size > 0 */
-    if (instance.is_null() ||
-        !instance.is_null() && instance->size() == 0) {
+    if (instance.is_null() || !instance.is_null() && instance->size() == 0) {
         return;
     }
     Camera *cam = &SeedEngine::get_instance()->get_world()->get_camera();
@@ -67,8 +66,7 @@ void ModelRenderer::_process(RenderCommandDispatcher &dp) {
 void ModelRenderer::cleanup() {}
 
 void ModelRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
-                                               Viewport &viewport,
-                                               FrameData &fd) {
+                                       Viewport &viewport, FrameData &fd) {
     if (fd.mesh.is_null()) {
         return;
     }

@@ -48,6 +48,7 @@ Editor::Editor() {
         if (project_cache.contains("last_open_world")) {
             world_editor.load_world(project_cache["last_open_world"]);
         }
+        scan_assets();
     }
 }
 
@@ -180,7 +181,7 @@ void Editor::save_project() {
 }  // namespace Seed
 
 using namespace Seed;
-int main(int, char **) {
+i32 main(i32, char **) {
     NFD_Init();
     // Main loop
     Seed::SeedEngine *engine = new Seed::SeedEngine(60.0f);

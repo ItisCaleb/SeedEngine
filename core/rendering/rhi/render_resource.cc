@@ -199,6 +199,7 @@ void update_from_heap(SSBOHandle handle, u32 offset, UpdateBufferInfo info) {
 void update_from_heap(TextureHandle handle, u32 layer, u32 offx, u32 offy,
                       UpdateBufferInfo info) {
     if (info.data == nullptr) {
+        spdlog::warn("Trying to upload heap with null data, skipping.");
         return;
     }
     RenderEngine::get_instance()->get_device()->update(

@@ -60,7 +60,7 @@ void EditorCameraBehaviour::update(f32 dt) {
         if (pos.y <= 1000) pos.y += speed;
     }
     if (input->is_key_pressed(KeyCode::EQUAL)) {
-        if (pos.y >= 200) pos.y -= speed;
+        if (pos.y >= 10) pos.y -= speed;
     }
 
     cam->set_position(pos);

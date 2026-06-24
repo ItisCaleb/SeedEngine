@@ -98,6 +98,48 @@ void Image::download(Ref<Texture> texture) {
     EXPECT_NOT_NULL_RET(texture.ptr());
 }
 
+bool Image::copy_column(Ref<Image> dst, u32 src_x, u32 src_y, u32 dst_x,
+                        u32 dst_y, u32 count) {
+    if (this->format != dst->format) {
+        spdlog::warn("Copying column for different format image");
+        return false;
+    }
+
+    /* check within size */
+    if (src_x >= this->width || src_y >= this->height || dst_x >= dst->width ||
+        dst_y >= dst->height) {
+        return false;
+    }
+    if (src_y + count > this->height || dst_y + count > dst->height) {
+        return false;
+    }
+    u32 pixel_size = get_pixel_format_size(format);
+    for (u32 i = 0; i < count; i++) {
+        memcpy(dst->pixel(dst_x, dst_y + i), pixel(src_x, src_y + i),
+               pixel_size);
+    }
+    return true;
+}
+bool Image::copy_row(Ref<Image> dst, u32 src_x, u32 src_y, u32 dst_x, u32 dst_y,
+                     u32 count) {
+    if (this->format != dst->format) {
+        spdlog::warn("Copying row for different format image");
+        return false;
+    }
+
+    /* check within size */
+    if (src_x >= this->width || src_y >= this->height || dst_x >= dst->width ||
+        dst_y >= dst->height) {
+        return false;
+    }
+    if (src_x + count > this->width || dst_x + count > dst->width) {
+        return false;
+    }
+    u32 pixel_size = get_pixel_format_size(format);
+    memcpy(dst->pixel(dst_x, dst_y), pixel(src_x, src_y), pixel_size * count);
+    return true;
+}
+
 Ref<Image> Image::median_filter(u32 kernel_size, bool process_alpha) {
     Ref<Image> output;
 
@@ -204,8 +246,8 @@ Ref<Image> Image::median_filter(u32 kernel_size, bool process_alpha) {
     return output;
 }
 
-__attribute__((target("no-avx512f,no-avx512vl,no-avx512bw")))
-Ref<Image> Image::downscale(u32 w, u32 h) {
+__attribute__((target("no-avx512f,no-avx512vl,no-avx512bw"))) Ref<Image>
+Image::downscale(u32 w, u32 h) {
     if (w >= this->width || h >= this->height) {
         return Ref<Image>(this);
     }
@@ -216,9 +258,9 @@ Ref<Image> Image::downscale(u32 w, u32 h) {
     f32 h_ratio = (f32)this->width / w;
     f32 w_ratio = (f32)this->height / h;
     for (u32 y = 0; y < h; y++) {
-        float src_y = ((float)y + 0.5f) * h_ratio - 0.5f;
+        f32 src_y = ((f32)y + 0.5f) * h_ratio - 0.5f;
         i32 y0 = (i32)std::floor(src_y);
-        float ty = src_y - y0;
+        f32 ty = src_y - y0;
         if (y0 < 0) {
             y0 = 0;
             ty = 0.0f;
@@ -236,13 +278,13 @@ Ref<Image> Image::downscale(u32 w, u32 h) {
             i32 x1 = std::min(x0 + 1, source_w - 1);
 
             for (u32 c = 0; c < pixel_size; c++) {
-                float c00 = data[(y0 * source_w + x0) * pixel_size + c];
-                float c10 = data[(y0 * source_w + x1) * pixel_size + c];
-                float c01 = data[(y1 * source_w + x0) * pixel_size + c];
-                float c11 = data[(y1 * source_w + x1) * pixel_size + c];
-                float cx0 = c00 + (c10 - c00) * tx;
-                float cx1 = c01 + (c11 - c01) * tx;
-                float value = cx0 + (cx1 - cx0) * ty;
+                f32 c00 = data[(y0 * source_w + x0) * pixel_size + c];
+                f32 c10 = data[(y0 * source_w + x1) * pixel_size + c];
+                f32 c01 = data[(y1 * source_w + x0) * pixel_size + c];
+                f32 c11 = data[(y1 * source_w + x1) * pixel_size + c];
+                f32 cx0 = c00 + (c10 - c00) * tx;
+                f32 cx1 = c01 + (c11 - c01) * tx;
+                f32 value = cx0 + (cx1 - cx0) * ty;
                 target[(y * w + x) * pixel_size + c] =
                     (u8)std::clamp((i32)(value + 0.5f), 0, 255);
             }

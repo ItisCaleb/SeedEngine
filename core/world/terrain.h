@@ -24,10 +24,17 @@ struct TerrainInstance {
 };
 
 class TerrainMaterial : public Material {
+    private:
+        Ref<TextureArray> textures;
+        Ref<TextureArray> texture_normals;
     public:
-        TerrainMaterial(Ref<Texture> height_map);
-        void set_height_map(Ref<Texture> height_map);
-        Ref<Texture> get_height_map();
+        TerrainMaterial(Ref<TextureArray> heightmaps,
+                        Ref<TextureArray> controlmaps,
+                        Ref<TextureArray> textures,
+                        Ref<TextureArray> texture_normals);
+        Ref<TextureArray> get_textures() { return textures; }
+        Ref<TextureArray> get_texture_normals() { return texture_normals; }
+
 };
 
 class TerrainInstanceData : public InstanceData {
@@ -52,6 +59,9 @@ class Terrain : public RefCounted {
 
         std::vector<PhysicBody> bodies;
         Ref<TextureArray> heightmaps;
+        Ref<TextureArray> controlmaps;
+        Ref<TextureArray> textures;
+        Ref<TextureArray> texture_normals;
 
         Ref<TerrainMaterial> material;
         Ref<Mesh> mesh;
@@ -64,7 +74,8 @@ class Terrain : public RefCounted {
         Ref<TerrainMaterial> get_material() { return material; }
         Ref<TerrainInstanceData> get_instance() { return instances; }
         Ref<Mesh> get_mesh() { return mesh; }
-        void add_chunk(i32 x, i32 y, Ref<Image> height_map);
+        void add_chunk(i32 x, i32 y, Ref<Image> height_map,
+                       Ref<Image> control_map);
         ~Terrain();
 };
 

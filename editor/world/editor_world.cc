@@ -1,290 +1,23 @@
 #include "editor_world.h"
-#include <algorithm>
 #include <cstdio>
-#include <string>
+#include <fmt/format.h>
 #include <imgui.h>
 #include "core/engine.h"
-#include "core/serialize/json_impl.h"
+#include "core/resource/image.h"
 #include "core/resource/resource_loader.h"
+#include "core/serialize/json_impl.h"
 #include "editor/editor.h"
+#include "editor/gui/editor_ui.h"
 
 namespace Seed {
 
-using Json = nlohmann::ordered_json;
-
-static constexpr u32 EDITOR_HEIGHTMAP_INNER_SIZE = 257;
-static constexpr u32 EDITOR_HEIGHTMAP_BORDER = 1;
-static constexpr u32 EDITOR_HEIGHTMAP_SIZE =
-    EDITOR_HEIGHTMAP_INNER_SIZE + EDITOR_HEIGHTMAP_BORDER * 2;
-static constexpr u32 EDITOR_HEIGHTMAP_INNER_FIRST = EDITOR_HEIGHTMAP_BORDER;
-static constexpr u32 EDITOR_HEIGHTMAP_INNER_LAST =
-    EDITOR_HEIGHTMAP_INNER_FIRST + EDITOR_HEIGHTMAP_INNER_SIZE - 1;
-static constexpr u32 EDITOR_HEIGHTMAP_GHOST_FIRST = 0;
-static constexpr u32 EDITOR_HEIGHTMAP_GHOST_LAST = EDITOR_HEIGHTMAP_SIZE - 1;
-
-static void copy_sky_setting_to_editor(const SkySetting &setting,
-                                       EditorSky &sky) {
-    sky.up = setting.up;
-    sky.down = setting.down;
-    sky.left = setting.left;
-    sky.right = setting.right;
-    sky.front = setting.front;
-    sky.back = setting.back;
-    sky.cubemap = ResourceLoader::get_instance()->load_cubemap(
-        2048, 2048, sky.right, sky.left, sky.up, sky.down, sky.front,
-        sky.back);
-    sky.sky.create(sky.cubemap);
-}
-
-static void copy_editor_sky_to_setting(const EditorSky &sky,
-                                       SkySetting &setting) {
-    setting.up = sky.up;
-    setting.down = sky.down;
-    setting.left = sky.left;
-    setting.right = sky.right;
-    setting.front = sky.front;
-    setting.back = sky.back;
-}
-
-static i32 find_chunk_index_at(const std::vector<EditorChunk> &chunks, i32 x,
-                               i32 y) {
-    for (i32 i = 0; i < (i32)chunks.size(); i++) {
-        if (chunks[i].x == x && chunks[i].y == y) return i;
-    }
-    return -1;
-}
-
-static bool valid_heightmap(Ref<Image> heightmap) {
-    return !heightmap.is_null() &&
-           heightmap->get_width() >= EDITOR_HEIGHTMAP_SIZE &&
-           heightmap->get_height() >= EDITOR_HEIGHTMAP_SIZE;
-}
-
-static void copy_height_pixel(Ref<Image> src, u32 src_x, u32 src_y,
-                              Ref<Image> dst, u32 dst_x, u32 dst_y) {
-    u8 *src_pixel = src->pixel(src_x, src_y);
-    u8 *dst_pixel = dst->pixel(dst_x, dst_y);
-    dst_pixel[0] = src_pixel[0];
-    dst_pixel[1] = src_pixel[1];
-}
-
-static void copy_heightmap_column(Ref<Image> src, u32 src_x, u32 src_y,
-                                  Ref<Image> dst, u32 dst_x, u32 dst_y,
-                                  u32 count) {
-    if (!valid_heightmap(src) || !valid_heightmap(dst)) return;
-    for (u32 i = 0; i < count; i++) {
-        copy_height_pixel(src, src_x, src_y + i, dst, dst_x, dst_y + i);
-    }
-}
-
-static void copy_heightmap_row(Ref<Image> src, u32 src_x, u32 src_y,
-                               Ref<Image> dst, u32 dst_x, u32 dst_y,
-                               u32 count) {
-    if (!valid_heightmap(src) || !valid_heightmap(dst)) return;
-    for (u32 i = 0; i < count; i++) {
-        copy_height_pixel(src, src_x + i, src_y, dst, dst_x + i, dst_y);
-    }
-}
-
-static void clamp_heightmap_border(Ref<Image> heightmap) {
-    if (!valid_heightmap(heightmap)) return;
-
-    for (u32 y = EDITOR_HEIGHTMAP_INNER_FIRST;
-         y <= EDITOR_HEIGHTMAP_INNER_LAST; y++) {
-        copy_height_pixel(heightmap, EDITOR_HEIGHTMAP_INNER_FIRST, y,
-                          heightmap, EDITOR_HEIGHTMAP_GHOST_FIRST, y);
-        copy_height_pixel(heightmap, EDITOR_HEIGHTMAP_INNER_LAST, y, heightmap,
-                          EDITOR_HEIGHTMAP_GHOST_LAST, y);
-    }
-
-    for (u32 x = EDITOR_HEIGHTMAP_GHOST_FIRST;
-         x <= EDITOR_HEIGHTMAP_GHOST_LAST; x++) {
-        copy_height_pixel(heightmap, x, EDITOR_HEIGHTMAP_INNER_FIRST,
-                          heightmap, x, EDITOR_HEIGHTMAP_GHOST_FIRST);
-        copy_height_pixel(heightmap, x, EDITOR_HEIGHTMAP_INNER_LAST, heightmap,
-                          x, EDITOR_HEIGHTMAP_GHOST_LAST);
-    }
-}
-
-static void rebuild_heightmap_border(const std::vector<EditorChunk> &chunks,
-                                     std::vector<Ref<Image>> &heightmaps,
-                                     u32 chunk_index) {
-    if (chunk_index >= chunks.size() || chunk_index >= heightmaps.size() ||
-        !valid_heightmap(heightmaps[chunk_index])) {
-        return;
-    }
-
-    const EditorChunk &chunk = chunks[chunk_index];
-    Ref<Image> heightmap = heightmaps[chunk_index];
-    clamp_heightmap_border(heightmap);
-
-    i32 left = find_chunk_index_at(chunks, chunk.x - 1, chunk.y);
-    if (left >= 0 && (u32)left < heightmaps.size()) {
-        copy_heightmap_column(heightmaps[left], EDITOR_HEIGHTMAP_INNER_LAST - 1,
-                              EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
-                              EDITOR_HEIGHTMAP_GHOST_FIRST,
-                              EDITOR_HEIGHTMAP_INNER_FIRST,
-                              EDITOR_HEIGHTMAP_INNER_SIZE);
-    }
-
-    i32 right = find_chunk_index_at(chunks, chunk.x + 1, chunk.y);
-    if (right >= 0 && (u32)right < heightmaps.size()) {
-        copy_heightmap_column(heightmaps[right],
-                              EDITOR_HEIGHTMAP_INNER_FIRST + 1,
-                              EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
-                              EDITOR_HEIGHTMAP_GHOST_LAST,
-                              EDITOR_HEIGHTMAP_INNER_FIRST,
-                              EDITOR_HEIGHTMAP_INNER_SIZE);
-    }
-
-    i32 bottom = find_chunk_index_at(chunks, chunk.x, chunk.y - 1);
-    if (bottom >= 0 && (u32)bottom < heightmaps.size()) {
-        copy_heightmap_row(heightmaps[bottom], EDITOR_HEIGHTMAP_INNER_FIRST,
-                           EDITOR_HEIGHTMAP_INNER_LAST - 1, heightmap,
-                           EDITOR_HEIGHTMAP_INNER_FIRST,
-                           EDITOR_HEIGHTMAP_GHOST_FIRST,
-                           EDITOR_HEIGHTMAP_INNER_SIZE);
-    }
-
-    i32 top = find_chunk_index_at(chunks, chunk.x, chunk.y + 1);
-    if (top >= 0 && (u32)top < heightmaps.size()) {
-        copy_heightmap_row(heightmaps[top], EDITOR_HEIGHTMAP_INNER_FIRST,
-                           EDITOR_HEIGHTMAP_INNER_FIRST + 1, heightmap,
-                           EDITOR_HEIGHTMAP_INNER_FIRST,
-                           EDITOR_HEIGHTMAP_GHOST_LAST,
-                           EDITOR_HEIGHTMAP_INNER_SIZE);
-    }
-}
-
-static void copy_neighbor_edges_to_new_chunk(
-    const std::vector<EditorChunk> &chunks,
-    const std::vector<Ref<Image>> &heightmaps, i32 x, i32 y,
-    Ref<Image> heightmap) {
-    i32 left = find_chunk_index_at(chunks, x - 1, y);
-    if (left >= 0 && (u32)left < heightmaps.size()) {
-        copy_heightmap_column(heightmaps[left], EDITOR_HEIGHTMAP_INNER_LAST,
-                              EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
-                              EDITOR_HEIGHTMAP_INNER_FIRST,
-                              EDITOR_HEIGHTMAP_INNER_FIRST,
-                              EDITOR_HEIGHTMAP_INNER_SIZE);
-    }
-
-    i32 right = find_chunk_index_at(chunks, x + 1, y);
-    if (right >= 0 && (u32)right < heightmaps.size()) {
-        copy_heightmap_column(heightmaps[right], EDITOR_HEIGHTMAP_INNER_FIRST,
-                              EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
-                              EDITOR_HEIGHTMAP_INNER_LAST,
-                              EDITOR_HEIGHTMAP_INNER_FIRST,
-                              EDITOR_HEIGHTMAP_INNER_SIZE);
-    }
-
-    i32 bottom = find_chunk_index_at(chunks, x, y - 1);
-    if (bottom >= 0 && (u32)bottom < heightmaps.size()) {
-        copy_heightmap_row(heightmaps[bottom], EDITOR_HEIGHTMAP_INNER_FIRST,
-                           EDITOR_HEIGHTMAP_INNER_LAST, heightmap,
-                           EDITOR_HEIGHTMAP_INNER_FIRST,
-                           EDITOR_HEIGHTMAP_INNER_FIRST,
-                           EDITOR_HEIGHTMAP_INNER_SIZE);
-    }
-
-    i32 top = find_chunk_index_at(chunks, x, y + 1);
-    if (top >= 0 && (u32)top < heightmaps.size()) {
-        copy_heightmap_row(heightmaps[top], EDITOR_HEIGHTMAP_INNER_FIRST,
-                           EDITOR_HEIGHTMAP_INNER_FIRST, heightmap,
-                           EDITOR_HEIGHTMAP_INNER_FIRST,
-                           EDITOR_HEIGHTMAP_INNER_LAST,
-                           EDITOR_HEIGHTMAP_INNER_SIZE);
-    }
-}
-
-static void sync_loaded_heightmap_seams(std::vector<EditorChunk> &chunks,
-                                        std::vector<Ref<Image>> &heightmaps) {
-    for (u32 i = 0; i < chunks.size(); i++) {
-        if (i >= heightmaps.size() || !valid_heightmap(heightmaps[i])) {
-            continue;
-        }
-
-        EditorChunk &chunk = chunks[i];
-        i32 left = find_chunk_index_at(chunks, chunk.x - 1, chunk.y);
-        if (left >= 0 && (u32)left < heightmaps.size()) {
-            copy_heightmap_column(heightmaps[i], EDITOR_HEIGHTMAP_INNER_FIRST,
-                                  EDITOR_HEIGHTMAP_INNER_FIRST,
-                                  heightmaps[left],
-                                  EDITOR_HEIGHTMAP_INNER_LAST,
-                                  EDITOR_HEIGHTMAP_INNER_FIRST,
-                                  EDITOR_HEIGHTMAP_INNER_SIZE);
-        }
-
-        i32 bottom = find_chunk_index_at(chunks, chunk.x, chunk.y - 1);
-        if (bottom >= 0 && (u32)bottom < heightmaps.size()) {
-            copy_heightmap_row(heightmaps[i], EDITOR_HEIGHTMAP_INNER_FIRST,
-                               EDITOR_HEIGHTMAP_INNER_FIRST,
-                               heightmaps[bottom],
-                               EDITOR_HEIGHTMAP_INNER_FIRST,
-                               EDITOR_HEIGHTMAP_INNER_LAST,
-                               EDITOR_HEIGHTMAP_INNER_SIZE);
-        }
-    }
-
-    for (u32 i = 0; i < chunks.size(); i++) {
-        rebuild_heightmap_border(chunks, heightmaps, i);
-    }
-}
-
-static Json write_sky(const SkySetting &sky) {
-    Json j = Json::object();
-    j["up"] = sky.up;
-    j["down"] = sky.down;
-    j["left"] = sky.left;
-    j["right"] = sky.right;
-    j["front"] = sky.front;
-    j["back"] = sky.back;
-    return j;
-}
-
-static Json write_directional_light(const DirectionalLightSetting &light) {
-    Json j = Json::object();
-    j["direction"] = light.direction;
-    j["diffuse"] = light.diffuse;
-    j["specular"] = light.specular;
-    return j;
-}
-
-static Json write_point_light(const PointLightSetting &light) {
-    Json j = Json::object();
-    j["position"] = light.position;
-    j["diffuse"] = light.diffuse;
-    j["specular"] = light.specular;
-    return j;
-}
-
-static Json write_static_object(const StaticObjectSetting &object) {
-    Json j = Json::object();
-    j["name"] = object.name;
-    j["x"] = object.x;
-    j["y"] = object.y;
-    j["model"] = object.model;
-    return j;
-}
-
-static Json write_chunk(const ChunkSetting &chunk) {
-    Json j = Json::object();
-    j["x"] = chunk.x;
-    j["y"] = chunk.y;
-    j["height_map"] = chunk.height_map;
-
-    j["position_lights"] = Json::array();
-    for (const PointLightSetting &light : chunk.lights) {
-        j["position_lights"].push_back(write_point_light(light));
-    }
-
-    j["static_objects"] = Json::array();
-    for (const StaticObjectSetting &object : chunk.static_objects) {
-        j["static_objects"].push_back(write_static_object(object));
-    }
-
-    return j;
-}
+#define TILE_SIZE (257)
+#define TILE_BORDER (1)
+#define TILE_IMAGE_SIZE (TILE_SIZE + TILE_BORDER * 2)
+#define TILE_FIRST (TILE_BORDER)
+#define TILE_LAST (TILE_FIRST + TILE_SIZE - 1)
+#define TILE_PAD_FIRST (0)
+#define TILE_PAD_LAST (TILE_IMAGE_SIZE - 1)
 
 EditorWorld::EditorWorld(ResourceEntry *entry) : entry(entry) {
     if (entry != nullptr) {
@@ -295,79 +28,566 @@ EditorWorld::EditorWorld(ResourceEntry *entry) : entry(entry) {
     reload();
 }
 
-void EditorWorld::add_new_chunk(i32 x, i32 y) {
-    ResourceEntry *entry = gEditor->create_internal_asset(
-        fmt::format("{}_{}_{}.png", setting->name, x, y), type_id<Texture>());
-    Ref<Image> heightmap;
-    heightmap.create(PixelFormat::RG, EDITOR_HEIGHTMAP_SIZE,
-                     EDITOR_HEIGHTMAP_SIZE);
-    heightmap->fill(Color{64, 64}, EDITOR_HEIGHTMAP_SIZE,
-                    EDITOR_HEIGHTMAP_SIZE);
-    copy_neighbor_edges_to_new_chunk(setting->chunks, heightmaps, x, y,
-                                     heightmap);
+void EditorWorld::copy_sky_setting_to_editor(const SkySetting &setting) {
+    sky.up = setting.up;
+    sky.down = setting.down;
+    sky.left = setting.left;
+    sky.right = setting.right;
+    sky.front = setting.front;
+    sky.back = setting.back;
 
-    EditorChunk chunk;
+    ResourceLoader *loader = ResourceLoader::get_instance();
+    if (loader == nullptr) return;
+    sky.cubemap = loader->load_cubemap(2048, 2048, sky.right, sky.left, sky.up,
+                                       sky.down, sky.front, sky.back);
+    if (sky.cubemap.is_null()) return;
+    sky.sky.create(sky.cubemap);
+}
+
+void EditorWorld::copy_editor_sky_to_setting(SkySetting &setting) {
+    setting.up = sky.up;
+    setting.down = sky.down;
+    setting.left = sky.left;
+    setting.right = sky.right;
+    setting.front = sky.front;
+    setting.back = sky.back;
+}
+
+void EditorWorld::update_skybox_face(UUID uuid, CubemapFace face) {
+    if (uuid.is_null() || sky.cubemap.is_null()) return;
+
+    Ref<Image> image = ResourceLoader::get_instance()->load<Image>(uuid);
+    if (image.is_null()) return;
+    sky.cubemap->update_face(sky.cubemap->get_width(),
+                             sky.cubemap->get_height(), face,
+                             image->get_data());
+}
+
+void EditorTile::clamp_border(Ref<Image> image) {
+    if (image.is_null()) return;
+
+    image->copy_column(image, TILE_FIRST, TILE_FIRST, TILE_PAD_FIRST,
+                       TILE_FIRST, TILE_SIZE);
+    image->copy_column(image, TILE_LAST, TILE_FIRST, TILE_PAD_LAST, TILE_FIRST,
+                       TILE_SIZE);
+    image->copy_row(image, TILE_PAD_FIRST, TILE_FIRST, TILE_PAD_FIRST,
+                    TILE_PAD_FIRST, TILE_IMAGE_SIZE);
+    image->copy_row(image, TILE_PAD_FIRST, TILE_LAST, TILE_PAD_FIRST,
+                    TILE_PAD_LAST, TILE_IMAGE_SIZE);
+}
+
+void EditorTile::clamp_border() {
+    clamp_border(heightmap);
+    clamp_border(controlmap);
+}
+
+bool EditorTile::build_edge_from_image(Ref<Image> image, Ref<Image> source,
+                                       TileDirection direction) {
+    if (image.is_null() || source.is_null()) return false;
+
+    switch (direction) {
+        case TileDirection::LEFT:
+            return source->copy_column(image, TILE_LAST, TILE_FIRST, TILE_FIRST,
+                                       TILE_FIRST, TILE_SIZE);
+        case TileDirection::RIGHT:
+            return source->copy_column(image, TILE_FIRST, TILE_FIRST, TILE_LAST,
+                                       TILE_FIRST, TILE_SIZE);
+        case TileDirection::BOTTOM:
+            return source->copy_row(image, TILE_FIRST, TILE_LAST, TILE_FIRST,
+                                    TILE_FIRST, TILE_SIZE);
+        case TileDirection::UP:
+            return source->copy_row(image, TILE_FIRST, TILE_FIRST, TILE_FIRST,
+                                    TILE_LAST, TILE_SIZE);
+    }
+    return false;
+}
+
+bool EditorTile::build_edge_from_tile(EditorTile *tile,
+                                      TileDirection direction) {
+    if (tile == nullptr) return false;
+
+    bool copied = false;
+    if (build_edge_from_image(heightmap, tile->heightmap, direction)) {
+        copied = true;
+    }
+    if (build_edge_from_image(controlmap, tile->controlmap, direction)) {
+        copied = true;
+    }
+    return copied;
+}
+
+bool EditorTile::build_border_from_image(Ref<Image> image, Ref<Image> source,
+                                         TileDirection direction) {
+    if (image.is_null() || source.is_null()) return false;
+
+    switch (direction) {
+        case TileDirection::LEFT:
+            return source->copy_column(image, TILE_LAST - 1, TILE_FIRST,
+                                       TILE_PAD_FIRST, TILE_FIRST, TILE_SIZE);
+        case TileDirection::RIGHT:
+            return source->copy_column(image, TILE_FIRST + 1, TILE_FIRST,
+                                       TILE_PAD_LAST, TILE_FIRST, TILE_SIZE);
+        case TileDirection::BOTTOM:
+            return source->copy_row(image, TILE_FIRST, TILE_LAST - 1,
+                                    TILE_FIRST, TILE_PAD_FIRST, TILE_SIZE);
+        case TileDirection::UP:
+            return source->copy_row(image, TILE_FIRST, TILE_FIRST + 1,
+                                    TILE_FIRST, TILE_PAD_LAST, TILE_SIZE);
+    }
+    return false;
+}
+
+bool EditorTile::build_border_from_tile(EditorTile *tile,
+                                        TileDirection direction) {
+    if (tile == nullptr) return false;
+
+    bool copied = false;
+    if (build_border_from_image(heightmap, tile->heightmap, direction)) {
+        copied = true;
+    }
+    if (build_border_from_image(controlmap, tile->controlmap, direction)) {
+        copied = true;
+    }
+    return copied;
+}
+
+i32 EditorWorld::find_chunk_index_at(i32 x, i32 y) {
+    std::map<std::pair<i32, i32>, u32>::iterator iter =
+        pos_to_index.find(std::pair<i32, i32>(x, y));
+    if (iter == pos_to_index.end()) return -1;
+    return (i32)iter->second;
+}
+
+EditorTile *EditorWorld::get_tile_at(i32 x, i32 y) {
+    i32 index = find_chunk_index_at(x, y);
+    if (index < 0) return nullptr;
+    return get_tile((u32)index);
+}
+
+void EditorWorld::rebuild_tile_border(u32 chunk_index) {
+    if (setting.is_null() || chunk_index >= setting->chunks.size()) return;
+
+    EditorTile *tile = get_tile(chunk_index);
+    if (tile == nullptr) return;
+
+    const ChunkSetting &chunk = setting->chunks[chunk_index];
+    tile->clamp_border();
+    tile->build_border_from_tile(get_tile_at(chunk.x - 1, chunk.y),
+                                 EditorTile::TileDirection::LEFT);
+    tile->build_border_from_tile(get_tile_at(chunk.x + 1, chunk.y),
+                                 EditorTile::TileDirection::RIGHT);
+    tile->build_border_from_tile(get_tile_at(chunk.x, chunk.y - 1),
+                                 EditorTile::TileDirection::BOTTOM);
+    tile->build_border_from_tile(get_tile_at(chunk.x, chunk.y + 1),
+                                 EditorTile::TileDirection::UP);
+}
+
+void EditorWorld::sync_tile_neighbor(u32 chunk_index, i32 neighbor_index,
+                                     EditorTile::TileDirection direction,
+                                     std::set<u32> &touched_chunks) {
+    if (neighbor_index < 0) return;
+
+    EditorTile *tile = get_tile(chunk_index);
+    EditorTile *neighbor = get_tile((u32)neighbor_index);
+    if (tile == nullptr || neighbor == nullptr) return;
+
+    bool copied = false;
+    switch (direction) {
+        case EditorTile::TileDirection::LEFT:
+            copied = neighbor->build_edge_from_tile(
+                tile, EditorTile::TileDirection::RIGHT);
+            break;
+        case EditorTile::TileDirection::RIGHT:
+            copied = neighbor->build_edge_from_tile(
+                tile, EditorTile::TileDirection::LEFT);
+            break;
+        case EditorTile::TileDirection::BOTTOM:
+            copied = neighbor->build_edge_from_tile(
+                tile, EditorTile::TileDirection::UP);
+            break;
+        case EditorTile::TileDirection::UP:
+            copied = neighbor->build_edge_from_tile(
+                tile, EditorTile::TileDirection::BOTTOM);
+            break;
+    }
+
+    if (copied) touched_chunks.insert((u32)neighbor_index);
+}
+
+void EditorWorld::sync_tile_seams(std::set<u32> &touched_chunks) {
+    if (setting.is_null()) return;
+
+    std::set<u32> source_chunks = touched_chunks;
+    for (u32 chunk_index : source_chunks) {
+        if (chunk_index >= setting->chunks.size()) continue;
+
+        const ChunkSetting &chunk = setting->chunks[chunk_index];
+        sync_tile_neighbor(chunk_index,
+                           find_chunk_index_at(chunk.x - 1, chunk.y),
+                           EditorTile::TileDirection::LEFT, touched_chunks);
+        sync_tile_neighbor(chunk_index,
+                           find_chunk_index_at(chunk.x + 1, chunk.y),
+                           EditorTile::TileDirection::RIGHT, touched_chunks);
+        sync_tile_neighbor(chunk_index,
+                           find_chunk_index_at(chunk.x, chunk.y - 1),
+                           EditorTile::TileDirection::BOTTOM, touched_chunks);
+        sync_tile_neighbor(chunk_index,
+                           find_chunk_index_at(chunk.x, chunk.y + 1),
+                           EditorTile::TileDirection::UP, touched_chunks);
+    }
+
+    std::set<u32> border_chunks = touched_chunks;
+    for (u32 chunk_index : border_chunks) {
+        rebuild_tile_border(chunk_index);
+    }
+}
+
+void EditorWorld::sync_loaded_tile_seams() {
+    if (setting.is_null()) return;
+
+    std::set<u32> touched_chunks;
+    for (u32 i = 0; i < setting->chunks.size(); i++) {
+        EditorTile *tile = get_tile(i);
+        if (tile == nullptr || tile->heightmap.is_null()) continue;
+
+        touched_chunks.insert(i);
+        const ChunkSetting &chunk = setting->chunks[i];
+        sync_tile_neighbor(i, find_chunk_index_at(chunk.x - 1, chunk.y),
+                           EditorTile::TileDirection::LEFT, touched_chunks);
+        sync_tile_neighbor(i, find_chunk_index_at(chunk.x, chunk.y - 1),
+                           EditorTile::TileDirection::BOTTOM, touched_chunks);
+    }
+
+    for (u32 chunk_index : touched_chunks) {
+        rebuild_tile_border(chunk_index);
+    }
+}
+
+void EditorWorld::add_new_chunk(i32 x, i32 y) {
+    if (setting.is_null() || gEditor == nullptr) return;
+
+    ResourceEntry *heightmap_entry = gEditor->create_internal_asset(
+        fmt::format("{}_{}_{}.png", setting->name, x, y), type_id<Texture>());
+    if (heightmap_entry == nullptr) return;
+
+    ResourceEntry *controlmap_entry = gEditor->create_internal_asset(
+        fmt::format("{}_{}_{}_control.png", setting->name, x, y),
+        type_id<Texture>());
+    if (controlmap_entry == nullptr) return;
+
+    Ref<Image> heightmap;
+    heightmap.create(PixelFormat::RG, TILE_IMAGE_SIZE, TILE_IMAGE_SIZE);
+    heightmap->fill(Color{64, 64}, TILE_IMAGE_SIZE, TILE_IMAGE_SIZE);
+
+    Ref<Image> controlmap;
+    controlmap.create(PixelFormat::RGBA, TILE_IMAGE_SIZE, TILE_IMAGE_SIZE);
+    controlmap->fill(Color{0, 0, 0, 0}, TILE_IMAGE_SIZE, TILE_IMAGE_SIZE);
+
+    u32 chunk_index = (u32)setting->chunks.size();
+    ChunkSetting chunk;
     chunk.x = x;
     chunk.y = y;
-    chunk.height_map = entry->uuid;
+    chunk.height_map = heightmap_entry->uuid;
+    chunk.control_map = controlmap_entry->uuid;
     setting->chunks.push_back(chunk);
-    heightmaps.push_back(heightmap);
-    sync_loaded_heightmap_seams(setting->chunks, heightmaps);
+    pos_to_index[std::pair<i32, i32>(x, y)] = chunk_index;
 
-    terrain->add_chunk(chunk.x, chunk.y, heightmap);
-    heightmap->save_disk(entry->real_path());
+    EditorTile *tile = &tiles[chunk_index];
+    tile->heightmap = heightmap;
+    tile->controlmap = controlmap;
+    tile->build_edge_from_tile(get_tile_at(x - 1, y),
+                               EditorTile::TileDirection::LEFT);
+    tile->build_edge_from_tile(get_tile_at(x + 1, y),
+                               EditorTile::TileDirection::RIGHT);
+    tile->build_edge_from_tile(get_tile_at(x, y - 1),
+                               EditorTile::TileDirection::BOTTOM);
+    tile->build_edge_from_tile(get_tile_at(x, y + 1),
+                               EditorTile::TileDirection::UP);
+    rebuild_tile_border(chunk_index);
+
+    terrain->add_chunk(chunk.x, chunk.y, heightmap, controlmap);
+    heightmap->save_disk(heightmap_entry->real_path());
+    controlmap->save_disk(controlmap_entry->real_path());
+}
+
+void EditorWorld::read_chunk_controlmaps_from_config() {
+    if (config == nullptr || setting.is_null()) return;
+
+    nlohmann::ordered_json &j = config->get_json();
+    if (!j.contains("chunks") || !j["chunks"].is_array()) return;
+
+    u32 count = std::min((u32)setting->chunks.size(), (u32)j["chunks"].size());
+    for (u32 i = 0; i < count; i++) {
+        if (!j["chunks"][i].is_object()) continue;
+        setting->chunks[i].control_map =
+            j["chunks"][i].value("control_map", UUID{});
+    }
+}
+void EditorWorld::read_terrain_textures_from_config() {
+    if (config == nullptr || setting.is_null()) return;
+
+    nlohmann::ordered_json &j = config->get_json();
+    setting->terrain_textures =
+        j.value("terrain_textures", std::vector<UUID>{});
+    setting->terrain_normals = j.value("terrain_normals", std::vector<UUID>{});
+    normalize_terrain_palette_size();
+}
+
+void EditorWorld::normalize_terrain_palette_size() {
+    if (setting.is_null()) return;
+    setting->terrain_normals.resize(setting->terrain_textures.size());
+}
+
+EditorUI::TexturePreview EditorWorld::build_texture_preview(UUID texture_uuid) {
+    EditorUI::TexturePreview preview;
+    if (texture_uuid.is_null()) return preview;
+
+    ResourceLoader *loader = ResourceLoader::get_instance();
+    if (loader == nullptr) {
+        preview.failed = true;
+        return preview;
+    }
+
+    ResourceEntry *texture_entry =
+        loader->get_entries().get_entry(texture_uuid);
+    if (texture_entry == nullptr ||
+        texture_entry->type_id != type_id<Texture>()) {
+        preview.failed = true;
+        return preview;
+    }
+
+    Ref<Image> image = Image::load_from_file(texture_entry->real_path(), true);
+    if (image.is_null()) {
+        preview.failed = true;
+        return preview;
+    }
+
+    preview.width = image->get_width();
+    preview.height = image->get_height();
+    preview.texture = image->create_texture();
+    preview.failed = preview.texture.is_null();
+    return preview;
+}
+
+void EditorWorld::rebuild_terrain_texture_previews() {
+    terrain_texture_previews.clear();
+    terrain_normal_previews.clear();
+    if (setting.is_null()) return;
+
+    normalize_terrain_palette_size();
+    terrain_texture_previews.reserve(setting->terrain_textures.size());
+    terrain_normal_previews.reserve(setting->terrain_normals.size());
+    for (UUID texture_uuid : setting->terrain_textures) {
+        terrain_texture_previews.push_back(build_texture_preview(texture_uuid));
+    }
+    for (UUID normal_uuid : setting->terrain_normals) {
+        terrain_normal_previews.push_back(build_texture_preview(normal_uuid));
+    }
+    upload_terrain_palette_to_gpu();
+}
+
+bool EditorWorld::upload_terrain_texture_layer(u32 index) {
+    if (terrain.is_null() || setting.is_null() ||
+        index >= setting->terrain_textures.size() ||
+        index >= terrain_texture_previews.size()) {
+        return false;
+    }
+
+    UUID texture = setting->terrain_textures[index];
+    if (texture.is_null()) return true;
+    bool uploaded = terrain->update_texture_layer(index, texture);
+    terrain_texture_previews[index].upload_failed = !uploaded;
+    return uploaded;
+}
+
+bool EditorWorld::upload_terrain_normal_layer(u32 index) {
+    if (terrain.is_null() || setting.is_null() ||
+        index >= setting->terrain_normals.size() ||
+        index >= terrain_normal_previews.size()) {
+        return false;
+    }
+
+    UUID texture = setting->terrain_normals[index];
+    if (texture.is_null()) return true;
+    bool uploaded = terrain->update_normal_layer(index, texture);
+    terrain_normal_previews[index].upload_failed = !uploaded;
+    return uploaded;
+}
+
+void EditorWorld::upload_terrain_palette_to_gpu() {
+    if (setting.is_null()) return;
+
+    for (u32 i = 0; i < setting->terrain_textures.size(); i++) {
+        upload_terrain_texture_layer(i);
+        upload_terrain_normal_layer(i);
+    }
 }
 
 void EditorWorld::clear_tiles() {
+    if (setting.is_null()) return;
     setting->chunks.clear();
-    heightmaps.clear();
+    pos_to_index.clear();
+    tiles.clear();
     terrain->clear_chunks();
 }
 
 void EditorWorld::reload() {
     sky = {};
-    heightmaps.clear();
+    pos_to_index.clear();
+    tiles.clear();
+    terrain_texture_previews.clear();
+    terrain_normal_previews.clear();
     terrain->clear_chunks();
     if (entry == nullptr) return;
 
-    Ref<WorldSetting> loaded =
-        ResourceLoader::get_instance()->load<WorldSetting>(entry->uuid);
+    ResourceLoader *loader = ResourceLoader::get_instance();
+    if (loader == nullptr) return;
+
+    Ref<WorldSetting> loaded = loader->load<WorldSetting>(entry->uuid);
     if (!loaded.is_null()) {
         setting = loaded;
     }
 
-    copy_sky_setting_to_editor(setting->sky, sky);
+    read_chunk_controlmaps_from_config();
+    read_terrain_textures_from_config();
+    rebuild_terrain_texture_previews();
+
+    copy_sky_setting_to_editor(setting->sky);
     apply_directional_light_to_runtime();
 
-    for (EditorChunk &chunk : setting->chunks) {
-        Ref<Image> heightmap =
-            ResourceLoader::get_instance()->load<Image>(chunk.height_map);
-        heightmaps.push_back(heightmap);
+    for (u32 i = 0; i < setting->chunks.size(); i++) {
+        ChunkSetting &chunk = setting->chunks[i];
+        pos_to_index[std::pair<i32, i32>(chunk.x, chunk.y)] = i;
+        tiles[i].heightmap = loader->load<Image>(chunk.height_map);
+        tiles[i].controlmap = loader->load<Image>(chunk.control_map);
     }
 
-    sync_loaded_heightmap_seams(setting->chunks, heightmaps);
+    sync_loaded_tile_seams();
     for (u32 i = 0; i < setting->chunks.size(); i++) {
-        if (i < heightmaps.size() && !heightmaps[i].is_null()) {
+        EditorTile *tile = get_tile(i);
+        if (tile) {
             terrain->add_chunk(setting->chunks[i].x, setting->chunks[i].y,
-                               heightmaps[i]);
+                               tile->heightmap, tile->controlmap);
         }
     }
 }
 
 void EditorWorld::save() {
     if (config == nullptr || setting.is_null()) return;
-    copy_editor_sky_to_setting(sky, setting->sky);
+    copy_editor_sky_to_setting(setting->sky);
+    normalize_terrain_palette_size();
 
-    Json &j = config->get_json();
-    if (!j.is_object()) j = Json::object();
+    nlohmann::ordered_json &j = config->get_json();
+    if (!j.is_object()) j = nlohmann::ordered_json::object();
     j["name"] = setting->name;
-    j["sky"] = write_sky(setting->sky);
-    j["directional_light"] = write_directional_light(setting->dir_light);
 
-    j["chunks"] = Json::array();
-    for (const EditorChunk &chunk : setting->chunks) {
-        j["chunks"].push_back(write_chunk(chunk));
+    nlohmann::ordered_json sky_json = nlohmann::ordered_json::object();
+    sky_json["up"] = setting->sky.up;
+    sky_json["down"] = setting->sky.down;
+    sky_json["left"] = setting->sky.left;
+    sky_json["right"] = setting->sky.right;
+    sky_json["front"] = setting->sky.front;
+    sky_json["back"] = setting->sky.back;
+    j["sky"] = sky_json;
+
+    nlohmann::ordered_json light_json = nlohmann::ordered_json::object();
+    light_json["direction"] = setting->dir_light.direction;
+    light_json["diffuse"] = setting->dir_light.diffuse;
+    light_json["specular"] = setting->dir_light.specular;
+    j["directional_light"] = light_json;
+
+    j["terrain_textures"] = setting->terrain_textures;
+    j["terrain_normals"] = setting->terrain_normals;
+    j["chunks"] = nlohmann::ordered_json::array();
+
+    for (const ChunkSetting &chunk : setting->chunks) {
+        nlohmann::ordered_json chunk_json = nlohmann::ordered_json::object();
+        chunk_json["x"] = chunk.x;
+        chunk_json["y"] = chunk.y;
+        chunk_json["height_map"] = chunk.height_map;
+        chunk_json["control_map"] = chunk.control_map;
+        chunk_json["position_lights"] = nlohmann::ordered_json::array();
+        chunk_json["static_objects"] = nlohmann::ordered_json::array();
+
+        for (const PointLightSetting &light : chunk.lights) {
+            nlohmann::ordered_json point_light_json =
+                nlohmann::ordered_json::object();
+            point_light_json["position"] = light.position;
+            point_light_json["diffuse"] = light.diffuse;
+            point_light_json["specular"] = light.specular;
+            chunk_json["position_lights"].push_back(point_light_json);
+        }
+
+        for (const StaticObjectSetting &object : chunk.static_objects) {
+            nlohmann::ordered_json object_json =
+                nlohmann::ordered_json::object();
+            object_json["name"] = object.name;
+            object_json["x"] = object.x;
+            object_json["y"] = object.y;
+            object_json["model"] = object.model;
+            chunk_json["static_objects"].push_back(object_json);
+        }
+
+        j["chunks"].push_back(chunk_json);
     }
+}
+
+const EditorUI::TexturePreview *EditorWorld::get_terrain_texture_preview(
+    u32 index) const {
+    EXPECT_INDEX_INBOUND_RET(index, terrain_texture_previews.size(), nullptr);
+    return &terrain_texture_previews[index];
+}
+
+const EditorUI::TexturePreview *EditorWorld::get_terrain_normal_preview(
+    u32 index) const {
+    EXPECT_INDEX_INBOUND_RET(index, terrain_normal_previews.size(), nullptr);
+    return &terrain_normal_previews[index];
+}
+
+void EditorWorld::add_terrain_texture(UUID texture) {
+    if (setting.is_null()) return;
+    setting->terrain_textures.push_back(texture);
+    setting->terrain_normals.push_back(UUID{});
+    rebuild_terrain_texture_previews();
+}
+
+bool EditorWorld::set_terrain_texture(u32 index, UUID texture) {
+    if (setting.is_null() || index >= setting->terrain_textures.size()) {
+        return false;
+    }
+    setting->terrain_textures[index] = texture;
+    rebuild_terrain_texture_previews();
+    if (texture.is_null()) return true;
+    return index < terrain_texture_previews.size() &&
+           !terrain_texture_previews[index].upload_failed;
+}
+
+bool EditorWorld::set_terrain_normal(u32 index, UUID texture) {
+    if (setting.is_null() || index >= setting->terrain_textures.size()) {
+        return false;
+    }
+    normalize_terrain_palette_size();
+    setting->terrain_normals[index] = texture;
+    rebuild_terrain_texture_previews();
+    if (texture.is_null()) return true;
+    return index < terrain_normal_previews.size() &&
+           !terrain_normal_previews[index].upload_failed;
+}
+
+void EditorWorld::remove_terrain_texture(u32 index) {
+    if (setting.is_null() || index >= setting->terrain_textures.size()) return;
+    setting->terrain_textures.erase(setting->terrain_textures.begin() + index);
+    if (index < setting->terrain_normals.size()) {
+        setting->terrain_normals.erase(setting->terrain_normals.begin() +
+                                       index);
+    }
+    rebuild_terrain_texture_previews();
+}
+
+EditorTile *EditorWorld::get_tile(u32 index) {
+    std::map<u32, EditorTile>::iterator iter = tiles.find(index);
+    if (iter == tiles.end()) return nullptr;
+    return &iter->second;
 }
 
 void EditorWorld::apply_directional_light_to_runtime() {
@@ -381,14 +601,6 @@ void EditorWorld::apply_directional_light_to_runtime() {
 }
 
 EditorWorldInspector::EditorWorldInspector(EditorWorld *world) : world(world) {}
-
-bool EditorWorldInspector::draw_vec3(KStr label, Vec3 &value) {
-    ImGui::PushID(label.data());
-    ImGui::TextUnformatted(label.data(), label.end());
-    bool changed = ImGui::DragFloat3("##value", value.coord, 0.05f);
-    ImGui::PopID();
-    return changed;
-}
 
 void EditorWorldInspector::draw_inspector() {
     if (world == nullptr) return;
@@ -404,32 +616,36 @@ void EditorWorldInspector::draw_inspector() {
 
     if (ImGui::CollapsingHeader("Sky", ImGuiTreeNodeFlags_DefaultOpen)) {
         EditorSky &sky = world->get_sky();
-        u32 width = sky.cubemap->get_width();
-        u32 height = sky.cubemap->get_height();
-        auto update_skybox = [&](UUID uuid, CubemapFace face) {
-            auto image = ResourceLoader::get_instance()->load<Image>(uuid);
-            sky.cubemap->update_face(width, height, face, image->get_data());
-        };
-
-        if (drag_uuid("up", sky.up)) update_skybox(sky.up, CubemapFace::TOP);
-        if (drag_uuid("down", sky.down))
-            update_skybox(sky.down, CubemapFace::BOTTOM);
-        if (drag_uuid("left", sky.left))
-            update_skybox(sky.left, CubemapFace::LEFT);
-        if (drag_uuid("right", sky.right))
-            update_skybox(sky.right, CubemapFace::RIGHT);
-        if (drag_uuid("front", sky.front))
-            update_skybox(sky.front, CubemapFace::FRONT);
-        if (drag_uuid("back", sky.back))
-            update_skybox(sky.back, CubemapFace::BACK);
+        if (sky.cubemap.is_null()) {
+            ImGui::TextDisabled("Sky preview unavailable");
+        } else {
+            if (drag_uuid("up", sky.up)) {
+                world->update_skybox_face(sky.up, CubemapFace::TOP);
+            }
+            if (drag_uuid("down", sky.down)) {
+                world->update_skybox_face(sky.down, CubemapFace::BOTTOM);
+            }
+            if (drag_uuid("left", sky.left)) {
+                world->update_skybox_face(sky.left, CubemapFace::LEFT);
+            }
+            if (drag_uuid("right", sky.right)) {
+                world->update_skybox_face(sky.right, CubemapFace::RIGHT);
+            }
+            if (drag_uuid("front", sky.front)) {
+                world->update_skybox_face(sky.front, CubemapFace::FRONT);
+            }
+            if (drag_uuid("back", sky.back)) {
+                world->update_skybox_face(sky.back, CubemapFace::BACK);
+            }
+        }
     }
 
     if (ImGui::CollapsingHeader("Directional Light",
                                 ImGuiTreeNodeFlags_DefaultOpen)) {
-        EditorDirectionalLight &light = world->get_directional_light();
-        bool changed = draw_vec3("direction", light.direction);
-        changed |= draw_vec3("diffuse", light.diffuse);
-        changed |= draw_vec3("specular", light.specular);
+        DirectionalLightSetting &light = world->get_directional_light();
+        bool changed = EditorUI::draw_vec3("direction", light.direction);
+        changed |= EditorUI::draw_vec3("diffuse", light.diffuse);
+        changed |= EditorUI::draw_vec3("specular", light.specular);
         if (changed) {
             world->apply_directional_light_to_runtime();
         }

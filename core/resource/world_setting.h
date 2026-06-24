@@ -38,6 +38,7 @@ struct ChunkSetting {
         i32 x = 0;
         i32 y = 0;
         UUID height_map;
+        UUID control_map;
         std::vector<PointLightSetting> lights;
         std::vector<StaticObjectSetting> static_objects;
 };
@@ -47,6 +48,8 @@ struct WorldSetting : public Resource {
         SkySetting sky;
         DirectionalLightSetting dir_light;
         std::vector<ChunkSetting> chunks;
+        std::vector<UUID> terrain_textures;
+        std::vector<UUID> terrain_normals;
 };
 
 }  // namespace Seed
