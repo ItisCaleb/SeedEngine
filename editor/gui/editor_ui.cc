@@ -60,7 +60,7 @@ static bool draw_splitter(const char *id, bool vertical, f32 length,
                           f32 thickness, f32 &value, f32 min_value,
                           f32 max_value) {
     if (max_value < min_value) max_value = min_value;
-
+    if(length == 0.0) length = 1.0f;
     ImVec2 pos = ImGui::GetCursorScreenPos();
     ImVec2 size =
         vertical ? ImVec2(thickness, length) : ImVec2(length, thickness);

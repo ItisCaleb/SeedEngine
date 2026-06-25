@@ -31,62 +31,6 @@ static constexpr ImGuiWindowFlags STATIC_GUI_FLAGS =
     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
     ImGuiWindowFlags_NoCollapse;
 
-static void reload_shader_if_available(Ref<Shader> shader, u32 &reloaded,
-                                       u32 &failed, u32 &skipped) {
-    if (shader.is_null()) {
-        skipped++;
-        return;
-    }
-    if (SeedEngine::get_instance()->get_project() == nullptr) {
-        skipped++;
-        return;
-    }
-
-    if (shader->reload_from_disk()) {
-        reloaded++;
-    } else {
-        failed++;
-    }
-}
-
-void EditorGUI::reload_all_shaders() {
-    u32 reloaded = 0;
-    u32 failed = 0;
-    u32 skipped = 0;
-
-    DefaultStorage *ds = DefaultStorage::get_instance();
-    if (ds != nullptr) {
-        reload_shader_if_available(ds->mesh_shader, reloaded, failed, skipped);
-        reload_shader_if_available(ds->skeleton_mesh_shader, reloaded, failed,
-                                   skipped);
-        reload_shader_if_available(ds->sky_shader, reloaded, failed, skipped);
-        reload_shader_if_available(ds->terrain_shader, reloaded, failed,
-                                   skipped);
-        reload_shader_if_available(ds->post_shader, reloaded, failed, skipped);
-        reload_shader_if_available(ds->billboard_shader, reloaded, failed,
-                                   skipped);
-        reload_shader_if_available(ds->gui_shader, reloaded, failed, skipped);
-        reload_shader_if_available(ds->debug_shader, reloaded, failed, skipped);
-        reload_shader_if_available(ds->decal_shader, reloaded, failed, skipped);
-    }
-
-    EditorStorage *es = EditorStorage::get_instance();
-    if (es != nullptr) {
-        reload_shader_if_available(es->editor_terrain_shader, reloaded, failed,
-                                   skipped);
-    }
-
-    shader_reload_message = "Reloaded " + std::to_string(reloaded) + " shaders";
-    if (failed > 0) {
-        shader_reload_message += ", failed " + std::to_string(failed);
-    }
-    if (skipped > 0) {
-        shader_reload_message += ", skipped " + std::to_string(skipped);
-    }
-    shader_reload_message += ".";
-    spdlog::info("{}", shader_reload_message);
-}
-
 void EditorGUI::main_menu() {
     {
         EditorUI::ScopedStyleVar border(ImGuiStyleVar_WindowBorderSize, 0.0f);
@@ -117,7 +61,8 @@ void EditorGUI::main_menu() {
                     EditorUI::DisabledScope disabled(
                         SeedEngine::get_instance()->get_project() == nullptr);
                     if (ImGui::MenuItem("Reload All Shaders")) {
-                        reload_all_shaders();
+                        DS::get_instance()->reload_shaders();
+                        ES::get_instance()->reload_shaders();
                     }
                 }
                 if (!shader_reload_message.empty()) {

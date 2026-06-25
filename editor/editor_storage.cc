@@ -9,4 +9,8 @@ EditorStorage::EditorStorage() {
     editor_terrain_shader = DS::get_instance()->terrain_shader->create_variant(
         {ShaderDefine{.name = "EDITOR", .value = "1"}});
 }
+
+void EditorStorage::reload_shaders() {
+    editor_terrain_shader->reload_from_disk();
+}
 }  // namespace Seed

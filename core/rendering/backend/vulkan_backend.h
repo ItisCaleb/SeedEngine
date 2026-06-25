@@ -134,8 +134,8 @@ class RenderBackendVK : public RenderBackend {
 
         HandleOwner<HardwareBufferVk> vertices;
         HandleOwner<HardwareIndexVk> indices;
-        HandleOwner<HardwareBufferVk> constants;
-        HandleOwner<HardwareBufferVk> ssbos;
+        HandleIdOwner<HardwareBufferVk> constants;
+        HandleIdOwner<HardwareBufferVk> ssbos;
         HandleIdOwner<HardwareTextureVk> textures;
         HandleIdOwner<HardwareShaderVk> shaders;
         HandleOwner<HardwarePipelineVk> pipelines;

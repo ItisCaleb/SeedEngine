@@ -16,6 +16,7 @@ class EditorStorage {
 
         static EditorStorage *get_instance() { return instance; }
         EditorStorage();
+        void reload_shaders();
 };
 
 }  // namespace Seed

@@ -20,7 +20,6 @@ class EditorGUI : public GUI {
         void *font = nullptr;
         void main_menu();
         void main_panel();
-        void reload_all_shaders();
 
         /* popup */
         void create_project();

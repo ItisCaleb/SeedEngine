@@ -735,6 +735,9 @@ void RenderBackendVK::reallocate_buffer(HardwareBufferVk *buffer, u64 size) {
     if (buffer->mapped_ptr != nullptr) {
         vmaMapMemory(buffer_allocator, buffer->memory, &buffer->mapped_ptr);
     }
+
+    /* prevent using old descriptor set after buffer reallocation. */
+    descriptor_set_cache.clear();
 }
 
 void RenderBackendVK::stream_buffer(HardwareBufferVk *buffer, u64 size,
@@ -775,6 +778,7 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
     DescriptorSetLayout *layout, std::vector<Binding> &bindings,
     bool is_global) {
     Hash _hash;
+
     for (auto &binding : bindings) {
         _hash.update(&binding.binding_point);
         _hash.update(&binding.type);
@@ -2448,9 +2452,11 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 HardwareBufferVk *constant =
                     this->constants.get_or_null(op->constant.handle);
                 EXPECT_NOT_NULL_BREAK(constant);
+                i32 id = this->constants.get_id(op->constant.handle);
+
                 bindings.push_back(Binding{.type = RenderResourceType::CONSTANT,
                                            .handle = op->constant.handle,
-                                           .resource_id = op->constant.handle,
+                                           .resource_id = id,
                                            .binding_point = op->constant.base});
                 break;
             }
@@ -2458,10 +2464,11 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 HardwareBufferVk *ssbo =
                     this->ssbos.get_or_null(op->ssbo.handle);
                 EXPECT_NOT_NULL_BREAK(ssbo);
+                i32 id = this->ssbos.get_id(op->ssbo.handle);
                 bindings.push_back(
                     Binding{.type = RenderResourceType::STORAGE_BUFFER,
                             .handle = op->ssbo.handle,
-                            .resource_id = op->ssbo.handle,
+                            .resource_id = id,
                             .binding_point = op->constant.base});
                 break;
             }
@@ -2583,10 +2590,11 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                 HardwareBufferVk *constant =
                     this->constants.get_or_null(op->constant.constant_handle);
                 EXPECT_NOT_NULL_BREAK(constant);
+                i32 id = this->constants.get_id(op->constant.constant_handle);
                 local_bindings.push_back(
                     Binding{.type = RenderResourceType::CONSTANT,
-                            .handle = op->texture.texture_handle,
-                            .resource_id = op->constant.constant_handle,
+                            .handle = op->constant.constant_handle,
+                            .resource_id = id,
                             .binding_point = op->constant.unit});
                 break;
             }

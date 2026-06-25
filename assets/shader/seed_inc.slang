@@ -123,7 +123,31 @@ vec3 shadow_pos_offset(Sampler2D shadow_map, float n_dot_l, vec3 normal, float s
     return offset_scale * scale * normal;
 }
 
-float shadow_bilinear(Sampler2D shadow_map, vec2 uv, vec2 tex_scale, float sample_depth){
+float ShadowBilinear(Sampler2D shadow_map, vec2 uv, vec2 tex_scale, float sample_depth){
+    vec2 size = 1/tex_scale;
+    vec2 p = uv * size;
+    vec2 i0 = floor(p);
+    vec2 f = frac(p);
+    vec2 i1 = i0 + 1.0;
+
+    i0 = clamp(i0, vec2(0), vec2(size - 1.0));
+    i1 = clamp(i1, vec2(0), vec2(size - 1.0));
+
+    vec2 uv00 = (vec2(i0.x, i0.y)) / size;
+    vec2 uv01 = (vec2(i0.x, i1.y)) / size;
+    vec2 uv10 = (vec2(i1.x, i0.y)) / size;
+    vec2 uv11 = (vec2(i1.x, i1.y)) / size;
+
+    float s00 = sample_depth > shadow_map.Sample(uv00).r ? 1.0 : 0.0;
+    float s01 = sample_depth > shadow_map.Sample(uv01).r ? 1.0 : 0.0;
+    float s10 = sample_depth > shadow_map.Sample(uv10).r ? 1.0 : 0.0;
+    float s11 = sample_depth > shadow_map.Sample(uv11).r ? 1.0 : 0.0;
+
+    return lerp(lerp(s00, s01, f.y), lerp(s10, s11, f.y), f.x);
+}
+
+
+float ShadowAverage(Sampler2D shadow_map, vec2 uv, vec2 tex_scale, float sample_depth){
     float r = shadow_map.Sample(uv + vec2(1,0) * tex_scale).r;
     float l = shadow_map.Sample(uv + vec2(-1,0) * tex_scale).r;
     float t = shadow_map.Sample(uv + vec2(0,1) * tex_scale).r;
@@ -163,7 +187,7 @@ float ShadowPCF(Sampler2D shadow_map, vec2 projCoords, float depth, float kernel
     for(y = -o; y <= o; y += 1.0){
         for (x = -o;x <= o; x += 1.0){
             vec2 sample_offset = vec2(x, y) * tex_scale;
-            shadow += shadow_bilinear(shadow_map,
+            shadow += ShadowAverage(shadow_map,
                 projCoords + sample_offset, tex_scale, depth);
             sample_count++;
             // float _sample = texture(shadow_map, projCoords.xy + sample_offset).r;
@@ -197,7 +221,7 @@ float ShadowPoissonDisk(Sampler2D shadow_map, vec2 projCoords, float depth, floa
     float shadow = 0.0;
     for (int i = 0; i < 16; i++) {
         vec2 sample_offset = poisson_disk[i] * kernel_size * tex_scale;
-        shadow += shadow_bilinear(shadow_map, projCoords.xy + sample_offset, tex_scale, depth);
+        shadow += ShadowBilinear(shadow_map, projCoords.xy + sample_offset, tex_scale, depth);
     }
     shadow /= 16.0;
     return shadow;
@@ -248,7 +272,7 @@ float SampleCasacade(Sampler2D shadow_map, int casacade, vec4 frag_pos, vec3 nor
     shadow_map.GetDimensions(0u, size[0], size[1], level);
     vec2 tex_scale = (1.0 / vec2(size));
     float ndotl = max(dot(normal, light_dir), 0.0);
-    float bias = max(0.0005, 0.002 * (1.0 - ndotl));
+    float bias = max(0.0005, 0.05 * (1.0 - ndotl));
     float currentDepth = projCoords.z - bias;
     // float penumbra = CalculatePCSSPenumbra(shadow_map, projCoords, currentDepth, tex_scale);
     // if(penumbra == 0.0) return 0.0f;

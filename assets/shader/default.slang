@@ -4,6 +4,7 @@ import seed_inc;
 struct VS_OUT{
     vec2 texCoord;
     vec3 frag_pos;
+    vec3 normal;
     vec3 tangent_frag_pos;
     vec3 tangent_view_pos;
     float view_depth;
@@ -49,6 +50,7 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_
     out.texCoord = aTexCoord;
 
     out.frag_pos = worldPos.xyz;
+    out.normal = aNormal;
     out.tangent_frag_pos = TBN_to_tangent * worldPos.xyz;
     out.tangent_view_pos = TBN_to_tangent * cam.u_cam_pos;
     out.tangent_dir_light = TBN_to_tangent * (gLights.u_dir_light.position);
@@ -77,7 +79,7 @@ float4 frag(VS_OUT in){
 
     // direction
     float dir_shadow = (1.0 - CSMShadowCalculation(prop.shadowMap,
-         vec4(in.frag_pos, 1.0), in.view_depth, normal, dir_light));
+         vec4(in.frag_pos, 1.0), in.view_depth, in.normal, dir_light));
     light_out +=
         calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
                          diffuse_sample, specular_sample,

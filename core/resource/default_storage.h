@@ -36,6 +36,7 @@ class DefaultStorage {
         Ref<VertexData> sky_vertices;
 
         static DefaultStorage *get_instance() { return instance; }
+        void reload_shaders();
         DefaultStorage();
 };
 

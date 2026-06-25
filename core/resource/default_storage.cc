@@ -87,4 +87,16 @@ DefaultStorage::DefaultStorage() {
     normal_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,
                           normal_color);
 }
+
+void DefaultStorage::reload_shaders() {
+    mesh_shader->reload_from_disk();
+    skeleton_mesh_shader->reload_from_disk();
+    sky_shader->reload_from_disk();
+    terrain_shader->reload_from_disk();
+    post_shader->reload_from_disk();
+    billboard_shader->reload_from_disk();
+    gui_shader->reload_from_disk();
+    // debug_shader->reload_from_disk();
+    // decal_shader->reload_from_disk();
+}
 }  // namespace Seed

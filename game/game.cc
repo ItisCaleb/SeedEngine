@@ -49,6 +49,10 @@ class DebugGUI : public GUI {
                 }
             }
 
+            if (ImGui::Button("Reload all shaders")) {
+                DS::get_instance()->reload_shaders();
+            }
+
             ImGui::End();
         };
 };
@@ -72,7 +76,8 @@ int main(void) {
     // //     });
     auto man = loader->load_async_from_path<SkeletonModel>(
         "assets/.internal/scene.bin");
-    auto world_setting = loader->load_from_path<WorldSetting>("assets/new_world.world");
+    auto world_setting =
+        loader->load_from_path<WorldSetting>("assets/new_world.world");
     GuiEngine::get_instance()->add_gui(new DebugGUI);
     World *world = engine->get_world();
     world->load_setting(world_setting);
