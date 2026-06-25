@@ -21,11 +21,12 @@ namespace Seed {
 #define TERRAIN_TEXTURE_SIZE (1024)
 #define TERRAIN_TEXTURE_LAYERS (16)
 
-TerrainMaterial::TerrainMaterial(Ref<TextureArray> heightmaps,
+TerrainMaterial::TerrainMaterial(Ref<Shader> shader,
+                                 Ref<TextureArray> heightmaps,
                                  Ref<TextureArray> controlmaps,
                                  Ref<TextureArray> textures,
                                  Ref<TextureArray> texture_normals)
-    : Material(DS::get_instance()->terrain_shader) {
+    : Material(shader) {
     this->set_texture("height_map", ref_cast<Texture>(heightmaps));
     this->set_texture("control_map", ref_cast<Texture>(controlmaps));
     this->set_texture("textures", ref_cast<Texture>(textures));
@@ -36,6 +37,13 @@ TerrainMaterial::TerrainMaterial(Ref<TextureArray> heightmaps,
                           .patch_control_points = 4};
     this->depth_state = {.depth_mode = DepthMode::OPAQUE};
 }
+
+TerrainMaterial::TerrainMaterial(Ref<TextureArray> heightmaps,
+                                 Ref<TextureArray> controlmaps,
+                                 Ref<TextureArray> textures,
+                                 Ref<TextureArray> texture_normals)
+    : TerrainMaterial(DS::get_instance()->terrain_shader, heightmaps,
+                      controlmaps, textures, texture_normals) {}
 
 void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {
     this->instances.push_back(instance);
@@ -139,11 +147,12 @@ Terrain::Terrain() {
         this->mesh, ref_cast<InstanceData>(this->instances));
 }
 
-void Terrain::add_chunk(i32 x, i32 y, Ref<Image> height_map, Ref<Image> control_map) {
+void Terrain::add_chunk(i32 x, i32 y, Ref<Image> height_map,
+                        Ref<Image> control_map) {
     heightmaps->update_layer(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE, last_heightmap,
                              height_map->get_data());
     controlmaps->update_layer(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE, last_heightmap,
-                             control_map->get_data());
+                              control_map->get_data());
 
     f32 max_height = -FLT_MAX;
     f32 min_height = FLT_MAX;
@@ -183,5 +192,8 @@ void Terrain::add_chunk(i32 x, i32 y, Ref<Image> height_map, Ref<Image> control_
     last_heightmap++;
 }
 
-Terrain::~Terrain() {}
+Terrain::~Terrain() {
+    MeshStorage::get_instance()->remove_mesh(
+        this->mesh, ref_cast<InstanceData>(this->instances));
+}
 }  // namespace Seed

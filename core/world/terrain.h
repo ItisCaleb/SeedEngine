@@ -27,14 +27,18 @@ class TerrainMaterial : public Material {
     private:
         Ref<TextureArray> textures;
         Ref<TextureArray> texture_normals;
+
     public:
+        TerrainMaterial(Ref<Shader> shader, Ref<TextureArray> heightmaps,
+                        Ref<TextureArray> controlmaps,
+                        Ref<TextureArray> textures,
+                        Ref<TextureArray> texture_normals);
         TerrainMaterial(Ref<TextureArray> heightmaps,
                         Ref<TextureArray> controlmaps,
                         Ref<TextureArray> textures,
                         Ref<TextureArray> texture_normals);
         Ref<TextureArray> get_textures() { return textures; }
         Ref<TextureArray> get_texture_normals() { return texture_normals; }
-
 };
 
 class TerrainInstanceData : public InstanceData {

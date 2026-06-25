@@ -22,7 +22,7 @@ void MeshStorage::add_mesh(Ref<Mesh> mesh, Ref<InstanceData> instance) {
     if (this->meshes.find(key) == this->meshes.end()) {
         this->meshes[key] = {.mesh = mesh, .instance = instance};
     } else {
-        spdlog::error("Mesh already in MeshStorage.");
+        SEED_WARN("Mesh already in MeshStorage.");
     }
 }
 

@@ -6,6 +6,7 @@
 #include "core/types.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
+#include "core/resource/image.h"
 
 namespace Seed {
 
@@ -129,6 +130,16 @@ void TextureCubemap::update_face(u32 w, u32 h, CubemapFace face,
     EXPECT_INDEX_INBOUND((u32)face, 6);
 
     RHI::update(handle, format, (u32)face, 0, 0, w, h, data);
+}
+
+void TextureCubemap::update_face(u32 w, u32 h, CubemapFace face,
+                                 Ref<Image> data) {
+    EXPECT_INDEX_INBOUND((u32)face, 6);
+    if (data->get_format() != this->format) {
+        SEED_WARN("Format doesn't match, skipping update.");
+        return;
+    }
+    RHI::update(handle, format, (u32)face, 0, 0, w, h, data->get_data());
 }
 
 }  // namespace Seed

@@ -101,7 +101,7 @@ void Image::download(Ref<Texture> texture) {
 bool Image::copy_column(Ref<Image> dst, u32 src_x, u32 src_y, u32 dst_x,
                         u32 dst_y, u32 count) {
     if (this->format != dst->format) {
-        spdlog::warn("Copying column for different format image");
+        SEED_WARN("Copying column for different format image, skipping.");
         return false;
     }
 
@@ -123,7 +123,7 @@ bool Image::copy_column(Ref<Image> dst, u32 src_x, u32 src_y, u32 dst_x,
 bool Image::copy_row(Ref<Image> dst, u32 src_x, u32 src_y, u32 dst_x, u32 dst_y,
                      u32 count) {
     if (this->format != dst->format) {
-        spdlog::warn("Copying row for different format image");
+        SEED_WARN("Copying row for different format image, skipping.");
         return false;
     }
 

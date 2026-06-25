@@ -1,11 +1,8 @@
 #include "render_resource.h"
-#include <glad/glad.h>
-#include <fmt/core.h>
 #include "core/io/path.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_engine.h"
-#include "render_engine.h"
-#include <spdlog/spdlog.h>
+#include "core/macro.h"
 #include <cstdlib>
 
 namespace Seed {
@@ -199,7 +196,7 @@ void update_from_heap(SSBOHandle handle, u32 offset, UpdateBufferInfo info) {
 void update_from_heap(TextureHandle handle, u32 layer, u32 offx, u32 offy,
                       UpdateBufferInfo info) {
     if (info.data == nullptr) {
-        spdlog::warn("Trying to upload heap with null data, skipping.");
+        SEED_WARN("Trying to upload heap with null data, skipping.");
         return;
     }
     RenderEngine::get_instance()->get_device()->update(

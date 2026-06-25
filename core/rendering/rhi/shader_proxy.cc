@@ -5,6 +5,7 @@
 #include "core/rendering/rhi/shader_proxy.h"
 #include "core/rendering/shader_layout.h"
 #include "core/types.h"
+#include "core/macro.h"
 
 namespace Seed {
 
@@ -150,9 +151,11 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
                               ->getElementTypeLayout()
                               ->getFieldCount();
                 if (size > 256) {
-                    spdlog::warn(
-                        "Shader '{}.slang' push contant size {} exceeds 256",
+                    SEED_WARN(
+                        "Shader '{}.slang' push contant size {} exceeds 256, "
+                        "skipping.",
                         name, size);
+                    break;
                 }
                 size &= 0xff;
                 // u64 offset =

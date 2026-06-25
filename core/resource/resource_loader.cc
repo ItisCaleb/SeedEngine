@@ -242,7 +242,8 @@ Ref<Resource> ResourceLoader::load_texture(ResourceLoader &loader,
     void *_data = stbi_load(data->get_fullpath().data(), &w, &h, &comp, 4);
 
     if (!_data) {
-        spdlog::warn("Can't load texture from {}", data->get_fullpath());
+        SEED_WARN("Can't load texture from {}, skipping.",
+                  data->get_fullpath());
         return ref_cast<Resource>(texture);
     }
     texture.create(TextureType::TEXTURE_2D, w, h, PixelFormat::RGBA,
@@ -322,7 +323,7 @@ Ref<Resource> ResourceLoader::load_mappable_texture(
                                      : PixelFormat::RGBA;
 
     if (!_data) {
-        spdlog::warn("Can't load texture from {}", data->get_fullpath());
+        SEED_WARN("Can't load texture from {}", data->get_fullpath());
         return ref_cast<Resource>(texture);
     }
     texture.create(TextureType::TEXTURE_2D, w, h, format, (const u8 *)_data);
@@ -331,12 +332,14 @@ Ref<Resource> ResourceLoader::load_mappable_texture(
     return ref_cast<Resource>(texture);
 }
 
-Ref<Resource> ResourceLoader::load_image(ResourceLoader &loader,
-                                         ResourceConfiguration &config,
-                                         Ref<File> data) {
-    Ref<Image> image = Image::load_from_file(data->get_fullpath());
+Ref<Image> ResourceLoader::load_image(UUID uuid, bool force_rgba) {
+    ResourceEntry *entry = entries.get_entry(uuid);
+    Ref<Image> image;
+    if (!entry) return image;
+    Path path = entry->real_path();
+    image = Image::load_from_file(path, force_rgba);
 
-    return ref_cast<Resource>(image);
+    return image;
 }
 
 Ref<Resource> ResourceLoader::load_world(ResourceLoader &loader,
@@ -429,7 +432,6 @@ ResourceLoader::ResourceLoader() {
     register_type<SkeletonModel>(load_skeleton_model, true);
     register_type<Texture>(load_texture, true);
     register_type<MappableTexture>(load_mappable_texture, true);
-    register_type<Image>(load_image, true);
     register_type<WorldSetting>(load_world);
 }
 

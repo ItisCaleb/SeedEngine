@@ -7,6 +7,7 @@
 #include "core/ref.h"
 #include "core/rendering/instance_data.h"
 #include "core/rendering/mesh_storage.h"
+#include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_resource.h"
 #include "core/resource/animation.h"
 #include "core/resource/model.h"
@@ -166,20 +167,33 @@ void World::load_setting(Ref<WorldSetting> setting) {
                                        setting->dir_light.diffuse,
                                        setting->dir_light.specular, true);
     for (ChunkSetting &chunk : setting->chunks) {
-        Ref<Image> heightmap = loader->load<Image>(chunk.height_map);
-        Ref<Image> control_map = loader->load<Image>(chunk.control_map);
+        Ref<Image> heightmap = loader->load_image(chunk.height_map);
+        Ref<Image> control_map = loader->load_image(chunk.control_map);
         terrain->add_chunk(chunk.x, chunk.y, heightmap, control_map);
     }
     u32 i = 0;
+    Ref<Image> normal_image;
+    normal_image.create(PixelFormat::RGBA, 1024, 1024);
+    normal_image->fill(Color{128, 128, 255, 255}, 1024, 1024);
     for (u32 i = 0; i < setting->terrain_textures.size(); i++) {
+        
+        /* upload texture */
         RHI::UpdateBufferInfo tex_info =
             loader->load_image_to_upload(setting->terrain_textures[i], true);
-        RHI::UpdateBufferInfo norm_info =
-            loader->load_image_to_upload(setting->terrain_normals[i], true);
 
         terrain->get_material()->get_textures()->update_layer(i, tex_info);
-        terrain->get_material()->get_texture_normals()->update_layer(i,
-                                                                     norm_info);
+
+        /* upload normal */
+        if (setting->terrain_normals[i].is_null()) {
+            /* fallback */
+            terrain->get_material()->get_texture_normals()->update_layer(
+                1024, 1024, i, normal_image->get_data());
+        } else {
+            RHI::UpdateBufferInfo norm_info =
+                loader->load_image_to_upload(setting->terrain_normals[i], true);
+            terrain->get_material()->get_texture_normals()->update_layer(
+                i, norm_info);
+        }
     }
 }
 

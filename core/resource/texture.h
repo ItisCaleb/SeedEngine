@@ -8,6 +8,7 @@
 
 namespace Seed {
 
+class Image;
 class Texture : public Resource {
     protected:
         TextureHandle handle;
@@ -86,6 +87,8 @@ enum class CubemapFace : u8 { RIGHT = 0, LEFT, TOP, BOTTOM, FRONT, BACK };
 class TextureCubemap : public Texture {
     public:
         void update_face(u32 w, u32 h, CubemapFace face, const void *data);
+        void update_face(u32 w, u32 h, CubemapFace face, Ref<Image> data);
+
         TextureCubemap(u32 w, u32 h, PixelFormat format)
             : TextureCubemap(w, h, format, SamplerProperty{}) {};
         TextureCubemap(u32 w, u32 h, PixelFormat format,

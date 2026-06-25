@@ -12,12 +12,11 @@ bool Inspectable::drag_uuid(KStr name, UUID &uuid) {
     ImGui::SameLine();
     KString uuid_text = uuid.to_string();
     ImGui::TextUnformatted(uuid_text.data());
-    bool changed = false;
-    uuid = EditorUI::accept_uuid();
-    if (!uuid.is_null()) {
-        changed = true;
-    }
-    return changed;
+    UUID accepted = EditorUI::accept_uuid();
+    if (accepted.is_null()) return false;
+
+    uuid = accepted;
+    return true;
 }
 
 void Inspector::update() {

@@ -78,8 +78,6 @@ class EditorWorld {
         void normalize_terrain_palette_size();
         EditorUI::TexturePreview build_texture_preview(UUID texture_uuid);
         void rebuild_terrain_texture_previews();
-        bool upload_terrain_texture_layer(u32 index);
-        bool upload_terrain_normal_layer(u32 index);
         void upload_terrain_palette_to_gpu();
 
     public:

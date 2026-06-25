@@ -31,10 +31,8 @@ include(FetchContent)
 
 
 find_package(glfw3 CONFIG REQUIRED)
-find_package(OpenGL REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(glad CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(imgui CONFIG REQUIRED)

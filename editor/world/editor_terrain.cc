@@ -19,23 +19,6 @@ namespace Seed {
 #define HEIGHT_OFFSET (-128)
 #define HEIGHT_SCALE (1)
 
-EditorTerrainMaterial::EditorTerrainMaterial(Ref<TextureArray> heightmaps,
-                                             Ref<TextureArray> controlmaps,
-                                             Ref<TextureArray> textures,
-                                             Ref<TextureArray> texture_normals)
-    : Material(ES::get_instance()->editor_terrain_shader) {
-    this->set_texture("height_map", ref_cast<Texture>(heightmaps));
-    this->set_texture("control_map", ref_cast<Texture>(controlmaps));
-    this->set_texture("textures", ref_cast<Texture>(textures));
-    this->set_texture("texture_normals", ref_cast<Texture>(texture_normals));
-    this->raster_state = {.cull_mode = Cullmode::FRONT,
-                          .patch_control_points = 4};
-}
-
-Ref<Texture> EditorTerrainMaterial::get_height_map() {
-    return this->get_texture("height_map");
-}
-
 void EditorTerrain::build_mesh() {
     u32 chunk_cnt = 4;
     u32 vertex_row_cnt = chunk_cnt + 1;
@@ -45,7 +28,7 @@ void EditorTerrain::build_mesh() {
     for (i32 i = 0; i < vertex_row_cnt; i++) {
         for (i32 j = 0; j < vertex_row_cnt; j++) {
             vertices.push_back(TerrainVertex{Vec2{
-                offset * j - CHUNK_SIZE / 2, offset * i - CHUNK_SIZE / 2}});
+                offset * i - CHUNK_SIZE / 2, offset * j - CHUNK_SIZE / 2}});
         }
     }
 
@@ -88,8 +71,8 @@ EditorTerrain::EditorTerrain() {
                            EDITOR_TERRAIN_TEXTURE_LAYERS, PixelFormat::RGBA,
                            SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
                                            .wrap_v = SamplerWrap::REPEAT});
-    material.create(heightmaps, controlmaps, textures, texture_normals);
-
+    material.create(ES::get_instance()->editor_terrain_shader, heightmaps,
+                    controlmaps, textures, texture_normals);
     this->instances.create();
 
     build_mesh();
@@ -142,41 +125,6 @@ void EditorTerrain::update_chunk_controlmap(u32 chunk_index,
     if (control_map.is_null()) return;
     controlmaps->update_layer(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE, chunk_index,
                               control_map->get_data());
-}
-
-static bool update_terrain_texture_array_layer(Ref<TextureArray> texture_array,
-                                               u32 layer, UUID texture,
-                                               bool force_rgba,
-                                               u32 expected_pixel_size) {
-    if (texture_array.is_null() || texture.is_null() ||
-        layer >= EDITOR_TERRAIN_TEXTURE_LAYERS) {
-        return false;
-    }
-
-    RHI::UpdateBufferInfo info =
-        ResourceLoader::get_instance()->load_image_to_upload(texture,
-                                                             force_rgba);
-    if (info.data == nullptr) return false;
-
-    if (info.image.w != EDITOR_TERRAIN_TEXTURE_SIZE ||
-        info.image.h != EDITOR_TERRAIN_TEXTURE_SIZE ||
-        info.image.pixel_size != expected_pixel_size) {
-        stbi_image_free(info.data);
-        return false;
-    }
-
-    RHI::update_from_heap(texture_array->get_handle(), layer, 0, 0, info);
-    return true;
-}
-
-bool EditorTerrain::update_texture_layer(u32 layer, UUID texture) {
-    return update_terrain_texture_array_layer(textures, layer, texture, true,
-                                              4);
-}
-
-bool EditorTerrain::update_normal_layer(u32 layer, UUID texture) {
-    return update_terrain_texture_array_layer(texture_normals, layer, texture,
-                                              false, 3);
 }
 
 EditorTerrain::~EditorTerrain() {}

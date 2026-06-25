@@ -56,11 +56,10 @@ void EditorWorld::copy_editor_sky_to_setting(SkySetting &setting) {
 void EditorWorld::update_skybox_face(UUID uuid, CubemapFace face) {
     if (uuid.is_null() || sky.cubemap.is_null()) return;
 
-    Ref<Image> image = ResourceLoader::get_instance()->load<Image>(uuid);
+    Ref<Image> image = ResourceLoader::get_instance()->load_image(uuid, true);
     if (image.is_null()) return;
     sky.cubemap->update_face(sky.cubemap->get_width(),
-                             sky.cubemap->get_height(), face,
-                             image->get_data());
+                             sky.cubemap->get_height(), face, image);
 }
 
 void EditorTile::clamp_border(Ref<Image> image) {
@@ -386,40 +385,36 @@ void EditorWorld::rebuild_terrain_texture_previews() {
     upload_terrain_palette_to_gpu();
 }
 
-bool EditorWorld::upload_terrain_texture_layer(u32 index) {
-    if (terrain.is_null() || setting.is_null() ||
-        index >= setting->terrain_textures.size() ||
-        index >= terrain_texture_previews.size()) {
-        return false;
-    }
-
-    UUID texture = setting->terrain_textures[index];
-    if (texture.is_null()) return true;
-    bool uploaded = terrain->update_texture_layer(index, texture);
-    terrain_texture_previews[index].upload_failed = !uploaded;
-    return uploaded;
-}
-
-bool EditorWorld::upload_terrain_normal_layer(u32 index) {
-    if (terrain.is_null() || setting.is_null() ||
-        index >= setting->terrain_normals.size() ||
-        index >= terrain_normal_previews.size()) {
-        return false;
-    }
-
-    UUID texture = setting->terrain_normals[index];
-    if (texture.is_null()) return true;
-    bool uploaded = terrain->update_normal_layer(index, texture);
-    terrain_normal_previews[index].upload_failed = !uploaded;
-    return uploaded;
-}
-
 void EditorWorld::upload_terrain_palette_to_gpu() {
     if (setting.is_null()) return;
 
+    ResourceLoader *loader = ResourceLoader::get_instance();
+
+    Ref<Image> normal_image;
+    normal_image.create(PixelFormat::RGBA, 1024, 1024);
+    normal_image->fill(Color{128, 128, 255, 255}, 1024, 1024);
+
     for (u32 i = 0; i < setting->terrain_textures.size(); i++) {
-        upload_terrain_texture_layer(i);
-        upload_terrain_normal_layer(i);
+        /* upload texture */
+        RHI::UpdateBufferInfo tex_info =
+            loader->load_image_to_upload(setting->terrain_textures[i], true);
+
+        terrain->get_material()->get_textures()->update_layer(i, tex_info);
+
+        /* upload normal */
+        if (setting->terrain_normals[i].is_null()) {
+            /* fallback */
+            terrain->get_material()->get_texture_normals()->update_layer(
+                1024, 1024, i, normal_image->get_data());
+        } else {
+            RHI::UpdateBufferInfo norm_info =
+                loader->load_image_to_upload(setting->terrain_normals[i], true);
+            terrain->get_material()->get_texture_normals()->update_layer(
+                i, norm_info);
+        }
+        terrain_texture_previews[i].upload_failed = false;
+
+        terrain_normal_previews[i].upload_failed = false;
     }
 }
 
@@ -458,8 +453,8 @@ void EditorWorld::reload() {
     for (u32 i = 0; i < setting->chunks.size(); i++) {
         ChunkSetting &chunk = setting->chunks[i];
         pos_to_index[std::pair<i32, i32>(chunk.x, chunk.y)] = i;
-        tiles[i].heightmap = loader->load<Image>(chunk.height_map);
-        tiles[i].controlmap = loader->load<Image>(chunk.control_map);
+        tiles[i].heightmap = loader->load_image(chunk.height_map);
+        tiles[i].controlmap = loader->load_image(chunk.control_map);
     }
 
     sync_loaded_tile_seams();

@@ -1,13 +1,13 @@
 #ifndef _SEED_MATERIAL_H_
 #define _SEED_MATERIAL_H_
 
-#include <string>
 #include "core/rendering/rhi/render_command.h"
 #include "core/rendering/rhi/render_resource.h"
 #include "core/resource/texture.h"
 #include "core/resource/resource.h"
 #include "core/resource/shader.h"
 #include "core/resource/default_storage.h"
+#include "core/container/kstring.h"
 
 namespace Seed {
 
@@ -61,6 +61,7 @@ class Material : public Resource {
         void upload_parameter(RenderCommandDispatcher &dp);
         virtual void bind_states(RenderDrawDataBuilder &builder);
         inline static u16 last_id = 0;
+
         Material(Ref<Shader> shader, const RenderRasterizerState &rst_state,
                  const RenderDepthStencilState &depth_state,
                  const RenderBlendState &blend_state);
