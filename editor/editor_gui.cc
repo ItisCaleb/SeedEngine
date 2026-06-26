@@ -3,13 +3,12 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 #include <nfd.h>
-#include <spdlog/spdlog.h>
 #include <algorithm>
 #include "core/container/kstring.h"
 #include "core/engine.h"
 #include "core/resource/default_storage.h"
-#include "core/resource/shader.h"
 #include "core/types.h"
+#include "core/window.h"
 #include "editor.h"
 #include "editor_storage.h"
 #include "editor/gui/editor_ui.h"

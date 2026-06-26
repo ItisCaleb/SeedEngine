@@ -1,5 +1,4 @@
 #include "file.h"
-#include <fmt/format.h>
 #include <spdlog/spdlog.h>
 #include <sys/stat.h>
 #include "path.h"

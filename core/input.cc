@@ -1,5 +1,4 @@
 #include "input.h"
-#include <spdlog/spdlog.h>
 
 namespace Seed {
 Input *Input::get_instance() { return instance; }

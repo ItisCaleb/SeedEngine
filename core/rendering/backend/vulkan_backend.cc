@@ -736,8 +736,6 @@ void RenderBackendVK::reallocate_buffer(HardwareBufferVk *buffer, u64 size) {
         vmaMapMemory(buffer_allocator, buffer->memory, &buffer->mapped_ptr);
     }
 
-    /* prevent using old descriptor set after buffer reallocation. */
-    descriptor_set_cache.clear();
 }
 
 void RenderBackendVK::stream_buffer(HardwareBufferVk *buffer, u64 size,

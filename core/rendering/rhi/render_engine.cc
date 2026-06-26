@@ -3,7 +3,6 @@
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include "core/io/path.h"
-#include "core/math/vec2.h"
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"

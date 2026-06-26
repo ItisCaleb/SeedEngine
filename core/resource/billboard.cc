@@ -1,7 +1,5 @@
 #include "billboard.h"
 #include "core/ref.h"
-#include "core/rendering/instance_data.h"
-#include "core/rendering/mesh_storage.h"
 
 namespace Seed {
 Billboard::Billboard(Ref<Texture> texture) {

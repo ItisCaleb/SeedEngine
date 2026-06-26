@@ -9,7 +9,6 @@
 #include "core/concurrency/thread_pool.h"
 #include "core/container/kstring.h"
 #include "core/engine.h"
-#include "core/input.h"
 #include "core/io/dir.h"
 #include "core/io/path.h"
 #include "core/misc/uuid.h"

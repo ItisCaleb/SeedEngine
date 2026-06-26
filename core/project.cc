@@ -1,16 +1,12 @@
 #include "project.h"
-#include <fmt/format.h>
 
 #include "core/container/kstring.h"
 #include "core/io/file.h"
 #include "core/io/dir.h"
 #include "core/io/path.h"
-#include "core/misc/uuid.h"
 #include "core/resource/resource.h"
 #include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
-#include "core/serialize/json_impl.h"
-#include "core/world/world.h"
 
 namespace Seed {
 

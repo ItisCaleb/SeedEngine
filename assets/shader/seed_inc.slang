@@ -51,6 +51,7 @@ struct Lights {
 #define CSM_SPLITS 4
 struct CSMShadow
 {
+    /* x, y, w, h */
     vec4 u_shadow_uv[CSM_SPLITS];
     vec4 u_far;
     vec4 u_shadow_unit;
@@ -118,25 +119,25 @@ vec3 calculate_light(vec3 diffuse, vec3 specular, vec3 diffuse_sample, vec3 spec
 }
 
 
-vec3 shadow_pos_offset(Sampler2D shadow_map, float n_dot_l, vec3 normal, float scale){
+vec3 shadow_pos_offset(Sampler2DShadow shadow_map, float n_dot_l, vec3 normal, float scale){
     float offset_scale = clamp(1 - n_dot_l, 0.0, 1.0);
     return offset_scale * scale * normal;
 }
 
-float ShadowBilinear(Sampler2D shadow_map, vec2 uv, vec2 tex_scale, float sample_depth){
+float ShadowBilinear(Sampler2DShadow shadow_map, vec2 uv, vec2 tex_scale, float sample_depth){
     vec2 size = 1/tex_scale;
-    vec2 p = uv * size;
+    vec2 p = uv * size - 0.5;
     vec2 i0 = floor(p);
     vec2 f = frac(p);
     vec2 i1 = i0 + 1.0;
 
-    i0 = clamp(i0, vec2(0), vec2(size - 1.0));
-    i1 = clamp(i1, vec2(0), vec2(size - 1.0));
+    i0 = (clamp(i0, vec2(0), vec2(size - 1.0)) + 0.5) / size;
+    i1 = (clamp(i1, vec2(0), vec2(size - 1.0)) + 0.5) / size;
 
-    vec2 uv00 = (vec2(i0.x, i0.y)) / size;
-    vec2 uv01 = (vec2(i0.x, i1.y)) / size;
-    vec2 uv10 = (vec2(i1.x, i0.y)) / size;
-    vec2 uv11 = (vec2(i1.x, i1.y)) / size;
+    vec2 uv01 = vec2(i0.x, i1.y);
+    vec2 uv00 = vec2(i0.x, i0.y);
+    vec2 uv10 = vec2(i1.x, i0.y);
+    vec2 uv11 = vec2(i1.x, i1.y);
 
     float s00 = sample_depth > shadow_map.Sample(uv00).r ? 1.0 : 0.0;
     float s01 = sample_depth > shadow_map.Sample(uv01).r ? 1.0 : 0.0;
@@ -170,6 +171,11 @@ float ShadowAverage(Sampler2D shadow_map, vec2 uv, vec2 tex_scale, float sample_
 //     return depth_duv;
 // }
 
+vec2 ClampCascasdeUV(vec2 uv, uint casacade, vec2 tex_scale){
+    vec4 shadow_uv = gCSM.u_shadow_uv[casacade];
+    return clamp(uv, shadow_uv.xy, shadow_uv.xy + shadow_uv.zw);
+}
+
 
 int SelectCasacade(float depth){
     int casacade = CSM_SPLITS;
@@ -179,7 +185,7 @@ int SelectCasacade(float depth){
     return casacade;
 }
 
-float ShadowPCF(Sampler2D shadow_map, vec2 projCoords, float depth, float kernel_size, vec2 tex_scale){
+float ShadowPCF(Sampler2D shadow_map, uint casacade, vec2 projCoords, float depth, float kernel_size, vec2 tex_scale){
     float o = (kernel_size - 1) / 2;
     float x, y;
     float shadow = 0;
@@ -217,17 +223,19 @@ static const float2 poisson_disk[] = {
    float2( 0.14383161, -0.14100790 ) 
 };
 
-float ShadowPoissonDisk(Sampler2D shadow_map, vec2 projCoords, float depth, float kernel_size, vec2 tex_scale){
+
+float ShadowPoissonDisk(Sampler2DShadow shadow_map, uint casacade, vec2 projCoords, float depth, float kernel_size, vec2 tex_scale){
     float shadow = 0.0;
     for (int i = 0; i < 16; i++) {
         vec2 sample_offset = poisson_disk[i] * kernel_size * tex_scale;
-        shadow += ShadowBilinear(shadow_map, projCoords.xy + sample_offset, tex_scale, depth);
+        shadow += shadow_map.SampleCmpLevelZero(projCoords.xy + sample_offset, depth);
+        //shadow += ShadowBilinear(shadow_map, projCoords.xy + sample_offset, tex_scale, depth);
     }
     shadow /= 16.0;
     return shadow;
 }
 
-float CalculatePCSSPenumbra(Sampler2D shadow_map, vec3 projCoords, float depth, vec2 tex_scale){
+float CalculatePCSSPenumbra(Sampler2DShadow shadow_map, vec3 projCoords, float depth, vec2 tex_scale){
     float blockerDepth = 0.0;
     int blockerCount = 0;
     /* 0.02 for directional light */
@@ -250,11 +258,13 @@ float CalculatePCSSPenumbra(Sampler2D shadow_map, vec3 projCoords, float depth, 
 }
 
 
-float SampleCasacade(Sampler2D shadow_map, int casacade, vec4 frag_pos, vec3 normal, vec3 light_dir){
+float SampleCasacade(Sampler2DShadow shadow_map, int casacade, vec4 frag_pos, vec3 normal, vec3 light_dir){
     /* index 0 is main camera */
     Camera cam = gCam[1 + casacade];
     vec3 n = normalize(normal);
-    vec4 offset = gCSM.u_shadow_unit[casacade] * vec4(shadow_pos_offset(shadow_map, dot(n, light_dir), n, 2), 0.0);
+    float ndotl = max(dot(n, light_dir), 0.0);
+
+    vec4 offset = gCSM.u_shadow_unit[casacade] * vec4(shadow_pos_offset(shadow_map, ndotl, n, 4), 0.0);
     vec4 lightspace_fragpos = cam.u_projection * cam.u_view * (frag_pos + offset);
     // perform perspective divide
     vec3 projCoords = lightspace_fragpos.xyz / lightspace_fragpos.w;
@@ -271,29 +281,29 @@ float SampleCasacade(Sampler2D shadow_map, int casacade, vec4 frag_pos, vec3 nor
     uint level;
     shadow_map.GetDimensions(0u, size[0], size[1], level);
     vec2 tex_scale = (1.0 / vec2(size));
-    float ndotl = max(dot(normal, light_dir), 0.0);
-    float bias = max(0.0005, 0.05 * (1.0 - ndotl));
+    float bias = max(0.0005, 0.01 * (1.0 - ndotl));
     float currentDepth = projCoords.z - bias;
     // float penumbra = CalculatePCSSPenumbra(shadow_map, projCoords, currentDepth, tex_scale);
     // if(penumbra == 0.0) return 0.0f;
 
     // float shadow = ShadowPCF(shadow_map, projCoords.xy, currentDepth, 3.0, tex_scale);
-    float shadow = ShadowPoissonDisk(shadow_map, projCoords.xy, currentDepth, 3.0, tex_scale);
+    //float shadow = ShadowBilinear(shadow_map, projCoords.xy, tex_scale, currentDepth);
+    float shadow = ShadowPoissonDisk(shadow_map, casacade, projCoords.xy, currentDepth, 3.0, tex_scale);
 
     return shadow;
 }
 
-float CSMShadowCalculation(Sampler2D shadow_map, vec4 frag_pos, float frag_z, vec3 normal, vec3 light_dir)
+float CSMShadowCalculation(Sampler2DShadow shadow_map, vec4 frag_pos, float frag_z, vec3 normal, vec3 light_dir)
 {
     int casacade_idx = SelectCasacade(frag_z);
     if(casacade_idx == CSM_SPLITS) return 0.0;
     float shadow = SampleCasacade(shadow_map, casacade_idx, frag_pos, normal, light_dir);
     float cascade_end = gCSM.u_far[casacade_idx];
-    float blend_range = cascade_end * 0.1;
+    float blend_range = cascade_end * 0.05;
     float blend_start = cascade_end - blend_range;
     if(frag_z > blend_start && casacade_idx < 3) {
         float shadow1 = SampleCasacade(shadow_map, casacade_idx + 1, frag_pos, normal, light_dir);
-        float t = (frag_z - blend_start) / blend_range;
+        float t = smoothstep(blend_start, cascade_end, frag_z);
         shadow = lerp(shadow, shadow1, t);
     }
     return shadow;    

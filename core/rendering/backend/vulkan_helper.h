@@ -253,8 +253,8 @@ class VulkanHelper {
             samplerInfo.anisotropyEnable = VK_TRUE;
             samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
             samplerInfo.unnormalizedCoordinates = VK_FALSE;
-            samplerInfo.compareEnable = VK_FALSE;
-            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+            samplerInfo.compareEnable = VK_TRUE;
+            samplerInfo.compareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
             return samplerInfo;
         }
 

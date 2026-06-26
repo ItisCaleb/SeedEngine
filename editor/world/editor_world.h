@@ -6,11 +6,10 @@
 #include <nlohmann/json.hpp>
 #include <vector>
 #include "core/container/kstring.h"
-#include "core/math/vec3.h"
 #include "core/misc/uuid.h"
 #include "core/resource/image.h"
 #include "core/resource/resource_entry.h"
-#include "core/resource/sky.h"
+#include "core/world/sky.h"
 #include "core/resource/texture.h"
 #include "core/resource/world_setting.h"
 #include "core/types.h"

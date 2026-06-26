@@ -13,8 +13,7 @@ struct Property{
     Sampler2DArray textures;
     Sampler2DArray texture_normals;
     Sampler2D terrain_shadowMap;
-    Sampler2D shadowMap;
-    vec2 terrain_size;
+    Sampler2DShadow shadowMap;
 };
 
 ParameterBlock<Property> prop;
@@ -114,7 +113,6 @@ PatchTessFactors PatchDynamicFunction(InputPatch<VS_OUT, 4> patch) {
 struct DS_OUT{
     float4 position : SV_Position;
     nointerpolation uint heightmap_index;
-    float height;
     vec4 frag_pos;
     vec3 normal;
     vec3 tangent_frag_pos;
@@ -166,7 +164,7 @@ DS_OUT tese(
     float lh = get_height(index,out.texCoord + offsets[2]);
     float uh = get_height(index,out.texCoord + offsets[3]);
     float dh = get_height(index,out.texCoord + offsets[4]);
-    out.height = (h + rh + lh + uh + dh) / 5;
+    float height = (h + rh + lh + uh + dh) / 5;
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
     vec4 p00 = patch[0].position;
@@ -180,7 +178,7 @@ DS_OUT tese(
     vec4 p = (p1 - p0) * v + p0;
 
     // displace point along normal
-    p += vec4(0, out.height, 0 , 0);
+    p += vec4(0, height, 0 , 0);
     vec3 normal = normalize(vec3(lh - rh, 2, dh - uh));
     vec3 bitangent = cross(vec3(0,0,1), normal);
     vec3 tangent = cross(normal, bitangent);
@@ -336,7 +334,6 @@ vec3 sample_normal(vec4 frag_pos, vec3 world_normal, vec2 texCoord,
 
 
 vec3 default_lighting(DS_OUT in){
-    float h = (in.height + 128)/256.0f;
     vec3 world_normal = normalize(in.normal);
     vec3 diffuse_sample = sample_diffuse(in.frag_pos, world_normal,
         in.texCoord, in.heightmap_index, 32, 128);

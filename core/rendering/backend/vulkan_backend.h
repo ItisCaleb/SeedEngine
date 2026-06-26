@@ -110,6 +110,7 @@ class RenderBackendVK : public RenderBackend {
         VkCommandPool command_pool;
         VmaAllocator buffer_allocator;
         VkDescriptorPool descriptor_pool;
+
         Handle current_render_target;
 
         struct SwapChain {
@@ -237,9 +238,11 @@ class RenderBackendVK : public RenderBackend {
         void create_sync_objects();
 
         /* helper functions */
-        TextureHandle create_texture(TextureType type, u32 w, u32 h, PixelFormat format,
-                            u32 count, MSAAType msaa_type,
-                            const SamplerProperty &property, bool should_map);
+        TextureHandle create_texture(TextureType type, u32 w, u32 h,
+                                     PixelFormat format, u32 count,
+                                     MSAAType msaa_type,
+                                     const SamplerProperty &property,
+                                     bool should_map);
         void create_staging_buffer(VkBuffer *buffer, VmaAllocation *allocation,
                                    u64 size);
         void create_host_visible_buffer(VkBuffer *buffer,
@@ -345,7 +348,8 @@ class RenderBackendVK : public RenderBackend {
             const RenderBlendState &blend_state) override;
 
         RenderPassHandle alloc_render_pass() override;
-        void copy_texture(TextureHandle dst, u32 dst_layer, TextureHandle src, u32 src_layer) override;
+        void copy_texture(TextureHandle dst, u32 dst_layer, TextureHandle src,
+                          u32 src_layer) override;
 
         /* We'll use different method for updating different type of buffer */
         /* for STATIC we create a staging buffer to transfer */

@@ -1,6 +1,5 @@
 #include "render_command.h"
 #include "render_engine.h"
-#include <spdlog/spdlog.h>
 #include "core/macro.h"
 #include "core/resource/material.h"
 

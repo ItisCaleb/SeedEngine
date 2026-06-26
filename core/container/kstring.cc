@@ -1,5 +1,4 @@
 #include "kstring.h"
-#include <fmt/base.h>
 #include <algorithm>
 #include <climits>
 #include <cstdlib>

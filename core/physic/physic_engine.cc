@@ -1,7 +1,6 @@
 #include "physic_engine.h"
 #include "jolt_backend.h"
 #include <spdlog/spdlog.h>
-#include "core/engine.h"
 #include "physic_shape.h"
 
 namespace Seed {

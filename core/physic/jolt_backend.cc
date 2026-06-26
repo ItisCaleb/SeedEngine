@@ -1,7 +1,6 @@
 #include "jolt_backend.h"
 #include <thread>
 #include <Jolt/Math/Real.h>
-#include <Jolt/Physics/Body/AllowedDOFs.h>
 #include <Jolt/Physics/EActivation.h>
 #include <spdlog/spdlog.h>
 #include <stdarg.h>

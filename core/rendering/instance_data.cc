@@ -1,16 +1,12 @@
 #include "instance_data.h"
-#include <cstdlib>
 #include <cstring>
 #include "core/collision/shape.h"
 #include "core/macro.h"
 #include "core/math/mat4.h"
 #include "core/math/utils.h"
-#include "core/math/vec3.h"
-#include "core/math/vec4.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/debug/debug_drawer.h"
 #include "core/engine.h"
-#include "core/resource/animation.h"
 #include "core/resource/model.h"
 #include "core/transform.h"
 #include "core/types.h"

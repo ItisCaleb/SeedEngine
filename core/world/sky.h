@@ -3,7 +3,6 @@
 #include "core/ref.h"
 #include "core/resource/material.h"
 #include "core/resource/default_storage.h"
-#include "texture.h"
 
 namespace Seed {
 class SkyMaterial : public Material {
@@ -14,7 +13,7 @@ class SkyMaterial : public Material {
         }
 };
 
-class Sky : public Resource {
+class Sky : public RefCounted {
     private:
         Ref<SkyMaterial> sky_mat;
         Ref<TextureCubemap> cubemap;

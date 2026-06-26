@@ -4,7 +4,6 @@
 #include "core/rendering/rhi/render_resource.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/engine.h"
-#include <spdlog/spdlog.h>
 #include <vector>
 #include "core/debug/debug_drawer.h"
 #include "core/rendering/mesh_storage.h"

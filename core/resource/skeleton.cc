@@ -1,6 +1,5 @@
 #include "skeleton.h"
 #include <spdlog/spdlog.h>
-#include <cstring>
 #include "core/math/mat4.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/macro.h"

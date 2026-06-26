@@ -17,29 +17,69 @@ struct Property{
     Sampler2D u_diffuse;
     Sampler2D u_specular;
     Sampler2D u_normal;
-    Sampler2D shadowMap;
+    Sampler2DShadow shadowMap;
 };
 
 ParameterBlock<Property> prop;
 
+struct VS_IN{
+    vec3 aPos;
+    vec3 aNormal;
+    vec3 aTangent;
+    vec2 aUV;
+#ifdef BONE
+    uint4 aBoneIds;
+    vec4 aWeights;
+#endif
+    uint id: SV_VulkanInstanceID;
+};
+
 [shader("vertex")]
-VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_VulkanInstanceID){
+VS_OUT vert(VS_IN in){
     VS_OUT out;
-    mat4 aModel = GetTransform(id);
-    vec4 worldPos = aModel * vec4(aPos, 1.0);
+    Camera cam = GetCamera();
+
+#ifdef BONE
+    mat4 aModel = GetSkeletonTransform(in.id);
+#else
+    mat4 aModel = GetTransform(in.id);
+#endif
+    vec4 position = vec4(in.aPos, 1.0);
+    vec3 normal = in.aNormal;
+    vec3 tangent = in.aTangent;
+#ifdef BONE
+    vec4 totalPos = vec4(0.0f);
+    vec3 skinnedNormal = vec3(0.0f);
+    vec3 skinnedTangent = vec3(0.0f);
+    for(int i = 0;i<4;i++){
+        if(in.aWeights[i] == 0.0 || in.aBoneIds[i] == -1) continue;
+        mat4 bone_mat = GetSkeletonBone(in.id, in.aBoneIds[i]);
+        totalPos += bone_mat * position * in.aWeights[i];
+        mat3 normal_mat = mat3(bone_mat);
+        skinnedNormal += normal_mat * normal * in.aWeights[i];
+        skinnedTangent += normal_mat * tangent * in.aWeights[i];
+    }
+    position = totalPos;
+    normal = skinnedNormal;
+    tangent = skinnedTangent;
+#endif
+
+    vec4 worldPos = aModel * position;
+
     // For right handed system,
     // after view transformation, the depth is always negative
     // So we negate it
-    Camera cam = GetCamera();
     out.view_depth = -(cam.u_view * worldPos).z;
     out.sv_position = cam.u_projection * cam.u_view * worldPos;
 
+
+    // tangent space transition
     mat3 TBN_to_world = mat3(1.0);
-    if(length(aNormal) > 0.01){
+    if(length(normal) > 0.01){
         mat3 modelNormalMat = mat3(aModel);
 
-        vec3 T = normalize(modelNormalMat * aTangent);
-        vec3 N = normalize(modelNormalMat * aNormal);
+        vec3 T = normalize(modelNormalMat * tangent);
+        vec3 N = normalize(modelNormalMat * normal);
         T = normalize(T - dot(T, N) * N);  // Gram-Schmidt
         vec3 B = cross(N, T);
         TBN_to_world = mat3(T, B, N);
@@ -47,10 +87,10 @@ VS_OUT vert(vec3 aPos, vec3 aNormal, vec3 aTangent, vec2 aTexCoord, uint id: SV_
 
     mat3 TBN_to_tangent = transpose(TBN_to_world);
 
-    out.texCoord = aTexCoord;
+    out.texCoord = in.aUV;
 
     out.frag_pos = worldPos.xyz;
-    out.normal = aNormal;
+    out.normal = normal;
     out.tangent_frag_pos = TBN_to_tangent * worldPos.xyz;
     out.tangent_view_pos = TBN_to_tangent * cam.u_cam_pos;
     out.tangent_dir_light = TBN_to_tangent * (gLights.u_dir_light.position);

@@ -7,7 +7,7 @@
 #include "core/rendering/instance_data.h"
 #include "core/resource/model.h"
 #include "core/world/terrain.h"
-#include "core/resource/sky.h"
+#include "core/world/sky.h"
 #include "core/rendering/light.h"
 #include "core/resource/billboard.h"
 #include "core/transform.h"

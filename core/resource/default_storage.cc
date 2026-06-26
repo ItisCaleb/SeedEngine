@@ -28,8 +28,7 @@ DefaultStorage::DefaultStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
     mesh_shader = loader->load_internal<Shader>("assets/shader/default.slang");
-    skeleton_mesh_shader =
-        loader->load_internal<Shader>("assets/shader/default_skeleton.slang");
+    skeleton_mesh_shader = mesh_shader->create_variant({{"BONE", "1"}});
     sky_shader = loader->load_internal<Shader>("assets/shader/sky.slang");
     terrain_shader =
         loader->load_internal<Shader>("assets/shader/terrain.slang");

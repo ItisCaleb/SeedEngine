@@ -1,6 +1,5 @@
 #include "resource_loader.h"
 #include "core/container/kstring.h"
-#include "core/engine.h"
 #include "core/io/file.h"
 #include "core/io/dir.h"
 #include <spdlog/spdlog.h>

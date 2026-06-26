@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include "core/os.h"
 #include "core/debug/debug_drawer.h"
-#include "xr/xr_engine.h"
 #include <spdlog/sinks/callback_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 

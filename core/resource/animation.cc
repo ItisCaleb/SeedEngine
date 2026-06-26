@@ -1,5 +1,5 @@
 #include "animation.h"
-#include <spdlog/spdlog.h>
+#include "core/rendering/light.h"
 
 namespace Seed {
 
@@ -44,7 +44,7 @@ Vec3 AnimationState::interpolate_scaling(AnimationClip &clip, f32 time) {
 }
 void AnimationState::calculate_pose(Mat4 *bone_poses, u64 size) {
     if (this->animation.is_null()) {
-        SPDLOG_ERROR("Animation is null.");
+        SEED_WARN("Animation is null, skipping pose calculation.");
         return;
     }
 
