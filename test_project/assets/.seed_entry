@@ -7,6 +7,18 @@
       "config": {}
     },
     {
+      "UUID": "1c9b4ad8-a6c5-410a-81d8-a23590b68b6b",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_-1_-1.png",
+      "config": {}
+    },
+    {
+      "UUID": "401c4897-3078-431d-8244-b7ae9ea3e1b8",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_-1_0_control.png",
+      "config": {}
+    },
+    {
       "UUID": "897fb62e-ede8-4a2d-8434-97f48c91273d",
       "resource_type_id": 14404195799590022334,
       "path": "assets\\.internal\\scene.bin",
@@ -253,14 +265,56 @@
       "config": {}
     },
     {
+      "UUID": "f2adcf14-422a-422d-89c0-53c0c22bcd3f",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_-1_0.png",
+      "config": {}
+    },
+    {
+      "UUID": "5225f0d5-52f0-49ad-8afe-e41675030e6b",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_0_0_control.png",
+      "config": {}
+    },
+    {
+      "UUID": "10a114a0-f916-4258-8b2a-197fb0bd6c4a",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_1_1_control.png",
+      "config": {}
+    },
+    {
+      "UUID": "de22f803-4047-43e4-8bc4-b6bcb8ce14a3",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_-1_1.png",
+      "config": {}
+    },
+    {
+      "UUID": "76ab643e-cb04-45d2-8be2-c42e85eb3034",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_-1_-1_control.png",
+      "config": {}
+    },
+    {
       "UUID": "8bf592bd-7de5-46a9-8c6f-ee0c070cb30d",
       "resource_type_id": 10849148638007426714,
       "path": "assets\\new_world.world"
     },
     {
+      "UUID": "b740f966-12a8-4b14-8cee-8c71768991e4",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_1_-1_control.png",
+      "config": {}
+    },
+    {
       "UUID": "715a55b0-193d-4ce3-9031-030d99448b66",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\grass_tex.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "18cc4614-0b35-4e5d-93ab-61b8fd435d6d",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_0_2.png",
       "config": {}
     },
     {
@@ -276,9 +330,51 @@
       "config": {}
     },
     {
+      "UUID": "dffea10b-1a0f-4d1f-95ac-872fd0673556",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_0_2_control.png",
+      "config": {}
+    },
+    {
+      "UUID": "a6cd61d6-8fbc-46dd-96a7-e86dbecb6a9d",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_1_0_control.png",
+      "config": {}
+    },
+    {
+      "UUID": "4068a916-54ae-4cea-97bb-ec907a260306",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\BroadleafBark.tga",
+      "config": {}
+    },
+    {
       "UUID": "60ab3ab1-c50f-4898-9946-466bd69fa160",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\skybox\\front.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "878d107b-0e32-40f8-9b73-8bb973fed614",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_1_-1.png",
+      "config": {}
+    },
+    {
+      "UUID": "87bb2403-0e4f-4fdc-9f27-840c9848a0f3",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_0_-1_control.png",
+      "config": {}
+    },
+    {
+      "UUID": "f458f318-9c10-4c64-a02b-b383cb1fa5fa",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_0_1_control.png",
+      "config": {}
+    },
+    {
+      "UUID": "ed5b9f27-2cb4-4957-a4e9-e098b868e895",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_-1_1_control.png",
       "config": {}
     },
     {
@@ -294,9 +390,33 @@
       "config": {}
     },
     {
+      "UUID": "47c85811-e183-40c1-abad-f7ca9f1eb796",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_1_0.png",
+      "config": {}
+    },
+    {
       "UUID": "5ff550a5-afc6-4250-acc7-3b4e08dc8a5b",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\skybox\\left.jpg",
+      "config": {}
+    },
+    {
+      "UUID": "1c57bb70-811e-4c22-afb2-2fb592e807af",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_0_0.png",
+      "config": {}
+    },
+    {
+      "UUID": "a19f86e1-366d-47a0-b2ff-a507c6d19d89",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_1_1.png",
+      "config": {}
+    },
+    {
+      "UUID": "e8b690e3-ed0d-4657-b350-a9d499b5ae00",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_0_1.png",
       "config": {}
     },
     {
@@ -306,10 +426,123 @@
       "config": {}
     },
     {
+      "UUID": "768b0d0e-6805-4653-b711-d2e582bc4762",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\gravelly_sand_diff_1k.jpg",
+      "config": {}
+    },
+    {
       "UUID": "fd033937-4ee5-4096-b71e-0bfe84afbf8d",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\skybox\\top.jpg",
       "config": {}
+    },
+    {
+      "UUID": "e3d5400a-381b-4eb0-b792-fb9dde7fb758",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\SampleLeaves_2.tga",
+      "config": {}
+    },
+    {
+      "UUID": "2dd6029e-6e14-47a4-bb69-8c36b22e584d",
+      "resource_type_id": 5244098326367020329,
+      "path": "assets\\.internal\\new_world_0_-1.png",
+      "config": {}
+    },
+    {
+      "UUID": "660d1b7a-e244-43d4-bcdb-d59fec5e1d6a",
+      "resource_type_id": 14029776919340718105,
+      "path": "assets\\.internal\\AlanTree.bin",
+      "config": {
+        "animations": [],
+        "bones": null,
+        "materials": [
+          {
+            "diffuse": "00000000-0000-0000-0000-000000000000",
+            "name": "Default",
+            "normal": "00000000-0000-0000-0000-000000000000",
+            "opacity": 0.0,
+            "specular": "00000000-0000-0000-0000-000000000000"
+          },
+          {
+            "diffuse": "4068a916-54ae-4cea-97bb-ec907a260306",
+            "name": "BroadleafBark",
+            "normal": "00000000-0000-0000-0000-000000000000",
+            "opacity": 0.0,
+            "specular": "00000000-0000-0000-0000-000000000000"
+          },
+          {
+            "diffuse": "e3d5400a-381b-4eb0-b792-fb9dde7fb758",
+            "name": "SampleLeaves_2",
+            "normal": "00000000-0000-0000-0000-000000000000",
+            "opacity": 0.0,
+            "specular": "00000000-0000-0000-0000-000000000000"
+          }
+        ],
+        "meshes": [
+          {
+            "bin_offset": 0,
+            "bin_size": 42184,
+            "bounding_box": {
+              "center": [
+                -2.126829147338867,
+                -4.363836288452148,
+                44.01793670654297
+              ],
+              "ext": [
+                20.83816146850586,
+                26.699291229248047,
+                21.785295486450195
+              ]
+            },
+            "has_bone": false,
+            "index_count": 2571,
+            "material_id": 0,
+            "vertex_count": 725
+          },
+          {
+            "bin_offset": 42184,
+            "bin_size": 1047444,
+            "bounding_box": {
+              "center": [
+                3.8432235717773438,
+                -2.388883590698242,
+                37.358699798583984
+              ],
+              "ext": [
+                30.243579864501953,
+                31.50056266784668,
+                37.358699798583984
+              ]
+            },
+            "has_bone": false,
+            "index_count": 55413,
+            "material_id": 1,
+            "vertex_count": 18768
+          },
+          {
+            "bin_offset": 1089628,
+            "bin_size": 482920,
+            "bounding_box": {
+              "center": [
+                3.2324295043945313,
+                -1.5766887664794922,
+                42.95331954956055
+              ],
+              "ext": [
+                32.14735412597656,
+                31.628541946411133,
+                32.03926467895508
+              ]
+            },
+            "has_bone": false,
+            "index_count": 14448,
+            "material_id": 2,
+            "vertex_count": 9662
+          }
+        ],
+        "type": "model"
+      }
     }
   ]
 }

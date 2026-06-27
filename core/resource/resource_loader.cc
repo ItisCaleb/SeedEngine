@@ -41,8 +41,11 @@ Ref<Resource> ResourceLoader::load_shader(ResourceLoader &loader,
     return ref_cast<Resource>(shader);
 }
 
-static void load_meshes(ResourceLoader &loader, ResourceConfiguration &config,
-                        Ref<File> data, std::vector<Ref<Mesh>> &meshes) {
+void ResourceLoader::load_meshes(ResourceLoader &loader,
+                                 ResourceConfiguration &config, Ref<File> data,
+                                 std::vector<Ref<Mesh>> &meshes,
+                                 Ref<Skeleton> skeleton,
+                                 std::vector<Ref<Animation>> &animations) {
     auto model_info = config.get_json();
 
     std::vector<i32> mesh_mats;
@@ -67,6 +70,15 @@ static void load_meshes(ResourceLoader &loader, ResourceConfiguration &config,
         }
 
         mesh_mats.push_back(jmesh["material_id"]);
+    }
+
+    if (skeleton.is_valid() && model_info.contains("bones")) {
+        auto jbones = model_info["bones"];
+        u64 bin_offset = jbones["bin_offset"];
+        u32 bone_cnt = (u64)jbones["bin_size"] / sizeof(Mat4);
+        skeleton->bones.resize(bone_cnt);
+        data->read_vector(skeleton->bones, bone_cnt);
+        skeleton->bone_parents = jbones["parents"].get<std::vector<u16>>();
     }
 
     auto jmaterials = model_info["materials"];
@@ -97,92 +109,6 @@ static void load_meshes(ResourceLoader &loader, ResourceConfiguration &config,
         if (id == -1) id = 0;
         meshes[i]->set_material(ref_cast<Material>(materials[id]));
     }
-}
-
-Ref<Resource> ResourceLoader::load_basic_model(ResourceLoader &loader,
-                                               ResourceConfiguration &config,
-                                               Ref<File> data) {
-    Ref<BasicModel> model;
-    std::vector<Ref<Mesh>> meshes;
-    load_meshes(loader, config, data, meshes);
-    model.create(meshes);
-    return ref_cast<Resource>(model);
-}
-
-Ref<Resource> ResourceLoader::load_skeleton_model(ResourceLoader &loader,
-                                                  ResourceConfiguration &config,
-                                                  Ref<File> data) {
-    Ref<SkeletonModel> model;
-    Ref<Dir> dir = Dir::open(data->get_directory());
-    auto model_info = config.get_json();
-    Ref<File> bin_file = data;
-
-    std::vector<Ref<Mesh>> meshs;
-    std::vector<i32> mesh_mats;
-    std::vector<Ref<BaseMaterial>> materials;
-    std::vector<Ref<Texture>> textures;
-    Ref<Skeleton> skeleton;
-    skeleton.create();
-    auto jmeshs = model_info["meshes"];
-    for (auto &jmesh : jmeshs) {
-        std::vector<u32> indices;
-        if (jmesh["has_bone"]) {
-            std::vector<SkeletonVertex> vertices;
-            bin_file->read_vector(vertices, jmesh["vertex_count"]);
-            bin_file->read_vector(indices, jmesh["index_count"]);
-            meshs.push_back(Ref<Mesh>(&DS::get_instance()->skeleton_mesh_desc,
-                                      vertices, indices,
-                                      (AABB)jmesh["bounding_box"]));
-        } else {
-            std::vector<ModelVertex> vertices;
-            bin_file->read_vector(vertices, jmesh["vertex_count"]);
-            bin_file->read_vector(indices, jmesh["index_count"]);
-            meshs.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
-                                      indices, (AABB)jmesh["bounding_box"]));
-        }
-
-        mesh_mats.push_back(jmesh["material_id"]);
-    }
-
-    if (model_info.contains("bones")) {
-        auto jbones = model_info["bones"];
-        u64 bin_offset = jbones["bin_offset"];
-        u32 bone_cnt = (u64)jbones["bin_size"] / sizeof(Mat4);
-        skeleton->bones.resize(bone_cnt);
-        bin_file->read_vector(skeleton->bones, bone_cnt);
-        skeleton->bone_parents = jbones["parents"].get<std::vector<u16>>();
-    }
-
-    auto jmaterials = model_info["materials"];
-    for (auto &jmaterial : jmaterials) {
-        Ref<BaseMaterial> mat;
-        mat.create(DS::get_instance()->skeleton_mesh_shader);
-        UUID diffuse = jmaterial["diffuse"];
-        UUID specular = jmaterial["specular"];
-        UUID normal = jmaterial["normal"];
-        if (!diffuse.is_null()) {
-            mat->set_texture_map(BaseMaterial::DIFFUSE,
-                                 loader.load<Texture>(diffuse));
-        }
-        if (!specular.is_null()) {
-            mat->set_texture_map(BaseMaterial::SPECULAR,
-                                 loader.load<Texture>(specular));
-        }
-        if (!normal.is_null()) {
-            mat->set_texture_map(BaseMaterial::NORMAl,
-                                 loader.load<Texture>(normal));
-        }
-        RenderBlendState blend_state;
-        blend_state.blend_on = jmaterial["opacity"] != 1.0;
-        materials.push_back(mat);
-    }
-    for (int i = 0; i < meshs.size(); i++) {
-        i32 id = mesh_mats[i];
-        if (id == -1) id = 0;
-        meshs[i]->set_material(ref_cast<Material>(materials[id]));
-    }
-
-    model.create(meshs, skeleton);
 
     auto janimations = model_info["animations"];
     for (auto &janimation : janimations) {
@@ -199,17 +125,45 @@ Ref<Resource> ResourceLoader::load_skeleton_model(ResourceLoader &loader,
         u32 clip_count = janimation["clip_count"];
         animation->clips.reserve(clip_count);
         for (u32 i = 0; i < clip_count; i++) {
-            bin_file->read(&clip_info);
+            data->read(&clip_info);
             animation->clips.push_back({});
             AnimationClip &clip = animation->clips.back();
             clip.bone_id = clip_info.bone_id;
-            bin_file->read_vector(clip.position_keys,
-                                  clip_info.position_key_count);
-            bin_file->read_vector(clip.rotation_keys,
-                                  clip_info.rotation_key_count);
-            bin_file->read_vector(clip.scaling_keys,
-                                  clip_info.scaling_key_count);
+            data->read_vector(clip.position_keys, clip_info.position_key_count);
+            data->read_vector(clip.rotation_keys, clip_info.rotation_key_count);
+            data->read_vector(clip.scaling_keys, clip_info.scaling_key_count);
         }
+        animations.push_back(animation);
+    }
+}
+
+Ref<Resource> ResourceLoader::load_basic_model(ResourceLoader &loader,
+                                               ResourceConfiguration &config,
+                                               Ref<File> data) {
+    Ref<BasicModel> model;
+    std::vector<Ref<Mesh>> meshes;
+    std::vector<Ref<Animation>> animations;
+    load_meshes(loader, config, data, meshes, Ref<Skeleton>(), animations);
+    model.create(meshes);
+    return ref_cast<Resource>(model);
+}
+
+Ref<Resource> ResourceLoader::load_skeleton_model(ResourceLoader &loader,
+                                                  ResourceConfiguration &config,
+                                                  Ref<File> data) {
+    Ref<SkeletonModel> model;
+    std::vector<Ref<Mesh>> meshes;
+    std::vector<Ref<Animation>> animations;
+
+    auto model_info = config.get_json();
+
+    Ref<Skeleton> skeleton;
+    skeleton.create();
+    load_meshes(loader, config, data, meshes, skeleton, animations);
+
+    model.create(meshes, skeleton);
+
+    for (Ref<Animation> animation : animations) {
         model->add_animation(animation);
     }
     return ref_cast<Resource>(model);
@@ -262,7 +216,7 @@ Ref<TextureArray> load_texture_array(ResourceLoader &loader,
         UUID uuid = tex;
         RHI::UpdateBufferInfo info = loader.load_image_to_upload(uuid);
         if (info.data == nullptr) {
-            SPDLOG_WARN("Can't load image '{}'", uuid.to_string());
+            SEED_WARN("Can't load image '{}'", uuid.to_string());
             continue;
         }
         infos.push_back(info);
@@ -391,6 +345,8 @@ Ref<Resource> ResourceLoader::load_world(ResourceLoader &loader,
         object.name = KString(j.value<std::string>("name", ""));
         object.x = j.value("x", 0);
         object.y = j.value("y", 0);
+        object.z = j.value("z", object.y);
+        if (!j.contains("z")) object.y = 0;
         object.model = j.value("model", UUID{});
         return object;
     };

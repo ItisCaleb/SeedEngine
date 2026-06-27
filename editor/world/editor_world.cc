@@ -465,6 +465,7 @@ void EditorWorld::reload() {
                                tile->heightmap, tile->controlmap);
         }
     }
+    rebuild_static_model_instances();
 }
 
 void EditorWorld::save() {
@@ -519,6 +520,7 @@ void EditorWorld::save() {
             object_json["name"] = object.name;
             object_json["x"] = object.x;
             object_json["y"] = object.y;
+            object_json["z"] = object.z;
             object_json["model"] = object.model;
             chunk_json["static_objects"].push_back(object_json);
         }
@@ -585,6 +587,49 @@ EditorTile *EditorWorld::get_tile(u32 index) {
     return &iter->second;
 }
 
+bool EditorWorld::update_static_model_instance(u32 chunk_index,
+                                               u32 object_index) {
+    if (setting.is_null() || chunk_index >= setting->chunks.size()) {
+        return false;
+    }
+
+    ChunkSetting &chunk = setting->chunks[chunk_index];
+    if (object_index >= chunk.static_objects.size()) return false;
+
+    StaticObjectSetting &object = chunk.static_objects[object_index];
+    if (object.model.is_null()) return false;
+
+    EditorStaticModel &entry =
+        static_models[std::pair<u32, u32>(chunk_index, object_index)];
+    if (entry.model.is_null()) {
+        entry.model = ResourceLoader::get_instance()->load<BasicModel>(
+            object.model);
+        if (entry.model.is_null()) return false;
+    }
+    if (entry.instance.is_null()) {
+        entry.instance = entry.model->create_instance();
+    }
+
+    entry.instance->clear();
+    Transform transform;
+    transform.set_position((f32)object.x, (f32)object.y, (f32)object.z);
+    entry.model->add_instance(entry.instance, transform);
+    return true;
+}
+
+void EditorWorld::rebuild_static_model_instances() {
+    static_models.clear();
+    if (setting.is_null()) return;
+
+    for (u32 chunk_index = 0; chunk_index < setting->chunks.size();
+         chunk_index++) {
+        ChunkSetting &chunk = setting->chunks[chunk_index];
+        for (u32 object_index = 0;
+             object_index < chunk.static_objects.size(); object_index++) {
+            update_static_model_instance(chunk_index, object_index);
+        }
+    }
+}
 void EditorWorld::apply_directional_light_to_runtime() {
     if (setting.is_null()) return;
     SeedEngine *engine = SeedEngine::get_instance();
@@ -651,6 +696,45 @@ void EditorWorldInspector::draw_inspector() {
 }
 
 void EditorWorldInspector::save() {
+    if (world != nullptr) world->save();
+}
+
+EditorStaticObjectInspector::EditorStaticObjectInspector(EditorWorld *world,
+                                                         u32 chunk_index,
+                                                         u32 object_index)
+    : world(world), chunk_index(chunk_index), object_index(object_index) {}
+
+void EditorStaticObjectInspector::draw_inspector() {
+    if (world == nullptr) return;
+    if (chunk_index >= world->get_chunks().size()) return;
+
+    ChunkSetting &chunk = world->get_chunks()[chunk_index];
+    if (object_index >= chunk.static_objects.size()) return;
+
+    StaticObjectSetting &object = chunk.static_objects[object_index];
+    char name_buffer[256] = {};
+    if (!object.name.is_empty()) {
+        std::snprintf(name_buffer, sizeof(name_buffer), "%s",
+                      object.name.data());
+    }
+
+    if (ImGui::InputText("Name", name_buffer, sizeof(name_buffer))) {
+        object.name = name_buffer;
+    }
+
+    i32 pos[3] = {object.x, object.y, object.z};
+    if (ImGui::DragInt3("Position", pos, 1.0f)) {
+        object.x = pos[0];
+        object.y = pos[1];
+        object.z = pos[2];
+        world->update_static_model_instance(chunk_index, object_index);
+    }
+
+    KString model_text = object.model.to_string();
+    ImGui::Text("Model: %s", model_text.data());
+}
+
+void EditorStaticObjectInspector::save() {
     if (world != nullptr) world->save();
 }
 

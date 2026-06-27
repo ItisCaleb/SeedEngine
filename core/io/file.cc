@@ -2,6 +2,7 @@
 #include <spdlog/spdlog.h>
 #include <sys/stat.h>
 #include "path.h"
+#include "core/macro.h"
 #ifdef _WIN32
 #include <Windows.h>
 #else
@@ -13,7 +14,7 @@ Ref<File> File::open(KStr path, const char *mode) {
     Ref<File> file;
     FILE *f = fopen(path.data(), mode);
     if (!f) {
-        SPDLOG_WARN("Can't open file '{}'", path);
+        SEED_WARN("Can't open file '{}'", path);
         return file;
     }
     fseek(f, 0L, SEEK_END);

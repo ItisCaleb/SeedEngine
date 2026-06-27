@@ -10,6 +10,7 @@
 #include "core/project.h"
 #include "core/rendering/viewport.h"
 #include "core/resource/resource_loader.h"
+#include "core/resource/model.h"
 #include "editor/editor.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "editor/world/world_renderer.h"
@@ -111,6 +112,87 @@ bool WorldEditor::chunk_exists_at(i32 chunk_x, i32 chunk_y) const {
     return find_chunk_index_at_chunk(chunk_x, chunk_y) >= 0;
 }
 
+bool WorldEditor::is_static_model_asset(UUID uuid) const {
+    ResourceEntry *entry =
+        ResourceLoader::get_instance()->get_entries().get_entry(uuid);
+    return entry != nullptr && entry->type_id == type_id<BasicModel>();
+}
+
+std::string WorldEditor::static_model_label(UUID uuid) const {
+    ResourceEntry *entry =
+        ResourceLoader::get_instance()->get_entries().get_entry(uuid);
+    if (entry == nullptr) return "Missing Model";
+    KStr name = entry->path.filename();
+    return std::string(name.data(), name.length());
+}
+
+void WorldEditor::select_static_object(u32 chunk_index, u32 object_index) {
+    if (current_world == nullptr) return;
+    selected_static_chunk = (i32)chunk_index;
+    selected_static_object = (i32)object_index;
+    gEditor->set_current_inspect(new EditorStaticObjectInspector(
+        current_world, chunk_index, object_index));
+}
+
+bool WorldEditor::add_static_model(UUID uuid, i32 x, i32 y, i32 z) {
+    if (current_world == nullptr) return false;
+    if (!is_static_model_asset(uuid)) {
+        status_text = "Only static model assets can be added.";
+        return false;
+    }
+
+    std::vector<ChunkSetting> &chunks = current_world->get_chunks();
+    if (chunks.empty()) {
+        status_text = "Add a terrain tile before placing static models.";
+        return false;
+    }
+
+    i32 chunk_index = find_chunk_index_at_world(x, z);
+    if (chunk_index < 0) chunk_index = 0;
+
+    StaticObjectSetting object;
+    object.name = static_model_label(uuid);
+    object.x = x;
+    object.y = y;
+    object.z = z;
+    object.model = uuid;
+
+    chunks[chunk_index].static_objects.push_back(object);
+    u32 object_index = (u32)chunks[chunk_index].static_objects.size() - 1;
+    current_world->update_static_model_instance((u32)chunk_index, object_index);
+    select_static_object((u32)chunk_index, object_index);
+    save_current_world();
+    status_text = "Static model added.";
+    return true;
+}
+
+bool WorldEditor::accept_static_model_drop(i32 x, i32 y, i32 z) {
+    if (!ImGui::BeginDragDropTarget()) return false;
+
+    bool accepted = false;
+    if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("UUID")) {
+        UUID uuid = *(UUID *)payload->Data;
+        accepted = add_static_model(uuid, x, y, z);
+    }
+
+    ImGui::EndDragDropTarget();
+    return accepted;
+}
+
+void WorldEditor::accept_static_model_drop_on_viewport(ImVec2 viewport_origin,
+                                                       f32 viewport_w,
+                                                       f32 viewport_h) {
+    if (!ImGui::BeginDragDropTarget()) return;
+
+    if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("UUID")) {
+        i32 x = 0;
+        i32 z = 0;
+        sample_terrain_pick(viewport_origin, viewport_w, viewport_h, x, z);
+        add_static_model(*(UUID *)payload->Data, x, 0, z);
+    }
+
+    ImGui::EndDragDropTarget();
+}
 bool WorldEditor::add_chunk_at(i32 chunk_x, i32 chunk_y) {
     if (current_world == nullptr) return false;
     if (chunk_exists_at(chunk_x, chunk_y)) {
@@ -510,6 +592,8 @@ bool WorldEditor::load_world(const Path &path) {
     heightmaps_dirty = false;
     controlmaps_dirty = false;
     selected_terrain_palette_slot = -1;
+    selected_static_chunk = -1;
+    selected_static_object = -1;
 
     mark_preview_terrain_dirty();
     set_current_world_inspector();

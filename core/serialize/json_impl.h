@@ -77,6 +77,7 @@ inline void to_json(json_type &j, const UUID &v) {
     j = v.to_string();
 }
 
+
 }  // namespace Seed
 
 #endif

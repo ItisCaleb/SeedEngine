@@ -35,18 +35,9 @@ void WorldRenderer::preprocess() {
         return;
     }
 
-    fd.mesh = world->terrain->get_mesh();
-    Ref<TerrainInstanceData> instance = world->terrain->get_instances();
-    AABB bounding_box = fd.mesh->get_bounding_box();
     FrameGlobal &g_frame = RenderEngine::get_instance()->get_frame_global();
-
     fd.screen_w = screen_tex->get_width();
     fd.screen_h = screen_tex->get_height();
-    /* check instance mesh size > 0 */
-    if (instance.is_null() || !instance.is_null() && instance->size() == 0) {
-        return;
-    }
-    instance->upload();
 
     Camera *cam = &SeedEngine::get_instance()->get_world()->get_camera();
     RHI::UpdateBufferInfo cam_info =
@@ -68,16 +59,46 @@ void WorldRenderer::preprocess() {
     RHI::update_from_heap(g_frame.lights, 0, light_info);
 
     const Frustum &cam_frustum = cam->get_frustum();
-
-    /* Use instancing */
     std::vector<f32> depth;
     std::vector<u32> visible_instances;
-    instance->frustum_culling(cam_frustum, bounding_box, visible_instances,
-                              depth);
-    fd.visible_size = visible_instances.size();
-    if (visible_instances.empty()) return;
-    RHI::update(g_frame.visible, 0, sizeof(u32) * visible_instances.size(),
-                visible_instances.data());
+
+    fd.mesh = world->terrain->get_mesh();
+    Ref<TerrainInstanceData> terrain_instance = world->terrain->get_instances();
+    if (!fd.mesh.is_null() && !terrain_instance.is_null() &&
+        terrain_instance->size() > 0) {
+        terrain_instance->upload();
+        terrain_instance->frustum_culling(cam_frustum,
+                                          fd.mesh->get_bounding_box(),
+                                          visible_instances, depth);
+        fd.visible_size = visible_instances.size();
+    }
+
+    for (auto &[_, static_model] : world->get_static_models()) {
+        if (static_model.model.is_null() || static_model.instance.is_null() ||
+            static_model.instance->size() == 0) {
+            continue;
+        }
+
+        static_model.instance->upload();
+        for (Ref<Mesh> mesh : static_model.model->get_meshes()) {
+            FrameData::StaticMesh static_mesh;
+            static_mesh.mesh = mesh;
+            static_mesh.visible_offset = visible_instances.size();
+            static_model.instance->frustum_culling(
+                cam_frustum, mesh->get_bounding_box(), visible_instances,
+                depth);
+            static_mesh.visible_size =
+                visible_instances.size() - static_mesh.visible_offset;
+            if (static_mesh.visible_size > 0) {
+                fd.static_meshes.push_back(static_mesh);
+            }
+        }
+    }
+
+    if (!visible_instances.empty()) {
+        RHI::update(g_frame.visible, 0, sizeof(u32) * visible_instances.size(),
+                    visible_instances.data());
+    }
 }
 void WorldRenderer::_process(RenderCommandDispatcher &dp) {
     color_pass.draw(dp, fd);
@@ -101,6 +122,20 @@ void WorldRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
                   0);
     }
 
+    for (FrameData::StaticMesh &mesh : fd.static_meshes) {
+        if (mesh.visible_size == 0) continue;
+        Ref<Material> material = mesh.mesh->get_material();
+        RenderDrawDataBuilder mesh_builder = dp.generate_render_data(material);
+        mesh_builder.push_constant(mesh.visible_offset);
+        mesh_builder.push_constant(0);
+        mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
+        mesh_builder.set_instance(mesh.visible_size);
+        mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
+        mesh_builder.set_depth_write(true);
+        mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
+        dp.render(mesh_builder, mesh.mesh->get_type(), material->get_pipeline(),
+                  0);
+    }
     EditorWorld *world = gEditor->world_editor.get_current_world();
 
     if (!world) {

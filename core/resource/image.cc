@@ -145,7 +145,7 @@ Ref<Image> Image::median_filter(u32 kernel_size, bool process_alpha) {
 
     if (format != PixelFormat::R && format != PixelFormat::RG &&
         format != PixelFormat::RGB && format != PixelFormat::RGBA) {
-        SPDLOG_WARN("Median filter fail, format is not supported.");
+        SEED_WARN("Median filter fail, format is not supported.");
         return output;
     }
 

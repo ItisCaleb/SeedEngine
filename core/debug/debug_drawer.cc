@@ -19,7 +19,7 @@ void DebugDrawer::draw_triangle(Vec3 v1, Vec3 v2, Vec3 v3, Color color) {
 void DebugDrawer::draw_triangles(const std::vector<Vec3> vertices,
                                  const std::vector<u32> indices, Color color) {
     if (indices.size() % 3 != 0) {
-        SPDLOG_WARN("Indices must be multiple of 3.");
+        SEED_WARN("Indices must be multiple of 3.");
         return;
     }
     u32 index = this->triangle_vertices.size();

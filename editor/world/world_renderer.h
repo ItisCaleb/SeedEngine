@@ -3,15 +3,23 @@
 #include "core/rendering/renderer/renderer.h"
 #include "core/rendering/render_pass.h"
 #include "core/rendering/mesh.h"
+#include <vector>
 
 namespace Seed {
 class WorldRenderer : public Renderer {
     private:
         struct FrameData {
+                struct StaticMesh {
+                        Ref<Mesh> mesh;
+                        u32 visible_offset = 0;
+                        u32 visible_size = 0;
+                };
+
                 Ref<Mesh> mesh;
-                u32 visible_size;
+                u32 visible_size = 0;
                 u32 screen_w, screen_h;
                 u32 mouse_x, mouse_y;
+                std::vector<StaticMesh> static_meshes;
         } fd;
         Ref<Texture> picking_tex;
         Ref<Texture> picking_depth;

@@ -25,6 +25,7 @@ class DefaultStorage {
         Ref<Texture> white_texture;
         Ref<Texture> black_texture;
         Ref<Texture> normal_texture;
+        Ref<Texture> noise_texture;
 
         VertexLayout terrain_desc;
         VertexLayout mesh_desc;

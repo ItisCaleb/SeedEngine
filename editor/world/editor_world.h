@@ -12,6 +12,7 @@
 #include "core/world/sky.h"
 #include "core/resource/texture.h"
 #include "core/resource/world_setting.h"
+#include "core/resource/model.h"
 #include "core/types.h"
 #include "editor/gui/editor_ui.h"
 #include "editor/gui/inspectable.h"
@@ -23,6 +24,11 @@ namespace Seed {
 struct EditorSky : public SkySetting {
         Ref<TextureCubemap> cubemap;
         Ref<Sky> sky;
+};
+
+struct EditorStaticModel {
+        Ref<BasicModel> model;
+        Ref<InstanceData> instance;
 };
 
 class EditorTile {
@@ -62,6 +68,7 @@ class EditorWorld {
         Ref<EditorTerrain> terrain;
         std::vector<EditorUI::TexturePreview> terrain_texture_previews;
         std::vector<EditorUI::TexturePreview> terrain_normal_previews;
+        std::map<std::pair<u32, u32>, EditorStaticModel> static_models;
 
         void copy_sky_setting_to_editor(const SkySetting &setting);
         void copy_editor_sky_to_setting(SkySetting &setting);
@@ -88,6 +95,8 @@ class EditorWorld {
         void apply_directional_light_to_runtime();
         void update_skybox_face(UUID uuid, CubemapFace face);
         void sync_tile_seams(std::set<u32> &touched_chunks);
+        void rebuild_static_model_instances();
+        bool update_static_model_instance(u32 chunk_index, u32 object_index);
 
         ResourceConfiguration *get_config() { return config; }
         const KString &get_name() const { return setting->name; }
@@ -123,6 +132,9 @@ class EditorWorld {
         bool set_terrain_normal(u32 index, UUID texture);
         void remove_terrain_texture(u32 index);
         EditorTile *get_tile(u32 index);
+        std::map<std::pair<u32, u32>, EditorStaticModel> &get_static_models() {
+            return static_models;
+        }
 };
 
 class EditorWorldInspector : public Inspectable {
@@ -131,6 +143,19 @@ class EditorWorldInspector : public Inspectable {
 
     public:
         EditorWorldInspector(EditorWorld *world);
+        virtual void draw_inspector() override;
+        virtual void save() override;
+};
+
+class EditorStaticObjectInspector : public Inspectable {
+    private:
+        EditorWorld *world;
+        u32 chunk_index;
+        u32 object_index;
+
+    public:
+        EditorStaticObjectInspector(EditorWorld *world, u32 chunk_index,
+                                    u32 object_index);
         virtual void draw_inspector() override;
         virtual void save() override;
 };

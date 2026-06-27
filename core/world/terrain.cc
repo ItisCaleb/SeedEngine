@@ -31,6 +31,7 @@ TerrainMaterial::TerrainMaterial(Ref<Shader> shader,
     this->set_texture("control_map", ref_cast<Texture>(controlmaps));
     this->set_texture("textures", ref_cast<Texture>(textures));
     this->set_texture("texture_normals", ref_cast<Texture>(texture_normals));
+    this->set_texture("noise_texture", DS::get_instance()->noise_texture);
     this->textures = textures;
     this->texture_normals = texture_normals;
     this->raster_state = {.cull_mode = Cullmode::BACK,

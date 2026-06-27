@@ -1,7 +1,7 @@
 #include "world_editor.h"
 #include "editor/world/editor_world.h"
 #include <algorithm>
-#include <cstdio>
+#include <fmt/format.h>
 #include <imgui.h>
 #include "core/resource/resource_loader.h"
 #include "editor/gui/editor_ui.h"
@@ -188,6 +188,7 @@ void WorldEditor::draw_viewport(f32 viewport_w, f32 viewport_h) {
     std::vector<ChunkSetting> &chunks = current_world->get_chunks();
     if (chunks.empty()) {
         draw_empty_viewport(origin, viewport_w, viewport_h, "No terrain tiles");
+        accept_static_model_drop_on_viewport(origin, viewport_w, viewport_h);
         if (active_mode == WorldEditorMode::World) {
             add_chunk_from_empty_viewport_click(origin, viewport_w, viewport_h);
         }
@@ -196,6 +197,7 @@ void WorldEditor::draw_viewport(f32 viewport_w, f32 viewport_h) {
 
     ImGui::Image((ImTextureID)(u64)screen_texture->get_handle(),
                  ImVec2(viewport_w, viewport_h), ImVec2(0, 1), ImVec2(1, 0));
+    accept_static_model_drop_on_viewport(origin, viewport_w, viewport_h);
 
     ImVec2 mouse = ImGui::GetMousePos();
     last_image_valid = mouse.x >= origin.x && mouse.y >= origin.y &&
@@ -211,28 +213,24 @@ void WorldEditor::draw_viewport(f32 viewport_w, f32 viewport_h) {
     } else {
         add_chunk_from_empty_viewport_click(origin, viewport_w, viewport_h);
     }
-
-    char overlay[96] = {};
+    std::string overlay;
     if (last_image_valid) {
-        std::snprintf(overlay, sizeof(overlay), "Image: %d, %d", last_image_x,
-                      last_image_y);
+        overlay = fmt::format("Image: {}, {}", last_image_x, last_image_y);
     } else {
-        std::snprintf(overlay, sizeof(overlay), "Image: -");
+        overlay = fmt::format("Image: -", last_image_x, last_image_y);
     }
     ImGui::GetWindowDrawList()->AddText(
         ImVec2(origin.x + 8.0f, origin.y + 8.0f), IM_COL32(220, 225, 235, 255),
-        overlay);
+        overlay.data());
 
     if (last_pick_valid && active_mode == WorldEditorMode::Terrain) {
-        std::snprintf(overlay, sizeof(overlay), "Terrain: %d, %d", last_pick_x,
-                      last_pick_y);
+        overlay = fmt::format("Terrain: {}, {}", last_pick_x, last_pick_y);
     } else {
-        std::snprintf(overlay, sizeof(overlay), "Terrain tiles: %zu",
-                      chunks.size());
+        overlay = fmt::format("Terrain tiles: {}", chunks.size());
     }
     ImGui::GetWindowDrawList()->AddText(
         ImVec2(origin.x + 8.0f, origin.y + 24.0f), IM_COL32(220, 225, 235, 255),
-        overlay);
+        overlay.data());
 }
 
 void WorldEditor::edit_terrain_viewport(ImVec2 viewport_origin, f32 viewport_w,
@@ -274,31 +272,45 @@ void WorldEditor::draw_right_panel() {
 }
 
 void WorldEditor::draw_world_panel() {
-    EditorUI::section("World");
-
-    char name_buffer[256] = {};
-    const KString &world_name = current_world->get_name();
-    if (!world_name.is_empty()) {
-        std::snprintf(name_buffer, sizeof(name_buffer), "%s",
-                      world_name.data());
-    }
-    if (ImGui::InputText("Name", name_buffer, sizeof(name_buffer))) {
-        current_world->set_name(name_buffer);
+    if (ImGui::Selectable("World", selected_static_chunk < 0)) {
+        selected_static_chunk = -1;
+        selected_static_object = -1;
+        set_current_world_inspector();
     }
 
-    ImGui::Spacing();
-    ImGui::Text("Terrain tiles: %zu", current_world->get_chunks().size());
-    ImGui::Text("Terrain maps: %s",
-                (heightmaps_dirty || controlmaps_dirty) ? "dirty" : "saved");
+    std::vector<ChunkSetting> &chunks = current_world->get_chunks();
+    for (u32 chunk_index = 0; chunk_index < chunks.size(); chunk_index++) {
+        ChunkSetting &chunk = chunks[chunk_index];
+        for (u32 object_index = 0; object_index < chunk.static_objects.size();
+             object_index++) {
+            StaticObjectSetting &object = chunk.static_objects[object_index];
+            EditorUI::ScopedID row_id((i32)(chunk_index * 10000 + object_index));
 
-    EditorUI::section("Directional Light");
-    DirectionalLightSetting &light = current_world->get_directional_light();
-    bool changed = EditorUI::draw_vec3("Direction", light.direction);
-    changed |= EditorUI::draw_vec3("Diffuse", light.diffuse);
-    changed |= EditorUI::draw_vec3("Specular", light.specular);
-    if (changed) {
-        current_world->apply_directional_light_to_runtime();
+            std::string label = object.name.is_empty()
+                                    ? static_model_label(object.model)
+                                    : object.name.data();
+            if (label.empty()) label = "Static Model";
+
+            bool selected = selected_static_chunk == (i32)chunk_index &&
+                            selected_static_object == (i32)object_index;
+            if (ImGui::Selectable(label.c_str(), selected)) {
+                select_static_object(chunk_index, object_index);
+            }
+
+            if (ImGui::IsItemHovered()) {
+                ImGui::BeginTooltip();
+                ImGui::Text("Position: %d, %d, %d", object.x, object.y,
+                            object.z);
+                ImGui::TextUnformatted(static_model_label(object.model).c_str());
+                ImGui::EndTooltip();
+            }
+        }
     }
+
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    ImVec2 drop_size(std::max(1.0f, avail.x), std::max(32.0f, avail.y));
+    ImGui::InvisibleButton("##scene_drop", drop_size);
+    accept_static_model_drop(0, 0, 0);
 }
 
 void WorldEditor::draw_terrain_palette() {

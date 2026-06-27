@@ -31,6 +31,7 @@ struct StaticObjectSetting {
         KString name;
         i32 x = 0;
         i32 y = 0;
+        i32 z = 0;
         UUID model;
 };
 

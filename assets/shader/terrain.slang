@@ -12,6 +12,7 @@ struct Property{
     Sampler2DArray control_map;
     Sampler2DArray textures;
     Sampler2DArray texture_normals;
+    Sampler2D noise_texture;
     Sampler2D terrain_shadowMap;
     Sampler2DShadow shadowMap;
 };
@@ -255,13 +256,50 @@ vec3 triplanar_mapping(vec3 frag_pos, vec3 world_normal, Sampler2DArray textures
     return sampled;
 }
 
+float hash(vec2 p) {
+    // Multiply by large prime/odd numbers to get high-frequency variation
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+vec3 textureNoTile(uint layer, in vec2 uv )
+{
+    // sample variation pattern    
+    float k = prop.noise_texture.Sample(uv).x; // cheap (cache friendly) lookup    
+    
+    // compute index    
+    float index = k*8.0;
+    float i = floor( index );
+    float f = fract( index );
+
+    // offsets for the different virtual patterns    
+    vec2 offa = sin(vec2(3.0,7.0)*(i+0.0)); // can replace with any other hash    
+    vec2 offb = sin(vec2(3.0,7.0)*(i+1.0)); // can replace with any other hash    
+
+    // compute derivatives for mip-mapping    
+    vec2 dx = ddx_fine(uv), dy = ddy_fine(uv);
+    
+    // sample the two closest virtual patterns    
+    vec3 cola = prop.textures.SampleGrad(vec3(uv + offa, layer), dx, dy ).rgb;
+    vec3 colb = prop.textures.SampleGrad(vec3(uv + offb, layer), dx, dy ).rgb;
+
+    vec3 s = cola-colb;
+    float sum = s.x + s.y + s.z;
+    // interpolate between the two virtual patterns    
+    return lerp(cola, colb, smoothstep(0.2,0.8,f-0.1*sum) );
+
+}
+
 vec3 sample_control_diffuse(vec3 frag_pos, vec3 world_normal, vec2 uv, uint layer, float scale1, float scale2){
     vec4 control = prop.control_map.SampleLevelZero(vec3(uv, layer));
     uint tex1 = uint(control.x * 255 + 0.5);
     uint tex2 = uint(control.y * 255 + 0.5);
     float blend = control.z;
-    vec3 diffuse1 = prop.textures.SampleLevelZero(vec3(frag_pos.xz / scale1, tex1)).rgb;
-    vec3 diffuse2 = prop.textures.SampleLevelZero(vec3(frag_pos.xz / scale2, tex2)).rgb;
+    vec2 uv1 = frag_pos.xz / scale1;
+    vec2 uv2 = frag_pos.xz / scale2;
+    vec3 diffuse1 = textureNoTile(tex1, uv1);
+    vec3 diffuse2 = textureNoTile(tex2, uv2);
     // vec3 diffuse1 = triplanar_mapping(frag_pos, world_normal, prop.textures, tex1, scale1);
     // vec3 diffuse2 = triplanar_mapping(frag_pos, world_normal, prop.textures, tex2, scale2);
 

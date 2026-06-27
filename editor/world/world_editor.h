@@ -55,6 +55,8 @@ class WorldEditor {
         bool last_image_valid = false;
         bool heightmaps_dirty = false;
         bool controlmaps_dirty = false;
+        i32 selected_static_chunk = -1;
+        i32 selected_static_object = -1;
         std::set<u32> dirty_heightmaps;
         std::set<u32> dirty_controlmaps;
         std::string status_text;
@@ -111,6 +113,14 @@ class WorldEditor {
         bool set_terrain_palette_texture(u32 index, TerrainPaletteMap map,
                                          UUID texture);
         bool accept_terrain_palette_drop(u32 index, TerrainPaletteMap map);
+        bool is_static_model_asset(UUID uuid) const;
+        std::string static_model_label(UUID uuid) const;
+        void select_static_object(u32 chunk_index, u32 object_index);
+        bool add_static_model(UUID uuid, i32 x, i32 y, i32 z);
+        bool accept_static_model_drop(i32 x, i32 y, i32 z);
+        void accept_static_model_drop_on_viewport(ImVec2 viewport_origin,
+                                                  f32 viewport_w,
+                                                  f32 viewport_h);
         void draw_terrain_palette_tooltip(
             UUID uuid, const EditorUI::TexturePreview *preview);
         void draw_terrain_palette_map(u32 index, TerrainPaletteMap map);

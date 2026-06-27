@@ -55,6 +55,11 @@ class ResourceLoader {
         static RESOURCE_LOADER(load_texture);
         static RESOURCE_LOADER(load_mappable_texture);
         static RESOURCE_LOADER(load_world);
+        static void load_meshes(ResourceLoader &loader,
+                                ResourceConfiguration &config, Ref<File> data,
+                                std::vector<Ref<Mesh>> &meshes,
+                                Ref<Skeleton> skeleton,
+                                std::vector<Ref<Animation>> &animations);
         ResourceEntries entries;
 
     public:
@@ -63,7 +68,8 @@ class ResourceLoader {
         void unregister_resource(Resource *res);
         ResourceEntries &get_entries() { return entries; }
 
-        RHI::UpdateBufferInfo load_image_to_upload(UUID uuid, bool force_rgba = false);
+        RHI::UpdateBufferInfo load_image_to_upload(UUID uuid,
+                                                   bool force_rgba = false);
         Ref<Image> load_image(UUID uuid, bool force_rgba = false);
 
         template <typename T>
@@ -220,8 +226,9 @@ class ResourceLoader {
             }
             return &iter->second;
         }
-        Ref<TextureCubemap> load_cubemap(u32 w, u32 h, UUID right, UUID left, UUID top,
-                                         UUID bottom, UUID front, UUID back);
+        Ref<TextureCubemap> load_cubemap(u32 w, u32 h, UUID right, UUID left,
+                                         UUID top, UUID bottom, UUID front,
+                                         UUID back);
         ResourceLoader(/* args */);
         ~ResourceLoader();
 };

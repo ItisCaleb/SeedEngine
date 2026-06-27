@@ -37,6 +37,9 @@ DefaultStorage::DefaultStorage() {
     billboard_shader =
         loader->load_internal<Shader>("assets/shader/billboard.slang");
     gui_shader = loader->load_internal<Shader>("assets/shader/imgui.slang");
+    noise_texture = loader->load_internal<Texture>("assets/noise.png");
+    noise_texture->update_sampler(SamplerProperty{
+        .wrap_u = SamplerWrap::REPEAT, .wrap_v = SamplerWrap::REPEAT});
 
     mesh_desc.add_type_attr<Vec3>(0);
     mesh_desc.add_type_attr<Vec3>(1);
