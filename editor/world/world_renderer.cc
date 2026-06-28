@@ -142,14 +142,16 @@ void WorldRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
         return;
     }
     Ref<Sky> sky = world->sky.sky;
-    RenderDrawDataBuilder sky_builder =
-        dp.generate_render_data(ref_cast<Material>(sky->get_material()));
-    sky_builder.push_constant(0);
-    sky_builder.push_constant(0);
-    sky_builder.bind_vertex_data(DS::get_instance()->sky_vertices);
-    sky_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
-    dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
-              sky->get_material()->get_pipeline(), 1.0);
+    if (sky.is_valid()) {
+        RenderDrawDataBuilder sky_builder =
+            dp.generate_render_data(ref_cast<Material>(sky->get_material()));
+        sky_builder.push_constant(0);
+        sky_builder.push_constant(0);
+        sky_builder.bind_vertex_data(DS::get_instance()->sky_vertices);
+        sky_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
+        dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
+                  sky->get_material()->get_pipeline(), 1.0);
+    }
 }
 
 }  // namespace Seed

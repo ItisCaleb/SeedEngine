@@ -116,7 +116,7 @@ void TextureArray::update_layer(u32 layer, RHI::UpdateBufferInfo info) {
 
 TextureCubemap::TextureCubemap(u32 w, u32 h, PixelFormat format,
                                const SamplerProperty &property) {
-    this->type = type;
+    this->type = TextureType::TEXTURE_CUBEMAP;
     this->w = w;
     this->h = h;
     this->format = format;

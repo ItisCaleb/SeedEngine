@@ -1,0 +1,10 @@
+<template name="menu" content="menu-content">
+
+    <head>
+        <link type="text/rcss" href="widgets.rcss" />
+    </head>
+
+    <body>
+        <div class="seed-menu" id="menu-content"></div>
+    </body>
+</template>

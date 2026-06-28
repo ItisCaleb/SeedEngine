@@ -2,18 +2,17 @@
 #define _SEED_EDITOR_WORLD_H_
 
 #include <map>
-#include <set>
 #include <nlohmann/json.hpp>
 #include <vector>
 #include "core/container/kstring.h"
 #include "core/misc/uuid.h"
 #include "core/resource/image.h"
+#include "core/resource/model.h"
 #include "core/resource/resource_entry.h"
-#include "core/world/sky.h"
 #include "core/resource/texture.h"
 #include "core/resource/world_setting.h"
-#include "core/resource/model.h"
 #include "core/types.h"
+#include "core/world/sky.h"
 #include "editor/gui/editor_ui.h"
 #include "editor/gui/inspectable.h"
 #include "editor_terrain.h"
@@ -31,26 +30,6 @@ struct EditorStaticModel {
         Ref<InstanceData> instance;
 };
 
-class EditorTile {
-    public:
-        enum class TileDirection { UP, BOTTOM, RIGHT, LEFT };
-
-    private:
-        void clamp_border(Ref<Image> image);
-        bool build_edge_from_image(Ref<Image> image, Ref<Image> source,
-                                   TileDirection direction);
-        bool build_border_from_image(Ref<Image> image, Ref<Image> source,
-                                     TileDirection direction);
-
-    public:
-        Ref<Image> heightmap;
-        Ref<Image> controlmap;
-
-        void clamp_border();
-        bool build_edge_from_tile(EditorTile *tile, TileDirection direction);
-        bool build_border_from_tile(EditorTile *tile, TileDirection direction);
-};
-
 class WorldEditor;
 class WorldRenderer;
 class EditorWorld {
@@ -62,8 +41,6 @@ class EditorWorld {
         ResourceConfiguration *config = nullptr;
         Ref<WorldSetting> setting;
         EditorSky sky;
-        std::map<std::pair<i32, i32>, u32> pos_to_index;
-        std::map<u32, EditorTile> tiles;
 
         Ref<EditorTerrain> terrain;
         std::vector<EditorUI::TexturePreview> terrain_texture_previews;
@@ -72,13 +49,6 @@ class EditorWorld {
 
         void copy_sky_setting_to_editor(const SkySetting &setting);
         void copy_editor_sky_to_setting(SkySetting &setting);
-        i32 find_chunk_index_at(i32 x, i32 y);
-        EditorTile *get_tile_at(i32 x, i32 y);
-        void rebuild_tile_border(u32 chunk_index);
-        void sync_tile_neighbor(u32 chunk_index, i32 neighbor_index,
-                                EditorTile::TileDirection direction,
-                                std::set<u32> &touched_chunks);
-        void sync_loaded_tile_seams();
         void read_chunk_controlmaps_from_config();
         void read_terrain_textures_from_config();
         void normalize_terrain_palette_size();
@@ -94,9 +64,11 @@ class EditorWorld {
         void save();
         void apply_directional_light_to_runtime();
         void update_skybox_face(UUID uuid, CubemapFace face);
-        void sync_tile_seams(std::set<u32> &touched_chunks);
         void rebuild_static_model_instances();
         bool update_static_model_instance(u32 chunk_index, u32 object_index);
+        bool terrain_chunk_exists_at(i32 x, i32 y) const;
+        bool has_dirty_terrain_maps() const;
+        void save_dirty_terrain_maps();
 
         ResourceConfiguration *get_config() { return config; }
         const KString &get_name() const { return setting->name; }
@@ -109,7 +81,7 @@ class EditorWorld {
         const std::vector<ChunkSetting> &get_chunks() const {
             return setting->chunks;
         }
-        void add_new_chunk(i32 x, i32 y);
+        bool add_new_chunk(i32 x, i32 y);
         void clear_tiles();
         std::vector<UUID> &get_terrain_textures() {
             return setting->terrain_textures;

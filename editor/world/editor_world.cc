@@ -1,4 +1,5 @@
 #include "editor_world.h"
+#include <algorithm>
 #include <cstdio>
 #include <fmt/format.h>
 #include <imgui.h>
@@ -10,14 +11,6 @@
 #include "editor/gui/editor_ui.h"
 
 namespace Seed {
-
-#define TILE_SIZE (257)
-#define TILE_BORDER (1)
-#define TILE_IMAGE_SIZE (TILE_SIZE + TILE_BORDER * 2)
-#define TILE_FIRST (TILE_BORDER)
-#define TILE_LAST (TILE_FIRST + TILE_SIZE - 1)
-#define TILE_PAD_FIRST (0)
-#define TILE_PAD_LAST (TILE_IMAGE_SIZE - 1)
 
 EditorWorld::EditorWorld(ResourceEntry *entry) : entry(entry) {
     if (entry != nullptr) {
@@ -62,225 +55,44 @@ void EditorWorld::update_skybox_face(UUID uuid, CubemapFace face) {
                              sky.cubemap->get_height(), face, image);
 }
 
-void EditorTile::clamp_border(Ref<Image> image) {
-    if (image.is_null()) return;
-
-    image->copy_column(image, TILE_FIRST, TILE_FIRST, TILE_PAD_FIRST,
-                       TILE_FIRST, TILE_SIZE);
-    image->copy_column(image, TILE_LAST, TILE_FIRST, TILE_PAD_LAST, TILE_FIRST,
-                       TILE_SIZE);
-    image->copy_row(image, TILE_PAD_FIRST, TILE_FIRST, TILE_PAD_FIRST,
-                    TILE_PAD_FIRST, TILE_IMAGE_SIZE);
-    image->copy_row(image, TILE_PAD_FIRST, TILE_LAST, TILE_PAD_FIRST,
-                    TILE_PAD_LAST, TILE_IMAGE_SIZE);
+bool EditorWorld::terrain_chunk_exists_at(i32 x, i32 y) const {
+    return !terrain.is_null() && terrain->chunk_exists_at(x, y);
 }
 
-void EditorTile::clamp_border() {
-    clamp_border(heightmap);
-    clamp_border(controlmap);
+bool EditorWorld::has_dirty_terrain_maps() const {
+    return !terrain.is_null() && terrain->has_dirty_maps();
 }
 
-bool EditorTile::build_edge_from_image(Ref<Image> image, Ref<Image> source,
-                                       TileDirection direction) {
-    if (image.is_null() || source.is_null()) return false;
+void EditorWorld::save_dirty_terrain_maps() {
+    if (setting.is_null() || terrain.is_null()) return;
+    terrain->save_dirty_maps(setting->chunks);
+}
 
-    switch (direction) {
-        case TileDirection::LEFT:
-            return source->copy_column(image, TILE_LAST, TILE_FIRST, TILE_FIRST,
-                                       TILE_FIRST, TILE_SIZE);
-        case TileDirection::RIGHT:
-            return source->copy_column(image, TILE_FIRST, TILE_FIRST, TILE_LAST,
-                                       TILE_FIRST, TILE_SIZE);
-        case TileDirection::BOTTOM:
-            return source->copy_row(image, TILE_FIRST, TILE_LAST, TILE_FIRST,
-                                    TILE_FIRST, TILE_SIZE);
-        case TileDirection::UP:
-            return source->copy_row(image, TILE_FIRST, TILE_FIRST, TILE_FIRST,
-                                    TILE_LAST, TILE_SIZE);
+bool EditorWorld::add_new_chunk(i32 x, i32 y) {
+    if (setting.is_null() || terrain.is_null() || gEditor == nullptr) {
+        return false;
     }
-    return false;
-}
-
-bool EditorTile::build_edge_from_tile(EditorTile *tile,
-                                      TileDirection direction) {
-    if (tile == nullptr) return false;
-
-    bool copied = false;
-    if (build_edge_from_image(heightmap, tile->heightmap, direction)) {
-        copied = true;
-    }
-    if (build_edge_from_image(controlmap, tile->controlmap, direction)) {
-        copied = true;
-    }
-    return copied;
-}
-
-bool EditorTile::build_border_from_image(Ref<Image> image, Ref<Image> source,
-                                         TileDirection direction) {
-    if (image.is_null() || source.is_null()) return false;
-
-    switch (direction) {
-        case TileDirection::LEFT:
-            return source->copy_column(image, TILE_LAST - 1, TILE_FIRST,
-                                       TILE_PAD_FIRST, TILE_FIRST, TILE_SIZE);
-        case TileDirection::RIGHT:
-            return source->copy_column(image, TILE_FIRST + 1, TILE_FIRST,
-                                       TILE_PAD_LAST, TILE_FIRST, TILE_SIZE);
-        case TileDirection::BOTTOM:
-            return source->copy_row(image, TILE_FIRST, TILE_LAST - 1,
-                                    TILE_FIRST, TILE_PAD_FIRST, TILE_SIZE);
-        case TileDirection::UP:
-            return source->copy_row(image, TILE_FIRST, TILE_FIRST + 1,
-                                    TILE_FIRST, TILE_PAD_LAST, TILE_SIZE);
-    }
-    return false;
-}
-
-bool EditorTile::build_border_from_tile(EditorTile *tile,
-                                        TileDirection direction) {
-    if (tile == nullptr) return false;
-
-    bool copied = false;
-    if (build_border_from_image(heightmap, tile->heightmap, direction)) {
-        copied = true;
-    }
-    if (build_border_from_image(controlmap, tile->controlmap, direction)) {
-        copied = true;
-    }
-    return copied;
-}
-
-i32 EditorWorld::find_chunk_index_at(i32 x, i32 y) {
-    std::map<std::pair<i32, i32>, u32>::iterator iter =
-        pos_to_index.find(std::pair<i32, i32>(x, y));
-    if (iter == pos_to_index.end()) return -1;
-    return (i32)iter->second;
-}
-
-EditorTile *EditorWorld::get_tile_at(i32 x, i32 y) {
-    i32 index = find_chunk_index_at(x, y);
-    if (index < 0) return nullptr;
-    return get_tile((u32)index);
-}
-
-void EditorWorld::rebuild_tile_border(u32 chunk_index) {
-    if (setting.is_null() || chunk_index >= setting->chunks.size()) return;
-
-    EditorTile *tile = get_tile(chunk_index);
-    if (tile == nullptr) return;
-
-    const ChunkSetting &chunk = setting->chunks[chunk_index];
-    tile->clamp_border();
-    tile->build_border_from_tile(get_tile_at(chunk.x - 1, chunk.y),
-                                 EditorTile::TileDirection::LEFT);
-    tile->build_border_from_tile(get_tile_at(chunk.x + 1, chunk.y),
-                                 EditorTile::TileDirection::RIGHT);
-    tile->build_border_from_tile(get_tile_at(chunk.x, chunk.y - 1),
-                                 EditorTile::TileDirection::BOTTOM);
-    tile->build_border_from_tile(get_tile_at(chunk.x, chunk.y + 1),
-                                 EditorTile::TileDirection::UP);
-}
-
-void EditorWorld::sync_tile_neighbor(u32 chunk_index, i32 neighbor_index,
-                                     EditorTile::TileDirection direction,
-                                     std::set<u32> &touched_chunks) {
-    if (neighbor_index < 0) return;
-
-    EditorTile *tile = get_tile(chunk_index);
-    EditorTile *neighbor = get_tile((u32)neighbor_index);
-    if (tile == nullptr || neighbor == nullptr) return;
-
-    bool copied = false;
-    switch (direction) {
-        case EditorTile::TileDirection::LEFT:
-            copied = neighbor->build_edge_from_tile(
-                tile, EditorTile::TileDirection::RIGHT);
-            break;
-        case EditorTile::TileDirection::RIGHT:
-            copied = neighbor->build_edge_from_tile(
-                tile, EditorTile::TileDirection::LEFT);
-            break;
-        case EditorTile::TileDirection::BOTTOM:
-            copied = neighbor->build_edge_from_tile(
-                tile, EditorTile::TileDirection::UP);
-            break;
-        case EditorTile::TileDirection::UP:
-            copied = neighbor->build_edge_from_tile(
-                tile, EditorTile::TileDirection::BOTTOM);
-            break;
-    }
-
-    if (copied) touched_chunks.insert((u32)neighbor_index);
-}
-
-void EditorWorld::sync_tile_seams(std::set<u32> &touched_chunks) {
-    if (setting.is_null()) return;
-
-    std::set<u32> source_chunks = touched_chunks;
-    for (u32 chunk_index : source_chunks) {
-        if (chunk_index >= setting->chunks.size()) continue;
-
-        const ChunkSetting &chunk = setting->chunks[chunk_index];
-        sync_tile_neighbor(chunk_index,
-                           find_chunk_index_at(chunk.x - 1, chunk.y),
-                           EditorTile::TileDirection::LEFT, touched_chunks);
-        sync_tile_neighbor(chunk_index,
-                           find_chunk_index_at(chunk.x + 1, chunk.y),
-                           EditorTile::TileDirection::RIGHT, touched_chunks);
-        sync_tile_neighbor(chunk_index,
-                           find_chunk_index_at(chunk.x, chunk.y - 1),
-                           EditorTile::TileDirection::BOTTOM, touched_chunks);
-        sync_tile_neighbor(chunk_index,
-                           find_chunk_index_at(chunk.x, chunk.y + 1),
-                           EditorTile::TileDirection::UP, touched_chunks);
-    }
-
-    std::set<u32> border_chunks = touched_chunks;
-    for (u32 chunk_index : border_chunks) {
-        rebuild_tile_border(chunk_index);
-    }
-}
-
-void EditorWorld::sync_loaded_tile_seams() {
-    if (setting.is_null()) return;
-
-    std::set<u32> touched_chunks;
-    for (u32 i = 0; i < setting->chunks.size(); i++) {
-        EditorTile *tile = get_tile(i);
-        if (tile == nullptr || tile->heightmap.is_null()) continue;
-
-        touched_chunks.insert(i);
-        const ChunkSetting &chunk = setting->chunks[i];
-        sync_tile_neighbor(i, find_chunk_index_at(chunk.x - 1, chunk.y),
-                           EditorTile::TileDirection::LEFT, touched_chunks);
-        sync_tile_neighbor(i, find_chunk_index_at(chunk.x, chunk.y - 1),
-                           EditorTile::TileDirection::BOTTOM, touched_chunks);
-    }
-
-    for (u32 chunk_index : touched_chunks) {
-        rebuild_tile_border(chunk_index);
-    }
-}
-
-void EditorWorld::add_new_chunk(i32 x, i32 y) {
-    if (setting.is_null() || gEditor == nullptr) return;
+    if (terrain_chunk_exists_at(x, y)) return false;
 
     ResourceEntry *heightmap_entry = gEditor->create_internal_asset(
         fmt::format("{}_{}_{}.png", setting->name, x, y), type_id<Texture>());
-    if (heightmap_entry == nullptr) return;
+    if (heightmap_entry == nullptr) return false;
 
     ResourceEntry *controlmap_entry = gEditor->create_internal_asset(
         fmt::format("{}_{}_{}_control.png", setting->name, x, y),
         type_id<Texture>());
-    if (controlmap_entry == nullptr) return;
+    if (controlmap_entry == nullptr) {
+        gEditor->remove_asset(heightmap_entry->uuid);
+        return false;
+    }
 
     Ref<Image> heightmap;
-    heightmap.create(PixelFormat::RG, TILE_IMAGE_SIZE, TILE_IMAGE_SIZE);
-    heightmap->fill(Color{64, 64}, TILE_IMAGE_SIZE, TILE_IMAGE_SIZE);
+    heightmap.create(PixelFormat::RG, HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
+    heightmap->fill(Color{64, 64}, HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
 
     Ref<Image> controlmap;
-    controlmap.create(PixelFormat::RGBA, TILE_IMAGE_SIZE, TILE_IMAGE_SIZE);
-    controlmap->fill(Color{0, 0, 0, 0}, TILE_IMAGE_SIZE, TILE_IMAGE_SIZE);
+    controlmap.create(PixelFormat::RGBA, HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
+    controlmap->fill(Color{0, 0, 0, 0}, HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
 
     u32 chunk_index = (u32)setting->chunks.size();
     ChunkSetting chunk;
@@ -289,24 +101,12 @@ void EditorWorld::add_new_chunk(i32 x, i32 y) {
     chunk.height_map = heightmap_entry->uuid;
     chunk.control_map = controlmap_entry->uuid;
     setting->chunks.push_back(chunk);
-    pos_to_index[std::pair<i32, i32>(x, y)] = chunk_index;
-
-    EditorTile *tile = &tiles[chunk_index];
-    tile->heightmap = heightmap;
-    tile->controlmap = controlmap;
-    tile->build_edge_from_tile(get_tile_at(x - 1, y),
-                               EditorTile::TileDirection::LEFT);
-    tile->build_edge_from_tile(get_tile_at(x + 1, y),
-                               EditorTile::TileDirection::RIGHT);
-    tile->build_edge_from_tile(get_tile_at(x, y - 1),
-                               EditorTile::TileDirection::BOTTOM);
-    tile->build_edge_from_tile(get_tile_at(x, y + 1),
-                               EditorTile::TileDirection::UP);
-    rebuild_tile_border(chunk_index);
 
     terrain->add_chunk(chunk.x, chunk.y, heightmap, controlmap);
+    terrain->connect_chunk(chunk_index);
     heightmap->save_disk(heightmap_entry->real_path());
     controlmap->save_disk(controlmap_entry->real_path());
+    return true;
 }
 
 void EditorWorld::read_chunk_controlmaps_from_config() {
@@ -322,6 +122,7 @@ void EditorWorld::read_chunk_controlmaps_from_config() {
             j["chunks"][i].value("control_map", UUID{});
     }
 }
+
 void EditorWorld::read_terrain_textures_from_config() {
     if (config == nullptr || setting.is_null()) return;
 
@@ -386,26 +187,27 @@ void EditorWorld::rebuild_terrain_texture_previews() {
 }
 
 void EditorWorld::upload_terrain_palette_to_gpu() {
-    if (setting.is_null()) return;
+    if (setting.is_null() || terrain.is_null()) return;
 
     ResourceLoader *loader = ResourceLoader::get_instance();
+    if (loader == nullptr) return;
 
     Ref<Image> normal_image;
-    normal_image.create(PixelFormat::RGBA, 1024, 1024);
-    normal_image->fill(Color{128, 128, 255, 255}, 1024, 1024);
+    normal_image.create(PixelFormat::RGBA, TERRAIN_TEXTURE_SIZE,
+                        TERRAIN_TEXTURE_SIZE);
+    normal_image->fill(Color{128, 128, 255, 255}, TERRAIN_TEXTURE_SIZE,
+                       TERRAIN_TEXTURE_SIZE);
 
     for (u32 i = 0; i < setting->terrain_textures.size(); i++) {
-        /* upload texture */
         RHI::UpdateBufferInfo tex_info =
             loader->load_image_to_upload(setting->terrain_textures[i], true);
 
         terrain->get_material()->get_textures()->update_layer(i, tex_info);
 
-        /* upload normal */
         if (setting->terrain_normals[i].is_null()) {
-            /* fallback */
             terrain->get_material()->get_texture_normals()->update_layer(
-                1024, 1024, i, normal_image->get_data());
+                TERRAIN_TEXTURE_SIZE, TERRAIN_TEXTURE_SIZE, i,
+                normal_image->get_data());
         } else {
             RHI::UpdateBufferInfo norm_info =
                 loader->load_image_to_upload(setting->terrain_normals[i], true);
@@ -413,7 +215,6 @@ void EditorWorld::upload_terrain_palette_to_gpu() {
                 i, norm_info);
         }
         terrain_texture_previews[i].upload_failed = false;
-
         terrain_normal_previews[i].upload_failed = false;
     }
 }
@@ -421,17 +222,14 @@ void EditorWorld::upload_terrain_palette_to_gpu() {
 void EditorWorld::clear_tiles() {
     if (setting.is_null()) return;
     setting->chunks.clear();
-    pos_to_index.clear();
-    tiles.clear();
     terrain->clear_chunks();
 }
 
 void EditorWorld::reload() {
     sky = {};
-    pos_to_index.clear();
-    tiles.clear();
     terrain_texture_previews.clear();
     terrain_normal_previews.clear();
+    static_models.clear();
     terrain->clear_chunks();
     if (entry == nullptr) return;
 
@@ -452,19 +250,13 @@ void EditorWorld::reload() {
 
     for (u32 i = 0; i < setting->chunks.size(); i++) {
         ChunkSetting &chunk = setting->chunks[i];
-        pos_to_index[std::pair<i32, i32>(chunk.x, chunk.y)] = i;
-        tiles[i].heightmap = loader->load_image(chunk.height_map);
-        tiles[i].controlmap = loader->load_image(chunk.control_map);
+        Ref<Image> heightmap = loader->load_image(chunk.height_map);
+        Ref<Image> controlmap = loader->load_image(chunk.control_map);
+        terrain->add_chunk(chunk.x, chunk.y, heightmap, controlmap);
     }
 
-    sync_loaded_tile_seams();
-    for (u32 i = 0; i < setting->chunks.size(); i++) {
-        EditorTile *tile = get_tile(i);
-        if (tile) {
-            terrain->add_chunk(setting->chunks[i].x, setting->chunks[i].y,
-                               tile->heightmap, tile->controlmap);
-        }
-    }
+    terrain->sync_loaded_tile_seams();
+    terrain->clear_dirty_maps();
     rebuild_static_model_instances();
 }
 
@@ -582,9 +374,8 @@ void EditorWorld::remove_terrain_texture(u32 index) {
 }
 
 EditorTile *EditorWorld::get_tile(u32 index) {
-    std::map<u32, EditorTile>::iterator iter = tiles.find(index);
-    if (iter == tiles.end()) return nullptr;
-    return &iter->second;
+    if (terrain.is_null()) return nullptr;
+    return terrain->get_tile(index);
 }
 
 bool EditorWorld::update_static_model_instance(u32 chunk_index,
@@ -630,6 +421,7 @@ void EditorWorld::rebuild_static_model_instances() {
         }
     }
 }
+
 void EditorWorld::apply_directional_light_to_runtime() {
     if (setting.is_null()) return;
     SeedEngine *engine = SeedEngine::get_instance();
@@ -711,7 +503,8 @@ void EditorStaticObjectInspector::draw_inspector() {
     ChunkSetting &chunk = world->get_chunks()[chunk_index];
     if (object_index >= chunk.static_objects.size()) return;
 
-    StaticObjectSetting &object = chunk.static_objects[object_index];
+    StaticObjectSetting &object =
+        chunk.static_objects[(u32)object_index];
     char name_buffer[256] = {};
     if (!object.name.is_empty()) {
         std::snprintf(name_buffer, sizeof(name_buffer), "%s",

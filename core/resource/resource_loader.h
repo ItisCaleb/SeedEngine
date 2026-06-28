@@ -55,6 +55,7 @@ class ResourceLoader {
         static RESOURCE_LOADER(load_texture);
         static RESOURCE_LOADER(load_mappable_texture);
         static RESOURCE_LOADER(load_world);
+        static RESOURCE_LOADER(load_ui);
         static void load_meshes(ResourceLoader &loader,
                                 ResourceConfiguration &config, Ref<File> data,
                                 std::vector<Ref<Mesh>> &meshes,

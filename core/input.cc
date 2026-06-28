@@ -1,4 +1,5 @@
 #include "input.h"
+#include "core/engine.h"
 
 namespace Seed {
 Input *Input::get_instance() { return instance; }
@@ -25,6 +26,14 @@ bool Input::is_mouse_pressed(MouseEvent e) { return mouse_pressed.count(e); }
 
 bool Input::is_mouse_released(MouseEvent e) {
     return last_mouse_pressed.count(e) && !mouse_pressed.count(e);
+}
+
+Vec2i Input::get_mouse_actual_pos() {
+    RectF dim = SeedEngine::get_instance()
+                    ->get_window()
+                    ->get_viewport()
+                    .get_actual_dimension();
+    return Vec2i{(i32)(last_x * dim.w), (i32)(last_y * dim.h)};
 }
 
 Input::Input() { instance = this; }

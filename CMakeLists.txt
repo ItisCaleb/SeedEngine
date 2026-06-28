@@ -29,7 +29,7 @@ target_include_directories(seed PUBLIC .)
 
 include(FetchContent)
 
-
+find_package(RmlUi REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
@@ -56,6 +56,7 @@ target_link_libraries(seed PUBLIC
     nlohmann_json::nlohmann_json
     Jolt::Jolt
     imgui::imgui
+    RmlUi::RmlUi
     nfd::nfd
     slang::slang
     GPUOpen::VulkanMemoryAllocator

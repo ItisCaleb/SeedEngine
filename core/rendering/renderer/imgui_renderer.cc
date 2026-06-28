@@ -63,6 +63,8 @@ void ImguiRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
     RectF view_rect = viewport.get_actual_dimension();
     int fb_width = view_rect.w;
     int fb_height = view_rect.h;
+    if (fb_width <= 0 || fb_height <= 0) return;
+
     f32 L = 0;
     f32 R = fb_width;
     f32 T = 0;
@@ -75,8 +77,6 @@ void ImguiRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
     };
     Mat4 proj = ortho_projection.transpose();
     RHI::update(g_frame.projection, 0, sizeof(Mat4), &proj);
-
-    if (fb_width <= 0 || fb_height <= 0) return;
 
     // Will project scissor/clipping rectangles into framebuffer space
     ImVec2 clip_off =

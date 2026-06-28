@@ -37,6 +37,7 @@ DefaultStorage::DefaultStorage() {
     billboard_shader =
         loader->load_internal<Shader>("assets/shader/billboard.slang");
     gui_shader = loader->load_internal<Shader>("assets/shader/imgui.slang");
+    rml_shader = loader->load_internal<Shader>("assets/shader/rmlui.slang");
     noise_texture = loader->load_internal<Texture>("assets/noise.png");
     noise_texture->update_sampler(SamplerProperty{
         .wrap_u = SamplerWrap::REPEAT, .wrap_v = SamplerWrap::REPEAT});
@@ -98,6 +99,7 @@ void DefaultStorage::reload_shaders() {
     post_shader->reload_from_disk();
     billboard_shader->reload_from_disk();
     gui_shader->reload_from_disk();
+    rml_shader->reload_from_disk();
     // debug_shader->reload_from_disk();
     // decal_shader->reload_from_disk();
 }

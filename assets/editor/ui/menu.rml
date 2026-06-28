@@ -1,0 +1,51 @@
+<template name="main-menu">
+
+    <head>
+        <link type="text/template" href="widgets/widgets.rml" />
+    </head>
+
+    <body>
+        <div id="menu-bar" data-model="editor">
+            <div class="menu-group">
+                <template src="menu">
+                    <button class="seed-menu-button" id="menu-file">File</button>
+                    <div class="seed-menu-popup">
+                        <button class="seed-menu-item" data-event-click="new_project">New Project</button>
+                        <button class="seed-menu-item" data-event-click="load_project">Load Project</button>
+                        <div class="seed-menu-separator"></div>
+                        <button class="seed-menu-item" data-event-click="exit_editor">Exit</button>
+                    </div>
+                </template>
+                <template src="menu">
+                    <button class="seed-menu-button" id="menu-tools">Tools</button>
+                    <div class="seed-menu-popup">
+                        <button class="seed-menu-item" data-event-click="reload_shaders">Reload Shaders</button>
+                        <button class="seed-menu-item" data-event-click="reload_gui">Reload Gui</button>
+                    </div>
+                </template>
+            </div>
+            <div id="project-label">Ave Mujica</div>
+            <div class="menu-group right">
+                <button class="icon-button" id="reload-shaders">Reload</button>
+                <button class="icon-button" id="play">Play</button>
+            </div>
+        </div>
+        <div id="new-project-popup" data-model="project_create" data-if="show_create">
+            <template src="popup">
+                <div class="seed-popup-title">New Project</div>
+                <div class="seed-popup-row">
+                    <label>Name</label>
+                    <input type="text" data-value="name" />
+                </div>
+                <div class="seed-popup-row">
+                    <label>Path</label>
+                    <input type="text" data-value="path" />
+                </div>
+                <div class="seed-popup-actions">
+                    <button class="seed-popup-button" data-event-click="show_create = false">Cancel</button>
+                    <button class="seed-popup-button">Create</button>
+                </div>
+            </template>
+        </div>
+    </body>
+</template>

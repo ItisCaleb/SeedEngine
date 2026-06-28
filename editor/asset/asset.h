@@ -11,7 +11,6 @@
 #include "core/resource/texture.h"
 #include "core/types.h"
 #include "editor/gui/inspectable.h"
-#include "editor/gui/popup.h"
 namespace Seed {
 enum class AssetType {
     Unknown,
@@ -52,15 +51,6 @@ class ModelInspector : public Inspectable {
         virtual void save() override;
 };
 
-
-class WorldCreatePopup : public Popup {
-    private:
-        char new_world_name[256] = {};
-        void create_world();
-
-    public:
-        virtual void draw() override;
-};
 
 }  // namespace Seed
 

@@ -1,7 +1,8 @@
 #ifndef _SEED_ASSET_BROWSER_H_
 #define _SEED_ASSET_BROWSER_H_
 
-#include <imgui.h>
+#include <string>
+#include <RmlUi/Core/DataModelHandle.h>
 #include <map>
 #include <mutex>
 #include <vector>
@@ -11,23 +12,43 @@
 #include "core/types.h"
 #include "editor/asset/asset.h"
 #include "editor/gui/inspectable.h"
+#include "core/gui/gui.h"
 
 namespace Seed {
 
-class AssetBrowser {
+class AssetBrowser : public RmlGUI {
     public:
         void init(KStr project_root);
-        void update();
         Ref<Dir> get_current_dir() { return current_dir; }
 
     private:
+        struct AssetItemView {
+                KString name;
+                KString type;
+                KString icon;
+                i32 entry_index = -1;
+        };
+
+        struct AssetFolderView {
+                KString name;
+                bool active = false;
+        };
+
         Ref<Dir> root_dir;
         Ref<Dir> current_dir;
         std::vector<AssetEntry> entries;
+        std::vector<AssetItemView> asset_items;
+        std::vector<AssetFolderView> folder_items;
+        std::vector<Path> folder_paths;
+        std::string search_text;
+        std::string new_world_name;
+        std::string new_world_path;
+        std::string world_create_error;
+        KString breadcrumb_text;
+        Rml::DataModelHandle asset_model;
+        Rml::DataModelHandle world_create_model;
         std::map<Path, std::vector<AssetEntry>> folder_entry_cache;
         i32 selected_idx = -1;
-        f32 folder_panel_width = 220.f;
-        f32 icon_size = 72.f;
         char search_buf[128] = {};
         bool needs_refresh = true;
         i32 renaming_idx = -1;
@@ -42,26 +63,11 @@ class AssetBrowser {
                 bool failed = false;
         };
 
-        struct GridLayout {
-                f32 cell_width = 156.f;
-                f32 cell_height = 0.f;
-                f32 padding = 8.f;
-                i32 columns = 1;
-                ImVec2 start;
-        };
-
-        struct AssetCellRects {
-                ImVec2 min;
-                ImVec2 max;
-                ImVec2 icon_min;
-                ImVec2 icon_max;
-                ImVec2 label_min;
-                ImVec2 label_max;
-        };
-
         std::mutex thumbnail_results_mutex;
         std::vector<ThumbnailResult> thumbnail_results;
         void refresh();
+        void sync_view_model();
+        void dirty_view_model();
         void invalidate_current_folder_cache();
         void process_thumbnail_results();
         void queue_thumbnail_result(ThumbnailResult result);
@@ -69,26 +75,8 @@ class AssetBrowser {
                                     const ThumbnailResult &result,
                                     Ref<Texture> texture);
         void navigate_to(KStr dir);
-        void draw_breadcrumb();
-        void draw_toolbar();
-        void draw_folder_panel();
-        void draw_folder_tree(const Path &dir);
-        GridLayout make_grid_layout() const;
-        AssetCellRects make_asset_cell_rects(ImVec2 cell_pos,
-                                             ImVec2 cell_size) const;
-        void draw_asset_cell(AssetEntry &entry, i32 idx,
-                             const AssetCellRects &rects);
-        void draw_asset_visual(AssetEntry &entry, const AssetCellRects &rects,
-                               i32 idx);
-        void draw_asset_label(AssetEntry &entry, const AssetCellRects &rects,
-                              i32 idx);
-        void draw_asset_tooltip(AssetEntry &entry);
-        void draw_asset_drag_source(AssetEntry &entry);
-        void draw_grid();
-        void draw_entry_context_menu(i32 idx);
-        void draw_asset_option_menu();
-        void draw_empty_space_context_menu();
-        void handle_external_drop_target();
+
+        //void handle_external_drop_target();
         void open_asset(AssetEntry &entry);
         void request_texture_thumbnail(AssetEntry &entry);
         void begin_rename(i32 idx);
@@ -100,7 +88,20 @@ class AssetBrowser {
         Inspectable *create_inspectable(AssetEntry &entry);
         AssetType classify(const Path &p);
         const char *asset_type_icon(AssetType t);
-        ImVec4 asset_type_color(AssetType t);
+        const char *asset_type_name(AssetType t);
+        bool show_world_create = false;
+        bool has_world_create_error = false;
+        Path current_asset_directory() const;
+        bool create_world_asset();
+        void rml_refresh(RML_EVENT_ARGS);
+        void rml_open_asset(RML_EVENT_ARGS);
+        void rml_open_folder(RML_EVENT_ARGS);
+        void rml_open_menu(RML_EVENT_ARGS);
+        void rml_request_create_world(RML_EVENT_ARGS);
+        void rml_cancel_create_world(RML_EVENT_ARGS);
+        void rml_confirm_create_world(RML_EVENT_ARGS);
+
+        void bind_model(Rml::Context *context) override;
 };
 
 }  // namespace Seed

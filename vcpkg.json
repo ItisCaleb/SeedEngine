@@ -16,6 +16,7 @@
     "shader-slang",
     "spdlog",
     "stb",
+    "rmlui",
     "nlohmann-json",
     "nativefiledialog-extended",
     {

@@ -33,7 +33,7 @@ class SeedEngine {
         EngineConfig config;
         void setup_logger();
         void init_systems();
-
+        void deinit_systems();
     public:
         static SeedEngine *get_instance();
         int width, height;

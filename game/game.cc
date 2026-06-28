@@ -20,11 +20,12 @@
 #include "core/world/world.h"
 #include "core/world/components.h"
 #include "human_entity.h"
+#include <RmlUi/Core.h>
 using namespace Seed;
 
 static Vec3 light_dir;
 
-class DebugGUI : public GUI {
+class DebugGUI : public ImGUI {
     public:
         void update() override {
             auto world = Seed::SeedEngine::get_instance()->get_world();
@@ -78,7 +79,7 @@ int main(void) {
         "assets/.internal/scene.bin");
     auto world_setting =
         loader->load_from_path<WorldSetting>("assets/new_world.world");
-    GuiEngine::get_instance()->add_gui(new DebugGUI);
+    GuiEngine::get_instance()->add_imgui(new DebugGUI);
     World *world = engine->get_world();
     world->load_setting(world_setting);
     world->get_point_lights().push_back(
@@ -98,8 +99,10 @@ int main(void) {
     t.set_scale(Vec3{0.1, 0.1, 0.1});
     auto man_model = man->wait();
     HumanEntity::create_entity(ecs, t, man_model);
-
+    auto document =
+        loader->load_internal<GuiDocument>("assets/ui/rmlui_example.rml");
+    GuiEngine::get_instance()->load_rmlui(new RmlGUI(document));
     engine->start();
-
+    delete engine;
     return 0;
 }

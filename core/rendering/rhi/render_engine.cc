@@ -6,6 +6,7 @@
 #include "core/rendering/backend/vulkan_backend.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
+#include "core/rendering/renderer/rml_renderer.h"
 #include "core/debug/profiler.h"
 #ifdef SEED_XR
 #include "core/rendering/backend/xr_vulkan_backend.h"
@@ -93,7 +94,9 @@ RenderEngine::RenderEngine(Window *window) {
 void RenderEngine::init() {
     default_renderer = new DefaultRenderer;
     imgui_renderer = new ImguiRenderer;
+    rml_renderer = new RmlRenderer;
     this->register_renderer(0, default_renderer);
+    this->register_renderer(9, rml_renderer);
     this->register_renderer(10, imgui_renderer);
     g_frame.init();
 }
@@ -142,5 +145,8 @@ ShaderHandle RenderEngine::compile_shader(
     return this->shader_proxy->compile_shader(path, shader, layout, defines);
 }
 
-RenderEngine::~RenderEngine() { instance = nullptr; }
+RenderEngine::~RenderEngine() {
+    instance = nullptr;
+    delete shader_proxy;
+}
 }  // namespace Seed

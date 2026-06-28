@@ -11,16 +11,6 @@
 
 namespace Seed {
 
-#define CHUNK_SIZE (256)
-#define HEIGHTMAP_INNER_SIZE (CHUNK_SIZE + 1)
-#define HEIGHTMAP_BORDER (1)
-#define HEIGHTMAP_SIZE (HEIGHTMAP_INNER_SIZE + HEIGHTMAP_BORDER * 2)
-#define HEIGHTMAP_INNER_FIRST (HEIGHTMAP_BORDER)
-#define HEIGHT_OFFSET (-128)
-#define HEIGHT_SCALE (1)
-#define TERRAIN_TEXTURE_SIZE (1024)
-#define TERRAIN_TEXTURE_LAYERS (16)
-
 TerrainMaterial::TerrainMaterial(Ref<Shader> shader,
                                  Ref<TextureArray> heightmaps,
                                  Ref<TextureArray> controlmaps,

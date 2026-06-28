@@ -1,4 +1,5 @@
 
+#include "editor.h"
 #include "core/container/kstring.h"
 #include "core/io/dir.h"
 #include "core/io/path.h"
@@ -8,49 +9,33 @@
 #include "core/resource/model.h"
 #include "core/resource/resource_entry.h"
 #include "core/resource/world_setting.h"
-#include <nfd.h>
-#include <fmt/format.h>
 #include "core/engine.h"
 #include "core/gui/gui_engine.h"
 #include "core/resource/resource_loader.h"
-#include "camera_entity.h"
-#include "editor.h"
-#include "editor_storage.h"
 #include "core/serialize/json_impl.h"
-#include <queue>
 #include "core/concurrency/thread_pool.h"
+#include "editor/camera_entity.h"
+#include "editor/editor_storage.h"
+#include "editor/editor.h"
+#include "editor/editor_storage.h"
+#include <GLFW/glfw3.h>
+#ifdef _WIN32
+#include "editor/asset/win_drag_dropper.h"
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+#endif
+#include <nfd.h>
+#include <fmt/format.h>
+#include <queue>
+#include <RmlUi/Core/Factory.h>
 
 namespace Seed {
 Editor *gEditor = nullptr;
 
-Editor::Editor() {
-    gEditor = this;
-    Ref<File> cache = File::open(".seed_cache", "rb");
-    SeedEngine *engine = SeedEngine::get_instance();
-    if (cache.is_valid()) {
-        project_cache = cache->read_json();
-        if (project_cache.contains("last_open")) {
-            engine->load_project(project_cache["last_open"]);
-        }
-    }
-    new EditorStorage;
-    GuiEngine::get_instance()->add_gui(&editor_gui);
-    world_editor.init();
-    asset_viewer.init();
-    Project *project = engine->get_project();
-    if (engine->get_project()) {
-        preprocessor.init(project->get_asset_dir());
-        if (project->get_preprocess_entry_path().is_file()) {
-            preprocessor.get_entries().load(
-                project->get_preprocess_entry_path());
-        }
-        asset_browser.init(project->get_asset_dir());
-        if (project_cache.contains("last_open_world")) {
-            world_editor.load_world(project_cache["last_open_world"]);
-        }
-        scan_assets();
-    }
-}
+#ifdef _WIN32
+static WindowDropTarget *drag_dropper = nullptr;
+
+#endif
 
 void Editor::set_last_open(const Path &path) {
     Ref<File> cache = File::open(".seed_cache", "wb");
@@ -58,9 +43,9 @@ void Editor::set_last_open(const Path &path) {
     cache->write_str(project_cache.dump());
 }
 
-void Editor::set_last_open_world(const Path &path) {
+void Editor::set_last_open_world(const UUID uuid) {
     Ref<File> cache = File::open(".seed_cache", "wb");
-    project_cache["last_open_world"] = path;
+    project_cache["last_open_world"] = uuid;
     cache->write_str(project_cache.dump());
 }
 
@@ -173,20 +158,121 @@ void Editor::import_asset(const Path &origin_path, const Path &target_dir) {
     entries.save(project->get_entry_path());
 }
 
+void Editor::try_open_project() {
+    Ref<File> cache = File::open(".seed_cache", "rb");
+    SeedEngine *engine = SeedEngine::get_instance();
+    if (cache.is_valid()) {
+        project_cache = cache->read_json();
+        if (project_cache.contains("last_open")) {
+            engine->load_project(project_cache["last_open"]);
+        }
+    }
+    Project *project = engine->get_project();
+    if (engine->get_project()) {
+        preprocessor.init(project->get_asset_dir());
+        if (project->get_preprocess_entry_path().is_file()) {
+            preprocessor.get_entries().load(
+                project->get_preprocess_entry_path());
+        }
+        asset_browser.init(project->get_asset_dir());
+        if (project_cache.contains("last_open_world")) {
+            world_editor.load_world(project_cache["last_open_world"]);
+        }
+        scan_assets();
+    }
+}
+
 void Editor::save_project() {
     Project *project = SeedEngine::get_instance()->get_project();
     project->save();
 }
 
+void Editor::new_project(RML_EVENT_ARGS) {
+    if (!show_create) {
+        project_name_input.clear();
+        project_path_input.clear();
+        show_create = true;
+        if (project_model) project_model.DirtyVariable("show_create");
+    }
+}
+
+void Editor::load_project(RML_EVENT_ARGS) {
+    nfdu8char_t *path;
+    nfdopendialogu8args_t _args = {0};
+    nfdresult_t r = NFD_OpenDialogU8_With(&path, &_args);
+    if (r == NFD_OKAY) {
+        if (SeedEngine::get_instance()->load_project(path)) {
+            gEditor->set_last_open(path);
+        }
+    }
+}
+
+void Editor::bind_model(Rml::Context *context) {
+    if (Rml::DataModelConstructor constructor =
+            context->CreateDataModel("editor")) {
+        constructor.BindEventCallback("reload_shaders", [](RML_EVENT_ARGS) {
+            DS::get_instance()->reload_shaders();
+            ES::get_instance()->reload_shaders();
+        });
+        constructor.BindEventCallback("reload_gui",
+                                      [=](RML_EVENT_ARGS) { this->reload(); });
+        constructor.BindEventCallback("new_project", &Editor::new_project,
+                                      this);
+        constructor.BindEventCallback("load_project", &Editor::load_project,
+                                      this);
+    }
+    if (Rml::DataModelConstructor constructor =
+            context->CreateDataModel("project_create")) {
+        constructor.Bind("show_create", &show_create);
+        constructor.Bind("name", &project_name_input);
+        constructor.Bind("path", &project_path_input);
+        project_model = constructor.GetModelHandle();
+    }
+}
+
+Editor::Editor() : RmlGUI(ES::get_instance()->editor_ui_doc) {
+    gEditor = this;
+    try_open_project();
+
+    world_editor.init();
+    asset_viewer.init();
+
+#ifdef _WIN32
+    Window *window = SeedEngine::get_instance()->get_window();
+    HWND hwnd = glfwGetWin32Window(window->get_window<GLFWwindow>());
+    OleInitialize(nullptr);
+    drag_dropper = new WindowDropTarget();
+    RegisterDragDrop(hwnd, drag_dropper);
+#endif
+
+    open_gui(&world_editor);
+    open_gui(&asset_browser);
+}
+
+Editor::~Editor() {
+#ifdef _WIN32
+    Window *window = SeedEngine::get_instance()->get_window();
+
+    HWND hwnd = glfwGetWin32Window(window->get_window<GLFWwindow>());
+
+    RevokeDragDrop(hwnd);
+    if (drag_dropper != nullptr) {
+        drag_dropper->Release();
+        drag_dropper = nullptr;
+    }
+    OleUninitialize();
+#endif
+}
 }  // namespace Seed
 
 using namespace Seed;
 i32 main(i32, char **) {
-    NFD_Init();
     // Main loop
     Seed::SeedEngine *engine = new Seed::SeedEngine(60.0f);
     RenderEngine *render_engine = RenderEngine::get_instance();
+    new EditorStorage;
     Editor *editor = new Editor;
+    GuiEngine::get_instance()->load_rmlui(editor);
 
     auto &ecs = engine->get_world()->ecs();
     EditorCameraEntity::create_entity(ecs);
@@ -195,7 +281,8 @@ i32 main(i32, char **) {
                                        false);
 
     engine->start();
-    NFD_Quit();
+    delete editor;
+    delete engine;
     return 0;
 }
 // Main code

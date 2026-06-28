@@ -20,8 +20,10 @@
 #include "core/resource/image.h"
 #include "core/types.h"
 #include "resource.h"
-#include "shader.h"
-#include "world_setting.h"
+#include "core/resource/shader.h"
+#include "core/resource/world_setting.h"
+#include "core/gui/gui_engine.h"
+#include "core/gui/gui.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -248,6 +250,16 @@ Ref<TextureCubemap> ResourceLoader::load_cubemap(u32 w, u32 h, UUID right,
     infos[3] = load_image_to_upload(bottom, true);
     infos[4] = load_image_to_upload(front, true);
     infos[5] = load_image_to_upload(back, true);
+    /* fill empty cubemap */
+    for (u32 i = 0; i < 6; i++) {
+        if (!infos[i].data) {
+            infos[i].data = malloc(w * h * 4);
+            infos[i].image.w = w;
+            infos[i].image.h = h;
+            infos[i].image.pixel_size = 4;
+            memset(infos[i].data, 255, w * h * 4);
+        }
+    }
 
     texture.create(w, h, PixelFormat::RGBA, SamplerProperty{});
     RHI::update_from_heap(texture->get_handle(), (u32)CubemapFace::RIGHT, 0, 0,
@@ -379,6 +391,16 @@ Ref<Resource> ResourceLoader::load_world(ResourceLoader &loader,
     return ref_cast<Resource>(world);
 }
 
+Ref<Resource> ResourceLoader::load_ui(ResourceLoader &loader,
+                                      ResourceConfiguration &config,
+                                      Ref<File> data) {
+    Ref<GuiDocument> document;
+    document.create();
+    document->source = data->get_path();
+    document->content = data->read_str();
+    if (document->content.is_empty()) return Ref<Resource>();
+    return ref_cast<Resource>(document);
+}
 ResourceLoader::ResourceLoader() {
     instance = this;
     spdlog::info("Initializing Resource loader");
@@ -388,6 +410,7 @@ ResourceLoader::ResourceLoader() {
     register_type<Texture>(load_texture, true);
     register_type<MappableTexture>(load_mappable_texture, true);
     register_type<WorldSetting>(load_world);
+    register_type<GuiDocument>(load_ui, true);
 }
 
 void ResourceLoader::register_resource(Resource *res) {

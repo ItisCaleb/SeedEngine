@@ -30,6 +30,7 @@ class RenderEngine {
         std::unordered_map<std::string, InstanceDataPool *> instance_pools;
         Renderer *default_renderer;
         Renderer *imgui_renderer;
+        Renderer *rml_renderer;
 
         Window *current_window;
         void bind_vulken(Window *window);
@@ -50,6 +51,7 @@ class RenderEngine {
                                     const std::vector<ShaderDefine> &defines);
         Renderer *get_default_renderer() { return default_renderer; }
         Renderer *get_imgui_renderer() { return imgui_renderer; }
+        Renderer *get_rml_renderer() { return rml_renderer; }
         void set_renderer_layer(Renderer *renderer, u8 layer);
         void set_renderer_enable(Renderer *renderer, bool enable);
         FrameGlobal &get_frame_global() { return g_frame; }

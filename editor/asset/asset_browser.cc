@@ -1,26 +1,60 @@
 #include "asset_browser.h"
-#include <imgui.h>
-#include <imgui_internal.h>
 #include <algorithm>
-#include <cstring>
 #include <utility>
 #include <vector>
+#include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/Variant.h>
 #include "asset.h"
 #include "core/concurrency/thread_pool.h"
 #include "core/container/kstring.h"
 #include "core/engine.h"
 #include "core/io/dir.h"
 #include "core/io/path.h"
+#include "core/misc/type_name.h"
 #include "core/misc/uuid.h"
 #include "core/project.h"
 #include "core/resource/resource.h"
 #include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
+#include "core/resource/world_setting.h"
+#include "core/serialize/json_impl.h"
 #include "editor/editor.h"
-#include "editor/gui/editor_ui.h"
 #include "editor/project/preprocessor.h"
+#include "core/gui/rml_widgets.h"
+#include "core/input.h"
 
 namespace Seed {
+
+namespace {
+
+KString fit_asset_label(KStr name) {
+    constexpr u32 max_label_length = 13;
+    if (name.length() <= max_label_length) return name.string();
+
+    i32 dot = name.find_last(".");
+    bool has_extension = dot > 0 && dot < (i32)name.length() - 1 &&
+                         name.length() - (u32)dot <= 5;
+    if (!has_extension) {
+        KString label;
+        label.append(KStr(name.data(), max_label_length - 3));
+        label.append("...");
+        return label;
+    }
+
+    KStr extension(name.data() + dot, name.length() - (u32)dot);
+    u32 prefix_length = max_label_length - 3 - extension.length();
+
+    KString label;
+    label.append(KStr(name.data(), prefix_length));
+    label.append("...");
+    label.append(extension);
+    return label;
+}
+
+}  // namespace
+
 AssetType AssetBrowser::classify(const Path &p) {
     if (p.is_directory()) return AssetType::Directory;
     KString extension = p.extension().string().to_lower();
@@ -43,42 +77,42 @@ AssetType AssetBrowser::classify(const Path &p) {
 const char *AssetBrowser::asset_type_icon(AssetType t) {
     switch (t) {
         case AssetType::Directory:
-            return "[D]";
+            return "DIR";
         case AssetType::Texture:
-            return "[T]";
+            return "TEX";
         case AssetType::Mesh:
-            return "[M]";
+            return "MESH";
         case AssetType::World:
-            return "[W]";
+            return "WORLD";
         case AssetType::Material:
-            return "[MT]";
+            return "MAT";
         case AssetType::Audio:
-            return "[A]";
+            return "AUD";
         case AssetType::Script:
-            return "[S]";
+            return "SRC";
         default:
-            return "[?]";
+            return "FILE";
     }
 }
 
-ImVec4 AssetBrowser::asset_type_color(AssetType t) {
+const char *AssetBrowser::asset_type_name(AssetType t) {
     switch (t) {
         case AssetType::Directory:
-            return ImVec4(0.9f, 0.75f, 0.3f, 1.f);
+            return "directory";
         case AssetType::Texture:
-            return ImVec4(0.4f, 0.75f, 0.9f, 1.f);
+            return "texture";
         case AssetType::Mesh:
-            return ImVec4(0.6f, 0.9f, 0.5f, 1.f);
+            return "mesh";
         case AssetType::World:
-            return ImVec4(0.5f, 0.8f, 0.4f, 1.f);
+            return "world";
         case AssetType::Material:
-            return ImVec4(0.9f, 0.5f, 0.7f, 1.f);
+            return "material";
         case AssetType::Audio:
-            return ImVec4(0.7f, 0.5f, 0.9f, 1.f);
+            return "audio";
         case AssetType::Script:
-            return ImVec4(0.9f, 0.6f, 0.3f, 1.f);
+            return "script";
         default:
-            return ImVec4(0.5f, 0.5f, 0.5f, 1.f);
+            return "file";
     }
 }
 void AssetBrowser::init(KStr project_root) {
@@ -150,6 +184,70 @@ void AssetBrowser::refresh() {
     folder_entry_cache[folder_path] = entries;
     if (selected_idx >= (i32)entries.size()) selected_idx = -1;
     needs_refresh = false;
+}
+
+void AssetBrowser::sync_view_model() {
+    if (needs_refresh) refresh();
+
+    asset_items.clear();
+    folder_items.clear();
+    folder_paths.clear();
+    breadcrumb_text.clear();
+
+    if (!root_dir.is_valid() || !current_dir.is_valid()) return;
+
+    Path root_path = root_dir->get_path();
+    Path current_path = current_dir->get_path();
+
+    folder_paths.push_back(root_path);
+    folder_items.push_back(AssetFolderView{
+        .name = root_path.filename(),
+        .active = current_path == root_path,
+    });
+
+    std::vector<Path> dirs = list_child_directories(root_path);
+    for (Path &dir : dirs) {
+        folder_paths.push_back(dir);
+        folder_items.push_back(AssetFolderView{
+            .name = dir.filename(),
+            .active = current_path == dir,
+        });
+    }
+
+    for (u32 i = 0; i < breadcrumbs.size(); i++) {
+        if (i > 0) breadcrumb_text += " / ";
+        breadcrumb_text += breadcrumbs[i].filename();
+    }
+
+    KStr filter(search_text);
+    for (i32 i = 0; i < (i32)entries.size(); i++) {
+        AssetEntry &entry = entries[i];
+        if (!matches_search(entry.path, filter)) continue;
+
+        asset_items.push_back(AssetItemView{
+            .name = fit_asset_label(entry.path.filename()),
+            .type = asset_type_name(entry.type),
+            .icon = asset_type_icon(entry.type),
+            .entry_index = i,
+        });
+    }
+}
+
+void AssetBrowser::dirty_view_model() {
+    if (!asset_model) return;
+    asset_model.DirtyVariable("assets");
+    asset_model.DirtyVariable("folders");
+    asset_model.DirtyVariable("breadcrumb");
+    asset_model.DirtyVariable("search");
+}
+
+static void dirty_world_create_model(Rml::DataModelHandle model) {
+    if (!model) return;
+    model.DirtyVariable("show_create");
+    model.DirtyVariable("name");
+    model.DirtyVariable("path");
+    model.DirtyVariable("error");
+    model.DirtyVariable("has_error");
 }
 
 void AssetBrowser::request_texture_thumbnail(AssetEntry &entry) {
@@ -257,133 +355,6 @@ void AssetBrowser::process_thumbnail_results() {
     }
 }
 
-void AssetBrowser::draw_asset_option_menu() {
-    if (ImGui::BeginMenu("Create")) {
-        if (ImGui::MenuItem("World")) {
-            gEditor->set_current_popup(new WorldCreatePopup);
-        }
-        ImGui::EndMenu();
-    }
-    ImGui::Separator();
-}
-
-void AssetBrowser::update() {
-    process_thumbnail_results();
-    if (needs_refresh) refresh();
-
-    draw_toolbar();
-    ImGui::Separator();
-    draw_breadcrumb();
-    ImGui::Separator();
-    ImVec2 avail = ImGui::GetContentRegionAvail();
-    const f32 splitter_w = 4.f;
-    const f32 min_folder_w = 150.f;
-    const f32 min_asset_w = 180.f;
-    f32 max_folder_w =
-        std::max(min_folder_w, avail.x - splitter_w - min_asset_w);
-    folder_panel_width =
-        std::clamp(folder_panel_width, min_folder_w, max_folder_w);
-
-    ImGui::BeginChild("##ab_folders", ImVec2(folder_panel_width, avail.y),
-                      true);
-    draw_folder_panel();
-    ImGui::EndChild();
-
-    ImGui::SameLine(0, 0);
-    EditorUI::vertical_splitter("##ab_splitter", avail.y, splitter_w,
-                                folder_panel_width, min_folder_w, max_folder_w);
-
-    ImGui::SameLine(0, 0);
-    ImGui::BeginChild("##ab_assets", ImVec2(0, avail.y), false);
-    draw_grid();
-    handle_external_drop_target();
-    draw_empty_space_context_menu();
-    ImGui::EndChild();
-}
-
-void AssetBrowser::draw_toolbar() {
-    ImGui::SetNextItemWidth(200);
-    ImGui::InputTextWithHint("##ab_search", "Search...", search_buf,
-                             sizeof(search_buf));
-
-    ImGui::SameLine(0, 12);
-    if (ImGui::SmallButton("Refresh")) {
-        invalidate_current_folder_cache();
-        needs_refresh = true;
-    }
-
-    ImGui::SameLine(0, 12);
-    if (ImGui::SmallButton("+ Folder")) {
-        Path new_dir = current_dir->get_path();
-        new_dir.push("New Folder");
-        i32 suffix = 0;
-        while (Dir::exists(new_dir)) {
-            new_dir.pop();
-            new_dir.push("New Folder " + std::to_string(++suffix));
-        }
-        Dir::create_if_not_exists(new_dir);
-        invalidate_current_folder_cache();
-        needs_refresh = true;
-    }
-}
-
-void AssetBrowser::draw_breadcrumb() {
-    EditorUI::ScopedStyleVar spacing(ImGuiStyleVar_ItemSpacing, ImVec2(2, 4));
-    for (i32 i = 0; i < (i32)breadcrumbs.size(); i++) {
-        if (i > 0) {
-            ImGui::SameLine();
-            ImGui::TextDisabled(">");
-            ImGui::SameLine();
-        }
-        KStr label = i == 0 ? root_dir->get_path().filename()
-                            : breadcrumbs[i].filename();
-
-        bool is_current = (breadcrumbs[i] == current_dir->get_path());
-        if (is_current) {
-            EditorUI::ScopedStyleColor text_color(
-                ImGuiCol_Text, ImVec4(0.9f, 0.9f, 0.9f, 1.f));
-            ImGui::TextUnformatted(label.data(), label.end());
-        } else {
-            EditorUI::ScopedStyleColor text_color(
-                ImGuiCol_Text, ImVec4(0.5f, 0.7f, 0.9f, 1.f));
-            if (ImGui::SmallButton(label.data()))
-                navigate_to(breadcrumbs[i].to_str());
-        }
-    }
-}
-
-void AssetBrowser::draw_folder_panel() {
-    ImGui::TextUnformatted("Folders");
-    ImGui::Separator();
-    if (!root_dir.is_valid()) return;
-    draw_folder_tree(root_dir->get_path());
-}
-
-void AssetBrowser::draw_folder_tree(const Path &dir) {
-    std::vector<Path> child_dirs = list_child_directories(dir);
-    bool selected = current_dir.is_valid() && dir == current_dir->get_path();
-
-    ImGuiTreeNodeFlags flags =
-        ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-    if (selected) flags |= ImGuiTreeNodeFlags_Selected;
-    if (dir == root_dir->get_path()) flags |= ImGuiTreeNodeFlags_DefaultOpen;
-    if (child_dirs.empty())
-        flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-
-    KStr label = dir.filename();
-    if (label.is_empty()) label = "Assets";
-
-    EditorUI::ScopedID folder_id(dir.data());
-    bool open = ImGui::TreeNodeEx("##folder", flags, "%.*s",
-                                  (i32)label.length(), label.data());
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) navigate_to(dir.to_str());
-
-    if (open && !child_dirs.empty()) {
-        for (const Path &child : child_dirs) draw_folder_tree(child);
-        ImGui::TreePop();
-    }
-}
-
 std::vector<Path> AssetBrowser::list_child_directories(const Path &dir) {
     std::vector<Path> dirs;
     Ref<Dir> d = Dir::open(dir.to_str());
@@ -413,6 +384,78 @@ Path AssetBrowser::get_project_asset_path(const AssetEntry &entry) const {
     if (entry.path.is_absolute())
         return entry.path.relative(project->get_path());
     return entry.path;
+}
+
+Path AssetBrowser::current_asset_directory() const {
+    Project *project = SeedEngine::get_instance()->get_project();
+    if (project == nullptr || !current_dir.is_valid()) return Path("assets");
+
+    Path dir = current_dir->get_path();
+    if (dir.is_absolute()) return dir.relative(project->get_path());
+    return dir;
+}
+
+bool AssetBrowser::create_world_asset() {
+    if (new_world_name.empty()) {
+        world_create_error = "World name is required.";
+        has_world_create_error = true;
+        return false;
+    }
+
+    Project *project = SeedEngine::get_instance()->get_project();
+    if (project == nullptr) {
+        world_create_error = "No project is loaded.";
+        has_world_create_error = true;
+        return false;
+    }
+
+    Path folder = new_world_path.empty() ? current_asset_directory()
+                                         : Path(KStr(new_world_path));
+    if (folder.is_absolute()) folder = folder.relative(project->get_path());
+
+    KStr name(new_world_name);
+    KString file_name = name.string();
+    if (!name.end_with(".world")) file_name.append(".world");
+    Path asset_path = folder.append(file_name);
+
+    ResourceEntries &entries = ResourceLoader::get_instance()->get_entries();
+    if (!entries.get_uuid(asset_path).is_null()) {
+        world_create_error = "World already exists.";
+        has_world_create_error = true;
+        return false;
+    }
+
+    UUID uuid = entries.insert_entry(asset_path, type_id<WorldSetting>());
+    ResourceEntry *entry = entries.get_entry(uuid);
+    if (entry == nullptr) {
+        world_create_error = "Failed to create world.";
+        has_world_create_error = true;
+        return false;
+    }
+
+    nlohmann::ordered_json &j = entry->config.get_json();
+    j["name"] = new_world_name;
+    j["sky"] = {
+        {"up", UUID{}},    {"down", UUID{}},  {"left", UUID{}},
+        {"right", UUID{}}, {"front", UUID{}}, {"back", UUID{}},
+    };
+    j["directional_light"] = {
+        {"enabled", true},
+        {"direction", Vec3{-0.5f, -0.5f, 0.0f}},
+        {"diffuse", Vec3{0.8f, 0.8f, 0.8f}},
+        {"specular", Vec3{0.4f, 0.4f, 0.4f}},
+    };
+    j["chunks"] = nlohmann::ordered_json::array();
+
+    entries.save(project->get_entry_path());
+    gEditor->save_project();
+    gEditor->world_editor.load_world(entry->uuid);
+
+    invalidate_current_folder_cache();
+    needs_refresh = true;
+    sync_view_model();
+    dirty_view_model();
+    return true;
 }
 
 UUID AssetBrowser::get_asset_uuid(AssetEntry &entry) {
@@ -449,292 +492,39 @@ void AssetBrowser::open_asset(AssetEntry &entry) {
     }
 
     if (entry.type == AssetType::World) {
-        gEditor->world_editor.load_world(get_project_asset_path(entry));
+        gEditor->world_editor.load_world(get_asset_uuid(entry));
         return;
     }
 
     gEditor->set_current_inspect(create_inspectable(entry));
 }
 
-AssetBrowser::GridLayout AssetBrowser::make_grid_layout() const {
-    GridLayout layout;
-    layout.cell_width = 156.f;
-    layout.padding = 8.f;
-    f32 label_h = ImGui::GetTextLineHeight() * 3.f + 8.f;
-    layout.cell_height = icon_size + label_h + 6.f;
-    f32 avail_w = ImGui::GetContentRegionAvail().x;
-    layout.columns = std::max(1, (i32)((avail_w + layout.padding) /
-                                       (layout.cell_width + layout.padding)));
-    layout.start = ImGui::GetCursorScreenPos();
-    return layout;
-}
+// void AssetBrowser::handle_external_drop_target() {
+//     ImGuiWindow *window = ImGui::GetCurrentWindow();
+//     if (window == nullptr || window->SkipItems) return;
 
-AssetBrowser::AssetCellRects AssetBrowser::make_asset_cell_rects(
-    ImVec2 cell_pos, ImVec2 cell_size) const {
-    static constexpr f32 ICON_PAD = 8.f;
-    static constexpr f32 LABEL_GAP = 6.f;
-    static constexpr f32 LABEL_PAD = 4.f;
+//     ImRect drop_rect(window->Pos, ImVec2(window->Pos.x + window->Size.x,
+//                                          window->Pos.y + window->Size.y));
+//     if (!ImGui::BeginDragDropTargetCustom(drop_rect, window->ID)) return;
 
-    AssetCellRects rects;
-    rects.min = cell_pos;
-    rects.max = ImVec2(cell_pos.x + cell_size.x, cell_pos.y + cell_size.y);
+//     if (auto p = ImGui::AcceptDragDropPayload("EXTERNAL")) {
+//         KStr data((char *)p->Data, (u32)p->DataSize - 1);
+//         std::vector<KStr> files = data.split("\n");
+//         Project *project = SeedEngine::get_instance()->get_project();
+//         Path target_dir =
+//             project != nullptr
+//                 ? current_dir->get_path().relative(project->get_path())
+//                 : current_dir->get_path();
 
-    ImVec2 icon_pos(cell_pos.x + (cell_size.x - icon_size) * 0.5f, cell_pos.y);
-    rects.icon_min = ImVec2(icon_pos.x + ICON_PAD, icon_pos.y);
-    rects.icon_max =
-        ImVec2(icon_pos.x + icon_size - ICON_PAD, icon_pos.y + icon_size);
-
-    f32 label_h = cell_size.y - icon_size - LABEL_GAP;
-    rects.label_min =
-        ImVec2(cell_pos.x + LABEL_PAD, cell_pos.y + icon_size + LABEL_GAP);
-    rects.label_max = ImVec2(cell_pos.x + cell_size.x - LABEL_PAD,
-                             rects.label_min.y + label_h);
-    return rects;
-}
-
-void AssetBrowser::draw_asset_label(AssetEntry &entry,
-                                    const AssetCellRects &rects, i32 idx) {
-    if (renaming_idx == idx) {
-        ImGui::SetCursorScreenPos(rects.label_min);
-        ImGui::SetNextItemWidth(rects.label_max.x - rects.label_min.x);
-        if (ImGui::InputText("##rename", rename_buf, sizeof(rename_buf),
-                             ImGuiInputTextFlags_EnterReturnsTrue |
-                                 ImGuiInputTextFlags_AutoSelectAll)) {
-            commit_rename();
-        }
-        if (!ImGui::IsItemActive() && !ImGui::IsItemActivated())
-            renaming_idx = -1;
-        return;
-    }
-
-    EditorUI::ScopedStyleColor text_color(ImGuiCol_Text,
-                                          ImVec4(0.85f, 0.85f, 0.85f, 1.f));
-    EditorUI::ScopedClipRect clip(rects.label_min, rects.label_max, true);
-    EditorUI::draw_centered_wrapped_text(entry.path.filename(), rects.label_min,
-                                         rects.label_max, 3);
-}
-
-void AssetBrowser::draw_asset_visual(AssetEntry &entry,
-                                     const AssetCellRects &rects, i32 idx) {
-    EditorUI::ScopedGroup group;
-
-    ImVec4 color = asset_type_color(entry.type);
-    ImGui::GetWindowDrawList()->AddRectFilled(
-        rects.icon_min, rects.icon_max,
-        ImGui::ColorConvertFloat4ToU32(
-            ImVec4(color.x * 0.3f, color.y * 0.3f, color.z * 0.3f, 1.f)),
-        4.f);
-
-    if (!entry.thumbnail_texture.is_null()) {
-        EditorUI::TexturePreview preview;
-        preview.texture = entry.thumbnail_texture;
-        preview.width = entry.texture_width != 0
-                            ? entry.texture_width
-                            : entry.thumbnail_texture->get_width();
-        preview.height = entry.texture_height != 0
-                             ? entry.texture_height
-                             : entry.thumbnail_texture->get_height();
-        EditorUI::draw_texture_preview(&preview, rects.icon_min, rects.icon_max,
-                                       false);
-    } else {
-        EditorUI::draw_centered_text(ImGui::GetWindowDrawList(),
-                                     asset_type_icon(entry.type),
-                                     rects.icon_min, rects.icon_max,
-                                     ImGui::ColorConvertFloat4ToU32(color));
-    }
-
-    ImGui::SetCursorScreenPos(rects.min);
-    ImGui::Dummy(ImVec2(rects.max.x - rects.min.x, icon_size));
-    draw_asset_label(entry, rects, idx);
-}
-
-void AssetBrowser::draw_asset_tooltip(AssetEntry &entry) {
-    Path asset_path = get_project_asset_path(entry);
-    KStr filename = entry.path.filename();
-    KStr asset_path_str = asset_path.to_str();
-    ImGui::BeginTooltip();
-    ImGui::TextUnformatted(filename.data(), filename.end());
-    if (entry.type == AssetType::Texture && entry.texture_width != 0 &&
-        entry.texture_height != 0) {
-        ImGui::TextDisabled("%u x %u", entry.texture_width,
-                            entry.texture_height);
-    }
-    ImGui::TextDisabled("%.*s", (i32)asset_path_str.length(),
-                        asset_path_str.data());
-    ImGui::EndTooltip();
-}
-
-void AssetBrowser::draw_asset_drag_source(AssetEntry &entry) {
-    if (entry.type == AssetType::Directory) return;
-    if (!ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
-        return;
-
-    UUID uuid = get_asset_uuid(entry);
-    if (!uuid.is_null()) {
-        ImGui::SetDragDropPayload("UUID", &uuid, sizeof(uuid));
-        ImGui::TextUnformatted(entry.path.filename().data());
-    }
-
-    ImGui::EndDragDropSource();
-}
-
-void AssetBrowser::draw_asset_cell(AssetEntry &entry, i32 idx,
-                                   const AssetCellRects &rects) {
-    bool is_selected = idx == selected_idx;
-    ImDrawList *draw_list = ImGui::GetWindowDrawList();
-    ImVec2 cell_size(rects.max.x - rects.min.x, rects.max.y - rects.min.y);
-
-    if (is_selected) {
-        draw_list->AddRectFilled(rects.min, rects.max,
-                                 IM_COL32(60, 100, 160, 180), 4.f);
-    }
-
-    ImGui::SetCursorScreenPos(rects.min);
-    if (ImGui::InvisibleButton("##cell", cell_size)) {
-        selected_idx = idx;
-        if (entry.type != AssetType::Directory) open_asset(entry);
-    }
-
-    bool cell_hovered = ImGui::IsItemHovered();
-    bool tooltip_hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip);
-
-    if (cell_hovered && !is_selected) {
-        draw_list->AddRectFilled(rects.min, rects.max,
-                                 IM_COL32(80, 80, 80, 120), 4.f);
-    }
-
-    if (cell_hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-        selected_idx = idx;
-        open_asset(entry);
-    }
-
-    if (ImGui::BeginPopupContextItem("##ctx")) {
-        selected_idx = idx;
-        draw_entry_context_menu(idx);
-        ImGui::EndPopup();
-    }
-
-    draw_asset_drag_source(entry);
-
-    if (tooltip_hovered) {
-        draw_asset_tooltip(entry);
-    }
-
-    ImGui::SetCursorScreenPos(rects.min);
-    draw_asset_visual(entry, rects, idx);
-}
-
-void AssetBrowser::draw_grid() {
-    KStr filter = search_buf;
-
-    GridLayout layout = make_grid_layout();
-    i32 visible_count = 0;
-
-    EditorUI::ScopedStyleVar spacing(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
-    for (i32 i = 0; i < (i32)entries.size(); i++) {
-        auto &e = entries[i];
-
-        if (!matches_search(e.path, filter)) continue;
-
-        i32 row = visible_count / layout.columns;
-        i32 col = visible_count % layout.columns;
-
-        ImVec2 pos = ImVec2(
-            layout.start.x + col * (layout.cell_width + layout.padding),
-            layout.start.y + row * (layout.cell_height + layout.padding));
-        ImVec2 cell_size(layout.cell_width, layout.cell_height);
-
-        EditorUI::ScopedID id(i);
-        AssetCellRects rects = make_asset_cell_rects(pos, cell_size);
-        draw_asset_cell(e, i, rects);
-
-        visible_count++;
-    }
-
-    if (visible_count == 0) {
-        ImGui::SetCursorScreenPos(layout.start);
-        ImGui::TextDisabled("No assets");
-        return;
-    }
-
-    i32 rows = (visible_count + layout.columns - 1) / layout.columns;
-    f32 total_h =
-        rows * layout.cell_height + std::max(0, rows - 1) * layout.padding;
-    ImGui::SetCursorScreenPos(ImVec2(layout.start.x, layout.start.y + total_h));
-    ImGui::Dummy(ImVec2(1.f, 1.f));
-}
-
-void AssetBrowser::draw_entry_context_menu(i32 idx) {
-    auto &e = entries[idx];
-    KStr filename = e.path.filename();
-
-    {
-        EditorUI::ScopedStyleColor text_color(ImGuiCol_Text,
-                                              ImVec4(0.7f, 0.8f, 1.f, 1.f));
-        ImGui::TextUnformatted(filename.data());
-    }
-    ImGui::Separator();
-
-    if (e.type == AssetType::Directory) {
-        if (ImGui::MenuItem("Open")) navigate_to(e.path.to_str());
-        ImGui::Separator();
-    } else {
-        if (ImGui::MenuItem("Open")) {
-            open_asset(e);
-        }
-        ImGui::Separator();
-    }
-
-    if (ImGui::MenuItem("Rename")) {
-        begin_rename(idx);
-        ImGui::CloseCurrentPopup();
-    }
-}
-
-void AssetBrowser::draw_empty_space_context_menu() {
-    if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() &&
-        ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-        selected_idx = -1;
-    }
-
-    if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() &&
-        ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
-        selected_idx = -1;
-        ImGui::OpenPopup("##ab_empty_context");
-    }
-
-    if (ImGui::BeginPopup("##ab_empty_context")) {
-        draw_asset_option_menu();
-        ImGui::EndPopup();
-    }
-}
-
-void AssetBrowser::handle_external_drop_target() {
-    ImGuiWindow *window = ImGui::GetCurrentWindow();
-    if (window == nullptr || window->SkipItems) return;
-
-    ImRect drop_rect(window->Pos, ImVec2(window->Pos.x + window->Size.x,
-                                         window->Pos.y + window->Size.y));
-    if (!ImGui::BeginDragDropTargetCustom(drop_rect, window->ID)) return;
-
-    if (auto p = ImGui::AcceptDragDropPayload("EXTERNAL")) {
-        KStr data((char *)p->Data, (u32)p->DataSize - 1);
-        std::vector<KStr> files = data.split("\n");
-        Project *project = SeedEngine::get_instance()->get_project();
-        Path target_dir =
-            project != nullptr
-                ? current_dir->get_path().relative(project->get_path())
-                : current_dir->get_path();
-
-        for (auto file : files) {
-            if (file.is_empty()) continue;
-            gEditor->import_asset(file, target_dir);
-        }
-        invalidate_current_folder_cache();
-        needs_refresh = true;
-    }
-    ImGui::EndDragDropTarget();
-}
+//         for (auto file : files) {
+//             if (file.is_empty()) continue;
+//             gEditor->import_asset(file, target_dir);
+//         }
+//         invalidate_current_folder_cache();
+//         needs_refresh = true;
+//     }
+//     ImGui::EndDragDropTarget();
+// }
 
 void AssetBrowser::begin_rename(i32 idx) {
     renaming_idx = idx;
@@ -747,6 +537,146 @@ void AssetBrowser::begin_rename(i32 idx) {
 void AssetBrowser::commit_rename() {
     if (renaming_idx < 0 || renaming_idx >= (i32)entries.size()) return;
     renaming_idx = -1;
+}
+
+void AssetBrowser::rml_refresh(RML_EVENT_ARGS) {
+    asset_model = model;
+
+    if (e.GetType() == "change") {
+        Rml::String value = e.GetParameter<Rml::String>("value", "");
+        search_text = value.c_str();
+        sync_view_model();
+        dirty_view_model();
+        return;
+    }
+
+    invalidate_current_folder_cache();
+    needs_refresh = true;
+    sync_view_model();
+    dirty_view_model();
+}
+
+void AssetBrowser::rml_open_asset(RML_EVENT_ARGS) {
+    i32 item_index = args.empty() ? -1 : args[0].Get<int>(-1);
+    if (item_index < 0 || item_index >= (i32)asset_items.size()) return;
+
+    i32 entry_index = asset_items[item_index].entry_index;
+    if (entry_index < 0 || entry_index >= (i32)entries.size()) return;
+
+    open_asset(entries[entry_index]);
+    sync_view_model();
+    asset_model = model;
+    dirty_view_model();
+}
+
+void AssetBrowser::rml_open_folder(RML_EVENT_ARGS) {
+    i32 folder_index = args.empty() ? -1 : args[0].Get<int>(-1);
+    if (folder_index < 0 || folder_index >= (i32)folder_paths.size()) return;
+
+    navigate_to(folder_paths[folder_index].to_str());
+    sync_view_model();
+    asset_model = model;
+    dirty_view_model();
+}
+
+void AssetBrowser::rml_open_menu(RML_EVENT_ARGS) {
+    if (!Input::get_instance()->is_mouse_released(MouseEvent::RIGHT)) {
+        return;
+    }
+    Rml::Element *_menu = document->GetElementById("asset-popup");
+
+    auto *menu = dynamic_cast<RmlMenu *>(_menu);
+    if (menu == nullptr) return;
+
+    float x = e.GetParameter<float>("mouse_x", 0.0f);
+    float y = e.GetParameter<float>("mouse_y", 0.0f);
+    menu->open(x, y);
+}
+
+void AssetBrowser::rml_request_create_world(RML_EVENT_ARGS) {
+    new_world_name.clear();
+    Path asset_dir = current_asset_directory();
+    new_world_path =
+        std::string(asset_dir.to_str().data(), asset_dir.to_str().length());
+    world_create_error.clear();
+    has_world_create_error = false;
+    show_world_create = true;
+    dirty_world_create_model(world_create_model);
+}
+
+void AssetBrowser::rml_cancel_create_world(RML_EVENT_ARGS) {
+    show_world_create = false;
+    world_create_error.clear();
+    has_world_create_error = false;
+    dirty_world_create_model(world_create_model);
+}
+
+void AssetBrowser::rml_confirm_create_world(RML_EVENT_ARGS) {
+    if (!create_world_asset()) {
+        dirty_world_create_model(world_create_model);
+        return;
+    }
+
+    show_world_create = false;
+    new_world_name.clear();
+    world_create_error.clear();
+    has_world_create_error = false;
+    dirty_world_create_model(world_create_model);
+}
+
+void AssetBrowser::bind_model(Rml::Context *context) {
+    Rml::DataModelConstructor constructor =
+        context->CreateDataModel("asset_browser");
+    if (!constructor) return;
+
+    if (auto item = constructor.RegisterStruct<AssetItemView>()) {
+        item.RegisterMember("name", &AssetItemView::name);
+        item.RegisterMember("type", &AssetItemView::type);
+        item.RegisterMember("icon", &AssetItemView::icon);
+    }
+    if (auto folder = constructor.RegisterStruct<AssetFolderView>()) {
+        folder.RegisterMember("name", &AssetFolderView::name);
+        folder.RegisterMember("active", &AssetFolderView::active);
+    }
+
+    constructor.RegisterArray<std::vector<AssetItemView>>();
+    constructor.RegisterArray<std::vector<AssetFolderView>>();
+    constructor.Bind("assets", &asset_items);
+    constructor.Bind("folders", &folder_items);
+    constructor.Bind("breadcrumb", &breadcrumb_text);
+    constructor.Bind("search", &search_text);
+    constructor.BindEventCallback("refresh_assets", &AssetBrowser::rml_refresh,
+                                  this);
+    constructor.BindEventCallback("open_asset", &AssetBrowser::rml_open_asset,
+                                  this);
+    constructor.BindEventCallback("open_folder", &AssetBrowser::rml_open_folder,
+                                  this);
+    constructor.BindEventCallback("open_menu", &AssetBrowser::rml_open_menu,
+                                  this);
+    constructor.BindEventCallback("request_create_world",
+                                  &AssetBrowser::rml_request_create_world,
+                                  this);
+
+    asset_model = constructor.GetModelHandle();
+    sync_view_model();
+    dirty_view_model();
+
+    if (Rml::DataModelConstructor constructor =
+            context->CreateDataModel("world_create")) {
+        constructor.Bind("show_create", &show_world_create);
+        constructor.Bind("name", &new_world_name);
+        constructor.Bind("path", &new_world_path);
+        constructor.Bind("error", &world_create_error);
+        constructor.Bind("has_error", &has_world_create_error);
+        constructor.BindEventCallback("cancel_create_world",
+                                      &AssetBrowser::rml_cancel_create_world,
+                                      this);
+        constructor.BindEventCallback("confirm_create_world",
+                                      &AssetBrowser::rml_confirm_create_world,
+                                      this);
+        world_create_model = constructor.GetModelHandle();
+        dirty_world_create_model(world_create_model);
+    }
 }
 
 }  // namespace Seed

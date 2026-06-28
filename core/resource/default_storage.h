@@ -17,6 +17,7 @@ class DefaultStorage {
         Ref<Shader> skeleton_mesh_shader;
 
         Ref<Shader> gui_shader;
+        Ref<Shader> rml_shader;
         Ref<Shader> terrain_shader;
         Ref<Shader> debug_shader;
         Ref<Shader> post_shader;

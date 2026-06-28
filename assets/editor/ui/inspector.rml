@@ -1,0 +1,41 @@
+<template name="inspector">
+
+    <head>
+        <link type="text/rcss" href="widgets/widgets.rcss" />
+    </head>
+
+    <body>
+        <div id="right-panel" class="panel" data-model="world_editor">
+            <div class="panel-header">Scene</div>
+            <div id="scene-list">
+                <div class="scene-row muted" data-if="show_scene_empty">No static objects</div>
+                <div data-for="object, i : scene_objects"
+                     class="scene-row"
+                     data-class-active="object.selected"
+                     data-event-click="select_scene_object(i)">
+                    <div>{{ object.name }}</div>
+                    <div class="subtle-text">{{ object.asset }}</div>
+                </div>
+            </div>
+
+            <div class="panel-header inspector-title">Inspector</div>
+            <div class="empty-text" data-if="show_inspector_empty">Select a scene object.</div>
+            <div data-if="has_selected_object">
+                <label>Name</label>
+                <input id="selected-name" type="text" data-value="selected_name" data-event-change="commit_selected_object" />
+
+                <div class="field-group">
+                    <div class="field-title">Transform</div>
+                    <div class="axis-row"><span>X</span><input id="selected-x" type="text" data-value="selected_x" data-event-change="commit_selected_object" /></div>
+                    <div class="axis-row"><span>Y</span><input id="selected-y" type="text" data-value="selected_y" data-event-change="commit_selected_object" /></div>
+                    <div class="axis-row"><span>Z</span><input id="selected-z" type="text" data-value="selected_z" data-event-change="commit_selected_object" /></div>
+                </div>
+
+                <div class="field-group">
+                    <div class="field-title">Asset</div>
+                    <div class="asset-ref">{{ selected_asset }}</div>
+                </div>
+            </div>
+        </div>
+    </body>
+</template>
