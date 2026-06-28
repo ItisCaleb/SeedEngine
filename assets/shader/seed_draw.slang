@@ -1,11 +1,4 @@
-typedef float2 vec2
-typedef float3 vec3
-typedef float4 vec4 
-typedef float3x3 mat3
-typedef float4x4 mat4 
-
-[[vk::binding(0)]]
-StructuredBuffer<uint> gVisible;
+#include "seed_global.slang"
 
 struct PushConstant {
     uint visible_index;
@@ -14,76 +7,6 @@ struct PushConstant {
 }
 [[vk_push_constant]]
 ConstantBuffer<PushConstant> gPC;
-
-[[vk::binding(1)]]
-StructuredBuffer<mat4> gTransform;
-
-struct TerrainInstance{
-    vec2 pos;
-    uint heightmap_index;
-    uint dummy;
-};
-
-[[vk::binding(2)]]
-StructuredBuffer<TerrainInstance> gTerrain;
-
-[[vk::binding(3)]]
-StructuredBuffer<mat4> gBones;
-
-struct Camera {
-    vec3 u_cam_pos;
-    mat4 u_projection;
-    mat4 u_view;
-}
-
-struct Light {
-    vec3 position;
-    vec3 diffuse;
-    vec3 specular;
-    float enable;
-};
-struct Lights {
-    vec3 u_light_ambient;
-    Light u_dir_light;
-    Light u_point_lights[8];
-};
-
-#define CSM_SPLITS 4
-struct CSMShadow
-{
-    /* x, y, w, h */
-    vec4 u_shadow_uv[CSM_SPLITS];
-    vec4 u_far;
-    vec4 u_shadow_unit;
-};
-
-
-[[vk::binding(8)]]
-ConstantBuffer<Camera[64]> gCam;
-[[vk::binding(9)]]
-ConstantBuffer<Lights> gLights;
-[[vk::binding(10)]]
-ConstantBuffer<CSMShadow> gCSM;
-[[vk::binding(11)]]
-ConstantBuffer<mat4> gProj;
-
-
-
-inline vec4 operator*(mat4 a, vec4 b)
-{
-    return mul(b, a);
-}
-
-inline vec3 operator*(mat3 a, vec3 b)
-{
-    return mul(b, a);
-}
-
-inline mat4 operator*(mat4 a, mat4 b)
-{
-    return mul(b, a);
-}
-
 
 inline mat4 GetTransform(uint id){
     return gTransform[gVisible[id + gPC.visible_index]];

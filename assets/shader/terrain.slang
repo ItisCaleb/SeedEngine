@@ -1,4 +1,4 @@
-import seed_inc;
+import seed_draw;
 
 struct VS_OUT{
     float2 uv;
