@@ -295,11 +295,6 @@
       "config": {}
     },
     {
-      "UUID": "8bf592bd-7de5-46a9-8c6f-ee0c070cb30d",
-      "resource_type_id": 10849148638007426714,
-      "path": "assets\\new_world.world"
-    },
-    {
       "UUID": "b740f966-12a8-4b14-8cee-8c71768991e4",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\.internal\\new_world_1_-1_control.png",
