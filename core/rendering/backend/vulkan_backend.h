@@ -110,11 +110,11 @@ class RenderBackendVK : public RenderBackend {
         VkCommandPool command_pool;
         VmaAllocator buffer_allocator;
         VkDescriptorPool descriptor_pool;
-
+        bool should_present = false;
         Handle current_render_target;
 
         struct SwapChain {
-                VkSwapchainKHR chain;
+                VkSwapchainKHR chain = VK_NULL_HANDLE;
                 VkFormat format;
                 std::vector<Handle> textures;
                 std::vector<Handle> render_targets;

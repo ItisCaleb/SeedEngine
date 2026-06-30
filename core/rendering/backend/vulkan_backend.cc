@@ -320,7 +320,15 @@ void RenderBackendVK::create_swapchain(Window *window) {
                    capabilities.maxImageExtent.height);
     }
 
+    /* clamp image count */
     u32 imageCount = capabilities.minImageCount + 1;
+    if (capabilities.maxImageCount > 0 &&
+        imageCount > capabilities.maxImageCount) {
+        imageCount = capabilities.maxImageCount;
+    }
+
+    VkSwapchainKHR old_swapchain = swap_chain.chain;
+
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface;
@@ -337,7 +345,7 @@ void RenderBackendVK::create_swapchain(Window *window) {
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode = target_present;
     createInfo.clipped = VK_TRUE;
-    createInfo.oldSwapchain = VK_NULL_HANDLE;
+    createInfo.oldSwapchain = old_swapchain;
     if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swap_chain.chain) !=
         VK_SUCCESS) {
         throw std::runtime_error("Failed to create Vulkan swap chain!");
@@ -365,7 +373,11 @@ void RenderBackendVK::recreate_swapchain(Window *window) {
     vkDeviceWaitIdle(device);
 
     for (u32 i = 0; i < swap_chain.render_targets.size(); i++) {
+        HardwareTextureVk *tex = textures.get_or_null(swap_chain.textures[i]);
+        /* set image to null to prevent vma destroy it */
+        tex->image = nullptr;
         dealloc(RenderResourceType::TEXTURE, swap_chain.textures[i]);
+
         if (i > 0) {
             HardwareRenderPassVk *rt =
                 this->render_pass.get_or_null(swap_chain.render_targets[i]);
@@ -429,7 +441,7 @@ void RenderBackendVK::create_swapchain_framebuffer() {
         Handle handle = this->render_pass.insert(rt);
         this->swap_chain.render_targets.push_back(handle);
     }
-    current_render_target = this->swap_chain.render_targets[0];
+    current_render_target = NULL_HANDLE;
 }
 
 void RenderBackendVK::create_command_pool() {
@@ -735,7 +747,6 @@ void RenderBackendVK::reallocate_buffer(HardwareBufferVk *buffer, u64 size) {
     if (buffer->mapped_ptr != nullptr) {
         vmaMapMemory(buffer_allocator, buffer->memory, &buffer->mapped_ptr);
     }
-
 }
 
 void RenderBackendVK::stream_buffer(HardwareBufferVk *buffer, u64 size,
@@ -1555,7 +1566,7 @@ void RenderBackendVK::create_framebuffer(HardwareRenderPassVk *render_target) {
 }
 
 HardwareRenderPassVk *RenderBackendVK::get_current_render_pass() {
-    if (current_render_target == -1) {
+    if (current_render_target == NULL_HANDLE) {
         return this->render_pass.get_or_null(
             this->swap_chain.render_targets[swap_chain.next_index]);
     } else {
@@ -2192,6 +2203,8 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
 }
 
 void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
+    should_present = false;
+
     Frame &frame = frames[get_current_frame_index()];
 
     vkWaitForFences(device, 1, &frame.in_flight_fence, VK_TRUE, UINT64_MAX);
@@ -2298,10 +2311,14 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
+    should_present = true;
+
     handle_destroy();
 }
 
 void RenderBackendVK::swap_buffer() {
+    if (!should_present) return;
+
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -2315,6 +2332,7 @@ void RenderBackendVK::swap_buffer() {
     presentInfo.pResults = nullptr;  // Optional
 
     vkQueuePresentKHR(graphics_queue, &presentInfo);
+    should_present = false;
 }
 
 void RenderBackendVK::handle_update(RenderCommand &cmd) {
