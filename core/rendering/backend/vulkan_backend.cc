@@ -1042,6 +1042,7 @@ TextureHandle RenderBackendVK::create_texture(TextureType type, u32 w, u32 h,
         .msaa_image = msaa_image,
         .msaa_view = msaa_view,
         .msaa_memory = msaa_allocation,
+        .msaa_layout = VK_IMAGE_LAYOUT_UNDEFINED,
         .layouts = layouts,
     });
 
@@ -1655,10 +1656,16 @@ void RenderBackendVK::handle_frame_update() {
     shader_barriers.reserve(image_copy_queue.size() +
                             image_transition_queue.size());
 
-    std::set<std::pair<u32, u32>> transitioned;
-    for (ImageUpdate &copy : image_copy_queue) {
-        /* make sure only transition once every frame */
-        if (transitioned.count({copy.texture, copy.face}) > 0) continue;
+    std::set<std::pair<u32, u32>> copied;
+    for (auto it = image_copy_queue.rbegin(); it != image_copy_queue.rend();
+         ++it) {
+        ImageUpdate &copy = *it;
+        /* make sure only copy once every frame */
+        if (copied.count({copy.texture, copy.face}) > 0) {
+            copy.texture = NULL_HANDLE;
+            continue;
+        };
+        copied.insert({copy.texture, copy.face});
 
         VkImageMemoryBarrier barrier{};
         HardwareTextureVk *texture = this->textures.get_or_null(copy.texture);
@@ -1670,7 +1677,6 @@ void RenderBackendVK::handle_frame_update() {
         barrier = create_image_barrier(
             texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, copy.face);
         shader_barriers.push_back(barrier);
-        transitioned.insert({copy.texture, copy.face});
     }
     while (!image_transition_queue.is_empty()) {
         auto tex = image_transition_queue.peek();
@@ -1729,24 +1735,26 @@ void RenderBackendVK::handle_frame_update() {
     }
     while (!image_copy_queue.is_empty()) {
         ImageUpdate &copy = image_copy_queue.peek();
-        VkBufferImageCopy _copy{};
         HardwareTextureVk *texture = this->textures.get_or_null(copy.texture);
+        if (texture) {
+            VkBufferImageCopy _copy{};
+            _copy.bufferOffset = 0;
+            _copy.bufferRowLength = 0;
+            _copy.bufferImageHeight = 0;
 
-        _copy.bufferOffset = 0;
-        _copy.bufferRowLength = 0;
-        _copy.bufferImageHeight = 0;
+            _copy.imageSubresource.aspectMask =
+                VulkanHelper::aspect_flag(texture->format);
+            _copy.imageSubresource.mipLevel = 0;
+            _copy.imageSubresource.baseArrayLayer = copy.face;
+            _copy.imageSubresource.layerCount = 1;
 
-        _copy.imageSubresource.aspectMask =
-            VulkanHelper::aspect_flag(texture->format);
-        _copy.imageSubresource.mipLevel = 0;
-        _copy.imageSubresource.baseArrayLayer = copy.face;
-        _copy.imageSubresource.layerCount = 1;
+            _copy.imageOffset = {(i32)copy.offx, (i32)copy.offy, 0};
+            _copy.imageExtent = {copy.w, copy.h, 1};
+            vkCmdCopyBufferToImage(
+                frame.render_cmd_buffer, copy.staging_buffer, texture->image,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &_copy);
+        }
 
-        _copy.imageOffset = {(i32)copy.offx, (i32)copy.offy, 0};
-        _copy.imageExtent = {copy.w, copy.h, 1};
-        vkCmdCopyBufferToImage(frame.render_cmd_buffer, copy.staging_buffer,
-                               texture->image,
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &_copy);
         this->destroy_list.push_back(
             DestroyResource{.type = RenderResourceType::VERTEX,
                             .mapped = false,
@@ -1844,7 +1852,7 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
             this->textures.get_or_null(attachment.texture_handle);
         /* we'll only transition msaa for first time*/
         if (tex->msaa_image != nullptr &&
-            tex->layouts[0] == VK_IMAGE_LAYOUT_UNDEFINED) {
+            tex->msaa_layout == VK_IMAGE_LAYOUT_UNDEFINED) {
             VkImageMemoryBarrier msaa_barrier{};
             msaa_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             msaa_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1858,6 +1866,7 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
             msaa_barrier.subresourceRange.levelCount = 1;
             msaa_barrier.subresourceRange.baseArrayLayer = 0;
             msaa_barrier.subresourceRange.layerCount = 1;
+            tex->msaa_layout = msaa_barrier.newLayout;
             barriers.push_back(msaa_barrier);
         }
         barriers.push_back(create_image_barrier(tex, target_color_layout, 0));
@@ -1866,7 +1875,7 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
         HardwareTextureVk *depth_tex =
             this->textures.get_or_null(rt->depth_attachment.texture_handle);
         if (depth_tex->msaa_image != nullptr &&
-            depth_tex->layouts[0] == VK_IMAGE_LAYOUT_UNDEFINED) {
+            depth_tex->msaa_layout == VK_IMAGE_LAYOUT_UNDEFINED) {
             VkImageMemoryBarrier msaa_barrier{};
             msaa_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             msaa_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1886,6 +1895,7 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
             msaa_barrier.subresourceRange.levelCount = 1;
             msaa_barrier.subresourceRange.baseArrayLayer = 0;
             msaa_barrier.subresourceRange.layerCount = 1;
+            depth_tex->msaa_layout = msaa_barrier.newLayout;
             barriers.push_back(msaa_barrier);
         }
         barriers.push_back(

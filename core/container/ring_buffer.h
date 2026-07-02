@@ -16,6 +16,14 @@ class RingBuffer {
     public:
         template <typename K>
         class Iterator {
+            public:
+                using difference_type = std::ptrdiff_t;
+                using iterator_category = std::bidirectional_iterator_tag;
+                using value_type = K;
+                using pointer = K *;
+                using reference = K &;
+
+            private:
                 std::vector<K> &data;
                 u32 cap;
                 u32 cur;
@@ -31,9 +39,21 @@ class RingBuffer {
                     cur = (cur + 1) % cap;
                     return *this;
                 }
+
                 Iterator<K> operator++(int) {
                     Iterator<K> tmp = *this;
                     cur = (cur + 1) % cap;
+                    return tmp;
+                }
+
+                Iterator<K> &operator--() {
+                    cur = (cur + cap - 1) % cap;
+                    return *this;
+                }
+
+                Iterator<K> operator--(int) {
+                    Iterator<K> tmp = *this;
+                    cur = (cur + cap - 1) % cap;
                     return tmp;
                 }
 
@@ -47,6 +67,13 @@ class RingBuffer {
 
         Iterator<T> begin() { return Iterator<T>(data, head, cap); }
         Iterator<T> end() { return Iterator<T>(data, tail, cap); }
+        std::reverse_iterator<Iterator<T>> rbegin() {
+            return std::reverse_iterator<Iterator<T>>(end());
+        }
+        std::reverse_iterator<Iterator<T>> rend() {
+            return std::reverse_iterator<Iterator<T>>(begin());
+        }
+
         u32 size() { return (tail - head + cap) % cap; }
 
         bool is_empty() { return this->size() == 0; }

@@ -46,6 +46,7 @@ struct HardwareTextureVk {
         VkImage msaa_image;
         VkImageView msaa_view;
         VmaAllocation msaa_memory;
+        VkImageLayout msaa_layout;
         std::vector<VkImageLayout> layouts;
         void *mapped_ptr = nullptr;
 };
