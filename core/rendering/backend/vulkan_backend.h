@@ -205,7 +205,8 @@ class RenderBackendVK : public RenderBackend {
         RingBuffer<DynamicBufferUpdate> dynamic_buffer_update_queue;
 
         RingBuffer<ImageUpdate> image_copy_queue;
-        RingBuffer<TextureHandle> mappable_image_transition_queue;
+        /* handle & face */
+        RingBuffer<std::pair<TextureHandle, u32>> image_transition_queue;
 
         std::unordered_map<u64, VkPipeline> pipeline_cache;
         std::unordered_map<u64, DescriptorSetLayout> descriptor_layout_cache;

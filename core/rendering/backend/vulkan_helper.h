@@ -253,7 +253,7 @@ class VulkanHelper {
             samplerInfo.anisotropyEnable = VK_TRUE;
             samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
             samplerInfo.unnormalizedCoordinates = VK_FALSE;
-            samplerInfo.compareEnable = VK_TRUE;
+            samplerInfo.compareEnable = VK_FALSE;
             samplerInfo.compareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
             return samplerInfo;
         }
@@ -332,6 +332,27 @@ class VulkanHelper {
 
         inline static VkSampleCountFlagBits sample_count(MSAAType type) {
             return sample_bit[(u8)type];
+        }
+
+        static VkAccessFlags access_mask_for_layout(VkImageLayout layout) {
+            switch (layout) {
+                case VK_IMAGE_LAYOUT_UNDEFINED:
+                    return 0;
+                case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                    return VK_ACCESS_TRANSFER_WRITE_BIT;
+                case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                    return VK_ACCESS_SHADER_READ_BIT;
+                case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                    return VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                           VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+                case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+                case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+                    return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                           VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                default:
+                    return 0;
+            }
         }
 };
 }  // namespace Seed

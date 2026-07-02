@@ -130,7 +130,20 @@ void RenderBackendVK::create_instance() {
 #endif
     if (enable_validation) {
         requiredExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        requiredExtensions.emplace_back(
+            VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
     }
+    VkValidationFeatureEnableEXT validation_features[] = {
+        VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+        VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+        VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+        VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+    };
+    VkValidationFeaturesEXT validation_features_info{};
+    validation_features_info.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+    validation_features_info.enabledValidationFeatureCount =
+        sizeof(validation_features) / sizeof(validation_features[0]);
+    validation_features_info.pEnabledValidationFeatures = validation_features;
 
     createInfo.enabledExtensionCount = requiredExtensions.size();
     createInfo.ppEnabledExtensionNames = requiredExtensions.data();
@@ -138,6 +151,7 @@ void RenderBackendVK::create_instance() {
     if (enable_validation) {
         createInfo.enabledLayerCount = validationLayers.size();
         createInfo.ppEnabledLayerNames = validationLayers.data();
+        createInfo.pNext = &validation_features_info;
         spdlog::debug("Enabling Vulkan validation layer");
     } else {
         createInfo.enabledLayerCount = 0;
@@ -247,13 +261,7 @@ void RenderBackendVK::create_logical_device() {
     createInfo.pEnabledFeatures = nullptr;
     createInfo.enabledExtensionCount = deviceExtensions.size();
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
-    if (enable_validation) {
-        createInfo.enabledLayerCount = validationLayers.size();
-        createInfo.ppEnabledLayerNames = validationLayers.data();
-    } else {
-        createInfo.enabledLayerCount = 0;
-    }
+    createInfo.enabledLayerCount = 0;
 
     if (vkCreateDevice(physical_device, &createInfo, nullptr, &device) !=
         VK_SUCCESS) {
@@ -319,6 +327,7 @@ void RenderBackendVK::create_swapchain(Window *window) {
             clampu((u32)height, capabilities.minImageExtent.height,
                    capabilities.maxImageExtent.height);
     }
+    if (target_extent.height == 0 || target_extent.width == 0) return;
 
     /* clamp image count */
     u32 imageCount = capabilities.minImageCount + 1;
@@ -617,6 +626,10 @@ inline VkImageMemoryBarrier RenderBackendVK::create_image_barrier(
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = texture->image;
+    barrier.srcAccessMask =
+        VulkanHelper::access_mask_for_layout(barrier.oldLayout);
+    barrier.dstAccessMask =
+        VulkanHelper::access_mask_for_layout(barrier.newLayout);
     barrier.subresourceRange.aspectMask =
         VulkanHelper::aspect_flag(texture->format);
     barrier.subresourceRange.baseMipLevel = 0;
@@ -952,17 +965,13 @@ TextureHandle RenderBackendVK::create_texture(TextureType type, u32 w, u32 h,
     std::vector<VkImageLayout> layouts;
     if (type == TextureType::TEXTURE_CUBEMAP) {
         imageInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-        imageInfo.arrayLayers = 6;
-        for (u32 i = 0; i < 6; i++) {
-            layouts.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
-        }
-    } else {
-        imageInfo.arrayLayers = count;
-        for (u32 i = 0; i < count; i++) {
-            layouts.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
-        }
+        count = 6;
     }
 
+    imageInfo.arrayLayers = count;
+    for (u32 i = 0; i < count; i++) {
+        layouts.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
+    }
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     VmaAllocationCreateInfo allocInfo = {};
@@ -1020,8 +1029,7 @@ TextureHandle RenderBackendVK::create_texture(TextureType type, u32 w, u32 h,
         viewInfo.image = msaa_image;
         vkCreateImageView(device, &viewInfo, nullptr, &msaa_view);
     }
-
-    return this->textures.insert({
+    TextureHandle handle = this->textures.insert({
         .w = w,
         .h = h,
         .type = type,
@@ -1036,6 +1044,12 @@ TextureHandle RenderBackendVK::create_texture(TextureType type, u32 w, u32 h,
         .msaa_memory = msaa_allocation,
         .layouts = layouts,
     });
+
+    /* prevent image without data doesn't transition */
+    for (u32 i = 0; i < count; i++) {
+        image_transition_queue.push(std::make_pair(handle, i));
+    }
+    return handle;
 }
 
 TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
@@ -1117,7 +1131,7 @@ TextureHandle RenderBackendVK::alloc_mappable_texture(
     w = subResLayout.rowPitch / get_pixel_format_size(format);
     texture->w = w;
     texture->mapped_ptr = mapped_ptr;
-    mappable_image_transition_queue.push(handle);
+    image_transition_queue.push(std::make_pair(handle, 0));
     return handle;
 }
 
@@ -1487,13 +1501,24 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
     subpass.pResolveAttachments = resolveRefs.data();
 
     VkSubpassDependency dependency{};
-    dependency.srcSubpass = 0;
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-    dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-                               VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.srcStageMask =
+        is_swapchain ? VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                     : VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    dependency.dstStageMask =
+        is_swapchain ? VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                     : VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    VkAccessFlags normal_flag = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependency.srcAccessMask = is_swapchain ? 0 : normal_flag;
+    dependency.dstAccessMask = is_swapchain
+                                   ? (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                                      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                                   : normal_flag;
+    dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -1623,10 +1648,12 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
 void RenderBackendVK::handle_frame_update() {
     std::vector<VkImageMemoryBarrier> transfer_barriers;
     std::vector<VkImageMemoryBarrier> shader_barriers;
+    std::vector<VkBufferMemoryBarrier> buffer_barriers;
+
     Frame &frame = frames[get_current_frame_index()];
     transfer_barriers.reserve(image_copy_queue.size());
     shader_barriers.reserve(image_copy_queue.size() +
-                            mappable_image_transition_queue.size());
+                            image_transition_queue.size());
 
     std::set<std::pair<u32, u32>> transitioned;
     for (ImageUpdate &copy : image_copy_queue) {
@@ -1645,12 +1672,16 @@ void RenderBackendVK::handle_frame_update() {
         shader_barriers.push_back(barrier);
         transitioned.insert({copy.texture, copy.face});
     }
-    while (!mappable_image_transition_queue.is_empty()) {
-        TextureHandle handle = mappable_image_transition_queue.peek();
+    while (!image_transition_queue.is_empty()) {
+        auto tex = image_transition_queue.peek();
+        TextureHandle handle = tex.first;
+        u32 face = tex.second;
         HardwareTextureVk *texture = this->textures.get_or_null(handle);
+        image_transition_queue.pop();
+        if (texture->layouts[face] == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            continue;
         shader_barriers.push_back(create_image_barrier(
-            texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0));
-        mappable_image_transition_queue.pop();
+            texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, face));
     }
 
     vkCmdPipelineBarrier(
@@ -1666,6 +1697,18 @@ void RenderBackendVK::handle_frame_update() {
         _copy.size = copy.size;
         vkCmdCopyBuffer(frame.render_cmd_buffer, copy.staging_buffer,
                         copy.target_buffer, 1, &_copy);
+        VkBufferMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.buffer = copy.target_buffer;
+        barrier.offset = copy.offset;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask =
+            VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT |
+            VK_ACCESS_UNIFORM_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
+        barrier.size = copy.size;
+        buffer_barriers.push_back(barrier);
         this->destroy_list.push_back(
             DestroyResource{.type = RenderResourceType::VERTEX,
                             .mapped = false,
@@ -1711,10 +1754,11 @@ void RenderBackendVK::handle_frame_update() {
                                        .memory = copy.staging_allocation}});
         image_copy_queue.pop();
     }
-    vkCmdPipelineBarrier(
-        frame.render_cmd_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-        VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 0, nullptr,
-        shader_barriers.size(), shader_barriers.data());
+    vkCmdPipelineBarrier(frame.render_cmd_buffer,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr,
+                         buffer_barriers.size(), buffer_barriers.data(),
+                         shader_barriers.size(), shader_barriers.data());
 }
 
 void RenderBackendVK::handle_destroy() {
@@ -1775,10 +1819,11 @@ void RenderBackendVK::handle_destroy() {
 
 void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
                                              bool to_attachment) {
-    /* we don't need swapchain to transition*/
+    /* render pass already handled swapchain transition for us*/
     if (rt->is_swapchain) {
         return;
     }
+    Frame &frame = frames[get_current_frame_index()];
     VkImageLayout target_color_layout =
         to_attachment ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
                       : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1846,7 +1891,6 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
         barriers.push_back(
             create_image_barrier(depth_tex, target_depth_layout, 0));
     }
-    Frame &frame = frames[get_current_frame_index()];
     vkCmdPipelineBarrier(frame.render_cmd_buffer,
                          VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
                          VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 0,
@@ -2286,6 +2330,12 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         }
         cmd_queue.pop_front();
     }
+    /* transition to */
+    transition_render_pass(
+        this->render_pass.get_or_null(
+            this->swap_chain.render_targets[swap_chain.next_index]),
+        false);
+
     vkCmdEndRenderPass(frame.render_cmd_buffer);
     vkEndCommandBuffer(frame.render_cmd_buffer);
 
