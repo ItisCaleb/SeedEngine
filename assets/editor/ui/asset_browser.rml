@@ -1,0 +1,71 @@
+<template name="asset-browser">
+
+    <head>
+        <link type="text/rcss" href="widgets/widgets.rcss" />
+    </head>
+
+    <body>
+        <div id="asset-panel" class="panel" data-model="asset_browser">
+            <div class="panel-toolbar">
+                <div class="panel-header compact">Assets</div>
+                <input id="asset-search" type="text" data-value="search" data-event-change="refresh_assets" />
+                <button class="small-button" data-event-click="refresh_assets">Refresh</button>
+                <button class="small-button" id="asset-create">Create</button>
+            </div>
+
+            <div id="asset-body">
+                <div id="folder-tree">
+                    <div class="tree-title">Folders</div>
+                    <div data-for="folder, i : folders" class="tree-row" data-class-active="folder.active"
+                        data-event-click="open_folder(i)">
+                        {{ folder.name }}
+                    </div>
+                    <handle class="resize-x resize-right" size_target="folder-tree"></handle>
+                </div>
+
+                <div id="asset-grid" data-event-mouseup="open_menu">
+                    <div class="breadcrumb">{{ breadcrumb }}</div>
+                    <div class="asset-list">
+                        <div data-for="asset, i : assets" class="asset-cell" data-attr-type="asset.type"
+                            data-event-click="open_asset(i)">
+                            <div class="asset-icon" data-attr-type="asset.type">
+                                {{ asset.icon }}
+                            </div>
+                            <div class="asset-name">{{ asset.name }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <x-menu id="asset-popup">
+                <x-menu-item>Create
+                    <x-menu>
+                        <x-menu-item data-event-click="request_create_world">Create World</x-menu-item>
+                    </x-menu>
+                </x-menu-item>
+                <x-menu-item>Test
+                    <x-menu>
+                        <x-menu-item>Test</x-menu-item>
+                    </x-menu>
+                </x-menu-item>
+            </x-menu>
+        </div>
+        <div id="new-world-popup" data-model="world_create" data-if="show_create">
+            <template src="popup">
+                <div class="seed-popup-title">New World</div>
+                <div class="seed-popup-row">
+                    <label>Name</label>
+                    <input type="text" data-value="name" />
+                </div>
+                <div class="seed-popup-row">
+                    <label>Path</label>
+                    <input type="text" data-value="path" />
+                </div>
+                <div class="seed-popup-row error" data-if="has_error">{{ error }}</div>
+                <div class="seed-popup-actions">
+                    <button class="seed-popup-button" data-event-click="cancel_create_world">Cancel</button>
+                    <button class="seed-popup-button" data-event-click="confirm_create_world">Create</button>
+                </div>
+            </template>
+        </div>
+    </body>
+</template>

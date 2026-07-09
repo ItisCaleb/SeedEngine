@@ -1,5 +1,6 @@
 #include "render_backend.h"
 #include <algorithm>
+#include "core/debug/profiler.h"
 
 
 namespace Seed {
@@ -23,6 +24,8 @@ void *RenderBackend::push_cmd(RenderCommand &cmd, u64 size, void *data) {
 }
 
 void RenderBackend::process() {
+    PROFILE_SCOPE("Render Backend");
+
     RenderCommandQueue &queue = this->cmd_queue[get_current_frame_index()];
     current_frame++;
     queue.queue_lock.lock();

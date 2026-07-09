@@ -5,6 +5,7 @@
 #include "core/types.h"
 #include "core/input_handler.h"
 #include "core/math/vec2.h"
+#include "core/math/vec2i.h"
 
 namespace Seed {
 
@@ -88,7 +89,6 @@ class Input {
         std::set<MouseEvent> mouse_pressed;
         std::function<void(f32 last_x, f32 last_y, f32 x, f32 y)> drag_func;
         f32 last_x = 0, last_y = 0;
-        bool should_capture_mouse = true;
 
     public:
         static Input *get_instance();
@@ -101,8 +101,8 @@ class Input {
         bool is_mouse_pressed(MouseEvent e);
         bool is_mouse_released(MouseEvent e);
         void mouse_click(MouseEvent e);
-        void set_capture_mouse(bool on) { should_capture_mouse = on; }
         Vec2 get_mouse_pos() { return Vec2{last_x, last_y}; }
+        Vec2i get_mouse_actual_pos();
         Input();
         ~Input();
 };

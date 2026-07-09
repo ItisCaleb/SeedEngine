@@ -2,7 +2,6 @@
 #include "core/io/path.h"
 #include "core/resource/resource_loader.h"
 #include "resource_entry.h"
-#include <fmt/format.h>
 
 namespace Seed {
 static u32 internal_counter = 0;

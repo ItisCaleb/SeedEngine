@@ -1,11 +1,8 @@
 #include "render_resource.h"
-#include <glad/glad.h>
-#include <fmt/core.h>
 #include "core/io/path.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_engine.h"
-#include "render_engine.h"
-#include <spdlog/spdlog.h>
+#include "core/macro.h"
 #include <cstdlib>
 
 namespace Seed {
@@ -79,9 +76,11 @@ SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
         size, data, frequence);
 }
 
-ShaderHandle alloc_shader(const Path &path, const std::string &code,
-                          ShaderLayout *layout) {
-    return RenderEngine::get_instance()->compile_shader(path, code, layout);
+ShaderHandle alloc_shader(const Path &path, const KString &code,
+                          ShaderLayout *layout,
+                          const std::vector<ShaderDefine> &defines) {
+    return RenderEngine::get_instance()->compile_shader(path, code, layout,
+                                                        defines);
 }
 
 PipelineHandle alloc_pipeline(ShaderHandle shader,
@@ -197,6 +196,7 @@ void update_from_heap(SSBOHandle handle, u32 offset, UpdateBufferInfo info) {
 void update_from_heap(TextureHandle handle, u32 layer, u32 offx, u32 offy,
                       UpdateBufferInfo info) {
     if (info.data == nullptr) {
+        SEED_WARN("Trying to upload heap with null data, skipping.");
         return;
     }
     RenderEngine::get_instance()->get_device()->update(

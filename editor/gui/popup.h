@@ -3,7 +3,7 @@
 
 class Popup {
     public:
-        bool should_close;
+        bool should_close = false;
         virtual void draw() = 0;
         virtual ~Popup() {}
 };

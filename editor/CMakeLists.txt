@@ -1,6 +1,5 @@
 target_sources(editor PRIVATE 
     editor.cc 
-    editor_gui.cc
     editor_storage.cc
     camera_entity.cc
 )

@@ -1,16 +1,12 @@
 #include "instance_data.h"
-#include <cstdlib>
 #include <cstring>
 #include "core/collision/shape.h"
 #include "core/macro.h"
 #include "core/math/mat4.h"
 #include "core/math/utils.h"
-#include "core/math/vec3.h"
-#include "core/math/vec4.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/debug/debug_drawer.h"
 #include "core/engine.h"
-#include "core/resource/animation.h"
 #include "core/resource/model.h"
 #include "core/transform.h"
 #include "core/types.h"
@@ -118,7 +114,7 @@ void InstanceData::_upload(RHI::UpdateBufferInfo &update_info,
     } else {
         auto block = pool->query(instance_handle);
         if (block.size < size) {
-            pool->free(instance_handle);
+            if(block.size > 0) pool->free(instance_handle);
             instance_handle = pool->alloc(size);
         }
     }
@@ -140,7 +136,7 @@ void InstanceData::_upload(std::vector<RHI::UpdateBufferInfo> &update_infos) {
     } else {
         auto block = pool->query(instance_handle);
         if (block.size < size) {
-            pool->free(instance_handle);
+            if(block.size > 0) pool->free(instance_handle);
             instance_handle = pool->alloc(size);
         }
     }

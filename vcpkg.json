@@ -2,14 +2,12 @@
   "dependencies": [
     "assimp",
     "fmt",
-    "glad",
     "glfw3",
     "openxr-loader",
     {
       "name": "imgui",
       "features": [
-        "glfw-binding",
-        "opengl3-binding"
+        "glfw-binding"
       ]
     },
     "vulkan",
@@ -18,6 +16,7 @@
     "shader-slang",
     "spdlog",
     "stb",
+    "rmlui",
     "nlohmann-json",
     "nativefiledialog-extended",
     {

@@ -29,6 +29,7 @@ struct SSBOTag;
 struct ShaderTag;
 struct PipelineTag;
 struct RenderTargetTag;
+struct ShaderDefine;
 
 typedef TypedHandle<TextureTag> TextureHandle;
 typedef TypedHandle<VertexTag> VertexHandle;
@@ -84,8 +85,9 @@ TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
 void query_texture_size(TextureHandle handle, u32 *w, u32 *h);
 
 [[nodiscard]]
-ShaderHandle alloc_shader(const Path &path, const std::string &code,
-                          ShaderLayout *layout);
+ShaderHandle alloc_shader(const Path &path, const KString &code,
+                          ShaderLayout *layout,
+                          const std::vector<ShaderDefine> &defines);
 
 [[nodiscard]]
 PipelineHandle alloc_pipeline(ShaderHandle shader,

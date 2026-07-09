@@ -1,8 +1,7 @@
 #include "camera_entity.h"
 #include "core/input.h"
 #include "core/engine.h"
-#include <fmt/core.h>
-#include "core/math/utils.h"
+#include <imgui.h>
 #include "core/ref.h"
 #include "core/world/entity.h"
 
@@ -14,57 +13,41 @@ void EditorCameraBehaviour::start() {
     this->cam->set_front(0, -50);
     this->cam->set_perspective(45, 1.33, 0.1, 10000.0);
     yaw = 0;
-    pitch = 0;
-    Input::get_instance()->on_mouse_move(
-        [=](f32 last_x, f32 last_y, f32 x, f32 y) {
-            if (!Input::get_instance()->is_mouse_pressed(MouseEvent::RIGHT)) {
-                return;
-            }
-            f32 x_off = x - last_x;
-            f32 y_off = last_y - y;
-            f32 sensitivity = 100;
-            x_off *= sensitivity;
-            y_off *= sensitivity;
-            yaw += x_off;
-            pitch += y_off;
-
-            if (pitch > 89.0f) pitch = 89.0f;
-            if (pitch < -89.0f) pitch = -89.0f;
-            this->cam->set_front(yaw, pitch);
-        });
+    pitch = -50;
+    speed = 1000;
 }
-
 void EditorCameraBehaviour::update(f32 dt) {
     Input *input = Input::get_instance();
+    if (!input->is_mouse_pressed(MouseEvent::RIGHT)) return;
+
+    ImVec2 mouse_delta = ImGui::GetIO().MouseDelta;
+    f32 sensitivity = 0.1f;
+    yaw += mouse_delta.x * sensitivity;
+    pitch -= mouse_delta.y * sensitivity;
+    if (pitch > 89.0f) pitch = 89.0f;
+    if (pitch < -89.0f) pitch = -89.0f;
+    cam->set_front(yaw, pitch);
+
+    if (input->is_key_pressed(KeyCode::MINUS)) speed -= 500 * dt;
+    if (input->is_key_pressed(KeyCode::EQUAL)) speed += 500 * dt;
+    if (speed < 50) speed = 50;
+
     Vec3 pos = cam->get_position();
-    f32 speed = 1000 * dt;
-    Vec3 front = cam->get_front();
-    front.y = 0;
-    front = front.norm();
-    if (input->is_key_pressed(KeyCode::W)) {
-        pos += front * speed;
-    }
+    Vec3 front = cam->get_front().norm();
+    Vec3 right = front.cross(cam->get_up()).norm();
+    Vec3 up = cam->get_up().norm();
+    f32 step = speed * dt;
 
-    if (input->is_key_pressed(KeyCode::S)) {
-        pos -= front * speed;
-    }
-
-    if (input->is_key_pressed(KeyCode::D)) {
-        pos += front.cross(cam->get_up()) * speed;
-    }
-
-    if (input->is_key_pressed(KeyCode::A)) {
-        pos -= front.cross(cam->get_up()) * speed;
-    }
-    if (input->is_key_pressed(KeyCode::MINUS)) {
-        if (pos.y <= 1000) pos.y += speed;
-    }
-    if (input->is_key_pressed(KeyCode::EQUAL)) {
-        if (pos.y >= 200) pos.y -= speed;
-    }
+    if (input->is_key_pressed(KeyCode::W)) pos += front * step;
+    if (input->is_key_pressed(KeyCode::S)) pos -= front * step;
+    if (input->is_key_pressed(KeyCode::D)) pos += right * step;
+    if (input->is_key_pressed(KeyCode::A)) pos -= right * step;
+    if (input->is_key_pressed(KeyCode::E)) pos += up * step;
+    if (input->is_key_pressed(KeyCode::Q)) pos -= up * step;
 
     cam->set_position(pos);
 }
+
 Entity EditorCameraEntity::create_entity(EntityManager &m) {
     Entity e = m.create_entity();
     Ref<EditorCameraBehaviour> b;

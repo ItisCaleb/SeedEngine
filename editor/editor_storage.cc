@@ -1,13 +1,18 @@
 #include "editor_storage.h"
 #include "core/resource/resource_loader.h"
-#include "core/math/vec2.h"
 
 namespace Seed {
 
 EditorStorage::EditorStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
-    editor_terrain_shader =
-        loader->load_internal<Shader>("assets/shader/editor_terrain.slang");
+    editor_terrain_shader = DS::get_instance()->terrain_shader->create_variant(
+        {ShaderDefine{.name = "EDITOR", .value = "1"}});
+    editor_ui_doc =
+        loader->load_internal<GuiDocument>("assets/editor/ui/editor.rml");
+}
+
+void EditorStorage::reload_shaders() {
+    editor_terrain_shader->reload_from_disk();
 }
 }  // namespace Seed

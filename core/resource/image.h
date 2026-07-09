@@ -1,24 +1,25 @@
 #ifndef _SEED_IMAGE_H_
 #define _SEED_IMAGE_H_
+#include "core/io/path.h"
 #include "core/rendering/render_common.h"
 #include "core/types.h"
-#include "core/resource/resource.h"
 #include "core/resource/texture.h"
-#include "core/resource/mappable_texture.h"
 #include <vector>
 
 namespace Seed {
-class Image : public Resource {
+class Image : public RefCounted {
     private:
         PixelFormat format;
-        std::vector<u8> data;
+        u8 *data;
         u32 width, height;
+        Image(PixelFormat format, u32 w, u32 h, void *buffer);
 
     public:
         void update(std::vector<u8> &data, u32 w, u32 h, u32 off_x = 0,
                     u32 off_y = 0);
         void update(u8 *data, u32 w, u32 h, u32 off_x = 0, u32 off_y = 0);
         void fill(Color color, u32 w, u32 h, u32 off_x = 0, u32 off_y = 0);
+        void resize(u32 w, u32 h);
         Ref<Texture> create_texture(const SamplerProperty &property = {});
         Ref<MappableTexture> create_mappable_texture(
             const SamplerProperty &property = {});
@@ -26,6 +27,11 @@ class Image : public Resource {
         void upload(Ref<Texture> texture);
         void upload(Ref<MappableTexture> texture);
         void download(Ref<Texture> texture);
+        bool copy_column(Ref<Image> dst, u32 src_x, u32 src_y, u32 dst_x,
+                         u32 dst_y, u32 count);
+        bool copy_row(Ref<Image> dst, u32 src_x, u32 src_y, u32 dst_x,
+                      u32 dst_y, u32 count);
+
         u32 get_width() { return width; }
         u32 get_height() { return height; }
         u8 *pixel(u32 x, u32 y) {
@@ -39,11 +45,18 @@ class Image : public Resource {
             return &this->data[(y * width + x) * get_pixel_format_size(format)];
         }
 
-        std::vector<u8> &get_data() { return data; }
+        u8 *get_data() { return data; }
 
         Ref<Image> median_filter(u32 kernel_size, bool process_alpha = false);
+        Ref<Image> downscale(u32 w, u32 h);
+
+        static Ref<Image> load_from_file(const Path &path,
+                                         bool force_rgba = false);
+        void save_disk(const Path &path);
+        PixelFormat get_format() { return format; }
 
         Image(PixelFormat format, u32 w, u32 h);
+        ~Image();
 };
 }  // namespace Seed
 

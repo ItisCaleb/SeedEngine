@@ -1,0 +1,12 @@
+<template name="popup" content="popup-content">
+
+    <head>
+        <link type="text/rcss" href="widgets.rcss" />
+    </head>
+
+    <body>
+        <div class="seed-popup-widget">
+            <div class="seed-popup-panel" id="popup-content"></div>
+        </div>
+    </body>
+</template>

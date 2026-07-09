@@ -1,4 +1,5 @@
 #include "camera_entity.h"
+#include "core/debug/profiler.h"
 #include "core/engine.h"
 #include "core/math/vec3.h"
 #include "core/misc/uuid.h"
@@ -6,12 +7,12 @@
 #include "core/physic/physic_shape.h"
 #include "core/resource/model.h"
 #include "core/resource/resource_loader.h"
+#include <imgui.h>
 #include <spdlog/spdlog.h>
 #include <memory>
 #include <string>
 #include "core/concurrency/thread_pool.h"
 #include "core/os.h"
-#include "core/resource/sky.h"
 #include "core/gui/gui.h"
 #include "core/gui/gui_engine.h"
 #include "core/resource/texture.h"
@@ -19,11 +20,12 @@
 #include "core/world/world.h"
 #include "core/world/components.h"
 #include "human_entity.h"
+#include <RmlUi/Core.h>
 using namespace Seed;
 
 static Vec3 light_dir;
 
-class DebugGUI : public GUI {
+class DebugGUI : public ImGUI {
     public:
         void update() override {
             auto world = Seed::SeedEngine::get_instance()->get_world();
@@ -41,20 +43,25 @@ class DebugGUI : public GUI {
             ImGui::Text("FPS: %.2f", SeedEngine::get_instance()->get_fps());
             ImGui::SliderFloat("Shadow Lambda", &shadow_lambda, 0, 1.0);
             world->get_direction_light().set_csm_lamda(shadow_lambda);
+            if (ImGui::CollapsingHeader("Profiler")) {
+                for (auto &scopes : Profiler::get_instance()->get_recorded()) {
+                    ImGui::Text("%s %lld us", scopes.name.data(),
+                                scopes.cpu_time);
+                }
+            }
+
+            if (ImGui::Button("Reload all shaders")) {
+                DS::get_instance()->reload_shaders();
+            }
+
             ImGui::End();
         };
 };
 
 int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
+    engine->load_project("test_project/Ave Mujica.json");
     ResourceLoader *loader = ResourceLoader::get_instance();
-    loader->get_entries().load("test_project/assets/.seed_entry");
-    loader->set_root("test_project");
-
-    auto terrain =
-        loader->load_internal<Terrain>("test_project/assets/terrain_01.json");
-    auto sky_cube = loader->load_internal<TextureCubemap>("test_project/assets/sky.json");
-    Ref<Sky> sky(sky_cube);
     // auto backpack = loader->load_async<BasicModel>(
     //     "test_project/assets/backpack.json", [=](Ref<BasicModel> rc) {
 
@@ -68,21 +75,19 @@ int main(void) {
     // //             rc->insert_transform(tf);
     // //         }
     // //     });
-    auto man = loader->load_async<SkeletonModel>(
-        UUID::from_string("ffda1b80-2136-42b6-b336-1af85e6c00fd"));
-
-    GuiEngine::get_instance()->add_gui(new DebugGUI);
+    auto man = loader->load_async_from_path<SkeletonModel>(
+        "assets/.internal/scene.bin");
+    auto world_setting =
+        loader->load_from_path<WorldSetting>("assets/new_world.world");
+    GuiEngine::get_instance()->add_imgui(new DebugGUI);
     World *world = engine->get_world();
-    world->set_sky(sky);
+    world->load_setting(world_setting);
     world->get_point_lights().push_back(
         PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
-    Ref<WorldChunk> chunk;
-    chunk.create(terrain);
     Transform t;
     t.set_position(10, 10, 10);
     // auto model = backpack->wait();
     // chunk->add_object<BasicModel>(t, PhysicShape{}, model, t);
-    world->add_chunk(chunk);
     auto &ecs = world->ecs();
     Entity a = ecs.create_entity();
     PhysicBoxShape box(Vec3{1, 1, 1});
@@ -94,8 +99,10 @@ int main(void) {
     t.set_scale(Vec3{0.1, 0.1, 0.1});
     auto man_model = man->wait();
     HumanEntity::create_entity(ecs, t, man_model);
-
+    auto document =
+        loader->load_internal<GuiDocument>("assets/ui/rmlui_example.rml");
+    GuiEngine::get_instance()->load_rmlui(new RmlGUI(document));
     engine->start();
-
+    delete engine;
     return 0;
 }

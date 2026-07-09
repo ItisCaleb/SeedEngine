@@ -79,6 +79,10 @@ class DirectionalLight : public Light {
                          const Vec3 &specular, bool enable = true)
             : Light(LightType::DIRECTIONAL, diffuse, specular, enable),
               dir(dir) {}
+        DirectionalLight()
+            : Light(LightType::DIRECTIONAL, Vec3{0.8, 0.8, 0.8},
+                    Vec3{0.4, 0.4, 0.4}, true),
+              dir(Vec3{-0.5, -0.5, 0}) {}
 };
 
 class PointLight : public Light {

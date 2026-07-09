@@ -3,19 +3,20 @@
 #include "core/container/kstring.h"
 #include "core/misc/uuid.h"
 #include "editor/editor.h"
+#include "editor_ui.h"
 
 namespace Seed {
 
-void Inspectable::drag_uuid(KStr name, UUID &uuid) {
+bool Inspectable::drag_uuid(KStr name, UUID &uuid) {
     ImGui::TextUnformatted(name.data(), name.end());
     ImGui::SameLine();
     KString uuid_text = uuid.to_string();
     ImGui::TextUnformatted(uuid_text.data());
-    if (ImGui::BeginDragDropTarget()) {
-        if (auto p = ImGui::AcceptDragDropPayload("UUID")) {
-            uuid = *(UUID *)p->Data;
-        }
-    }
+    UUID accepted = EditorUI::accept_uuid();
+    if (accepted.is_null()) return false;
+
+    uuid = accepted;
+    return true;
 }
 
 void Inspector::update() {

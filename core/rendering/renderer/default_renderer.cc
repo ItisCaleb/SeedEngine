@@ -4,7 +4,6 @@
 #include "core/rendering/rhi/render_resource.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/engine.h"
-#include <spdlog/spdlog.h>
 #include <vector>
 #include "core/debug/debug_drawer.h"
 #include "core/rendering/mesh_storage.h"
@@ -12,25 +11,7 @@
 
 namespace Seed {
 
-Vec3 skyboxVertices[] = {
-    // positions
-    -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f,
-    1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f,
 
-    -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f,
-    -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,
-
-    1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,
-    1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f,
-
-    -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,
-    1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,
-
-    -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,
-    1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f,
-
-    -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f,
-    1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f};
 
 void DefaultRenderer::init(Window *window) {
     RenderEngine *engine = RenderEngine::get_instance();
@@ -58,24 +39,7 @@ void DefaultRenderer::init(Window *window) {
 
     fd.post_mat.create(DS::get_instance()->post_shader);
     fd.post_mat->set_texture("image", color_tex);
-    visible_ssbo = RHI::alloc_storage_buffer(sizeof(int) * 65536,
-                                             UpdateFrequence::PERFRAME);
-
-    transform_ssbo =
-        engine->get_instance_pool(TRANSFORM_POOL_NAME)->get_render_buffer();
-    terrain_ssbo =
-        engine->get_instance_pool(TERRAIN_POOL_NAME)->get_render_buffer();
-    bone_ssbo =
-        engine->get_instance_pool(SKELETON_POOL_NAME)->get_render_buffer();
-    camera = RHI::alloc_constant(sizeof(Camera::ShaderCamera) * 64,
-                                 UpdateFrequence::PERFRAME);
-    u_lights =
-        RHI::alloc_constant(sizeof(STB140Lights), UpdateFrequence::PERFRAME);
-    u_csm = RHI::alloc_constant(sizeof(CSMShadow), UpdateFrequence::PERFRAME);
-
-    fd.sky_vert.create(&DS::get_instance()->sky_desc,
-                       (sizeof(skyboxVertices) / sizeof(Vec3)), skyboxVertices,
-                       UpdateFrequence::STATIC);
+   
 
     DebugDrawer *drawer = DebugDrawer::get_instance();
 
@@ -89,7 +53,7 @@ void DefaultRenderer::prepare_lights() {
     World *world = SeedEngine::get_instance()->get_world();
     DirectionalLight &dir_light = world->get_direction_light();
     Camera &cam = world->get_camera();
-
+    FrameGlobal &g_frame = RenderEngine::get_instance()->get_frame_global();
     /* fill main camera */
     RHI::UpdateBufferInfo cam_info =
         RHI::alloc_heap(sizeof(Camera::ShaderCamera) * 64);
@@ -110,7 +74,7 @@ void DefaultRenderer::prepare_lights() {
             light_buf->u_point_lights[i].enable = 0.0f;
         }
     }
-    RHI::update_from_heap(u_lights, 0, light_info);
+    RHI::update_from_heap(g_frame.lights, 0, light_info);
 
     /* CSM frustum splits */
     RHI::UpdateBufferInfo csm_info = RHI::alloc_heap(sizeof(CSMShadow));
@@ -136,8 +100,8 @@ void DefaultRenderer::prepare_lights() {
         point_lights[i].calculate_lightspace(&cams[5 + i * 6]);
     }
 
-    RHI::update_from_heap(u_csm, 0, csm_info);
-    RHI::update_from_heap(camera, 0, cam_info);
+    RHI::update_from_heap(g_frame.csm, 0, csm_info);
+    RHI::update_from_heap(g_frame.camera, 0, cam_info);
 }
 
 void DefaultRenderer::prepare_meshes() {
@@ -145,6 +109,7 @@ void DefaultRenderer::prepare_meshes() {
 
     Camera &cam = world->get_camera();
     DirectionalLight &dir_light = world->get_direction_light();
+    FrameGlobal &g_frame = RenderEngine::get_instance()->get_frame_global();
 
     MeshStorage *mesh_storage = MeshStorage::get_instance();
     std::set<InstanceData *> uploaded_instance;
@@ -197,7 +162,7 @@ void DefaultRenderer::prepare_meshes() {
             }
         }
     }
-    RHI::update(visible_ssbo, 0, sizeof(u32) * visible_instances.size(),
+    RHI::update(g_frame.visible, 0, sizeof(u32) * visible_instances.size(),
                 visible_instances.data());
 }
 
@@ -212,18 +177,6 @@ void DefaultRenderer::preprocess() {
     fd.debug_line->update(drawer->line_vertices);
     fd.debug_triangle->update(drawer->triangle_vertices);
     fd.debug_triangle_indices->update(drawer->triangle_indices);
-
-    RenderCommandDispatcher dp;
-    RenderStateDataBuilder builder;
-    builder.bind_storage_buffer(visible_ssbo, 0);
-    builder.bind_storage_buffer(transform_ssbo, 1);
-    builder.bind_storage_buffer(terrain_ssbo, 2);
-    builder.bind_storage_buffer(bone_ssbo, 3);
-    builder.bind_constant(camera, 8);
-    builder.bind_constant(u_lights, 10);
-    builder.bind_constant(u_csm, 11);
-
-    dp.set_states(builder);
 }
 
 void DefaultRenderer::_process(RenderCommandDispatcher &dp) {
@@ -401,7 +354,7 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
             dp.generate_render_data(ref_cast<Material>(sky->get_material()));
         sky_builder.push_constant(0);
         sky_builder.push_constant(0);
-        sky_builder.bind_vertex_data(fd.sky_vert);
+        sky_builder.bind_vertex_data(DS::get_instance()->sky_vertices);
         sky_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
         dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
                   sky->get_material()->get_pipeline(), 1.0);

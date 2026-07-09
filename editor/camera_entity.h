@@ -10,10 +10,11 @@ namespace Seed {
 class EditorCameraBehaviour : public Behaviour {
         Camera *cam;
         f32 yaw, pitch;
+        f32 speed;
 
     public:
         virtual void start() override;
-        virtual void update(float dt) override;
+        virtual void update(f32 dt) override;
 };
 
 class EditorCameraEntity {

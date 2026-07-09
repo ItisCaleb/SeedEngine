@@ -19,7 +19,7 @@ void DirectionalLight::calculate_csm_lightspace(
     Vec3 v = w.cross(u).norm();
     f32 lambda = shadow_lamdba;
     f32 n0 = cam.frustum.near;
-    f32 f0 = 300;
+    f32 f0 = 1000;
     f32 near = n0;
 
     /* light lookat matrix */
@@ -76,6 +76,7 @@ void DirectionalLight::calculate_csm_lightspace(
         Vec4 center_ws = light_lookat.transpose() * center_ls;
         center.x = center_ws.x;
         center.y = center_ws.y;
+        center.z = center_ws.z;
 
         Mat4 light_view = light_lookat * Mat4::translate_mat(-center);
         light_space_cam[i - 1].projection = light_projection;

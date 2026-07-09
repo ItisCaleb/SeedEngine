@@ -25,8 +25,6 @@ class Dir : public RefCounted {
             return new_path;
         }
 
-        Path concat(const KString &path) { return concat(path.to_str()); }
-
         std::vector<Path> list();
 
         Path &get_path() { return path; }

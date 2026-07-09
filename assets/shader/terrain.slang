@@ -1,19 +1,20 @@
-import seed_inc;
+import seed_draw;
 
 struct VS_OUT{
     float2 uv;
     float4 sv_position: SV_Position;
+    nointerpolation uint heightmap_index;
 }
 
 
 struct Property{
-    Sampler2D height_map; 
+    Sampler2DArray height_map;
+    Sampler2DArray control_map;
+    Sampler2DArray textures;
+    Sampler2DArray texture_normals;
+    Sampler2D noise_texture;
     Sampler2D terrain_shadowMap;
-    Sampler2D splat_map;
-    Sampler2D tex1;
-    Sampler2D tex1_normal;
-    Sampler2D shadowMap;
-    vec2 terrain_size;
+    Sampler2DShadow shadowMap;
 };
 
 ParameterBlock<Property> prop;
@@ -21,10 +22,20 @@ ParameterBlock<Property> prop;
 [shader("vertex")]
 VS_OUT vert(float2 aPos, uint id: SV_VulkanInstanceID){
     VS_OUT out;
-    vec2 terrain = GetTerrain(id);
-    vec2 size = prop.terrain_size; 
-    out.sv_position = vec4(aPos.x + terrain.x, 0.0f, aPos.y + terrain.y, 1.0);
-    out.uv = (out.sv_position.xz + size / 2)/size;
+    TerrainInstance terrain = GetTerrain(id);
+    float chunk_size = 256;
+    float border_size = 1;
+    float texture_size = 256 + 1 + 2;
+
+    out.sv_position = vec4(aPos.x + terrain.pos.x, 0.0f, aPos.y + terrain.pos.y, 1.0);
+    /* convert to [0~256] */
+    vec2 uv =  (aPos + chunk_size / 2);
+    uv += border_size;
+    /* sample texel center */
+    uv += 0.5;
+    out.uv = uv / texture_size;
+    out.heightmap_index = terrain.heightmap_index;
+
     return out;
 }
 
@@ -32,6 +43,7 @@ struct HSOutput
 {
     float4 position;
     float2 uv;
+    nointerpolation uint heightmap_index;
 };
 
 [shader("hull")]
@@ -39,11 +51,16 @@ struct HSOutput
 [partitioning("fractional_odd")]
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(4)]
+#ifdef EDITOR
 [patchconstantfunc("PatchConstantFunction")]
+#else
+[patchconstantfunc("PatchConstantFunction")]
+#endif
 HSOutput tesc(InputPatch<VS_OUT, 4> patch, uint cpID : SV_OutputControlPointID){
     HSOutput o;
     o.position = patch[cpID].sv_position;
     o.uv = patch[cpID].uv;
+    o.heightmap_index = patch[cpID].heightmap_index;
     return o;
 }
 
@@ -53,6 +70,18 @@ struct PatchTessFactors {
 };
 
 PatchTessFactors PatchConstantFunction(InputPatch<VS_OUT, 4> patch) {
+    PatchTessFactors factors;
+    // Set tessellation levels
+    factors.tessFactor[0] = 16;
+    factors.tessFactor[1] = 16;
+    factors.tessFactor[2] = 16;
+    factors.tessFactor[3] = 16;
+    factors.insideTessFactor[0] = 16;
+    factors.insideTessFactor[1] = 16;
+    return factors;
+}
+
+PatchTessFactors PatchDynamicFunction(InputPatch<VS_OUT, 4> patch) {
     PatchTessFactors factors;
 
     const uint min_tess = 2;
@@ -84,7 +113,7 @@ PatchTessFactors PatchConstantFunction(InputPatch<VS_OUT, 4> patch) {
 
 struct DS_OUT{
     float4 position : SV_Position;
-    float height;
+    nointerpolation uint heightmap_index;
     vec4 frag_pos;
     vec3 normal;
     vec3 tangent_frag_pos;
@@ -96,8 +125,8 @@ struct DS_OUT{
 };
 
 
-float get_height(vec2 tex_coord){
-    return prop.height_map.SampleLevelZero(tex_coord).y * 256.0 - 128.0;
+float get_height(uint layer, vec2 tex_coord){
+    return prop.height_map.SampleLevelZero(vec3(tex_coord, layer)).y * 256.0 - 128.0;
 }
 
 [shader("domain")]
@@ -112,28 +141,31 @@ DS_OUT tese(
     float u = tessCoord.x;
     float v = tessCoord.y;
 
-    // ----------------------------------------------------------------------
     // retrieve control point texture coordinates
-    vec2 t00 = patch[0].uv;
-    vec2 t01 = patch[1].uv;
-    vec2 t10 = patch[2].uv;
-    vec2 t11 = patch[3].uv;
+    vec2 t00 = patch[0].uv; // top left
+    vec2 t10 = patch[1].uv; // top right
+    vec2 t01 = patch[2].uv; // bottom left
+    vec2 t11 = patch[3].uv; // bottom right
 
     // bilinearly interpolate texture coordinate across patch
-    vec2 t0 = (t01 - t00) * u + t00;
-    vec2 t1 = (t11 - t10) * u + t10;
-    out.texCoord = (t1 - t0) * v + t0;
-    vec2 offset; 
-    float level;
-    prop.height_map.GetDimensions(0, offset[0], offset[1], level);
-    offset = 1 / offset;
+    out.texCoord = lerp(lerp(t00, t01, v), lerp(t10, t11, v), u);
+
+    uint index = patch[0].heightmap_index;
+    float offset = 1.0 / 259.0;
     // lookup texel at patch coordinate for height and scale + shift as desired
-    float h = get_height(out.texCoord);
-    float rh = get_height(out.texCoord + vec2(offset.x, 0));
-    float lh = get_height(out.texCoord + vec2(-offset.x, 0));
-    float uh = get_height(out.texCoord + vec2(0, offset.y));
-    float dh = get_height(out.texCoord + vec2(0, -offset.y));
-    out.height = (h + rh + lh + uh + dh) / 5;
+    vec2 offsets[5] = {
+        vec2(0,0),
+        vec2(offset, 0),
+        vec2(-offset, 0),
+        vec2(0, offset),
+        vec2(0, -offset)};
+    
+    float h = get_height(index, out.texCoord);
+    float rh = get_height(index,out.texCoord + offsets[1]);
+    float lh = get_height(index,out.texCoord + offsets[2]);
+    float uh = get_height(index,out.texCoord + offsets[3]);
+    float dh = get_height(index,out.texCoord + offsets[4]);
+    float height = (h + rh + lh + uh + dh) / 5;
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
     vec4 p00 = patch[0].position;
@@ -147,7 +179,7 @@ DS_OUT tese(
     vec4 p = (p1 - p0) * v + p0;
 
     // displace point along normal
-    p += vec4(0, out.height, 0 , 0);
+    p += vec4(0, height, 0 , 0);
     vec3 normal = normalize(vec3(lh - rh, 2, dh - uh));
     vec3 bitangent = cross(vec3(0,0,1), normal);
     vec3 tangent = cross(normal, bitangent);
@@ -161,7 +193,7 @@ DS_OUT tese(
     out.position = cam.u_projection * cam.u_view * p;
     out.tangent_view_pos = TBN * cam.u_cam_pos;
     out.tangent_dir_light = TBN * (gLights.u_dir_light.position);
-
+    out.heightmap_index = patch[0].heightmap_index;
     for (int i = 0; i < 8; i++) {
         Light light = gLights.u_point_lights[i];
         if (light.enable == 0)
@@ -211,46 +243,143 @@ float HorizonShadow(vec2 uv, vec3 light_dir) {
     return shadow;
 }
 
-vec3 diffuse_blend(vec2 uv1, vec2 uv2){
-    vec3 diffuse1 = prop.tex1.Sample(uv1).xyz;
-    vec3 diffuse2 = prop.tex1.Sample(uv2).xyz;
-    return diffuse1 * diffuse2 * 2.0;
-}
-
-vec3 normal_blend(vec2 uv1, vec2 uv2){
-    vec3 n1 = sample_normal(uv1, prop.tex1_normal); 
-    vec3 n2 = sample_normal(uv2, prop.tex1_normal); 
-    return blend_normal_rnm(n1, n2);
-}
-
-vec3 triplanar_mapping(vec3 frag_pos, vec3 world_normal, Sampler2D texture, float scale){
+vec3 triplanar_mapping(vec3 frag_pos, vec3 world_normal, Sampler2DArray textures, uint layer, float scale){
     vec2 uv_x = frag_pos.zy / scale;
     vec2 uv_y = frag_pos.xz / scale;
     vec2 uv_z = frag_pos.xy / scale;
     vec3 weights = abs(world_normal);
     weights = weights / (weights.x + weights.y + weights.z);
-    vec3 sx = texture.Sample(uv_x).xyz;
-    vec3 sy = texture.Sample(uv_y).xyz;
-    vec3 sz = texture.Sample(uv_z).xyz;
+    vec3 sx = textures.Sample(vec3(uv_x, layer)).xyz;
+    vec3 sy = textures.Sample(vec3(uv_y, layer)).xyz;
+    vec3 sz = textures.Sample(vec3(uv_z, layer)).xyz;
     vec3 sampled = sx * weights.x + sy * weights.y + sz * weights.z;
     return sampled;
 }
 
-[shader("fragment")]
-float4 frag(DS_OUT in){
-    float h = (in.height + 128)/256.0f;
-    if(h < 0.1){
-        discard;
-    }
-    vec2 uv1 = in.frag_pos.xz/32;
-    vec2 uv2 = in.frag_pos.xz/128;
-    // vec3 diffuse_sample = diffuse_blend(uv1, uv2);
-    // vec3 normal = normal_blend(uv1, uv2);
-    vec3 world_normal = normalize(in.normal);
-    vec3 diffuse_sample = triplanar_mapping(in.frag_pos.xyz, world_normal, prop.tex1, 32);
-    vec3 normal = sample_normal(uv1,  prop.tex1_normal);
+float hash(vec2 p) {
+    // Multiply by large prime/odd numbers to get high-frequency variation
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
 
-    vec3 light_out = diffuse_sample * gLights.u_light_ambient;
+vec3 textureNoTile(uint layer, in vec2 uv )
+{
+    // sample variation pattern    
+    float k = prop.noise_texture.Sample(uv).x; // cheap (cache friendly) lookup    
+    
+    // compute index    
+    float index = k*8.0;
+    float i = floor( index );
+    float f = fract( index );
+
+    // offsets for the different virtual patterns    
+    vec2 offa = sin(vec2(3.0,7.0)*(i+0.0)); // can replace with any other hash    
+    vec2 offb = sin(vec2(3.0,7.0)*(i+1.0)); // can replace with any other hash    
+
+    // compute derivatives for mip-mapping    
+    vec2 dx = ddx_fine(uv), dy = ddy_fine(uv);
+    
+    // sample the two closest virtual patterns    
+    vec3 cola = prop.textures.SampleGrad(vec3(uv + offa, layer), dx, dy ).rgb;
+    vec3 colb = prop.textures.SampleGrad(vec3(uv + offb, layer), dx, dy ).rgb;
+
+    vec3 s = cola-colb;
+    float sum = s.x + s.y + s.z;
+    // interpolate between the two virtual patterns    
+    return lerp(cola, colb, smoothstep(0.2,0.8,f-0.1*sum) );
+
+}
+
+vec3 sample_control_diffuse(vec3 frag_pos, vec3 world_normal, vec2 uv, uint layer, float scale1, float scale2){
+    vec4 control = prop.control_map.SampleLevelZero(vec3(uv, layer));
+    uint tex1 = uint(control.x * 255 + 0.5);
+    uint tex2 = uint(control.y * 255 + 0.5);
+    float blend = control.z;
+    vec2 uv1 = frag_pos.xz / scale1;
+    vec2 uv2 = frag_pos.xz / scale2;
+    vec3 diffuse1 = textureNoTile(tex1, uv1);
+    vec3 diffuse2 = textureNoTile(tex2, uv2);
+    // vec3 diffuse1 = triplanar_mapping(frag_pos, world_normal, prop.textures, tex1, scale1);
+    // vec3 diffuse2 = triplanar_mapping(frag_pos, world_normal, prop.textures, tex2, scale2);
+
+    return diffuse1 * (1-blend) + diffuse2 * blend;
+}
+
+vec3 sample_diffuse(vec4 frag_pos, vec3 world_normal, vec2 texCoord,
+     uint layer, float scale1, float scale2){
+    float size = 259.0;
+    vec2 p = texCoord * size - 0.5;
+    vec2 i0 = floor(p);
+    vec2 f = frac(p);
+    vec2 i1 = i0 + 1.0;
+
+    i0 = clamp(i0, vec2(0), vec2(size - 1.0));
+    i1 = clamp(i1, vec2(0), vec2(size - 1.0));
+
+    vec2 uv00 = (vec2(i0.x, i0.y) + 0.5) / size;
+    vec2 uv01 = (vec2(i0.x, i1.y) + 0.5) / size;
+    vec2 uv10 = (vec2(i1.x, i0.y) + 0.5) / size;
+    vec2 uv11 = (vec2(i1.x, i1.y) + 0.5) / size;
+    
+    vec3 c00 = sample_control_diffuse(frag_pos.xyz, world_normal, uv00, layer, scale1, scale2);
+    vec3 c01 = sample_control_diffuse(frag_pos.xyz, world_normal, uv01, layer, scale1, scale2);
+    vec3 c10 = sample_control_diffuse(frag_pos.xyz, world_normal, uv10, layer, scale1, scale2);
+    vec3 c11 = sample_control_diffuse(frag_pos.xyz, world_normal, uv11, layer, scale1, scale2);
+
+    return lerp(lerp(c00, c01, f.y), lerp(c10, c11, f.y), f.x);
+}
+
+vec3 sample_control_normal(vec3 frag_pos, vec3 world_normal, vec2 uv, uint layer, float scale1, float scale2){
+    vec4 control = prop.control_map.SampleLevelZero(vec3(uv, layer));
+    uint tex1 = uint(control.x * 255 + 0.5);
+    uint tex2 = uint(control.y * 255 + 0.5);
+    float blend = control.z;
+    vec3 norm1 = prop.texture_normals.SampleLevelZero(vec3(frag_pos.xz / scale1, tex1)).rgb;
+    vec3 norm2 = prop.texture_normals.SampleLevelZero(vec3(frag_pos.xz / scale2, tex2)).rgb;
+    norm1 = normalize(norm1 * 2 - 1.0);
+    norm2 = normalize(norm2 * 2 - 1.0);
+    // vec3 diffuse1 = triplanar_mapping(frag_pos, world_normal, prop.textures, tex1, scale1);
+    // vec3 diffuse2 = triplanar_mapping(frag_pos, world_normal, prop.textures, tex2, scale2);
+
+    return normalize(norm1 * (1-blend) + norm2 * blend);
+}
+
+vec3 sample_normal(vec4 frag_pos, vec3 world_normal, vec2 texCoord,
+     uint layer, float scale1, float scale2){
+    float size = 259.0;
+    vec2 p = texCoord * size - 0.5;
+    vec2 i0 = floor(p);
+    vec2 f = frac(p);
+    vec2 i1 = i0 + 1.0;
+
+    i0 = clamp(i0, vec2(0), vec2(size - 1.0));
+    i1 = clamp(i1, vec2(0), vec2(size - 1.0));
+
+    vec2 uv00 = (vec2(i0.x, i0.y) + 0.5) / size;
+    vec2 uv01 = (vec2(i0.x, i1.y) + 0.5) / size;
+    vec2 uv10 = (vec2(i1.x, i0.y) + 0.5) / size;
+    vec2 uv11 = (vec2(i1.x, i1.y) + 0.5) / size;
+    
+    vec3 c00 = sample_control_normal(frag_pos.xyz, world_normal, uv00, layer, scale1, scale2);
+    vec3 c01 = sample_control_normal(frag_pos.xyz, world_normal, uv01, layer, scale1, scale2);
+    vec3 c10 = sample_control_normal(frag_pos.xyz, world_normal, uv10, layer, scale1, scale2);
+    vec3 c11 = sample_control_normal(frag_pos.xyz, world_normal, uv11, layer, scale1, scale2);
+
+    return normalize(lerp(lerp(c00, c01, f.y), lerp(c10, c11, f.y), f.x));
+}
+
+
+
+vec3 default_lighting(DS_OUT in){
+    vec3 world_normal = normalize(in.normal);
+    vec3 diffuse_sample = sample_diffuse(in.frag_pos, world_normal,
+        in.texCoord, in.heightmap_index, 32, 128);
+
+    vec3 normal = sample_normal(in.frag_pos, world_normal,
+       in.texCoord, in.heightmap_index, 32, 128);
+    //vec3 normal = vec3(0, 0, 1);
+    vec3 ambient = diffuse_sample * gLights.u_light_ambient;
     Camera cam = GetCamera();
     vec3 view_dir = normalize(in.tangent_view_pos - in.tangent_frag_pos.xyz);
     vec3 specular_sample = vec3(1,1,1);
@@ -258,14 +387,16 @@ float4 frag(DS_OUT in){
     vec3 tangent_dir_light = -normalize(in.tangent_dir_light);
 
     float csm_shadow = CSMShadowCalculation(prop.shadowMap, in.frag_pos, in.view_depth, world_normal, dir_light);
-    float horizon_shadow = HorizonShadow(in.texCoord, dir_light);
+    float horizon_shadow = 0;//HorizonShadow(in.texCoord, dir_light);
     float shadow = max(csm_shadow, horizon_shadow);
-    
-    // direction
-    light_out +=
-        calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
+    vec3 direct = calculate_light(gLights.u_dir_light.diffuse, gLights.u_dir_light.specular,
             diffuse_sample, specular_sample, tangent_dir_light, view_dir,
-            1, normal) * (1.0 - shadow);
+            1, normal);
+    direct *= (1.0 - shadow);
+
+    vec3 light_out = ambient + direct;
+
+
     for (int i = 0; i < 8; i++) {
         Light light = gLights.u_point_lights[i];
         if (light.enable == 0)
@@ -277,10 +408,30 @@ float4 frag(DS_OUT in){
             diffuse_sample, specular_sample,
             light_dir, view_dir, d, normal);
     }
-    light_out *= vec3(h, h, h);
+#ifndef EDITOR
     float dist = length(cam.u_cam_pos - in.frag_pos.xyz);
     float fog_factor = clamp((dist - 700) / 100, 0.0, 0.95);
-    vec3 final_color = lerp(light_out, vec3(0.48, 0.80, 0.80), fog_factor);
+    light_out = lerp(light_out, vec3(0.48, 0.80, 0.80), fog_factor);
+#endif
+    return light_out;
+}
 
-    return vec4(final_color, 1.0);
+struct FS_OUT{
+    vec4 albedo: SV_Target0;
+#ifdef EDITOR
+    int4 position: SV_Target1;
+#endif
+};
+
+[shader("fragment")]
+FS_OUT frag(DS_OUT in){
+    FS_OUT out;
+    out.albedo = vec4(default_lighting(in), 1.0);
+#ifdef EDITOR
+    out.position = int4(
+        (int)(in.frag_pos.x),
+        (int)(in.frag_pos.z), 1, 0
+    );
+#endif
+    return out;
 }

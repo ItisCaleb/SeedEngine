@@ -1,9 +1,8 @@
 #include "file.h"
-#include <fmt/format.h>
 #include <spdlog/spdlog.h>
 #include <sys/stat.h>
-#include <utility>
 #include "path.h"
+#include "core/macro.h"
 #ifdef _WIN32
 #include <Windows.h>
 #else
@@ -15,7 +14,7 @@ Ref<File> File::open(KStr path, const char *mode) {
     Ref<File> file;
     FILE *f = fopen(path.data(), mode);
     if (!f) {
-        SPDLOG_WARN("Can't open file '{}'", path);
+        SEED_WARN("Can't open file '{}'", path);
         return file;
     }
     fseek(f, 0L, SEEK_END);
@@ -41,15 +40,19 @@ bool File::exists(const Path &path) {
 #endif
 }
 
-std::string File::read_str(size_t size) {
-    std::string data;
+bool File::remove(const Path &path) {
+    return std::remove(path.data()) == 0;
+}
+
+KString File::read_str(size_t size) {
+    KString data;
     if (file && read_cnt < file_size) {
         if (size > file_size) {
             size = file_size;
         }
         read_cnt += size;
         data.resize(size);
-        fread((void *)data.c_str(), 1, size, file);
+        fread((void *)data.data(), 1, size, file);
     }
     return data;
 }

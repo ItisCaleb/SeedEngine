@@ -1,0 +1,10 @@
+<template name="widgets">
+
+    <head>
+        <link type="text/template" href="menu.rml" />
+        <link type="text/template" href="popup.rml" />
+        <link type="text/rcss" href="widgets.rcss" />
+    </head>
+
+    <body></body>
+</template>

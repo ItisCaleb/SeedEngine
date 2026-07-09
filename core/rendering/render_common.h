@@ -59,8 +59,8 @@ enum class PixelFormat : u8 {
 };
 
 struct TextureDescription{
-    TextureType type;
     u32 w, h;
+    TextureType type;
     PixelFormat format;
     bool mappable = false;
     MSAAType msaa_type = MSAAType::SAMPLE_COUNT_1;
@@ -109,8 +109,8 @@ enum class DepthMode: u8 {
 
 struct RenderRasterizerState {
         Cullmode cull_mode = Cullmode::NONE;
-        u32 patch_control_points = 1;
         PolygonMode poly_mode = PolygonMode::FILL;
+        u32 patch_control_points = 1;
 };
 
 

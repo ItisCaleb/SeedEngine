@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <vector>
 #include <string>
-#include <filesystem>
 #include <nlohmann/json.hpp>
 namespace Seed {
 
@@ -32,8 +31,9 @@ class File : public RefCounted {
     public:
         static Ref<File> open(KStr path, const char *mode = "rb");
         static bool exists(const Path &path);
+        static bool remove(const Path &path);
 
-        std::string read_str(size_t size = SIZE_MAX);
+        KString read_str(size_t size = SIZE_MAX);
 
         void read(void *data, size_t size);
 

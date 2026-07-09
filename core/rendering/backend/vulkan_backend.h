@@ -46,6 +46,7 @@ struct HardwareTextureVk {
         VkImage msaa_image;
         VkImageView msaa_view;
         VmaAllocation msaa_memory;
+        VkImageLayout msaa_layout;
         std::vector<VkImageLayout> layouts;
         void *mapped_ptr = nullptr;
 };
@@ -56,11 +57,11 @@ struct DescriptorSetLayout {
 };
 
 struct HardwareShaderVk {
-        std::string vertex_src;
-        std::string geo_src;
-        std::string tess_ctrl_src;
-        std::string tess_eval_src;
-        std::string fragment_src;
+        KString vertex_src;
+        KString geo_src;
+        KString tess_ctrl_src;
+        KString tess_eval_src;
+        KString fragment_src;
         std::vector<DescriptorSetLayout *> set_layouts;
         VkPipelineLayout layout;
 };
@@ -110,10 +111,11 @@ class RenderBackendVK : public RenderBackend {
         VkCommandPool command_pool;
         VmaAllocator buffer_allocator;
         VkDescriptorPool descriptor_pool;
+        bool should_present = false;
         Handle current_render_target;
 
         struct SwapChain {
-                VkSwapchainKHR chain;
+                VkSwapchainKHR chain = VK_NULL_HANDLE;
                 VkFormat format;
                 std::vector<Handle> textures;
                 std::vector<Handle> render_targets;
@@ -134,10 +136,10 @@ class RenderBackendVK : public RenderBackend {
 
         HandleOwner<HardwareBufferVk> vertices;
         HandleOwner<HardwareIndexVk> indices;
-        HandleOwner<HardwareBufferVk> constants;
-        HandleOwner<HardwareBufferVk> ssbos;
+        HandleIdOwner<HardwareBufferVk> constants;
+        HandleIdOwner<HardwareBufferVk> ssbos;
         HandleIdOwner<HardwareTextureVk> textures;
-        HandleOwner<HardwareShaderVk> shaders;
+        HandleIdOwner<HardwareShaderVk> shaders;
         HandleOwner<HardwarePipelineVk> pipelines;
         HandleOwner<HardwareRenderPassVk> render_pass;
 
@@ -204,7 +206,8 @@ class RenderBackendVK : public RenderBackend {
         RingBuffer<DynamicBufferUpdate> dynamic_buffer_update_queue;
 
         RingBuffer<ImageUpdate> image_copy_queue;
-        RingBuffer<TextureHandle> mappable_image_transition_queue;
+        /* handle & face */
+        RingBuffer<std::pair<TextureHandle, u32>> image_transition_queue;
 
         std::unordered_map<u64, VkPipeline> pipeline_cache;
         std::unordered_map<u64, DescriptorSetLayout> descriptor_layout_cache;
@@ -237,9 +240,11 @@ class RenderBackendVK : public RenderBackend {
         void create_sync_objects();
 
         /* helper functions */
-        TextureHandle create_texture(TextureType type, u32 w, u32 h, PixelFormat format,
-                            u32 count, MSAAType msaa_type,
-                            const SamplerProperty &property, bool should_map);
+        TextureHandle create_texture(TextureType type, u32 w, u32 h,
+                                     PixelFormat format, u32 count,
+                                     MSAAType msaa_type,
+                                     const SamplerProperty &property,
+                                     bool should_map);
         void create_staging_buffer(VkBuffer *buffer, VmaAllocation *allocation,
                                    u64 size);
         void create_host_visible_buffer(VkBuffer *buffer,
@@ -276,7 +281,7 @@ class RenderBackendVK : public RenderBackend {
         void create_framebuffer(HardwareRenderPassVk *render_target);
         HardwareRenderPassVk *get_current_render_pass();
 
-        VkShaderModule create_shader_module(const std::string &shader);
+        VkShaderModule create_shader_module(const KString &shader);
         bool pick_queue_family(VkPhysicalDevice device);
         void push_buffer_update(HardwareBufferVk *buffer, u64 offset, u64 size,
                                 void *data);
@@ -305,7 +310,6 @@ class RenderBackendVK : public RenderBackend {
         inline RenderBackendType get_type() override {
             return RenderBackendType::VULKAN;
         }
-        /* we defer the allocation to allow multithreading. */
         TextureHandle alloc_texture(TextureType type, u32 w, u32 h,
                                     PixelFormat format, MSAAType msaa_type,
                                     const SamplerProperty &property,
@@ -332,11 +336,11 @@ class RenderBackendVK : public RenderBackend {
                                       UpdateFrequence frequence) override;
         SSBOHandle alloc_storage_buffer(u32 size, const void *data,
                                         UpdateFrequence frequence) override;
-        ShaderHandle alloc_shader(const std::string &vertex_code,
-                                  const std::string &fragment_code,
-                                  const std::string &geometry_code,
-                                  const std::string &tess_ctrl_code,
-                                  const std::string &tess_eval_code) override;
+        ShaderHandle alloc_shader(const KString &vertex_code,
+                                  const KString &fragment_code,
+                                  const KString &geometry_code,
+                                  const KString &tess_ctrl_code,
+                                  const KString &tess_eval_code) override;
         void setup_shader_layout(ShaderHandle handle,
                                  const ShaderLayout &layout) override;
 
@@ -346,6 +350,8 @@ class RenderBackendVK : public RenderBackend {
             const RenderBlendState &blend_state) override;
 
         RenderPassHandle alloc_render_pass() override;
+        void copy_texture(TextureHandle dst, u32 dst_layer, TextureHandle src,
+                          u32 src_layer) override;
 
         /* We'll use different method for updating different type of buffer */
         /* for STATIC we create a staging buffer to transfer */

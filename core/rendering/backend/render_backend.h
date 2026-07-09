@@ -69,9 +69,9 @@ class RenderBackend {
         virtual SSBOHandle alloc_storage_buffer(u32 size, const void *data,
                                                 UpdateFrequence frequence) = 0;
         virtual ShaderHandle alloc_shader(
-            const std::string &vertex_code, const std::string &fragment_code,
-            const std::string &geometry_code, const std::string &tess_ctrl_code,
-            const std::string &tess_eval_code) = 0;
+            const KString &vertex_code, const KString &fragment_code,
+            const KString &geometry_code, const KString &tess_ctrl_code,
+            const KString &tess_eval_code) = 0;
         virtual void setup_shader_layout(ShaderHandle handle,
                                          const ShaderLayout &layout) = 0;
 
@@ -79,7 +79,9 @@ class RenderBackend {
             ShaderHandle shader, const RenderRasterizerState &rst_state,
             const RenderDepthStencilState &depth_state,
             const RenderBlendState &blend_state) = 0;
+        
         virtual RenderPassHandle alloc_render_pass() = 0;
+        virtual void copy_texture(TextureHandle dst, u32 dst_layer, TextureHandle src, u32 src_layer) = 0;
         virtual void update(RenderResourceType type, Handle handle, u32 offset,
                             u32 size, void *data) = 0;
         virtual void update(TextureHandle handle, u32 layer, u32 offx, u32 offy,

@@ -1,5 +1,4 @@
 #include "kstring.h"
-#include <fmt/base.h>
 #include <algorithm>
 #include <climits>
 #include <cstdlib>
@@ -41,6 +40,7 @@ KString::KString(const std::string &str) {
 }
 
 KString::KString(const KString &str) {
+    if (str._cap == 0) return;
     _size = str.size();
     _cap = str._cap;
     _data = (char *)malloc(_cap);
@@ -52,6 +52,7 @@ KString::KString(KString &&str) noexcept { operator=(str); }
 KStr KString::to_str() const { return KStr(*this); }
 
 KString &KString::operator=(const KString &str) {
+    if (str._data == nullptr) return *this;
     if (str._cap > _cap) {
         if (_data) {
             free(_data);
@@ -87,7 +88,10 @@ bool KString::operator<(const KString &str) const {
 KString::~KString() {
     if (_data) {
         free(_data);
+        _data = nullptr;
     }
+    _size = 0;
+    _cap = 0;
 }
 
 u32 KString::length() const {
@@ -117,6 +121,21 @@ void KString::_append(const char *c, u32 size) {
     }
     memcpy(&_data[_size], c, size);
     _size += size;
+    _data[_size] = '\0';
+}
+
+void KString::resize(u32 size) {
+    if (size >= _cap) {
+        void *tmp = malloc(size + 1);
+        if (tmp == nullptr) {
+            throw std::runtime_error("KString allocation error.");
+        }
+        memcpy(tmp, _data, _size);
+        if (_data) free(_data);
+        _data = (char *)tmp;
+        _cap = size + 1;
+    }
+    _size = size;
     _data[_size] = '\0';
 }
 

@@ -52,7 +52,6 @@ struct PreprocessEntries {
 
 class Preprocessor {
     private:
-        Path preprocess_dir;
         PreprocessEntries preprocess_entries;
         std::unordered_map<ResourceTypeID, PreprocessTypeInfo> infos;
         std::unordered_map<KString, PreprocessTypeInfo> ext_to_infos;

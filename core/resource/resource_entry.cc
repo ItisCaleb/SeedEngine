@@ -1,9 +1,11 @@
 #include "resource_entry.h"
 #include <spdlog/spdlog.h>
 #include <nlohmann/json_fwd.hpp>
+#include "core/engine.h"
 #include "core/io/file.h"
 #include "core/io/path.h"
 #include "core/misc/uuid.h"
+#include "core/project.h"
 #include "core/serialize/json_impl.h"
 #include "core/resource/resource.h"
 #include "core/resource/resource_loader.h"
@@ -15,6 +17,13 @@ ResourceEntry *ResourceEntries::get_entry(const UUID uuid) {
         return nullptr;
     }
     return &iter->second;
+}
+
+Path ResourceEntry::real_path() {
+    if (is_internal)
+        return path;
+    else
+        return SeedEngine::get_instance()->get_project()->resolve_asset(path);
 }
 
 UUID ResourceEntries::get_uuid(const Path &path) {
@@ -41,18 +50,19 @@ UUID ResourceEntries::insert_entry(const Path &p, ResourceTypeID id,
     if (info && info->generate_config) {
         info->generate_config(config);
     }
-    this->uuid_to_entry[uuid] =
-        ResourceEntry{.uuid = uuid, .type_id = id, .path = p, .config = config};
+    this->uuid_to_entry[uuid] = ResourceEntry{.uuid = uuid,
+                                              .type_id = id,
+                                              .path = p,
+                                              .config = config,
+                                              .is_internal = is_internal};
     this->path_to_uuid[p] = uuid;
-    if (is_internal) {
-        this->internal_entries.insert(uuid);
-    }
 
     return uuid;
 }
 void ResourceEntries::remove_entry(const UUID uuid) {
     auto iter = uuid_to_entry.find(uuid);
     if (iter != uuid_to_entry.end()) {
+        path_to_uuid.erase(iter->second.path);
         uuid_to_entry.erase(iter);
     }
 }
@@ -60,13 +70,22 @@ void ResourceEntries::save(const Path &path) {
     Ref<File> file = File::open(path, "wb");
     nlohmann::ordered_json j;
     j["entries"] = nlohmann::json::array();
+    ResourceLoader *loader = ResourceLoader::get_instance();
+    Project *project = SeedEngine::get_instance()->get_project();
     for (auto &[uuid, entry] : uuid_to_entry) {
-        if (internal_entries.count(uuid) > 0) continue;
+        if (entry.is_internal) continue;
+        ResourceTypeInfo *info = loader->get_type_info(entry.type_id);
         nlohmann::ordered_json j_entry;
         j_entry["UUID"] = uuid;
         j_entry["resource_type_id"] = entry.type_id;
         j_entry["path"] = entry.path;
-        j_entry["config"] = entry.config.get_json();
+        if (!info->has_data) {
+            Ref<File> config =
+                File::open(project->resolve_asset(entry.path), "wb");
+            config->write_str(entry.config.get_json().dump(2));
+        } else {
+            j_entry["config"] = entry.config.get_json();
+        }
         j["entries"].push_back(j_entry);
     }
     file->write_str(j.dump(2));
@@ -76,6 +95,8 @@ void ResourceEntries::load(const Path &path) {
     nlohmann::json j = file->read_json();
     auto &j_entries = j["entries"];
     ResourceLoader *loader = ResourceLoader::get_instance();
+    Project *project = SeedEngine::get_instance()->get_project();
+
     for (auto &j_entry : j_entries) {
         UUID uuid = j_entry["UUID"];
         ResourceTypeID type_id = j_entry["resource_type_id"];
@@ -83,7 +104,7 @@ void ResourceEntries::load(const Path &path) {
         nlohmann::json jconfig;
         ResourceTypeInfo *info = loader->get_type_info(type_id);
         if (info && !info->has_data) {
-            Ref<File> config = File::open(p);
+            Ref<File> config = File::open(project->resolve_asset(p));
             if (config.is_null()) {
                 SPDLOG_ERROR(
                     "Resource entry loading error: Missing property of '{}'",

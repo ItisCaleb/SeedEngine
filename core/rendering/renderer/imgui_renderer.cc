@@ -2,6 +2,8 @@
 #include <imgui.h>
 #include "core/math/mat4.h"
 #include "core/rendering/render_common.h"
+#include "core/rendering/rhi/render_engine.h"
+#include "renderer.h"
 
 namespace Seed {
 void ImguiRenderer::init(Window *window) {
@@ -15,8 +17,6 @@ void ImguiRenderer::init(Window *window) {
     fd.vertex = RHI::alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0,
                                   UpdateFrequence::PERDRAW, nullptr);
     fd.indices = RHI::alloc_index(std::vector<u16>(), UpdateFrequence::PERDRAW);
-    fd.projection =
-        RHI::alloc_constant(sizeof(Mat4), UpdateFrequence::PERFRAME, nullptr);
     // Build texture atlas
     create_font_material();
 
@@ -53,18 +53,18 @@ void ImguiRenderer::new_frame() {
 void ImguiRenderer::preprocess() {}
 
 void ImguiRenderer::_process(RenderCommandDispatcher &dp) {
-    RenderStateDataBuilder builder;
-    builder.bind_constant(fd.projection, 12);
-    dp.set_states(builder);
     gui_pass.draw(dp, fd);
 }
 void ImguiRenderer::cleanup() {}
 void ImguiRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
                                      Viewport &viewport, FrameData &fd) {
+    FrameGlobal &g_frame = RenderEngine::get_instance()->get_frame_global();
     ImDrawData *draw_data = ImGui::GetDrawData();
     RectF view_rect = viewport.get_actual_dimension();
     int fb_width = view_rect.w;
     int fb_height = view_rect.h;
+    if (fb_width <= 0 || fb_height <= 0) return;
+
     f32 L = 0;
     f32 R = fb_width;
     f32 T = 0;
@@ -76,9 +76,7 @@ void ImguiRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
         Vec4{(R + L) / (L - R), (T + B) / (B - T), 0.0f, 1.0f},
     };
     Mat4 proj = ortho_projection.transpose();
-    RHI::update(fd.projection, 0, sizeof(Mat4), &proj);
-
-    if (fb_width <= 0 || fb_height <= 0) return;
+    RHI::update(g_frame.projection, 0, sizeof(Mat4), &proj);
 
     // Will project scissor/clipping rectangles into framebuffer space
     ImVec2 clip_off =

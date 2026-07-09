@@ -4,12 +4,31 @@
 
 namespace Seed {
 
+Vec3 skyboxVertices[] = {
+    // positions
+    -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f,
+    1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f,
+
+    -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f,
+    -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,
+
+    1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,
+    1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f,
+
+    -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,
+    1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,
+
+    -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,
+    1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f,
+
+    -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f,
+    1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f};
+
 DefaultStorage::DefaultStorage() {
     instance = this;
     ResourceLoader *loader = ResourceLoader::get_instance();
     mesh_shader = loader->load_internal<Shader>("assets/shader/default.slang");
-    skeleton_mesh_shader =
-        loader->load_internal<Shader>("assets/shader/default_skeleton.slang");
+    skeleton_mesh_shader = mesh_shader->create_variant({{"BONE", "1"}});
     sky_shader = loader->load_internal<Shader>("assets/shader/sky.slang");
     terrain_shader =
         loader->load_internal<Shader>("assets/shader/terrain.slang");
@@ -18,6 +37,10 @@ DefaultStorage::DefaultStorage() {
     billboard_shader =
         loader->load_internal<Shader>("assets/shader/billboard.slang");
     gui_shader = loader->load_internal<Shader>("assets/shader/imgui.slang");
+    rml_shader = loader->load_internal<Shader>("assets/shader/rmlui.slang");
+    noise_texture = loader->load_internal<Texture>("assets/noise.png");
+    noise_texture->update_sampler(SamplerProperty{
+        .wrap_u = SamplerWrap::REPEAT, .wrap_v = SamplerWrap::REPEAT});
 
     mesh_desc.add_type_attr<Vec3>(0);
     mesh_desc.add_type_attr<Vec3>(1);
@@ -53,6 +76,10 @@ DefaultStorage::DefaultStorage() {
     quad_desc.add_type_attr<Vec2>(0);
     quad_desc.add_type_attr<Vec2>(1);
     quad_vertices.create(&quad_desc, (sizeof(quad) / (sizeof(QuadData))), quad);
+
+    sky_vertices.create(&DS::get_instance()->sky_desc,
+                        (sizeof(skyboxVertices) / sizeof(Vec3)), skyboxVertices,
+                        UpdateFrequence::STATIC);
     u8 white_color[] = {255, 255, 255, 255};
     white_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,
                          white_color);
@@ -62,5 +89,18 @@ DefaultStorage::DefaultStorage() {
     u8 normal_color[] = {128, 128, 255, 255};
     normal_texture.create(TextureType::TEXTURE_2D, 1, 1, PixelFormat::RGBA,
                           normal_color);
+}
+
+void DefaultStorage::reload_shaders() {
+    mesh_shader->reload_from_disk();
+    skeleton_mesh_shader->reload_from_disk();
+    sky_shader->reload_from_disk();
+    terrain_shader->reload_from_disk();
+    post_shader->reload_from_disk();
+    billboard_shader->reload_from_disk();
+    gui_shader->reload_from_disk();
+    rml_shader->reload_from_disk();
+    // debug_shader->reload_from_disk();
+    // decal_shader->reload_from_disk();
 }
 }  // namespace Seed

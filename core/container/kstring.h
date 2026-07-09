@@ -103,6 +103,7 @@ class KString {
                 this->_data[0] = '\0';
             }
         }
+        void resize(u32 size);
 
         /* pop utf8 chars */
         void pop(u32 utf8_count = 1);
@@ -220,7 +221,7 @@ struct fmt::formatter<Seed::KString> : fmt::formatter<fmt::string_view> {
         auto format(const Seed::KString &sv, format_context &ctx) const {
             // Cast or convert your type to fmt::string_view and delegate
             return formatter<fmt::string_view>::format(
-                {(char *)sv.data(), sv.size() - 1}, ctx);
+                {(char *)sv.data(), sv.size()}, ctx);
         }
 };
 

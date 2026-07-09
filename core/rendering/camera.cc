@@ -1,6 +1,5 @@
 #include "camera.h"
 #include "core/math/utils.h"
-#include <spdlog/spdlog.h>
 
 namespace Seed {
 void Camera::set_position(Vec3 pos) {

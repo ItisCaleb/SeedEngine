@@ -1,0 +1,118 @@
+* {
+    box-sizing: border-box;
+}
+
+.seed-menu {
+    position: relative;
+    display: block;
+    height: 30dp;
+}
+
+.seed-menu-button {
+    display: block;
+    height: 30dp;
+    color: #d7dde7;
+    background-color: transparent;
+    border: 0dp;
+    padding: 7dp 10dp;
+    tab-index: auto;
+}
+
+.seed-menu:hover .seed-menu-button {
+    background-color: #343c48;
+}
+
+.seed-menu-popup {
+    display: none;
+    position: absolute;
+    left: 0dp;
+    top: 30dp;
+    min-width: 160dp;
+    padding: 4dp;
+    background-color: #20242b;
+    border: 1dp #3a424e;
+    z-index: 100;
+}
+
+.seed-menu:hover .seed-menu-popup {
+    display: block;
+}
+
+.seed-menu-item {
+    display: block;
+    width: 100%;
+    color: #d7dde7;
+    background-color: transparent;
+    border: 0dp;
+    padding: 6dp 10dp;
+    text-align: left;
+    tab-index: auto;
+}
+
+.seed-menu-item:hover {
+    background-color: #34516f;
+}
+
+.seed-menu-separator {
+    height: 1dp;
+    margin: 4dp 2dp;
+    background-color: #3a424e;
+}
+
+.seed-popup-widget {
+    position: fixed;
+    left: 0dp;
+    top: 0dp;
+    right: 0dp;
+    bottom: 0dp;
+    background-color: rgba(0, 0, 0, 120);
+    z-index: 200;
+}
+
+.seed-popup-panel {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 380dp;
+    min-height: 160dp;
+    margin-left: -190dp;
+    margin-top: -110dp;
+    padding: 14dp;
+    color: #d7dde7;
+    background-color: #20242b;
+    border: 1dp #4a5564;
+}
+
+.seed-popup-title {
+    color: #f0f3f7;
+    font-size: 15dp;
+    margin-bottom: 12dp;
+}
+
+.seed-popup-row {
+    margin-bottom: 8dp;
+}
+
+.seed-popup-row input {
+    width: 100%;
+}
+
+.seed-popup-actions {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 14dp;
+}
+
+.seed-popup-button {
+    color: #d7dde7;
+    background-color: #2a3039;
+    border: 1dp #3a424e;
+    padding: 6dp 12dp;
+    margin-left: 8dp;
+    tab-index: auto;
+}
+
+.seed-popup-button:hover {
+    background-color: #343c48;
+}

@@ -1,0 +1,18 @@
+{
+  "entries": [
+    {
+      "UUID": "bab47855-2dc6-47cf-9d79-e66c23cb67e0",
+      "target_UUID": "897fb62e-ede8-4a2d-8434-97f48c91273d",
+      "resource_type_id": 11686891429335393640,
+      "path": "assets\\scene.gltf",
+      "config": {}
+    },
+    {
+      "UUID": "4743f436-9df6-4689-a80d-08e231c2d314",
+      "target_UUID": "660d1b7a-e244-43d4-bcdb-d59fec5e1d6a",
+      "resource_type_id": 11686891429335393640,
+      "path": "assets\\AlanTree.fbx",
+      "config": {}
+    }
+  ]
+}

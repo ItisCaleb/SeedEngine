@@ -83,6 +83,7 @@ class Ref {
             this->operator=(new T(args...));
         }
         Ref(const Ref &from) { this->operator=(from); }
+
         Ref() = default;
         ~Ref() {
             if (data) {

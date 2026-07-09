@@ -1,5 +1,6 @@
 target_sources(editor PRIVATE 
+    editor_world.cc
     editor_terrain.cc
-    terrain_editor.cc
-    terrain_editor_renderer.cc
+    world_editor.cc
+    world_renderer.cc
 )

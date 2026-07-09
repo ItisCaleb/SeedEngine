@@ -17,6 +17,7 @@ class DefaultStorage {
         Ref<Shader> skeleton_mesh_shader;
 
         Ref<Shader> gui_shader;
+        Ref<Shader> rml_shader;
         Ref<Shader> terrain_shader;
         Ref<Shader> debug_shader;
         Ref<Shader> post_shader;
@@ -25,6 +26,7 @@ class DefaultStorage {
         Ref<Texture> white_texture;
         Ref<Texture> black_texture;
         Ref<Texture> normal_texture;
+        Ref<Texture> noise_texture;
 
         VertexLayout terrain_desc;
         VertexLayout mesh_desc;
@@ -33,8 +35,10 @@ class DefaultStorage {
         VertexLayout gui_desc;
         VertexLayout quad_desc;
         Ref<VertexData> quad_vertices;
+        Ref<VertexData> sky_vertices;
 
         static DefaultStorage *get_instance() { return instance; }
+        void reload_shaders();
         DefaultStorage();
 };
 

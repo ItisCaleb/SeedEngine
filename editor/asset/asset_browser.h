@@ -1,59 +1,109 @@
 #ifndef _SEED_ASSET_BROWSER_H_
 #define _SEED_ASSET_BROWSER_H_
 
-#include <imgui.h>
+#include <string>
+#include <RmlUi/Core/DataModelHandle.h>
+#include <map>
+#include <mutex>
 #include <vector>
 #include "core/container/kstring.h"
 #include "core/io/dir.h"
+#include "core/resource/image.h"
 #include "core/types.h"
 #include "editor/asset/asset.h"
 #include "editor/gui/inspectable.h"
+#include "core/gui/gui.h"
 
 namespace Seed {
 
-class AssetBrowser {
+class AssetBrowser : public RmlGUI {
     public:
         void init(KStr project_root);
-        void update();  // call inside your panel
+        Ref<Dir> get_current_dir() { return current_dir; }
 
     private:
-        // State
+        struct AssetItemView {
+                KString name;
+                KString type;
+                KString icon;
+                i32 entry_index = -1;
+        };
+
+        struct AssetFolderView {
+                KString name;
+                bool active = false;
+        };
+
         Ref<Dir> root_dir;
         Ref<Dir> current_dir;
-        std::vector<AssetEntry> entries;  // contents of current_dir
+        std::vector<AssetEntry> entries;
+        std::vector<AssetItemView> asset_items;
+        std::vector<AssetFolderView> folder_items;
+        std::vector<Path> folder_paths;
+        std::string search_text;
+        std::string new_world_name;
+        std::string new_world_path;
+        std::string world_create_error;
+        KString breadcrumb_text;
+        Rml::DataModelHandle asset_model;
+        Rml::DataModelHandle world_create_model;
+        std::map<Path, std::vector<AssetEntry>> folder_entry_cache;
         i32 selected_idx = -1;
-        i32 view_mode = 0;  // 0=grid 1=list
-        f32 icon_size = 72.f;
         char search_buf[128] = {};
         bool needs_refresh = true;
-
-        // Rename state
-        int renaming_idx = -1;
+        i32 renaming_idx = -1;
         char rename_buf[256] = {};
-        bool show_popup;
+        std::vector<Path> breadcrumbs;
 
-        // Breadcrumb
-        std::vector<Path> breadcrumbs;  // root → current_dir
+        struct ThumbnailResult {
+                Path path;
+                Ref<Image> image;
+                u32 source_width = 0;
+                u32 source_height = 0;
+                bool failed = false;
+        };
 
-        // Helpers
+        std::mutex thumbnail_results_mutex;
+        std::vector<ThumbnailResult> thumbnail_results;
         void refresh();
+        void sync_view_model();
+        void dirty_view_model();
+        void invalidate_current_folder_cache();
+        void process_thumbnail_results();
+        void queue_thumbnail_result(ThumbnailResult result);
+        bool apply_thumbnail_result(std::vector<AssetEntry> &target_entries,
+                                    const ThumbnailResult &result,
+                                    Ref<Texture> texture);
         void navigate_to(KStr dir);
-        void draw_breadcrumb();
-        void draw_toolbar();
-        void draw_grid();
-        void draw_list();
-        void draw_entry_context_menu(int idx);
-        void draw_asset_option_menu();
-        void begin_rename(int idx);
+
+        //void handle_external_drop_target();
+        void open_asset(AssetEntry &entry);
+        void request_texture_thumbnail(AssetEntry &entry);
+        void begin_rename(i32 idx);
         void commit_rename();
         UUID get_asset_uuid(AssetEntry &entry);
+        Path get_project_asset_path(const AssetEntry &entry) const;
+        std::vector<Path> list_child_directories(const Path &dir);
+        bool matches_search(const Path &path, KStr filter);
         Inspectable *create_inspectable(AssetEntry &entry);
         AssetType classify(const Path &p);
         const char *asset_type_icon(AssetType t);
-        ImVec4 asset_type_color(AssetType t);
+        const char *asset_type_name(AssetType t);
+        bool show_world_create = false;
+        bool has_world_create_error = false;
+        Path current_asset_directory() const;
+        bool create_world_asset();
+        void rml_refresh(RML_EVENT_ARGS);
+        void rml_open_asset(RML_EVENT_ARGS);
+        void rml_open_folder(RML_EVENT_ARGS);
+        void rml_open_menu(RML_EVENT_ARGS);
+        void rml_request_create_world(RML_EVENT_ARGS);
+        void rml_cancel_create_world(RML_EVENT_ARGS);
+        void rml_confirm_create_world(RML_EVENT_ARGS);
+
+        void bind_model(Rml::Context *context) override;
 };
 
 }  // namespace Seed
-
 
 #endif

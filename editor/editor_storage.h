@@ -4,6 +4,7 @@
 #include "core/rendering/vertex_layout.h"
 #include "core/rendering/vertex_data.h"
 #include "core/resource/texture.h"
+#include "core/gui/gui.h"
 
 namespace Seed {
 #define ES EditorStorage
@@ -13,9 +14,11 @@ class EditorStorage {
 
     public:
         Ref<Shader> editor_terrain_shader;
+        Ref<GuiDocument> editor_ui_doc;
 
         static EditorStorage *get_instance() { return instance; }
         EditorStorage();
+        void reload_shaders();
 };
 
 }  // namespace Seed

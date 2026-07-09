@@ -1,10 +1,10 @@
 #include "shader_proxy.h"
 #include "core/container/kstring.h"
 #include "core/rendering/rhi/render_engine.h"
-#include <filesystem>
 #include "core/rendering/rhi/shader_proxy.h"
 #include "core/rendering/shader_layout.h"
 #include "core/types.h"
+#include "core/macro.h"
 
 namespace Seed {
 
@@ -150,9 +150,11 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
                               ->getElementTypeLayout()
                               ->getFieldCount();
                 if (size > 256) {
-                    spdlog::warn(
-                        "Shader '{}.slang' push contant size {} exceeds 256",
+                    SEED_WARN(
+                        "Shader '{}.slang' push contant size {} exceeds 256, "
+                        "skipping.",
                         name, size);
+                    break;
                 }
                 size &= 0xff;
                 // u64 offset =
@@ -171,29 +173,39 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
     shader_layout.sets.push_back(binding_set);
 }
 
-ShaderHandle ShaderProxy::compile_shader(const Path &path,
-                                         const std::string &shader,
-                                         ShaderLayout *layout) {
+ShaderHandle ShaderProxy::compile_shader(
+    const Path &path, const KString &shader, ShaderLayout *layout,
+    const std::vector<ShaderDefine> &defines) {
     RenderBackend *backend = RenderEngine::get_instance()->get_device();
     Slang::ComPtr<slang::ISession> session;
-    KStr module_name = path.filename_without_ext();
+    std::vector<slang::PreprocessorMacroDesc> macros;
+    for (const ShaderDefine &define : defines) {
+        macros.push_back(slang::PreprocessorMacroDesc{
+            .name = define.name.data(), .value = define.value.data()});
+    }
+
+    KStr module_name = path.filename();
     Slang::ComPtr<slang::IBlob> diagnostics;
     Slang::ComPtr<slang::IModule> module;
+    slang::SessionDesc desc;
     switch (backend->get_type()) {
         case RenderBackendType::VULKAN:
         case RenderBackendType::XR_VULKAN:
-            global_session->createSession(spirv_session_desc,
-                                          session.writeRef());
+            desc = spirv_session_desc;
             break;
         default:
             break;
     }
+    desc.preprocessorMacros = macros.data();
+    desc.preprocessorMacroCount = macros.size();
+    global_session->createSession(desc, session.writeRef());
 
     module = session->loadModuleFromSourceString(
         module_name.data(), path.data(), shader.data(), diagnostics.writeRef());
     if (diagnostics) {
         SPDLOG_ERROR("Slang shader diagnostic: {}",
                      (const char *)diagnostics->getBufferPointer());
+        return NULL_HANDLE;
     }
     std::vector<slang::IComponentType *> com_types;
     com_types.push_back(module);
@@ -223,6 +235,7 @@ ShaderHandle ShaderProxy::compile_shader(const Path &path,
     if (diagnostics) {
         SPDLOG_ERROR("Slang shader diagnostic: {}",
                      (const char *)diagnostics->getBufferPointer());
+        return NULL_HANDLE;
     }
     slang::ProgramLayout *programLayout = linkedProgram->getLayout(0);
     slang::TypeLayoutReflection *globlalLayout =
@@ -231,11 +244,11 @@ ShaderHandle ShaderProxy::compile_shader(const Path &path,
     append_binding_set(globlalLayout, _layout);
     std::reverse(_layout.sets.begin(), _layout.sets.end());
 
-    std::string vert;
-    std::string tesc;
-    std::string tese;
-    std::string geom;
-    std::string frag;
+    KString vert;
+    KString tesc;
+    KString tese;
+    KString geom;
+    KString frag;
     for (auto &ep : entry_points) {
         Slang::ComPtr<slang::IBlob> code;
         Slang::ComPtr<slang::IBlob> diagnostics;
@@ -244,30 +257,30 @@ ShaderHandle ShaderProxy::compile_shader(const Path &path,
         if (diagnostics) {
             SPDLOG_ERROR("Slang shader diagnostic: {}",
                          (const char *)diagnostics->getBufferPointer());
+            return NULL_HANDLE;
         }
         switch (ep.stage) {
             case ShaderStage::VERTEX:
-                vert.assign((char *)code->getBufferPointer(),
-                            code->getBufferSize());
+                vert.append(KStr((char *)code->getBufferPointer(),
+                                 code->getBufferSize()));
                 break;
             case ShaderStage::TESS_CTRL:
-                tesc.assign((char *)code->getBufferPointer(),
-                            code->getBufferSize());
-
+                tesc.append(KStr((char *)code->getBufferPointer(),
+                                 code->getBufferSize()));
                 break;
             case ShaderStage::TESS_EVAL:
-                tese.assign((char *)code->getBufferPointer(),
-                            code->getBufferSize());
+                tese.append(KStr((char *)code->getBufferPointer(),
+                                 code->getBufferSize()));
 
                 break;
             case ShaderStage::GEOMETRY:
-                geom.assign((char *)code->getBufferPointer(),
-                            code->getBufferSize());
+                geom.append(KStr((char *)code->getBufferPointer(),
+                                 code->getBufferSize()));
 
                 break;
             case ShaderStage::FRAGMENT:
-                frag.assign((char *)code->getBufferPointer(),
-                            code->getBufferSize());
+                frag.append(KStr((char *)code->getBufferPointer(),
+                                 code->getBufferSize()));
 
                 break;
         }

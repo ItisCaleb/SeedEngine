@@ -5,6 +5,7 @@
 #include <nlohmann/json_fwd.hpp>
 #include <unordered_map>
 #include "core/container/kstring.h"
+#include "core/engine.h"
 #include "core/io/file.h"
 #include "core/io/path.h"
 #include "core/misc/uuid.h"
@@ -45,7 +46,6 @@ class AsyncResource : public RefCounted {
 class ResourceLoader {
     private:
         inline static ResourceLoader *instance = nullptr;
-        Path root;
         std::unordered_map<UUID, Resource *> res_cache;
         std::unordered_map<ResourceTypeID, ResourceTypeInfo> infos;
         std::unordered_map<ResourceTypeID, Ref<Resource>> default_resources;
@@ -53,20 +53,25 @@ class ResourceLoader {
         static RESOURCE_LOADER(load_basic_model);
         static RESOURCE_LOADER(load_skeleton_model);
         static RESOURCE_LOADER(load_texture);
-        static RESOURCE_LOADER(load_texture_array);
-        static RESOURCE_LOADER(load_cubemap);
         static RESOURCE_LOADER(load_mappable_texture);
-        static RESOURCE_LOADER(load_image);
-        static RESOURCE_LOADER(load_terrain);
+        static RESOURCE_LOADER(load_world);
+        static RESOURCE_LOADER(load_ui);
+        static void load_meshes(ResourceLoader &loader,
+                                ResourceConfiguration &config, Ref<File> data,
+                                std::vector<Ref<Mesh>> &meshes,
+                                Ref<Skeleton> skeleton,
+                                std::vector<Ref<Animation>> &animations);
         ResourceEntries entries;
-    
+
     public:
         static ResourceLoader *get_instance();
         void register_resource(Resource *res);
         void unregister_resource(Resource *res);
         ResourceEntries &get_entries() { return entries; }
 
-        RHI::UpdateBufferInfo load_image_to_upload(UUID uuid);
+        RHI::UpdateBufferInfo load_image_to_upload(UUID uuid,
+                                                   bool force_rgba = false);
+        Ref<Image> load_image(UUID uuid, bool force_rgba = false);
 
         template <typename T>
         Ref<T> load(UUID uuid) {
@@ -84,9 +89,11 @@ class ResourceLoader {
                 return Ref<T>();
             }
             Ref<Resource> res;
-            Ref<File> file = File::open(entry->path.is_absolute()
-                                            ? entry->path
-                                            : root.append(entry->path));
+
+            const Path path =
+                SeedEngine::get_instance()->get_project()->resolve_asset(
+                    entry->path);
+            Ref<File> file = File::open(path);
             if (file.is_null()) {
                 return Ref<T>();
             }
@@ -172,6 +179,23 @@ class ResourceLoader {
             return async_rc;
         }
         template <typename T>
+        Ref<AsyncResource<T>> load_async_from_path(
+            const Path &path, std::function<void(Ref<T>)> callback = {}) {
+            Ref<AsyncResource<T>> async_rc;
+            async_rc.create();
+            async_rc->work_id = ThreadPool::get_instance()->add_work(
+                [=](void *) mutable {
+                    async_rc->resource = load_from_path<T>(path);
+                    async_rc->loaded = true;
+                    if (callback) {
+                        callback(async_rc->resource);
+                    }
+                },
+                nullptr);
+            return async_rc;
+        }
+
+        template <typename T>
         void register_type(std::function<Ref<Resource>(
                                ResourceLoader &, ResourceConfiguration &config,
                                Ref<File> data)>
@@ -203,7 +227,9 @@ class ResourceLoader {
             }
             return &iter->second;
         }
-        void set_root(const Path &path) { root = path; }
+        Ref<TextureCubemap> load_cubemap(u32 w, u32 h, UUID right, UUID left,
+                                         UUID top, UUID bottom, UUID front,
+                                         UUID back);
         ResourceLoader(/* args */);
         ~ResourceLoader();
 };

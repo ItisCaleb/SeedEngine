@@ -1,5 +1,6 @@
 #include "engine.h"
 #include <GLFW/glfw3.h>
+#include "debug/profiler.h"
 #include "input.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/resource/resource_loader.h"
@@ -13,7 +14,9 @@
 #include <stdlib.h>
 #include "core/os.h"
 #include "core/debug/debug_drawer.h"
-#include "xr/xr_engine.h"
+#include <spdlog/sinks/callback_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+
 namespace Seed {
 
 static void error_callback(int error, const char *description) {
@@ -22,21 +25,50 @@ static void error_callback(int error, const char *description) {
 
 SeedEngine *SeedEngine::get_instance() { return instance; }
 
+void SeedEngine::setup_logger() {
+    auto callback_sink = std::make_shared<spdlog::sinks::callback_sink_mt>(
+        [](const spdlog::details::log_msg &msg) { 
+            return;
+         });
+    callback_sink->set_level(spdlog::level::err);
+    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    spdlog::logger logger("Main", {console_sink, callback_sink});
+    spdlog::set_default_logger(std::make_shared<spdlog::logger>(logger));
+}
+
 void SeedEngine::init_systems() {
     ResourceLoader *resource_loader = new ResourceLoader;
 #ifdef SEED_XR
     XREngine *xr_engine = new XREngine();
 #endif
     RenderEngine *render_engine = new RenderEngine(window);
-    Input *input = new Input;
-    input_handler.init(this->window);
     GuiEngine *gui = new GuiEngine(this->window);
+    input_handler.init(this->window);
+    Input *input = new Input;
     DefaultStorage *storage = new DefaultStorage();
     DebugDrawer *debug_drawer = new DebugDrawer();
     ThreadPool *pool = new ThreadPool(OS::cpu_count());
     PhysicEngine *phys_engine = new PhysicEngine();
+    Profiler *profiler = new Profiler;
     render_engine->init();
     this->world = new World;
+}
+
+void SeedEngine::deinit_systems() {
+    delete GuiEngine::get_instance();
+    // delete RenderEngine::get_instance();
+}
+
+bool SeedEngine::load_project(const Path &path) {
+    current_project = Project::load(path);
+    if (!File::exists(current_project->get_entry_path())) {
+        ResourceLoader::get_instance()->get_entries().save(
+            current_project->get_entry_path());
+    } else {
+        ResourceLoader::get_instance()->get_entries().load(
+            current_project->get_entry_path());
+    }
+    return current_project != nullptr;
 }
 
 void SeedEngine::start() {
@@ -48,6 +80,7 @@ void SeedEngine::start() {
     RenderEngine *render_engine = RenderEngine::get_instance();
     f64 delta = frame_limit;
     GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
+    Profiler *profiler = Profiler::get_instance();
     while (!glfwWindowShouldClose(glfw_window)) {
         f64 start = glfwGetTime();
         if (input->is_key_pressed(KeyCode::Q)) {
@@ -66,17 +99,14 @@ void SeedEngine::start() {
             OS::delay(frame_limit - delta);
             delta = frame_limit;
         }
+        profiler->clear_records();
         last_fps = 1 / delta;
     }
-
-    glfwDestroyWindow(glfw_window);
-
-    glfwTerminate();
 }
 
 SeedEngine::SeedEngine(f32 target_fps) {
     instance = this;
-
+    setup_logger();
     glfwSetErrorCallback(error_callback);
     spdlog::set_level(spdlog::level::debug);
     spdlog::info("Initializing SeedEngine");
@@ -91,5 +121,10 @@ SeedEngine::SeedEngine(f32 target_fps) {
 
     this->frame_limit = 1 / target_fps;
 }
-SeedEngine::~SeedEngine() { instance = nullptr; }
+SeedEngine::~SeedEngine() {
+    deinit_systems();
+    delete window;
+    glfwTerminate();
+    instance = nullptr;
+}
 }  // namespace Seed

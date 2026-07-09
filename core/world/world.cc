@@ -1,18 +1,20 @@
 #include "world.h"
 #include <fmt/base.h>
-#include <functional>
-#include <string>
 #include "behaviour.h"
+#include "core/debug/profiler.h"
 #include "core/physic/physic_body.h"
 #include "core/physic/physic_engine.h"
 #include "core/ref.h"
 #include "core/rendering/instance_data.h"
 #include "core/rendering/mesh_storage.h"
+#include "core/rendering/render_common.h"
+#include "core/rendering/rhi/render_resource.h"
 #include "core/resource/animation.h"
 #include "core/resource/model.h"
-#include "core/resource/terrain.h"
+#include "core/resource/texture.h"
 #include "core/transform.h"
 #include "core/world/components.h"
+#include "core/resource/resource_loader.h"
 #include "entity.h"
 
 namespace Seed {
@@ -44,13 +46,9 @@ WorldChunk::~WorldChunk() {
 
 Ref<Sky> World::get_sky() { return sky; }
 
-void World::set_sky(Ref<Sky> sky) { this->sky = sky; }
-
-void World::add_billboard(Ref<Billboard> billboard) {
-    this->billboards.push_back(billboard);
-}
-
 void World::tick(f32 dt) {
+    PROFILE_SCOPE("World");
+
     PhysicEngine *phys = PhysicEngine::get_instance();
 
     // sync transform to physic
@@ -95,16 +93,6 @@ void World::tick(f32 dt) {
             }
             inst->model->_add_instance(data, *tf, state);
         });
-}
-
-void World::add_chunk(Ref<WorldChunk> &chunk) {
-    this->chunks.push_back(chunk);
-    Ref<Terrain> terrain = chunk->get_terrain();
-    if (terrains.count(terrain) == 0) {
-        MeshStorage::get_instance()->add_mesh(
-            terrain->get_mesh(),
-            ref_cast<InstanceData>(terrain->get_instance()));
-    }
 }
 
 void World::register_model_instance(Ref<Model> model,
@@ -159,13 +147,54 @@ void World::register_engine_components() {
         });
 }
 
-World::World()
-    : direction_light(Vec3{-0.5, -0.5, 0}, Vec3{0.8, 0.8, 0.8},
-                      Vec3{0.4, 0.4, 0.4}) {
+World::World() {
+    this->terrain.create();
     this->ambient_light = Vec3{0.25, 0.25, 0.25};
     this->camera.set_position(Vec3{0, 20, 0});
     this->camera.set_perspective(45, 1.33, 0.1, 2000.0);
     register_engine_components();
+}
+
+void World::load_setting(Ref<WorldSetting> setting) {
+    this->setting = setting;
+    ResourceLoader *loader = ResourceLoader::get_instance();
+    Ref<TextureCubemap> sky_cubemap =
+        ResourceLoader::get_instance()->load_cubemap(
+            2048, 2048, setting->sky.right, setting->sky.left, setting->sky.up,
+            setting->sky.down, setting->sky.front, setting->sky.back);
+    sky.create(sky_cubemap);
+    direction_light = DirectionalLight(setting->dir_light.direction,
+                                       setting->dir_light.diffuse,
+                                       setting->dir_light.specular, true);
+    for (ChunkSetting &chunk : setting->chunks) {
+        Ref<Image> heightmap = loader->load_image(chunk.height_map);
+        Ref<Image> control_map = loader->load_image(chunk.control_map);
+        terrain->add_chunk(chunk.x, chunk.y, heightmap, control_map);
+    }
+    u32 i = 0;
+    Ref<Image> normal_image;
+    normal_image.create(PixelFormat::RGBA, 1024, 1024);
+    normal_image->fill(Color{128, 128, 255, 255}, 1024, 1024);
+    for (u32 i = 0; i < setting->terrain_textures.size(); i++) {
+        
+        /* upload texture */
+        RHI::UpdateBufferInfo tex_info =
+            loader->load_image_to_upload(setting->terrain_textures[i], true);
+
+        terrain->get_material()->get_textures()->update_layer(i, tex_info);
+
+        /* upload normal */
+        if (setting->terrain_normals[i].is_null()) {
+            /* fallback */
+            terrain->get_material()->get_texture_normals()->update_layer(
+                1024, 1024, i, normal_image->get_data());
+        } else {
+            RHI::UpdateBufferInfo norm_info =
+                loader->load_image_to_upload(setting->terrain_normals[i], true);
+            terrain->get_material()->get_texture_normals()->update_layer(
+                i, norm_info);
+        }
+    }
 }
 
 }  // namespace Seed

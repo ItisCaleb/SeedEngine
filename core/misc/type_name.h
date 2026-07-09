@@ -14,7 +14,7 @@ constexpr auto substring_as_array(std::string_view str,
 }
 
 template <typename... T>
-constexpr auto type_name_array() {
+constexpr auto get_name() {
 #if defined(__clang__)
     constexpr auto prefix = std::string_view{"[T = "};
     constexpr auto suffix = std::string_view{"]"};
@@ -37,6 +37,13 @@ constexpr auto type_name_array() {
     static_assert(start < end);
 
     constexpr auto name = function.substr(start, (end - start));
+    return name;
+}
+
+/* a trick to prevent raw Function name in binary */
+template <typename... T>
+constexpr auto type_name_array() {
+    constexpr auto name = get_name<T...>();
     return substring_as_array(name, std::make_index_sequence<name.size()>{});
 }
 template <typename... T>

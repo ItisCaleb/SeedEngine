@@ -28,7 +28,7 @@ std::string UUID::to_string() const {
 }
 
 UUID UUID::from_string(const KStr &str) {
-    if (str.length() != 36) throw std::invalid_argument("invalid UUID");
+    if (str.length() != 36) return UUID{};
 
     auto parse_hex = [&](int pos, int len) -> u64 {
         u64 val = 0;

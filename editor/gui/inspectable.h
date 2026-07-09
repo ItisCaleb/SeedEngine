@@ -8,11 +8,12 @@ namespace Seed {
 class Inspectable {
     protected:
         ResourceConfiguration *config = nullptr;
-        void drag_uuid(KStr name, UUID &uuid);
+        bool drag_uuid(KStr name, UUID &uuid);
 
     public:
-        Inspectable();
+        Inspectable() = default;
         Inspectable(ResourceConfiguration *config) : config(config) {}
+        virtual ~Inspectable() = default;
         virtual void draw_inspector() {}
         virtual void save() {};
 };

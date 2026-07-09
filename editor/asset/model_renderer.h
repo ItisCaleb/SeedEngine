@@ -1,7 +1,6 @@
 #ifndef _SEED_MODEL_RENDERER_H
 #define _SEED_MODEL_RENDERER_H
 #include "core/rendering/renderer/renderer.h"
-#include "core/resource/mappable_texture.h"
 
 namespace Seed {
 class ModelRenderer : public Renderer {

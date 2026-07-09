@@ -16,6 +16,7 @@ namespace Seed {
 
 class RenderEngine {
     private:
+        FrameGlobal g_frame;
         struct RendererLayer {
                 u8 layer;
                 bool enabled;
@@ -29,6 +30,7 @@ class RenderEngine {
         std::unordered_map<std::string, InstanceDataPool *> instance_pools;
         Renderer *default_renderer;
         Renderer *imgui_renderer;
+        Renderer *rml_renderer;
 
         Window *current_window;
         void bind_vulken(Window *window);
@@ -44,12 +46,15 @@ class RenderEngine {
         InstanceDataPool *get_instance_pool(const std::string &name);
 
         /* if not null, layout will be filled */
-        ShaderHandle compile_shader(const Path &path, const std::string &shader,
-                                    ShaderLayout *layout);
+        ShaderHandle compile_shader(const Path &path, const KString &shader,
+                                    ShaderLayout *layout,
+                                    const std::vector<ShaderDefine> &defines);
         Renderer *get_default_renderer() { return default_renderer; }
         Renderer *get_imgui_renderer() { return imgui_renderer; }
+        Renderer *get_rml_renderer() { return rml_renderer; }
         void set_renderer_layer(Renderer *renderer, u8 layer);
         void set_renderer_enable(Renderer *renderer, bool enable);
+        FrameGlobal &get_frame_global() { return g_frame; }
         RenderEngine(Window *window);
         ~RenderEngine();
 };

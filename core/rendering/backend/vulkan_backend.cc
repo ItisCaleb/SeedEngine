@@ -3,10 +3,10 @@
 #include <vulkan/vulkan_core.h>
 #include <cstddef>
 #include <vector>
+#include <set>
 #include "core/rendering/backend/vulkan_helper.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_resource.h"
-#include "core/resource/texture.h"
 #define VOLK_IMPLEMENTATION
 #include <volk.h>
 #define VMA_IMPLEMENTATION
@@ -130,7 +130,20 @@ void RenderBackendVK::create_instance() {
 #endif
     if (enable_validation) {
         requiredExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        requiredExtensions.emplace_back(
+            VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
     }
+    VkValidationFeatureEnableEXT validation_features[] = {
+        VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+        VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+        VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+        VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+    };
+    VkValidationFeaturesEXT validation_features_info{};
+    validation_features_info.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+    validation_features_info.enabledValidationFeatureCount =
+        sizeof(validation_features) / sizeof(validation_features[0]);
+    validation_features_info.pEnabledValidationFeatures = validation_features;
 
     createInfo.enabledExtensionCount = requiredExtensions.size();
     createInfo.ppEnabledExtensionNames = requiredExtensions.data();
@@ -138,6 +151,7 @@ void RenderBackendVK::create_instance() {
     if (enable_validation) {
         createInfo.enabledLayerCount = validationLayers.size();
         createInfo.ppEnabledLayerNames = validationLayers.data();
+        createInfo.pNext = &validation_features_info;
         spdlog::debug("Enabling Vulkan validation layer");
     } else {
         createInfo.enabledLayerCount = 0;
@@ -247,13 +261,7 @@ void RenderBackendVK::create_logical_device() {
     createInfo.pEnabledFeatures = nullptr;
     createInfo.enabledExtensionCount = deviceExtensions.size();
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
-    if (enable_validation) {
-        createInfo.enabledLayerCount = validationLayers.size();
-        createInfo.ppEnabledLayerNames = validationLayers.data();
-    } else {
-        createInfo.enabledLayerCount = 0;
-    }
+    createInfo.enabledLayerCount = 0;
 
     if (vkCreateDevice(physical_device, &createInfo, nullptr, &device) !=
         VK_SUCCESS) {
@@ -319,8 +327,17 @@ void RenderBackendVK::create_swapchain(Window *window) {
             clampu((u32)height, capabilities.minImageExtent.height,
                    capabilities.maxImageExtent.height);
     }
+    if (target_extent.height == 0 || target_extent.width == 0) return;
 
+    /* clamp image count */
     u32 imageCount = capabilities.minImageCount + 1;
+    if (capabilities.maxImageCount > 0 &&
+        imageCount > capabilities.maxImageCount) {
+        imageCount = capabilities.maxImageCount;
+    }
+
+    VkSwapchainKHR old_swapchain = swap_chain.chain;
+
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface;
@@ -337,7 +354,7 @@ void RenderBackendVK::create_swapchain(Window *window) {
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode = target_present;
     createInfo.clipped = VK_TRUE;
-    createInfo.oldSwapchain = VK_NULL_HANDLE;
+    createInfo.oldSwapchain = old_swapchain;
     if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swap_chain.chain) !=
         VK_SUCCESS) {
         throw std::runtime_error("Failed to create Vulkan swap chain!");
@@ -365,7 +382,11 @@ void RenderBackendVK::recreate_swapchain(Window *window) {
     vkDeviceWaitIdle(device);
 
     for (u32 i = 0; i < swap_chain.render_targets.size(); i++) {
+        HardwareTextureVk *tex = textures.get_or_null(swap_chain.textures[i]);
+        /* set image to null to prevent vma destroy it */
+        tex->image = nullptr;
         dealloc(RenderResourceType::TEXTURE, swap_chain.textures[i]);
+
         if (i > 0) {
             HardwareRenderPassVk *rt =
                 this->render_pass.get_or_null(swap_chain.render_targets[i]);
@@ -429,7 +450,7 @@ void RenderBackendVK::create_swapchain_framebuffer() {
         Handle handle = this->render_pass.insert(rt);
         this->swap_chain.render_targets.push_back(handle);
     }
-    current_render_target = this->swap_chain.render_targets[0];
+    current_render_target = NULL_HANDLE;
 }
 
 void RenderBackendVK::create_command_pool() {
@@ -448,7 +469,7 @@ void RenderBackendVK::create_command_buffer() {
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = command_pool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 2;
+    allocInfo.commandBufferCount = 1;
 
     for (u32 i = 0; i < FRAMES_IN_FLIGHT; i++) {
         if (vkAllocateCommandBuffers(device, &allocInfo,
@@ -605,6 +626,10 @@ inline VkImageMemoryBarrier RenderBackendVK::create_image_barrier(
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = texture->image;
+    barrier.srcAccessMask =
+        VulkanHelper::access_mask_for_layout(barrier.oldLayout);
+    barrier.dstAccessMask =
+        VulkanHelper::access_mask_for_layout(barrier.newLayout);
     barrier.subresourceRange.aspectMask =
         VulkanHelper::aspect_flag(texture->format);
     barrier.subresourceRange.baseMipLevel = 0;
@@ -775,6 +800,7 @@ VkDescriptorSet RenderBackendVK::get_descriptor_set(
     DescriptorSetLayout *layout, std::vector<Binding> &bindings,
     bool is_global) {
     Hash _hash;
+
     for (auto &binding : bindings) {
         _hash.update(&binding.binding_point);
         _hash.update(&binding.type);
@@ -920,8 +946,9 @@ TextureHandle RenderBackendVK::create_texture(TextureType type, u32 w, u32 h,
     bool is_depth = VulkanHelper::is_depth(format);
     bool is_stencil = VulkanHelper::is_stencil(format);
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.usage =
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT |
+                      VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                      VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     if (is_stencil || is_depth) {
         imageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
@@ -938,17 +965,13 @@ TextureHandle RenderBackendVK::create_texture(TextureType type, u32 w, u32 h,
     std::vector<VkImageLayout> layouts;
     if (type == TextureType::TEXTURE_CUBEMAP) {
         imageInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-        imageInfo.arrayLayers = 6;
-        for (u32 i = 0; i < 6; i++) {
-            layouts.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
-        }
-    } else {
-        imageInfo.arrayLayers = count;
-        for (u32 i = 0; i < count; i++) {
-            layouts.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
-        }
+        count = 6;
     }
 
+    imageInfo.arrayLayers = count;
+    for (u32 i = 0; i < count; i++) {
+        layouts.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
+    }
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     VmaAllocationCreateInfo allocInfo = {};
@@ -1006,8 +1029,7 @@ TextureHandle RenderBackendVK::create_texture(TextureType type, u32 w, u32 h,
         viewInfo.image = msaa_image;
         vkCreateImageView(device, &viewInfo, nullptr, &msaa_view);
     }
-
-    return this->textures.insert({
+    TextureHandle handle = this->textures.insert({
         .w = w,
         .h = h,
         .type = type,
@@ -1020,8 +1042,15 @@ TextureHandle RenderBackendVK::create_texture(TextureType type, u32 w, u32 h,
         .msaa_image = msaa_image,
         .msaa_view = msaa_view,
         .msaa_memory = msaa_allocation,
+        .msaa_layout = VK_IMAGE_LAYOUT_UNDEFINED,
         .layouts = layouts,
     });
+
+    /* prevent image without data doesn't transition */
+    for (u32 i = 0; i < count; i++) {
+        image_transition_queue.push(std::make_pair(handle, i));
+    }
+    return handle;
 }
 
 TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
@@ -1057,8 +1086,8 @@ TextureHandle RenderBackendVK::alloc_texture(TextureType type, u32 w, u32 h,
 TextureHandle RenderBackendVK::alloc_textures(TextureType type, u32 w, u32 h,
                                               PixelFormat format, u32 count,
                                               const SamplerProperty &property) {
-    TextureHandle handle = create_texture(type, w, h, format, count,
-                                          MSAAType::SAMPLE_COUNT_1, property,false);
+    TextureHandle handle = create_texture(
+        type, w, h, format, count, MSAAType::SAMPLE_COUNT_1, property, false);
 
     return handle;
 }
@@ -1075,7 +1104,7 @@ TextureHandle RenderBackendVK::alloc_cubemap(u32 w, u32 h, PixelFormat format,
 TextureHandle RenderBackendVK::alloc_mappable_texture(
     TextureType type, u32 w, u32 h, PixelFormat format,
     const SamplerProperty &property, const void *data) {
-    if (type != TextureType::TEXTURE_1D || type != TextureType::TEXTURE_2D ||
+    if (type != TextureType::TEXTURE_1D && type != TextureType::TEXTURE_2D &&
         type != TextureType::TEXTURE_3D) {
         SPDLOG_ERROR("Can't create mappable texture as target type");
         return NULL_HANDLE;
@@ -1101,9 +1130,9 @@ TextureHandle RenderBackendVK::alloc_mappable_texture(
     VkSubresourceLayout subResLayout;
     vkGetImageSubresourceLayout(device, texture->image, &subRes, &subResLayout);
     w = subResLayout.rowPitch / get_pixel_format_size(format);
-
+    texture->w = w;
     texture->mapped_ptr = mapped_ptr;
-    mappable_image_transition_queue.push(handle);
+    image_transition_queue.push(std::make_pair(handle, 0));
     return handle;
 }
 
@@ -1244,10 +1273,9 @@ SSBOHandle RenderBackendVK::alloc_storage_buffer(u32 size, const void *data,
                                .mapped_ptr = mapped_ptr});
 }
 
-VkShaderModule RenderBackendVK::create_shader_module(
-    const std::string &shader) {
+VkShaderModule RenderBackendVK::create_shader_module(const KString &shader) {
     VkShaderModule module = nullptr;
-    if (shader.empty()) return module;
+    if (shader.is_empty()) return module;
 
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1257,11 +1285,11 @@ VkShaderModule RenderBackendVK::create_shader_module(
     return module;
 }
 
-ShaderHandle RenderBackendVK::alloc_shader(const std::string &vertex_code,
-                                           const std::string &fragment_code,
-                                           const std::string &geometry_code,
-                                           const std::string &tess_ctrl_code,
-                                           const std::string &tess_eval_code) {
+ShaderHandle RenderBackendVK::alloc_shader(const KString &vertex_code,
+                                           const KString &fragment_code,
+                                           const KString &geometry_code,
+                                           const KString &tess_ctrl_code,
+                                           const KString &tess_eval_code) {
     return shaders.insert(HardwareShaderVk{.vertex_src = vertex_code,
                                            .geo_src = geometry_code,
                                            .tess_ctrl_src = tess_ctrl_code,
@@ -1474,13 +1502,24 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
     subpass.pResolveAttachments = resolveRefs.data();
 
     VkSubpassDependency dependency{};
-    dependency.srcSubpass = 0;
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-    dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-                               VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.srcStageMask =
+        is_swapchain ? VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                     : VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    dependency.dstStageMask =
+        is_swapchain ? VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                     : VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    VkAccessFlags normal_flag = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependency.srcAccessMask = is_swapchain ? 0 : normal_flag;
+    dependency.dstAccessMask = is_swapchain
+                                   ? (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                                      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                                   : normal_flag;
+    dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -1553,7 +1592,7 @@ void RenderBackendVK::create_framebuffer(HardwareRenderPassVk *render_target) {
 }
 
 HardwareRenderPassVk *RenderBackendVK::get_current_render_pass() {
-    if (current_render_target == -1) {
+    if (current_render_target == NULL_HANDLE) {
         return this->render_pass.get_or_null(
             this->swap_chain.render_targets[swap_chain.next_index]);
     } else {
@@ -1583,11 +1622,12 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     _hash.update(&sample_count);
     _hash.update(&draw_depth_only);
     _hash.update(&depth_clamp);
+    i32 shader_id = shaders.get_id(pipeline->shader);
+    _hash.update(&shader_id);
 
-    /* since we usually don't create multiple shader/render target/layout with
+    /* since we usually don't create multiple render target/layout with
      * same config */
     /* we just hash its handle and address here*/
-    _hash.update(&pipeline->shader);
     _hash.update(&render_target->render_pass_cache);
     for (auto layout : layouts) {
         _hash.update(&layout);
@@ -1609,27 +1649,45 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
 void RenderBackendVK::handle_frame_update() {
     std::vector<VkImageMemoryBarrier> transfer_barriers;
     std::vector<VkImageMemoryBarrier> shader_barriers;
+    std::vector<VkBufferMemoryBarrier> buffer_barriers;
+
     Frame &frame = frames[get_current_frame_index()];
     transfer_barriers.reserve(image_copy_queue.size());
     shader_barriers.reserve(image_copy_queue.size() +
-                            mappable_image_transition_queue.size());
+                            image_transition_queue.size());
 
-    for (ImageUpdate &copy : image_copy_queue) {
+    std::set<std::pair<u32, u32>> copied;
+    for (auto it = image_copy_queue.rbegin(); it != image_copy_queue.rend();
+         ++it) {
+        ImageUpdate &copy = *it;
+        /* make sure only copy once every frame */
+        if (copied.count({copy.texture, copy.face}) > 0) {
+            copy.texture = NULL_HANDLE;
+            continue;
+        };
+        copied.insert({copy.texture, copy.face});
+
         VkImageMemoryBarrier barrier{};
         HardwareTextureVk *texture = this->textures.get_or_null(copy.texture);
+
         barrier = create_image_barrier(
             texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copy.face);
         transfer_barriers.push_back(barrier);
-        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        barrier = create_image_barrier(
+            texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, copy.face);
         shader_barriers.push_back(barrier);
     }
-    while (!mappable_image_transition_queue.is_empty()) {
-        TextureHandle handle = mappable_image_transition_queue.peek();
+    while (!image_transition_queue.is_empty()) {
+        auto tex = image_transition_queue.peek();
+        TextureHandle handle = tex.first;
+        u32 face = tex.second;
         HardwareTextureVk *texture = this->textures.get_or_null(handle);
+        image_transition_queue.pop();
+        if (texture->layouts[face] == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            continue;
         shader_barriers.push_back(create_image_barrier(
-            texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0));
-        mappable_image_transition_queue.pop();
+            texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, face));
     }
 
     vkCmdPipelineBarrier(
@@ -1645,6 +1703,18 @@ void RenderBackendVK::handle_frame_update() {
         _copy.size = copy.size;
         vkCmdCopyBuffer(frame.render_cmd_buffer, copy.staging_buffer,
                         copy.target_buffer, 1, &_copy);
+        VkBufferMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.buffer = copy.target_buffer;
+        barrier.offset = copy.offset;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask =
+            VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT |
+            VK_ACCESS_UNIFORM_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
+        barrier.size = copy.size;
+        buffer_barriers.push_back(barrier);
         this->destroy_list.push_back(
             DestroyResource{.type = RenderResourceType::VERTEX,
                             .mapped = false,
@@ -1665,24 +1735,26 @@ void RenderBackendVK::handle_frame_update() {
     }
     while (!image_copy_queue.is_empty()) {
         ImageUpdate &copy = image_copy_queue.peek();
-        VkBufferImageCopy _copy{};
         HardwareTextureVk *texture = this->textures.get_or_null(copy.texture);
+        if (texture) {
+            VkBufferImageCopy _copy{};
+            _copy.bufferOffset = 0;
+            _copy.bufferRowLength = 0;
+            _copy.bufferImageHeight = 0;
 
-        _copy.bufferOffset = 0;
-        _copy.bufferRowLength = 0;
-        _copy.bufferImageHeight = 0;
+            _copy.imageSubresource.aspectMask =
+                VulkanHelper::aspect_flag(texture->format);
+            _copy.imageSubresource.mipLevel = 0;
+            _copy.imageSubresource.baseArrayLayer = copy.face;
+            _copy.imageSubresource.layerCount = 1;
 
-        _copy.imageSubresource.aspectMask =
-            VulkanHelper::aspect_flag(texture->format);
-        _copy.imageSubresource.mipLevel = 0;
-        _copy.imageSubresource.baseArrayLayer = copy.face;
-        _copy.imageSubresource.layerCount = 1;
+            _copy.imageOffset = {(i32)copy.offx, (i32)copy.offy, 0};
+            _copy.imageExtent = {copy.w, copy.h, 1};
+            vkCmdCopyBufferToImage(
+                frame.render_cmd_buffer, copy.staging_buffer, texture->image,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &_copy);
+        }
 
-        _copy.imageOffset = {(i32)copy.offx, (i32)copy.offy, 0};
-        _copy.imageExtent = {copy.w, copy.h, 1};
-        vkCmdCopyBufferToImage(frame.render_cmd_buffer, copy.staging_buffer,
-                               texture->image,
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &_copy);
         this->destroy_list.push_back(
             DestroyResource{.type = RenderResourceType::VERTEX,
                             .mapped = false,
@@ -1690,10 +1762,11 @@ void RenderBackendVK::handle_frame_update() {
                                        .memory = copy.staging_allocation}});
         image_copy_queue.pop();
     }
-    vkCmdPipelineBarrier(
-        frame.render_cmd_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-        VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 0, nullptr,
-        shader_barriers.size(), shader_barriers.data());
+    vkCmdPipelineBarrier(frame.render_cmd_buffer,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr,
+                         buffer_barriers.size(), buffer_barriers.data(),
+                         shader_barriers.size(), shader_barriers.data());
 }
 
 void RenderBackendVK::handle_destroy() {
@@ -1754,10 +1827,11 @@ void RenderBackendVK::handle_destroy() {
 
 void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
                                              bool to_attachment) {
-    /* we don't need swapchain to transition*/
+    /* render pass already handled swapchain transition for us*/
     if (rt->is_swapchain) {
         return;
     }
+    Frame &frame = frames[get_current_frame_index()];
     VkImageLayout target_color_layout =
         to_attachment ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
                       : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1778,7 +1852,7 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
             this->textures.get_or_null(attachment.texture_handle);
         /* we'll only transition msaa for first time*/
         if (tex->msaa_image != nullptr &&
-            tex->layouts[0] == VK_IMAGE_LAYOUT_UNDEFINED) {
+            tex->msaa_layout == VK_IMAGE_LAYOUT_UNDEFINED) {
             VkImageMemoryBarrier msaa_barrier{};
             msaa_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             msaa_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1792,6 +1866,7 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
             msaa_barrier.subresourceRange.levelCount = 1;
             msaa_barrier.subresourceRange.baseArrayLayer = 0;
             msaa_barrier.subresourceRange.layerCount = 1;
+            tex->msaa_layout = msaa_barrier.newLayout;
             barriers.push_back(msaa_barrier);
         }
         barriers.push_back(create_image_barrier(tex, target_color_layout, 0));
@@ -1800,7 +1875,7 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
         HardwareTextureVk *depth_tex =
             this->textures.get_or_null(rt->depth_attachment.texture_handle);
         if (depth_tex->msaa_image != nullptr &&
-            depth_tex->layouts[0] == VK_IMAGE_LAYOUT_UNDEFINED) {
+            depth_tex->msaa_layout == VK_IMAGE_LAYOUT_UNDEFINED) {
             VkImageMemoryBarrier msaa_barrier{};
             msaa_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             msaa_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1820,12 +1895,12 @@ void RenderBackendVK::transition_render_pass(HardwareRenderPassVk *rt,
             msaa_barrier.subresourceRange.levelCount = 1;
             msaa_barrier.subresourceRange.baseArrayLayer = 0;
             msaa_barrier.subresourceRange.layerCount = 1;
+            depth_tex->msaa_layout = msaa_barrier.newLayout;
             barriers.push_back(msaa_barrier);
         }
         barriers.push_back(
             create_image_barrier(depth_tex, target_depth_layout, 0));
     }
-    Frame &frame = frames[get_current_frame_index()];
     vkCmdPipelineBarrier(frame.render_cmd_buffer,
                          VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
                          VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 0,
@@ -1989,6 +2064,9 @@ VkPipeline RenderBackendVK::create_vk_pipeline(
 RenderPassHandle RenderBackendVK::alloc_render_pass() {
     return this->render_pass.insert({});
 }
+
+void RenderBackendVK::copy_texture(TextureHandle dst, u32 dst_layer,
+                                   TextureHandle src, u32 src_layer) {}
 
 void RenderBackendVK::update(RenderResourceType type, Handle handle, u32 offset,
                              u32 size, void *data) {
@@ -2179,6 +2257,8 @@ void RenderBackendVK::dealloc(RenderResourceType type, Handle handle) {
 }
 
 void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
+    should_present = false;
+
     Frame &frame = frames[get_current_frame_index()];
 
     vkWaitForFences(device, 1, &frame.in_flight_fence, VK_TRUE, UINT64_MAX);
@@ -2260,6 +2340,12 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         }
         cmd_queue.pop_front();
     }
+    /* transition to */
+    transition_render_pass(
+        this->render_pass.get_or_null(
+            this->swap_chain.render_targets[swap_chain.next_index]),
+        false);
+
     vkCmdEndRenderPass(frame.render_cmd_buffer);
     vkEndCommandBuffer(frame.render_cmd_buffer);
 
@@ -2285,10 +2371,14 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
+    should_present = true;
+
     handle_destroy();
 }
 
 void RenderBackendVK::swap_buffer() {
+    if (!should_present) return;
+
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -2302,6 +2392,7 @@ void RenderBackendVK::swap_buffer() {
     presentInfo.pResults = nullptr;  // Optional
 
     vkQueuePresentKHR(graphics_queue, &presentInfo);
+    should_present = false;
 }
 
 void RenderBackendVK::handle_update(RenderCommand &cmd) {
@@ -2375,6 +2466,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
     std::vector<Binding> bindings;
     VkClearRect clear_rect{};
     Frame &frame = frames[get_current_frame_index()];
+    bool clear_color = false;
 
     for (i32 i = 0; i < state_data->operation_cnt; i++) {
         auto *op = &head[i];
@@ -2382,10 +2474,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
         switch (type) {
             case RenderStateData::OpType::CLEAR: {
                 if (op->clear_flag & CLEAR_COLOR) {
-                    attachments.emplace_back(VkClearAttachment{
-                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                        .colorAttachment = 0,
-                        .clearValue = VkClearValue{.color = {0, 0, 0, 1}}});
+                    clear_color = true;
                 }
                 if (op->clear_flag & CLEAR_DEPTH) {
                     attachments.emplace_back(VkClearAttachment{
@@ -2439,9 +2528,11 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 HardwareBufferVk *constant =
                     this->constants.get_or_null(op->constant.handle);
                 EXPECT_NOT_NULL_BREAK(constant);
+                i32 id = this->constants.get_id(op->constant.handle);
+
                 bindings.push_back(Binding{.type = RenderResourceType::CONSTANT,
                                            .handle = op->constant.handle,
-                                           .resource_id = op->constant.handle,
+                                           .resource_id = id,
                                            .binding_point = op->constant.base});
                 break;
             }
@@ -2449,10 +2540,11 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                 HardwareBufferVk *ssbo =
                     this->ssbos.get_or_null(op->ssbo.handle);
                 EXPECT_NOT_NULL_BREAK(ssbo);
+                i32 id = this->ssbos.get_id(op->ssbo.handle);
                 bindings.push_back(
                     Binding{.type = RenderResourceType::STORAGE_BUFFER,
                             .handle = op->ssbo.handle,
-                            .resource_id = op->ssbo.handle,
+                            .resource_id = id,
                             .binding_point = op->constant.base});
                 break;
             }
@@ -2504,6 +2596,14 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
             viewport_rect.height = -viewport_rect.height;
         }
         vkCmdSetViewport(frame.render_cmd_buffer, 0, 1, &viewport_rect);
+    }
+    if (clear_color) {
+        for (u32 i = 0; i < rt->color_attachments.size(); i++) {
+            attachments.emplace_back(VkClearAttachment{
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .colorAttachment = i,
+                .clearValue = VkClearValue{.color = {0, 0, 0, 1}}});
+        }
     }
     if (!attachments.empty() && clear_rect.rect.extent.width > 0 &&
         clear_rect.rect.extent.height > 0) {
@@ -2566,10 +2666,11 @@ void RenderBackendVK::handle_render(RenderCommand &cmd) {
                 HardwareBufferVk *constant =
                     this->constants.get_or_null(op->constant.constant_handle);
                 EXPECT_NOT_NULL_BREAK(constant);
+                i32 id = this->constants.get_id(op->constant.constant_handle);
                 local_bindings.push_back(
                     Binding{.type = RenderResourceType::CONSTANT,
-                            .handle = op->texture.texture_handle,
-                            .resource_id = op->constant.constant_handle,
+                            .handle = op->constant.constant_handle,
+                            .resource_id = id,
                             .binding_point = op->constant.unit});
                 break;
             }

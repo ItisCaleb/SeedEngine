@@ -30,7 +30,7 @@ class FreeList {
                 const i32 index = first_free;
                 FreeElement *data = get_element(index);
                 first_free = data->next;
-                data->element = element;
+                new (&data->element) T(element);
                 data->next = -1;
                 return index;
             } else {
@@ -62,6 +62,11 @@ class FreeList {
             data->element.~T();
             data->next = first_free;
             first_free = n;
+        }
+
+        void clear() {
+            first_free = -1;
+            this->cap = 0;
         }
 
         // Returns the usage count
