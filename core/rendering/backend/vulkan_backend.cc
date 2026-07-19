@@ -2448,7 +2448,6 @@ void RenderBackendVK::handle_update(RenderCommand &cmd) {
         default:
             break;
     }
-    free(stream_data);
 }
 
 void RenderBackendVK::handle_state(RenderCommand &cmd) {

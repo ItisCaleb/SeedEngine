@@ -43,10 +43,14 @@ struct Quaternion {
         }
 
         void operator*=(const Quaternion &b) {
-            w = w * b.w - x * b.x - y * b.y - z * b.z;
-            x = w * b.x + x * b.w + y * b.z - z * b.y;
-            y = w * b.y + x * b.z + y * b.w + z * b.x;
-            z = w * b.z + x * b.y - y * b.x + z * b.w;
+            f32 _w = w * b.w - x * b.x - y * b.y - z * b.z;
+            f32 _x = w * b.x + x * b.w + y * b.z - z * b.y;
+            f32 _y = w * b.y + x * b.z + y * b.w + z * b.x;
+            f32 _z = w * b.z + x * b.y - y * b.x + z * b.w;
+            w = _w;
+            x = _x;
+            y = _y;
+            z = _z;
         }
 
         Quaternion operator*(f32 s) const {
@@ -111,7 +115,7 @@ struct Quaternion {
                                 f32 t) {
             f32 dot = a.dot(b);
             if (dot < 0) {
-                return lerp(a, b.conjugate(), t).norm();
+                return lerp(a, b * -1, t).norm();
             } else {
                 return lerp(a, b, t).norm();
             }

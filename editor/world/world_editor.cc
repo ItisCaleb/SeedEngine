@@ -55,7 +55,7 @@ void WorldEditor::init() {
     screen_depth.create(TextureType::TEXTURE_2D, texture_width, texture_height,
                         PixelFormat::D32, nullptr);
     picking_texture.create(TextureType::TEXTURE_2D, texture_width,
-                           texture_height, PixelFormat::RGBA16I, nullptr);
+                           texture_height, PixelFormat::RGBA, nullptr);
 
     renderer = new WorldRenderer(screen_texture, screen_depth,
                                  ref_cast<Texture>(picking_texture));

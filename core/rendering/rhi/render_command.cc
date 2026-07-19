@@ -195,21 +195,26 @@ void *RenderCommandDispatcher::push_update_cmd(RenderStreamData &update_data,
     RenderCommand cmd;
     cmd.sort_key = gen_sort_key(layer, seq, 0);
     cmd.type = RenderCommandType::UPDATE;
+    u64 stream_size = sizeof(RenderStreamData) + size;
 
-    /* since updata data may not be filled immediately */
-    /* we use malloc to ensure it will not be erased at end of frame */
-    cmd.data = malloc(sizeof(RenderStreamData) + size);
-    RenderStreamData *upd = (RenderStreamData *)cmd.data;
+    RenderStreamData *upd =
+        (RenderStreamData *)RD->push_cmd(cmd, stream_size, nullptr);
     *upd = update_data;
-    if (size > 0 && data) memcpy(upd->get_buffer(), data, size);
-
-    RD->push_cmd(cmd);
+    memcpy(upd->get_buffer(), data, size);
 
     return cmd.data;
 }
 
 void RenderCommandDispatcher::push_buffer(VertexHandle handle, u32 size,
                                           void *data) {
+    if (size == 0) {
+        SEED_WARN("Can't push vertex buffer, size is 0");
+        return;
+    }
+    if (data == nullptr) {
+        SEED_WARN("Can't push vertex buffer, data is mullptr");
+        return;
+    }
     RenderStreamData update_data;
     update_data.type = RenderResourceType::VERTEX;
     update_data.handle = handle;
@@ -218,6 +223,14 @@ void RenderCommandDispatcher::push_buffer(VertexHandle handle, u32 size,
 }
 void RenderCommandDispatcher::push_buffer(IndexHandle handle, u32 size,
                                           void *data) {
+    if (size == 0) {
+        SEED_WARN("Can't push index buffer, size is 0");
+        return;
+    }
+    if (data == nullptr) {
+        SEED_WARN("Can't push index buffer, data is mullptr");
+        return;
+    }
     RenderStreamData update_data;
     update_data.type = RenderResourceType::INDEX;
     update_data.handle = handle;
@@ -226,6 +239,14 @@ void RenderCommandDispatcher::push_buffer(IndexHandle handle, u32 size,
 }
 void RenderCommandDispatcher::push_buffer(ConstantHandle handle, u32 size,
                                           void *data) {
+    if (size == 0) {
+        SEED_WARN("Can't push constant buffer, size is 0");
+        return;
+    }
+    if (data == nullptr) {
+        SEED_WARN("Can't push constant buffer, data is mullptr");
+        return;
+    }
     RenderStreamData update_data;
     update_data.type = RenderResourceType::CONSTANT;
     update_data.handle = handle;
@@ -234,6 +255,14 @@ void RenderCommandDispatcher::push_buffer(ConstantHandle handle, u32 size,
 }
 void RenderCommandDispatcher::push_buffer(SSBOHandle handle, u32 size,
                                           void *data) {
+    if (size == 0) {
+        SEED_WARN("Can't push ssbo buffer, size is 0");
+        return;
+    }
+    if (data == nullptr) {
+        SEED_WARN("Can't push ssbp buffer, data is mullptr");
+        return;
+    }
     RenderStreamData update_data;
     update_data.type = RenderResourceType::STORAGE_BUFFER;
     update_data.handle = handle;

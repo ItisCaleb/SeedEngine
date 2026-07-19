@@ -26,7 +26,7 @@ enum class SamplerWrap : u8 {
     REPEAT,
     MIRROR_CLAMP_TO_EDGE
 };
-enum class MSAAType: u8{
+enum class MSAAType : u8 {
     SAMPLE_COUNT_1,
     SAMPLE_COUNT_2,
     SAMPLE_COUNT_4,
@@ -49,6 +49,14 @@ enum class PixelFormat : u8 {
     RG,
     RGB,
     RGBA,
+    RU,
+    RGU,
+    RGBU,
+    RGBAU,
+    RS,
+    RGS,
+    RGBS,
+    RGBAS,
     RGBA16F,
     RGBA16I,
     D24,
@@ -58,12 +66,12 @@ enum class PixelFormat : u8 {
     S8
 };
 
-struct TextureDescription{
-    u32 w, h;
-    TextureType type;
-    PixelFormat format;
-    bool mappable = false;
-    MSAAType msaa_type = MSAAType::SAMPLE_COUNT_1;
+struct TextureDescription {
+        u32 w, h;
+        TextureType type;
+        PixelFormat format;
+        bool mappable = false;
+        MSAAType msaa_type = MSAAType::SAMPLE_COUNT_1;
 };
 
 u32 constexpr static get_pixel_format_size(PixelFormat format) {
@@ -103,17 +111,13 @@ enum class CompareOP : u8 {
     ALWAYS
 };
 
-enum class DepthMode: u8 {
-    OPAQUE, ALPHA_TEST, TRANSPARENT
-};
+enum class DepthMode : u8 { OPAQUE, ALPHA_TEST, TRANSPARENT };
 
 struct RenderRasterizerState {
         Cullmode cull_mode = Cullmode::NONE;
         PolygonMode poly_mode = PolygonMode::FILL;
         u32 patch_control_points = 1;
 };
-
-
 
 struct RenderDepthStencilState {
         DepthMode depth_mode = DepthMode::OPAQUE;
@@ -166,14 +170,13 @@ struct RenderBlendState {
         };
 };
 
-enum class UpdateFrequence : u8 { 
+enum class UpdateFrequence : u8 {
     /* Update occasionally or never*/
-    STATIC, 
+    STATIC,
     /* Update per frame*/
-    PERFRAME, 
+    PERFRAME,
     /* Update per drawcall*/
-    PERDRAW };
-
-
+    PERDRAW
+};
 
 #endif

@@ -35,7 +35,8 @@ class WorldRenderer : public Renderer {
                                                 main_screen->get_height()));
                     this->bind_color_attachment(main_screen, 0, 0);
                     this->bind_depth_attachment(depth, 0);
-                    this->bind_color_attachment(picking_output, 0, 1);
+                    // older GPU doesn't support attachment with linear tiling
+                    //this->bind_color_attachment(picking_output, 0, 1);
                     this->set_clear_flag(CLEAR_COLOR | CLEAR_DEPTH);
                 }
                 void execute(RenderCommandDispatcher &dp, Viewport &viewport,

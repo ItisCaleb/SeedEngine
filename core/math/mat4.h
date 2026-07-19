@@ -14,7 +14,7 @@ struct Mat4 {
         Vec4 &operator[](i32 row) { return data[row]; }
         const Vec4 &operator[](i32 row) const { return data[row]; }
 
-        Mat4 operator+(const Mat4 &b) {
+        Mat4 operator+(const Mat4 &b) const {
             return Mat4{data[0] + b[0], data[1] + b[1], data[2] + b[2],
                         data[3] + b[3]};
         }
@@ -26,12 +26,12 @@ struct Mat4 {
             data[3] += b[3];
         }
 
-        Mat4 operator-(const Mat4 &b) {
+        Mat4 operator-(const Mat4 &b) const {
             return Mat4{data[0] - b[0], data[1] - b[1], data[2] - b[2],
                         data[3] - b[3]};
         }
 
-        Mat4 operator-() {
+        Mat4 operator-() const {
             return Mat4{-data[0], -data[1], -data[2], -data[3]};
         }
 
@@ -42,7 +42,7 @@ struct Mat4 {
             data[3] -= b[3];
         }
 
-        Mat4 operator*(const f32 s) {
+        Mat4 operator*(const f32 s) const {
             return Mat4{data[0] * s, data[1] * s, data[2] * s, data[3] * s};
         }
 
@@ -50,9 +50,10 @@ struct Mat4 {
             data[0] *= s;
             data[1] *= s;
             data[2] *= s;
+            data[3] *= s;
         }
 
-        Mat4 operator*(const Mat4 &b) {
+        Mat4 operator*(const Mat4 &b) const {
             Mat4 tb = b.transpose();
             return Mat4{
                 data[0].dot(tb[0]), data[0].dot(tb[1]), data[0].dot(tb[2]),
@@ -63,7 +64,7 @@ struct Mat4 {
                 data[3].dot(tb[3])};
         }
 
-        Vec4 operator*(const Vec4 &b) {
+        Vec4 operator*(const Vec4 &b) const {
             return Vec4{data[0].dot(b), data[1].dot(b), data[2].dot(b),
                         data[3].dot(b)};
         }
@@ -88,7 +89,9 @@ struct Mat4 {
                         Vec4{0, 0, 1, t.z}, Vec4{0, 0, 0, 1}};
         }
 
-        Mat4 translate(Vec3 t) { return Mat4::translate_mat(t) * (*this); }
+        Mat4 translate(Vec3 t) const {
+            return Mat4::translate_mat(t) * (*this);
+        }
 
         /* x 0 0 0 */
         /* 0 y 0 0 */
@@ -132,7 +135,7 @@ struct Mat4 {
                         0,           0,           0,           1};
         }
 
-        Mat4 rotate(f32 rad, Vec3 axis) {
+        Mat4 rotate(f32 rad, Vec3 axis) const {
             return Mat4::rotate_mat(rad, axis) * (*this);
         }
 
@@ -160,7 +163,7 @@ struct Mat4 {
                          Vec4{0, 0, -1 / d, -near / d}, Vec4{0, 0, 0, 1}});
         }
 
-        inline Vec3 transform_point(const Vec3 &p) {
+        inline Vec3 transform_point(const Vec3 &p) const {
             Vec4 _p = Vec4{p.x, p.y, p.z, 1};
             _p = *this * _p;
             return Vec3{_p.x, _p.y, _p.z};

@@ -11,7 +11,7 @@ class RefCounted {
         friend class Ref;
 
     private:
-        std::atomic_uint rc;
+        std::atomic_uint rc = 0;
         void init_ref() { rc = 1; }
 
         bool ref() {
@@ -53,9 +53,12 @@ class Ref {
         }
 
         void operator=(T *from) {
+            if (this->data == from) return;
+            if (this->data && this->data->unref()) {
+                delete this->data;
+            }
+            this->data = from;
             if (from) {
-                if (this->data == from) return;
-                this->data = from;
                 if (this->data->get_rc() == 0) {
                     this->data->init_ref();
                 } else {
