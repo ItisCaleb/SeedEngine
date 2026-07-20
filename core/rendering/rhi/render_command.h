@@ -181,8 +181,8 @@ class RenderDrawDataBuilder : public DataBuilder<RenderDrawData> {
         void set_depth_clamp(bool depth_clamp);
 };
 
-typedef u32 StateClearFlag;
-enum StateClearFlagBits : u32 {
+typedef u8 StateClearFlag;
+enum StateClearFlagBits : u8 {
     CLEAR_COLOR = 1,
     CLEAR_DEPTH = 2,
     CLEAR_STENCIL = 4
@@ -206,7 +206,7 @@ struct RenderStateData {
                                 u32 counts;
                         } viewports;
                         RectF scissor_rect;
-                        u8 clear_flag;
+                        StateClearFlag clear_flag;
                         struct {
                                 ConstantHandle handle;
                                 u32 base;

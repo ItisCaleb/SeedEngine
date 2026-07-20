@@ -433,6 +433,9 @@ void RenderBackendVK::create_swapchain_framebuffer() {
     for (u32 i = 0; i < this->swap_chain.textures.size(); i++) {
         HardwareRenderPassVk rt;
         rt.is_swapchain = true;
+        rt.clear_flag = StateClearFlagBits::CLEAR_COLOR |
+                        StateClearFlagBits::CLEAR_DEPTH |
+                        StateClearFlagBits::CLEAR_STENCIL;
         rt.color_attachments.push_back(HardwareColorAttachmentVk{
             .slot = 0,
             .image_format = this->swap_chain.format,
@@ -440,7 +443,7 @@ void RenderBackendVK::create_swapchain_framebuffer() {
 
         /* we let the swap chain to share render pass*/
         if (i == 0) {
-            create_render_pass(&rt, true);
+            create_render_pass(&rt);
             render_pass = rt.render_pass_cache;
         } else {
             rt.render_pass_cache = render_pass;
@@ -1403,8 +1406,7 @@ PipelineHandle RenderBackendVK::alloc_pipeline(
     return this->pipelines.insert(pipeline);
 }
 
-void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
-                                         bool is_swapchain) {
+void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target) {
     VkSubpassDescription subpass{};
     std::vector<VkAttachmentDescription> allAttachments;
     std::vector<VkAttachmentReference> colorRefs;
@@ -1416,6 +1418,7 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
         return;
     }
     render_target->dirty = false;
+    bool is_swapchain = render_target->is_swapchain;
 
     if (render_target->render_pass_cache != nullptr) {
         this->destroy_list.push_back(
@@ -1430,8 +1433,9 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
         VkAttachmentDescription colorAttachment{};
         colorAttachment.format = attachment.image_format;
         colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        colorAttachment.loadOp = is_swapchain ? VK_ATTACHMENT_LOAD_OP_CLEAR
-                                              : VK_ATTACHMENT_LOAD_OP_LOAD;
+        colorAttachment.loadOp = (render_target->clear_flag & CLEAR_COLOR)
+                                     ? VK_ATTACHMENT_LOAD_OP_CLEAR
+                                     : VK_ATTACHMENT_LOAD_OP_LOAD;
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         colorAttachment.initialLayout =
             is_swapchain ? VK_IMAGE_LAYOUT_UNDEFINED
@@ -1464,10 +1468,14 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target,
         VkAttachmentDescription depthAttachment{};
         depthAttachment.format = render_target->depth_attachment.image_format;
         depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachment.loadOp = is_swapchain ? VK_ATTACHMENT_LOAD_OP_CLEAR
-                                              : VK_ATTACHMENT_LOAD_OP_LOAD;
+        depthAttachment.loadOp = (render_target->clear_flag & CLEAR_DEPTH)
+                                     ? VK_ATTACHMENT_LOAD_OP_CLEAR
+                                     : VK_ATTACHMENT_LOAD_OP_LOAD;
         depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        depthAttachment.stencilLoadOp = depthAttachment.loadOp;
+        depthAttachment.stencilLoadOp =
+            (render_target->clear_flag & CLEAR_STENCIL)
+                ? VK_ATTACHMENT_LOAD_OP_CLEAR
+                : VK_ATTACHMENT_LOAD_OP_LOAD;
         depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
         depthAttachment.initialLayout =
             (render_target->depth_attachment.is_depth &&
@@ -1646,6 +1654,19 @@ VkPipeline RenderBackendVK::get_vk_pipeline(
     return vk_pipeline;
 }
 
+std::vector<VkClearValue> RenderBackendVK::get_clear_values(
+    HardwareRenderPassVk *rp) {
+    std::vector<VkClearValue> clears;
+    for (u32 i = 0; i < rp->color_attachments.size(); i++) {
+        clears.emplace_back(VkClearValue{.color = {0, 0, 0, 1}});
+    }
+    if (rp->depth_attachment.texture_handle != NULL_HANDLE) {
+        clears.emplace_back(
+            VkClearValue{.depthStencil = {.depth = 1, .stencil = 1}});
+    }
+    return clears;
+}
+
 void RenderBackendVK::handle_frame_update() {
     std::vector<VkImageMemoryBarrier> transfer_barriers;
     std::vector<VkImageMemoryBarrier> shader_barriers;
@@ -1723,7 +1744,6 @@ void RenderBackendVK::handle_frame_update() {
         static_buffer_update_queue.pop();
     }
 
-    std::vector<VmaAllocation> allocations_to_flush;
     while (!dynamic_buffer_update_queue.is_empty()) {
         DynamicBufferUpdate &copy = dynamic_buffer_update_queue.peek();
         memcpy((void *)((u64)copy.target_buffer + copy.offset), copy.data,
@@ -2295,19 +2315,19 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording command buffer!");
     }
+    /* handle copy, transition etc... */
     handle_frame_update();
 
-    const VkClearValue clears[] = {VkClearValue{.color = {0, 0, 0, 1}}};
+    HardwareRenderPassVk *rt = get_current_render_pass();
+    create_render_pass(rt);
+    create_framebuffer(rt);
+    std::vector<VkClearValue> clears = get_clear_values(rt);
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = clears;
-
-    HardwareRenderPassVk *rt = get_current_render_pass();
-    create_render_pass(rt, false);
-    create_framebuffer(rt);
+    renderPassInfo.clearValueCount = clears.size();
+    renderPassInfo.pClearValues = clears.data();
     renderPassInfo.renderPass = rt->render_pass_cache;
     renderPassInfo.framebuffer = rt->framebuffer_cache;
     renderPassInfo.renderArea.extent =
@@ -2463,30 +2483,18 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
     HardwareRenderPassVk *target_rp = nullptr;
     Handle target_rt_handle;
     std::vector<Binding> bindings;
-    VkClearRect clear_rect{};
     Frame &frame = frames[get_current_frame_index()];
-    bool clear_color = false;
+    bool change_clear = false;
+    StateClearFlag clear_flag = 0;
+    bool same_target = false;
 
     for (i32 i = 0; i < state_data->operation_cnt; i++) {
         auto *op = &head[i];
         auto type = op->type;
         switch (type) {
             case RenderStateData::OpType::CLEAR: {
-                if (op->clear_flag & CLEAR_COLOR) {
-                    clear_color = true;
-                }
-                if (op->clear_flag & CLEAR_DEPTH) {
-                    attachments.emplace_back(VkClearAttachment{
-                        .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-                        .clearValue =
-                            VkClearValue{.depthStencil = {.depth = 1}}});
-                }
-                if (op->clear_flag & CLEAR_STENCIL) {
-                    attachments.emplace_back(VkClearAttachment{
-                        .aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT,
-                        .clearValue =
-                            VkClearValue{.depthStencil = {.stencil = 1}}});
-                }
+                change_clear = true;
+                clear_flag = op->clear_flag;
                 break;
             }
             case RenderStateData::OpType::VIEWPORT: {
@@ -2509,6 +2517,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
             }
             case RenderStateData::OpType::BIND_RENDER_TARGET: {
                 if (current_render_target == op->render_pass_handle) {
+                    same_target = true;
                     break;
                 }
                 if (op->render_pass_handle == -1) {
@@ -2561,18 +2570,22 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
         transition_render_pass(get_current_render_pass(), false);
         current_render_target = target_rt_handle;
         transition_render_pass(get_current_render_pass(), true);
-        create_render_pass(target_rp, false);
+        if (change_clear && target_rp->clear_flag != clear_flag) {
+            target_rp->clear_flag = clear_flag;
+            target_rp->dirty = true;
+        }
+        create_render_pass(target_rp);
         create_framebuffer(target_rp);
         /* begin new render pass*/
-        const VkClearValue clears[] = {VkClearValue{.color = {0, 0, 0, 1}}};
+        std::vector<VkClearValue> clears = get_clear_values(target_rp);
 
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass = target_rp->render_pass_cache;
         renderPassInfo.framebuffer = target_rp->framebuffer_cache;
         renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = clears;
+        renderPassInfo.clearValueCount = clears.size();
+        renderPassInfo.pClearValues = clears.data();
         renderPassInfo.renderArea.extent =
             VkExtent2D{.width = target_rp->w, .height = target_rp->h};
 
@@ -2581,6 +2594,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
     }
     HardwareRenderPassVk *rt = get_current_render_pass();
 
+    VkClearRect clear_rect{};
     clear_rect.rect.extent.width = rt->w;
     clear_rect.rect.extent.height = rt->h;
     clear_rect.baseArrayLayer = 0;
@@ -2596,18 +2610,33 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
         }
         vkCmdSetViewport(frame.render_cmd_buffer, 0, 1, &viewport_rect);
     }
-    if (clear_color) {
-        for (u32 i = 0; i < rt->color_attachments.size(); i++) {
-            attachments.emplace_back(VkClearAttachment{
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .colorAttachment = i,
-                .clearValue = VkClearValue{.color = {0, 0, 0, 1}}});
+
+    /* only when not changing render pass, we use clear command */
+    /* if same render target, then it shouldn't clear again */
+    if (!same_target && clear_flag != 0 && target_rp == nullptr) {
+        if (clear_flag & CLEAR_COLOR) {
+            for (u32 i = 0; i < rt->color_attachments.size(); i++) {
+                attachments.emplace_back(VkClearAttachment{
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .colorAttachment = i,
+                    .clearValue = VkClearValue{.color = {0, 0, 0, 1}}});
+            }
         }
-    }
-    if (!attachments.empty() && clear_rect.rect.extent.width > 0 &&
-        clear_rect.rect.extent.height > 0) {
-        vkCmdClearAttachments(frame.render_cmd_buffer, attachments.size(),
-                              attachments.data(), 1, &clear_rect);
+        if (clear_flag & CLEAR_DEPTH) {
+            attachments.emplace_back(VkClearAttachment{
+                .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+                .clearValue = VkClearValue{.depthStencil = {.depth = 1}}});
+        }
+        if (clear_flag & CLEAR_STENCIL) {
+            attachments.emplace_back(VkClearAttachment{
+                .aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT,
+                .clearValue = VkClearValue{.depthStencil = {.stencil = 1}}});
+        }
+        if (clear_rect.rect.extent.width > 0 &&
+            clear_rect.rect.extent.height > 0) {
+            vkCmdClearAttachments(frame.render_cmd_buffer, attachments.size(),
+                                  attachments.data(), 1, &clear_rect);
+        }
     }
 }
 

@@ -93,6 +93,7 @@ struct HardwareRenderPassVk {
         bool dirty = true;
         bool texture_changed = true;
         bool is_swapchain = false;
+        StateClearFlag clear_flag = 0;
         u32 w, h;
         VkRenderPass render_pass_cache = nullptr;
         VkFramebuffer framebuffer_cache = nullptr;
@@ -257,6 +258,7 @@ class RenderBackendVK : public RenderBackend {
         VkImageMemoryBarrier create_image_barrier(HardwareTextureVk *texture,
                                                   VkImageLayout target_layout,
                                                   u32 layer);
+        std::vector<VkClearValue> get_clear_values(HardwareRenderPassVk *rp);
 
         /* create on flight */
 
@@ -276,8 +278,7 @@ class RenderBackendVK : public RenderBackend {
                                    VkPrimitiveTopology primitive,
                                    VkSampleCountFlagBits sample_count,
                                    bool draw_depth_only, bool depth_clamp);
-        void create_render_pass(HardwareRenderPassVk *render_target,
-                                bool is_swapchain);
+        void create_render_pass(HardwareRenderPassVk *render_target);
         void create_framebuffer(HardwareRenderPassVk *render_target);
         HardwareRenderPassVk *get_current_render_pass();
 

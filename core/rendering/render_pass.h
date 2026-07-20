@@ -19,7 +19,7 @@ class RenderPass {
     protected:
         RenderPassHandle handle;
         Viewport viewport;
-        u32 clear_flag = 0;
+        StateClearFlag clear_flag = CLEAR_COLOR | CLEAR_DEPTH | CLEAR_STENCIL;
         std::string name;
         /* if there is no attachment, we use swap chain as attachment */
         std::vector<Attachment> color_attachments;
@@ -34,7 +34,7 @@ class RenderPass {
             this->viewport = viewport;
         }
         void set_name(const std::string &name) { this->name = name; }
-        void set_clear_flag(u32 flag) { this->clear_flag = flag; }
+        void set_clear_flag(StateClearFlag clear_flag) { this->clear_flag = clear_flag; }
         void bind_color_attachment(Ref<Texture> texture, u32 layer, u8 slot) {
             for (Attachment &attachment : color_attachments) {
                 if (attachment.slot == slot) {
@@ -55,7 +55,7 @@ class RenderPass {
             this->depth_stencil_attachment.texture_layer = layer;
             RHI::bind_depth_attachment(handle, texture->get_handle(), layer);
         }
-        void set_renderpass(RenderPass<T> &render_pass){
+        void set_renderpass(RenderPass<T> &render_pass) {
             this->viewport = render_pass.viewport;
             this->handle = render_pass.handle;
         }
