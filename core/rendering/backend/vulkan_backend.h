@@ -3,101 +3,11 @@
 #include "render_backend.h"
 #include "core/window.h"
 #include "core/handle.h"
-#include "core/rendering/render_common.h"
-#define VK_NO_PROTOTYPES
-#include <vulkan/vulkan_core.h>
-#define VMA_STATIC_VULKAN_FUNCTIONS 0
-#define VMA_DYNAMIC_VULKAN_FUNCTIONS 0
-#ifdef __APPLE__
-#include <vk_mem_alloc.h>
-#else
-#include <vma/vk_mem_alloc.h>
-#endif
+#include "core/rendering/backend/vulkan_common.h"
 #include "core/container/ring_buffer.h"
 #include <list>
 
 namespace Seed {
-
-struct HardwareBufferVk {
-        VkBufferUsageFlags usage;
-        VkBuffer buffer;
-        VmaAllocation memory;
-        UpdateFrequence frequence;
-        u32 current = 0;
-        u32 head = 0;
-        u32 tail = 0;
-        u64 size;
-        void *mapped_ptr = nullptr;
-};
-
-struct HardwareIndexVk : public HardwareBufferVk {
-        IndexType type;
-};
-
-struct HardwareTextureVk {
-        u32 w, h;
-        TextureType type;
-        PixelFormat format;
-        VkImage image;
-        VkImageView view;
-        VkSampler sampler;
-        VmaAllocation memory;
-        VkSampleCountFlagBits sample_count;
-        VkImage msaa_image;
-        VkImageView msaa_view;
-        VmaAllocation msaa_memory;
-        VkImageLayout msaa_layout;
-        std::vector<VkImageLayout> layouts;
-        void *mapped_ptr = nullptr;
-};
-
-struct DescriptorSetLayout {
-        VkDescriptorSetLayout vk_layout;
-        ShaderBindingSet set;
-};
-
-struct HardwareShaderVk {
-        KString vertex_src;
-        KString geo_src;
-        KString tess_ctrl_src;
-        KString tess_eval_src;
-        KString fragment_src;
-        std::vector<DescriptorSetLayout *> set_layouts;
-        VkPipelineLayout layout;
-};
-
-struct HardwarePipelineVk {
-        ShaderHandle shader;
-        RenderRasterizerState rst_state;
-        RenderDepthStencilState depth_state;
-        RenderBlendState blend_attachment;
-};
-
-struct HardwareDepthStencilAttachmentVk {
-        bool is_depth;
-        bool is_stencil;
-        VkFormat image_format;
-        TextureHandle texture_handle = NULL_HANDLE;
-};
-
-struct HardwareColorAttachmentVk {
-        u8 slot;
-        VkFormat image_format;
-        TextureHandle texture_handle = NULL_HANDLE;
-};
-
-struct HardwareRenderPassVk {
-        std::vector<HardwareColorAttachmentVk> color_attachments;
-        HardwareDepthStencilAttachmentVk depth_attachment;
-        VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
-        bool dirty = true;
-        bool texture_changed = true;
-        bool is_swapchain = false;
-        StateClearFlag clear_flag = 0;
-        u32 w, h;
-        VkRenderPass render_pass_cache = nullptr;
-        VkFramebuffer framebuffer_cache = nullptr;
-};
 
 class RenderBackendVK : public RenderBackend {
     protected:
@@ -194,6 +104,12 @@ class RenderBackendVK : public RenderBackend {
                 u32 w, h;
         };
 
+        struct ImageBlit {
+                TextureHandle dst, src;
+                u32 dst_layer, src_layer;
+                Rect dst_region, src_region;
+        };
+
         struct Binding {
                 RenderResourceType type;
                 Handle handle;
@@ -207,6 +123,7 @@ class RenderBackendVK : public RenderBackend {
         RingBuffer<DynamicBufferUpdate> dynamic_buffer_update_queue;
 
         RingBuffer<ImageUpdate> image_copy_queue;
+        RingBuffer<ImageBlit> image_blit_queue;
         /* handle & face */
         RingBuffer<std::pair<TextureHandle, u32>> image_transition_queue;
 
@@ -262,7 +179,9 @@ class RenderBackendVK : public RenderBackend {
 
         /* create on flight */
 
-        void handle_frame_update();
+        void handle_frame_begin();
+        void handle_frame_end();
+
         void handle_destroy();
         void transition_render_pass(HardwareRenderPassVk *rt,
                                     bool to_attachment);
@@ -351,8 +270,9 @@ class RenderBackendVK : public RenderBackend {
             const RenderBlendState &blend_state) override;
 
         RenderPassHandle alloc_render_pass() override;
-        void copy_texture(TextureHandle dst, u32 dst_layer, TextureHandle src,
-                          u32 src_layer) override;
+        void blit_texture(TextureHandle dst, TextureHandle src, u32 dst_layer,
+                          u32 src_layer, const Rect &dst_region,
+                          const Rect &src_region) override;
 
         /* We'll use different method for updating different type of buffer */
         /* for STATIC we create a staging buffer to transfer */

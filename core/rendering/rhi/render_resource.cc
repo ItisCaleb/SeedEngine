@@ -70,6 +70,17 @@ void query_texture_size(TextureHandle handle, u32 *w, u32 *h) {
                                                                    h);
 }
 
+void blit_texture(TextureHandle dst, TextureHandle src, u32 dst_layer,
+                  u32 src_layer, const Rect &dst_region,
+                  const Rect &src_region) {
+    if (dst == src && dst_layer == src_layer) {
+        SEED_WARN("Blitting to same image with same layer, skipping.");
+        return;
+    }
+    RenderEngine::get_instance()->get_device()->blit_texture(
+        dst, src, dst_layer, src_layer, dst_region, src_region);
+}
+
 SSBOHandle alloc_storage_buffer(u32 size, UpdateFrequence frequence,
                                 void *data) {
     return RenderEngine::get_instance()->get_device()->alloc_storage_buffer(

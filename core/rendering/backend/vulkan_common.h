@@ -1,11 +1,99 @@
-#ifndef _SEED_VULKAN_HELPER_H_
-#define _SEED_VULKAN_HELPER_H_
+#ifndef _SEED_VULKAN_COMMON_H_
+#define _SEED_VULKAN_COMMON_H_
 #include "core/rendering/shader_layout.h"
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
+#define VMA_STATIC_VULKAN_FUNCTIONS 0
+#define VMA_DYNAMIC_VULKAN_FUNCTIONS 0
+#ifdef __APPLE__
+#include <vk_mem_alloc.h>
+#else
+#include <vma/vk_mem_alloc.h>
+#endif
 #include "core/rendering/render_common.h"
 
 namespace Seed {
+struct HardwareBufferVk {
+        VkBufferUsageFlags usage;
+        VkBuffer buffer;
+        VmaAllocation memory;
+        UpdateFrequence frequence;
+        u32 current = 0;
+        u32 head = 0;
+        u32 tail = 0;
+        u64 size;
+        void *mapped_ptr = nullptr;
+};
+
+struct HardwareIndexVk : public HardwareBufferVk {
+        IndexType type;
+};
+
+struct HardwareTextureVk {
+        u32 w, h;
+        TextureType type;
+        PixelFormat format;
+        VkImage image;
+        VkImageView view;
+        VkSampler sampler;
+        VmaAllocation memory;
+        VkSampleCountFlagBits sample_count;
+        VkImage msaa_image;
+        VkImageView msaa_view;
+        VmaAllocation msaa_memory;
+        VkImageLayout msaa_layout;
+        std::vector<VkImageLayout> layouts;
+        void *mapped_ptr = nullptr;
+};
+
+struct DescriptorSetLayout {
+        VkDescriptorSetLayout vk_layout;
+        ShaderBindingSet set;
+};
+
+struct HardwareShaderVk {
+        KString vertex_src;
+        KString geo_src;
+        KString tess_ctrl_src;
+        KString tess_eval_src;
+        KString fragment_src;
+        std::vector<DescriptorSetLayout *> set_layouts;
+        VkPipelineLayout layout;
+};
+
+struct HardwarePipelineVk {
+        ShaderHandle shader;
+        RenderRasterizerState rst_state;
+        RenderDepthStencilState depth_state;
+        RenderBlendState blend_attachment;
+};
+
+struct HardwareDepthStencilAttachmentVk {
+        bool is_depth;
+        bool is_stencil;
+        VkFormat image_format;
+        TextureHandle texture_handle = NULL_HANDLE;
+};
+
+struct HardwareColorAttachmentVk {
+        u8 slot;
+        VkFormat image_format;
+        TextureHandle texture_handle = NULL_HANDLE;
+};
+
+struct HardwareRenderPassVk {
+        std::vector<HardwareColorAttachmentVk> color_attachments;
+        HardwareDepthStencilAttachmentVk depth_attachment;
+        VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
+        bool dirty = true;
+        bool texture_changed = true;
+        bool is_swapchain = false;
+        StateClearFlag clear_flag = 0;
+        u32 w, h;
+        VkRenderPass render_pass_cache = nullptr;
+        VkFramebuffer framebuffer_cache = nullptr;
+};
+
 class VulkanHelper {
     private:
         inline static VkCullModeFlags cull_mode[] = {
@@ -348,6 +436,8 @@ class VulkanHelper {
                     return 0;
                 case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
                     return VK_ACCESS_TRANSFER_WRITE_BIT;
+                case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+                    return VK_ACCESS_TRANSFER_READ_BIT;
                 case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
                     return VK_ACCESS_SHADER_READ_BIT;
                 case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:

@@ -32,9 +32,6 @@ class WorldEditor : public RmlGUI {
         };
 
         EditorWorld *current_world = nullptr;
-        Ref<Texture> screen_texture;
-        Ref<Texture> screen_depth;
-        Ref<MappableTexture> picking_texture;
         WorldRenderer *renderer = nullptr;
         ResourceEntry *current_entry = nullptr;
         u32 texture_width = 1024;

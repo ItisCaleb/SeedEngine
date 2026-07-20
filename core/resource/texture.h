@@ -29,6 +29,7 @@ class Texture : public Resource {
 
         void update(const u8 *data, u32 w, u32 h);
         void update_sampler(const SamplerProperty &property);
+        void blit_to(Ref<Texture> dst);
 
         Texture(TextureType type, u32 w, u32 h, PixelFormat format);
         Texture(TextureType type, u32 w, u32 h, PixelFormat format,

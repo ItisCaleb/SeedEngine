@@ -50,16 +50,8 @@ bool WorldEditor::load_world(const UUID uuid) {
 }
 
 void WorldEditor::init() {
-    screen_texture.create(TextureType::TEXTURE_2D, texture_width,
-                          texture_height, PixelFormat::RGBA, nullptr);
-    screen_depth.create(TextureType::TEXTURE_2D, texture_width, texture_height,
-                        PixelFormat::D32, nullptr);
-    picking_texture.create(TextureType::TEXTURE_2D, texture_width,
-                           texture_height, PixelFormat::RGBA, nullptr);
-
-    renderer = new WorldRenderer(screen_texture, screen_depth,
-                                 ref_cast<Texture>(picking_texture));
-    GuiEngine::get_instance()->add_texture("main_view", screen_texture);
+    renderer = new WorldRenderer(texture_width, texture_height);
+    GuiEngine::get_instance()->add_texture("main_view", renderer->get_screen_texture());
     RenderEngine::get_instance()->register_renderer(1, renderer);
 }
 
@@ -316,6 +308,7 @@ bool WorldEditor::viewport_event_to_pixel(Rml::Event &event, i32 &image_x,
 
 bool WorldEditor::pick_world_at_pixel(i32 image_x, i32 image_y, i32 &world_x,
                                       i32 &world_y) const {
+    Ref<MappableTexture> picking_texture = renderer->get_picking_texture();
     if (picking_texture.is_null()) return false;
     if (image_x < 0 || image_y < 0 || image_x >= (i32)texture_width ||
         image_y >= (i32)texture_height) {

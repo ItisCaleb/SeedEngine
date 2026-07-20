@@ -35,7 +35,7 @@ struct AABB {
 };
 
 struct Rect {
-        u32 x, y, w, h;
+        i32 x, y, w, h;
 };
 
 struct RectF {

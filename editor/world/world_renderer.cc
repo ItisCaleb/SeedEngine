@@ -7,25 +7,31 @@
 #include "core/rendering/rhi/render_engine.h"
 
 namespace Seed {
-WorldRenderer::WorldRenderer(Ref<Texture> screen_texture,
-                             Ref<Texture> screen_depth,
-                             Ref<Texture> picking_texture) {
-    this->screen_tex = screen_texture;
-    this->screen_depth = screen_depth;
-    this->picking_tex = picking_texture;
+WorldRenderer::WorldRenderer(u32 screen_w, u32 screen_h) {
+    screen_tex.create(TextureType::TEXTURE_2D, screen_w, screen_h,
+                      PixelFormat::RGBA, nullptr);
+    screen_depth.create(TextureType::TEXTURE_2D, screen_w, screen_h,
+                        PixelFormat::D32, nullptr);
+    readback_tex.create(TextureType::TEXTURE_2D, screen_w, screen_h,
+                        PixelFormat::RGBA16I, nullptr);
+    picking_tex.create(TextureType::TEXTURE_2D, screen_w, screen_h,
+                       PixelFormat::RGBA16I, nullptr);
 }
 
-void WorldRenderer::rebind_textures(Ref<Texture> screen_texture,
-                                    Ref<Texture> screen_depth,
-                                    Ref<Texture> picking_texture) {
-    this->screen_tex = screen_texture;
-    this->screen_depth = screen_depth;
-    this->picking_tex = picking_texture;
-    color_pass.setup(screen_tex, screen_depth, picking_tex);
+void WorldRenderer::reset_size(u32 screen_w, u32 screen_h) {
+    screen_tex.create(TextureType::TEXTURE_2D, screen_w, screen_h,
+                      PixelFormat::RGBA, nullptr);
+    screen_depth.create(TextureType::TEXTURE_2D, screen_w, screen_h,
+                        PixelFormat::D32, nullptr);
+    readback_tex.create(TextureType::TEXTURE_2D, screen_w, screen_h,
+                        PixelFormat::RGBA16I, nullptr);
+    picking_tex.create(TextureType::TEXTURE_2D, screen_w, screen_h,
+                       PixelFormat::RGBA16I, nullptr);
+    color_pass.setup(screen_tex, screen_depth, readback_tex);
 }
 
 void WorldRenderer::init(Window *window) {
-    color_pass.setup(screen_tex, screen_depth, picking_tex);
+    color_pass.setup(screen_tex, screen_depth, readback_tex);
 }
 void WorldRenderer::preprocess() {
     fd = {};
@@ -67,9 +73,8 @@ void WorldRenderer::preprocess() {
     if (!fd.mesh.is_null() && !terrain_instance.is_null() &&
         terrain_instance->size() > 0) {
         terrain_instance->upload();
-        terrain_instance->frustum_culling(cam_frustum,
-                                          fd.mesh->get_bounding_box(),
-                                          visible_instances, depth);
+        terrain_instance->frustum_culling(
+            cam_frustum, fd.mesh->get_bounding_box(), visible_instances, depth);
         fd.visible_size = visible_instances.size();
     }
 
@@ -84,9 +89,9 @@ void WorldRenderer::preprocess() {
             FrameData::StaticMesh static_mesh;
             static_mesh.mesh = mesh;
             static_mesh.visible_offset = visible_instances.size();
-            static_model.instance->frustum_culling(
-                cam_frustum, mesh->get_bounding_box(), visible_instances,
-                depth);
+            static_model.instance->frustum_culling(cam_frustum,
+                                                   mesh->get_bounding_box(),
+                                                   visible_instances, depth);
             static_mesh.visible_size =
                 visible_instances.size() - static_mesh.visible_offset;
             if (static_mesh.visible_size > 0) {
@@ -102,6 +107,7 @@ void WorldRenderer::preprocess() {
 }
 void WorldRenderer::_process(RenderCommandDispatcher &dp) {
     color_pass.draw(dp, fd);
+    readback_tex->blit_to(ref_cast<Texture>(picking_tex));
 }
 void WorldRenderer::cleanup() {}
 
@@ -112,6 +118,7 @@ void WorldRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
         RenderDrawDataBuilder mesh_builder = dp.generate_render_data(material);
         u32 visible_offset = 0;
         mesh_builder.push_constant(sizeof(u32), &visible_offset);
+        mesh_builder.push_constant(0);
         mesh_builder.bind_vertex_data(fd.mesh->vertex_data);
         mesh_builder.set_instance(fd.visible_size);
         mesh_builder.bind_index_data(fd.mesh->lod_indices[0]);

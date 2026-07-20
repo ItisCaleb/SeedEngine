@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <vector>
 #include <set>
-#include "core/rendering/backend/vulkan_helper.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_resource.h"
 #define VOLK_IMPLEMENTATION
@@ -951,7 +950,7 @@ TextureHandle RenderBackendVK::create_texture(TextureType type, u32 w, u32 h,
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT |
                       VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                      VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+                      VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     if (is_stencil || is_depth) {
         imageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
@@ -1667,7 +1666,7 @@ std::vector<VkClearValue> RenderBackendVK::get_clear_values(
     return clears;
 }
 
-void RenderBackendVK::handle_frame_update() {
+void RenderBackendVK::handle_frame_begin() {
     std::vector<VkImageMemoryBarrier> transfer_barriers;
     std::vector<VkImageMemoryBarrier> shader_barriers;
     std::vector<VkBufferMemoryBarrier> buffer_barriers;
@@ -1712,7 +1711,7 @@ void RenderBackendVK::handle_frame_update() {
     }
 
     vkCmdPipelineBarrier(
-        frame.render_cmd_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        frame.render_cmd_buffer, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr,
         transfer_barriers.size(), transfer_barriers.data());
 
@@ -1787,6 +1786,103 @@ void RenderBackendVK::handle_frame_update() {
                          VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr,
                          buffer_barriers.size(), buffer_barriers.data(),
                          shader_barriers.size(), shader_barriers.data());
+}
+
+void RenderBackendVK::handle_frame_end() {
+    std::vector<VkImageMemoryBarrier> transfer_barriers;
+    std::vector<VkImageMemoryBarrier> shader_barriers;
+
+    Frame &frame = frames[get_current_frame_index()];
+    transfer_barriers.reserve(image_blit_queue.size());
+    shader_barriers.reserve(image_blit_queue.size() +
+                            image_transition_queue.size());
+
+    std::set<std::pair<u32, u32>> blited;
+    for (auto it = image_blit_queue.rbegin(); it != image_blit_queue.rend();
+         ++it) {
+        ImageBlit &blit = *it;
+        /* make sure only copy once every frame */
+        if (blited.count({blit.dst, blit.dst_layer}) > 0) {
+            blit.dst = NULL_HANDLE;
+            continue;
+        };
+        blited.insert({blit.dst, blit.dst_layer});
+        VkImageMemoryBarrier barrier{};
+        HardwareTextureVk *dst = this->textures.get_or_null(blit.dst);
+        if (!dst) {
+            continue;
+        }
+        barrier = create_image_barrier(
+            dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, blit.dst_layer);
+        transfer_barriers.push_back(barrier);
+
+        barrier = create_image_barrier(
+            dst, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, blit.dst_layer);
+        shader_barriers.push_back(barrier);
+    }
+    for (auto it = image_blit_queue.rbegin(); it != image_blit_queue.rend();
+         ++it) {
+        ImageBlit &blit = *it;
+        /* we only need to transition once for source */
+        if (blited.count({blit.src, blit.src_layer}) > 0) {
+            continue;
+        };
+        blited.insert({blit.src, blit.src_layer});
+        VkImageMemoryBarrier barrier{};
+        HardwareTextureVk *src = this->textures.get_or_null(blit.src);
+        if (!src) {
+            continue;
+        }
+        barrier = create_image_barrier(
+            src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, blit.src_layer);
+        transfer_barriers.push_back(barrier);
+
+        barrier = create_image_barrier(
+            src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, blit.src_layer);
+        shader_barriers.push_back(barrier);
+    }
+
+    vkCmdPipelineBarrier(
+        frame.render_cmd_buffer, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr,
+        transfer_barriers.size(), transfer_barriers.data());
+
+    while (!image_blit_queue.is_empty()) {
+        ImageBlit &blit = image_blit_queue.peek();
+        HardwareTextureVk *dst = this->textures.get_or_null(blit.dst);
+        HardwareTextureVk *src = this->textures.get_or_null(blit.src);
+        if (dst && src) {
+            VkImageBlit image_blit{};
+            image_blit.dstOffsets[0] = {blit.dst_region.x, blit.dst_region.y,
+                                        0};
+            image_blit.dstOffsets[1] = {blit.dst_region.w, blit.dst_region.h,
+                                        1};
+            image_blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            image_blit.dstSubresource.mipLevel = 0;
+            image_blit.dstSubresource.baseArrayLayer = blit.dst_layer;
+            image_blit.dstSubresource.layerCount = 1;
+            image_blit.srcOffsets[0] = {blit.src_region.x, blit.src_region.y,
+                                        0};
+            image_blit.srcOffsets[1] = {blit.src_region.w, blit.src_region.h,
+                                        1};
+            image_blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            image_blit.srcSubresource.mipLevel = 0;
+            image_blit.srcSubresource.baseArrayLayer = blit.src_layer;
+            image_blit.srcSubresource.layerCount = 1;
+            VkFilter filter = src->format != PixelFormat::RGBA
+                                  ? VK_FILTER_NEAREST
+                                  : VK_FILTER_LINEAR;
+            vkCmdBlitImage(frame.render_cmd_buffer, src->image,
+                           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst->image,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &image_blit,
+                           filter);
+        }
+        image_blit_queue.pop();
+    }
+    vkCmdPipelineBarrier(
+        frame.render_cmd_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 0, nullptr,
+        shader_barriers.size(), shader_barriers.data());
 }
 
 void RenderBackendVK::handle_destroy() {
@@ -2085,8 +2181,17 @@ RenderPassHandle RenderBackendVK::alloc_render_pass() {
     return this->render_pass.insert({});
 }
 
-void RenderBackendVK::copy_texture(TextureHandle dst, u32 dst_layer,
-                                   TextureHandle src, u32 src_layer) {}
+void RenderBackendVK::blit_texture(TextureHandle dst, TextureHandle src,
+                                   u32 dst_layer, u32 src_layer,
+                                   const Rect &dst_region,
+                                   const Rect &src_region) {
+    this->image_blit_queue.push({.dst = dst,
+                                 .src = src,
+                                 .dst_layer = dst_layer,
+                                 .src_layer = src_layer,
+                                 .dst_region = dst_region,
+                                 .src_region = src_region});
+}
 
 void RenderBackendVK::update(RenderResourceType type, Handle handle, u32 offset,
                              u32 size, void *data) {
@@ -2316,7 +2421,7 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         throw std::runtime_error("failed to begin recording command buffer!");
     }
     /* handle copy, transition etc... */
-    handle_frame_update();
+    handle_frame_begin();
 
     HardwareRenderPassVk *rt = get_current_render_pass();
     create_render_pass(rt);
@@ -2367,6 +2472,7 @@ void RenderBackendVK::process_commands(std::deque<RenderCommand> &cmd_queue) {
         false);
 
     vkCmdEndRenderPass(frame.render_cmd_buffer);
+    handle_frame_end();
     vkEndCommandBuffer(frame.render_cmd_buffer);
 
     VkSubmitInfo submitInfo{};

@@ -7,6 +7,7 @@
 #include "core/rendering/render_common.h"
 #include "core/handle.h"
 #include "core/rendering/shader_layout.h"
+#include "core/collision/shape.h"
 
 namespace Seed {
 
@@ -83,6 +84,11 @@ TextureHandle alloc_mappable_texture(TextureType type, u32 w, u32 h,
                                      PixelFormat format, const void *data,
                                      const SamplerProperty &property);
 void query_texture_size(TextureHandle handle, u32 *w, u32 *h);
+
+/* blit texture at frame end*/
+void blit_texture(TextureHandle dst, TextureHandle src, u32 dst_layer,
+                  u32 src_layer, const Rect &dst_region,
+                  const Rect &src_region);
 
 [[nodiscard]]
 ShaderHandle alloc_shader(const Path &path, const KString &code,

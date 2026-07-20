@@ -43,6 +43,12 @@ void Texture::update_sampler(const SamplerProperty &property) {
     this->property = property;
     RHI::update_texture_sampler(handle, 0, property);
 }
+void Texture::blit_to(Ref<Texture> dst) {
+    RHI::blit_texture(dst->get_handle(), handle, 0, 0,
+                      Rect{0, 0, (i32)dst->get_width(), (i32)dst->get_height()},
+                      Rect{0, 0, (i32)w, (i32)h});
+}
+
 Texture::~Texture() { RHI::dealloc(handle); }
 
 MappableTexture::MappableTexture(TextureType type, u32 w, u32 h,
