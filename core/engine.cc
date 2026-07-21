@@ -83,9 +83,6 @@ void SeedEngine::start() {
     Profiler *profiler = Profiler::get_instance();
     while (!glfwWindowShouldClose(glfw_window)) {
         f64 start = glfwGetTime();
-        if (input->is_key_pressed(KeyCode::Q)) {
-            break;
-        }
 
         input_handler.update();
         glfwPollEvents();

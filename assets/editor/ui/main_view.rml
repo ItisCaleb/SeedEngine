@@ -7,18 +7,19 @@
     <body>
         <div id="viewport-panel" class="panel" data-model="world_editor">
             <div class="viewport-toolbar">
-                <div class="viewport-label">{{ mode }}</div>
+                <div class="viewport-label">{{ editor_mode }}</div>
                 <div class="toolbar-spacer"></div>
                 <button class="small-button" id="camera-mode">Flycam</button>
                 <button class="small-button" id="view-mode">Lit</button>
             </div>
 
-            <div id="viewport" data-event-hover="viewport_pick">
+            <div id="viewport" data-event-hover="viewport_pick"
+                data-event-mousescroll="viewport_scroll">
                 <img id="viewport-image" src="internal://main_view" />
                 <div id="viewport-empty" data-if="show_viewport_empty">
                     <div class="viewport-message">{{ viewport_message }}</div>
                 </div>
-                <div id="pick-readout" data-if="terrain_mode">
+                <div id="pick-readout" data-if="editor_mode == 'Terrain'">
                     <span>World</span>
                     <span>{{ world_text }}</span>
                 </div>

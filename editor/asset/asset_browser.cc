@@ -24,6 +24,7 @@
 #include "editor/project/preprocessor.h"
 #include "core/gui/rml_widgets.h"
 #include "core/input.h"
+#include "core/gui/gui_engine.h"
 
 namespace Seed {
 
@@ -115,6 +116,14 @@ const char *AssetBrowser::asset_type_name(AssetType t) {
             return "file";
     }
 }
+AssetBrowser::AssetBrowser() {
+    Ref<Image> default_preview;
+    default_preview.create(PixelFormat::RGBA, 48, 48);
+    default_preview->fill(Color{128, 128, 128, 255}, 48, 48);
+    GuiEngine::get_instance()->add_texture("preview-default",
+                                           default_preview->create_texture());
+}
+
 void AssetBrowser::init(KStr project_root) {
     root_dir = Dir::open(project_root);
     current_dir = Dir::open(project_root);
@@ -168,6 +177,7 @@ void AssetBrowser::refresh() {
 
     for (auto &d : dirs)
         entries.push_back(AssetEntry{
+            .uuid = UUID{},
             .path = std::move(d),
             .type = AssetType::Directory,
         });
@@ -177,7 +187,7 @@ void AssetBrowser::refresh() {
             .path = std::move(f),
             .type = type,
         };
-        if (entry.type == AssetType::Texture) request_texture_thumbnail(entry);
+        entry.uuid = get_asset_uuid(entry);
         entries.push_back(std::move(entry));
     }
 
@@ -225,6 +235,7 @@ void AssetBrowser::sync_view_model() {
         if (!matches_search(entry.path, filter)) continue;
 
         asset_items.push_back(AssetItemView{
+            .uuid = entry.uuid,
             .name = fit_asset_label(entry.path.filename()),
             .type = asset_type_name(entry.type),
             .icon = asset_type_icon(entry.type),
@@ -248,111 +259,6 @@ static void dirty_world_create_model(Rml::DataModelHandle model) {
     model.DirtyVariable("path");
     model.DirtyVariable("error");
     model.DirtyVariable("has_error");
-}
-
-void AssetBrowser::request_texture_thumbnail(AssetEntry &entry) {
-    if (entry.thumbnail_requested || entry.thumbnail_failed ||
-        !entry.thumbnail_texture.is_null())
-        return;
-
-    constexpr u32 max_preview_edge = 96;
-    entry.thumbnail_requested = true;
-
-    struct ThumbnailRequest {
-            AssetBrowser *browser;
-            Path path;
-    };
-
-    ThreadPool *pool = ThreadPool::get_instance();
-    if (pool == nullptr) {
-        Ref<Image> original = Image::load_from_file(entry.path, true);
-        if (original.is_null()) {
-            entry.thumbnail_failed = true;
-            entry.thumbnail_requested = false;
-            return;
-        }
-
-        Ref<Image> preview =
-            original->downscale(max_preview_edge, max_preview_edge);
-        entry.texture_width = original->get_width();
-        entry.texture_height = original->get_height();
-        entry.thumbnail_texture = preview->create_texture(
-            SamplerProperty{.min_filter = SamplerFilter::LINEAR,
-                            .mag_filter = SamplerFilter::LINEAR,
-                            .wrap_u = SamplerWrap::CLAMP_TO_EDGE,
-                            .wrap_v = SamplerWrap::CLAMP_TO_EDGE});
-        return;
-    }
-
-    ThumbnailRequest *request = new ThumbnailRequest{this, entry.path};
-    pool->add_work(
-        [](void *data) {
-            ThumbnailRequest *request = (ThumbnailRequest *)data;
-            ThumbnailResult result;
-            result.path = request->path;
-
-            Ref<Image> original = Image::load_from_file(request->path, true);
-            if (original.is_null()) {
-                result.failed = true;
-            } else {
-                result.source_width = original->get_width();
-                result.source_height = original->get_height();
-                result.image =
-                    original->downscale(max_preview_edge, max_preview_edge);
-                result.failed = result.image.is_null();
-            }
-
-            request->browser->queue_thumbnail_result(std::move(result));
-            delete request;
-        },
-        request);
-}
-
-void AssetBrowser::queue_thumbnail_result(ThumbnailResult result) {
-    std::lock_guard lock(thumbnail_results_mutex);
-    thumbnail_results.push_back(std::move(result));
-}
-
-bool AssetBrowser::apply_thumbnail_result(
-    std::vector<AssetEntry> &target_entries, const ThumbnailResult &result,
-    Ref<Texture> texture) {
-    for (AssetEntry &entry : target_entries) {
-        if (entry.path != result.path) continue;
-
-        entry.thumbnail_requested = false;
-        entry.thumbnail_failed = result.failed || texture.is_null();
-        entry.texture_width = result.source_width;
-        entry.texture_height = result.source_height;
-        if (!texture.is_null()) entry.thumbnail_texture = texture;
-        return true;
-    }
-    return false;
-}
-
-void AssetBrowser::process_thumbnail_results() {
-    std::vector<ThumbnailResult> results;
-    {
-        std::lock_guard lock(thumbnail_results_mutex);
-        results.swap(thumbnail_results);
-    }
-
-    SamplerProperty thumbnail_sampler{.min_filter = SamplerFilter::LINEAR,
-                                      .mag_filter = SamplerFilter::LINEAR,
-                                      .wrap_u = SamplerWrap::CLAMP_TO_EDGE,
-                                      .wrap_v = SamplerWrap::CLAMP_TO_EDGE};
-
-    for (const ThumbnailResult &result : results) {
-        Ref<Texture> texture;
-        if (!result.failed && !result.image.is_null()) {
-            texture = result.image->create_texture(thumbnail_sampler);
-        }
-
-        apply_thumbnail_result(entries, result, texture);
-
-        for (auto &[_, cached_entries] : folder_entry_cache) {
-            apply_thumbnail_result(cached_entries, result, texture);
-        }
-    }
 }
 
 std::vector<Path> AssetBrowser::list_child_directories(const Path &dir) {
@@ -471,19 +377,19 @@ UUID AssetBrowser::get_asset_uuid(AssetEntry &entry) {
     }
 }
 
-Inspectable *AssetBrowser::create_inspectable(AssetEntry &entry) {
-    ResourceEntry *rentry =
-        ResourceLoader::get_instance()->get_entries().get_entry(
-            get_asset_uuid(entry));
-    if (rentry == nullptr) return nullptr;
-    switch (entry.type) {
-        case AssetType::Mesh:
-            return new ModelInspector(rentry->config);
-        default:
-            return nullptr;
-    }
-    return nullptr;
-}
+// Inspectable *AssetBrowser::create_inspectable(AssetEntry &entry) {
+//     ResourceEntry *rentry =
+//         ResourceLoader::get_instance()->get_entries().get_entry(
+//             get_asset_uuid(entry));
+//     if (rentry == nullptr) return nullptr;
+//     switch (entry.type) {
+//         case AssetType::Mesh:
+//             return new ModelInspector(rentry->config);
+//         default:
+//             return nullptr;
+//     }
+//     return nullptr;
+// }
 
 void AssetBrowser::open_asset(AssetEntry &entry) {
     if (entry.type == AssetType::Directory) {
@@ -495,36 +401,7 @@ void AssetBrowser::open_asset(AssetEntry &entry) {
         gEditor->world_editor.load_world(get_asset_uuid(entry));
         return;
     }
-
-    gEditor->set_current_inspect(create_inspectable(entry));
 }
-
-// void AssetBrowser::handle_external_drop_target() {
-//     ImGuiWindow *window = ImGui::GetCurrentWindow();
-//     if (window == nullptr || window->SkipItems) return;
-
-//     ImRect drop_rect(window->Pos, ImVec2(window->Pos.x + window->Size.x,
-//                                          window->Pos.y + window->Size.y));
-//     if (!ImGui::BeginDragDropTargetCustom(drop_rect, window->ID)) return;
-
-//     if (auto p = ImGui::AcceptDragDropPayload("EXTERNAL")) {
-//         KStr data((char *)p->Data, (u32)p->DataSize - 1);
-//         std::vector<KStr> files = data.split("\n");
-//         Project *project = SeedEngine::get_instance()->get_project();
-//         Path target_dir =
-//             project != nullptr
-//                 ? current_dir->get_path().relative(project->get_path())
-//                 : current_dir->get_path();
-
-//         for (auto file : files) {
-//             if (file.is_empty()) continue;
-//             gEditor->import_asset(file, target_dir);
-//         }
-//         invalidate_current_folder_cache();
-//         needs_refresh = true;
-//     }
-//     ImGui::EndDragDropTarget();
-// }
 
 void AssetBrowser::begin_rename(i32 idx) {
     renaming_idx = idx;
@@ -633,6 +510,7 @@ void AssetBrowser::bind_model(Rml::Context *context) {
         item.RegisterMember("name", &AssetItemView::name);
         item.RegisterMember("type", &AssetItemView::type);
         item.RegisterMember("icon", &AssetItemView::icon);
+        item.RegisterMember("uuid", &AssetItemView::uuid);
     }
     if (auto folder = constructor.RegisterStruct<AssetFolderView>()) {
         folder.RegisterMember("name", &AssetFolderView::name);
@@ -653,9 +531,8 @@ void AssetBrowser::bind_model(Rml::Context *context) {
                                   this);
     constructor.BindEventCallback("open_menu", &AssetBrowser::rml_open_menu,
                                   this);
-    constructor.BindEventCallback("request_create_world",
-                                  &AssetBrowser::rml_request_create_world,
-                                  this);
+    constructor.BindEventCallback(
+        "request_create_world", &AssetBrowser::rml_request_create_world, this);
 
     asset_model = constructor.GetModelHandle();
     sync_view_model();
@@ -674,6 +551,7 @@ void AssetBrowser::bind_model(Rml::Context *context) {
         constructor.BindEventCallback("confirm_create_world",
                                       &AssetBrowser::rml_confirm_create_world,
                                       this);
+
         world_create_model = constructor.GetModelHandle();
         dirty_world_create_model(world_create_model);
     }

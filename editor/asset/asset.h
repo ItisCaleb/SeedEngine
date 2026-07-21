@@ -10,7 +10,6 @@
 #include "core/resource/resource_entry.h"
 #include "core/resource/texture.h"
 #include "core/types.h"
-#include "editor/gui/inspectable.h"
 namespace Seed {
 enum class AssetType {
     Unknown,
@@ -24,33 +23,14 @@ enum class AssetType {
 };
 
 struct AssetEntry {
+        UUID uuid;
         Path path;
         AssetType type;
-        Ref<Texture> thumbnail_texture;
-        u32 texture_width = 0;
-        u32 texture_height = 0;
-        bool thumbnail_requested = false;
-        bool thumbnail_failed = false;
 };
 
-class ModelInspector : public Inspectable {
-    private:
-        struct Material {
-                KString name;
-                UUID diffuse;
-                UUID specular;
-                UUID normal;
-                f32 opacity;
-        };
-
-        std::vector<Material> materials;
-
-    public:
-        ModelInspector(ResourceConfiguration &config);
-        virtual void draw_inspector() override;
-        virtual void save() override;
+class Asset{
+    static AssetType uuid_to_type(UUID uuid);
 };
-
 
 }  // namespace Seed
 

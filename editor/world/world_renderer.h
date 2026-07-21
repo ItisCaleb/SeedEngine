@@ -3,6 +3,7 @@
 #include "core/rendering/renderer/renderer.h"
 #include "core/rendering/render_pass.h"
 #include "core/rendering/mesh.h"
+#include "core/world/sky.h"
 #include <vector>
 
 namespace Seed {
@@ -16,9 +17,8 @@ class WorldRenderer : public Renderer {
                 };
 
                 Ref<Mesh> mesh;
+                Ref<Sky> sky;
                 u32 visible_size = 0;
-                u32 screen_w, screen_h;
-                u32 mouse_x, mouse_y;
                 std::vector<StaticMesh> static_meshes;
         } fd;
         Ref<MappableTexture> picking_tex;
@@ -39,7 +39,7 @@ class WorldRenderer : public Renderer {
                     this->bind_color_attachment(readback, 0, 1);
                     this->set_clear_flag(CLEAR_COLOR | CLEAR_DEPTH);
                 }
-                void execute(RenderCommandDispatcher &dp, Viewport &viewport,
+                void execute(RenderCommandDispatcher &dp, Viewport &,
                              FrameData &fd) override;
         };
 

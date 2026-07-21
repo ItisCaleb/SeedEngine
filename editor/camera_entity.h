@@ -8,9 +8,22 @@
 namespace Seed {
 
 class EditorCameraBehaviour : public Behaviour {
-        Camera *cam;
-        f32 yaw, pitch;
-        f32 speed;
+        enum class NavigationMode { None, Fly, Pan, Orbit };
+
+        Camera *cam = nullptr;
+        NavigationMode navigation_mode = NavigationMode::None;
+        Vec3 orbit_center;
+        f32 orbit_distance = 500.0f;
+        f32 yaw = 0.0f;
+        f32 pitch = 0.0f;
+        f32 speed = 1000.0f;
+        f64 last_mouse_x = 0.0;
+        f64 last_mouse_y = 0.0;
+
+        bool begin_navigation(NavigationMode mode);
+        void end_navigation();
+        void rotate(f32 delta_x, f32 delta_y);
+        void focus(Vec3 target);
 
     public:
         virtual void start() override;

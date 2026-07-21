@@ -4,14 +4,12 @@
 #include "core/container/kstring.h"
 #include "core/io/path.h"
 #include "core/resource/resource.h"
-#include "gui/inspectable.h"
-#include "gui/popup.h"
 #include "project/preprocessor.h"
 #include <nlohmann/json.hpp>
 #include "editor/world/world_editor.h"
-#include "editor/asset/asset_viewer.h"
 #include "editor/asset/asset_browser.h"
 #include <RmlUi/Core/DataModelHandle.h>
+#include "editor/gui/editor_widget.h"
 
 namespace Seed {
 class Editor : public RmlGUI {
@@ -19,18 +17,11 @@ class Editor : public RmlGUI {
         void set_last_open(const Path &path);
 
     public:
-        struct Context {
-                Inspectable *current_inspect = nullptr;
-                Popup *current_popup = nullptr;
-        } ctx;
+
         WorldEditor world_editor;
-        AssetViewer asset_viewer;
         AssetBrowser asset_browser;
         Preprocessor preprocessor;
-        Inspector inspector;
         void set_last_open_world(const UUID uuid);
-        void set_current_inspect(Inspectable *inspectable);
-        void set_current_popup(Popup *popup);
 
         ResourceTypeID extension_to_tid(KStr ext);
         void scan_assets();

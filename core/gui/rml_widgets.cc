@@ -1,5 +1,6 @@
 #include "rml_widgets.h"
 #include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/ElementDocument.h>
 #include <fmt/format.h>
 
 namespace Seed {
@@ -26,19 +27,18 @@ void RmlPopup::open(i32 x, i32 y) {
     SetProperty("left", fmt::format("{}px", x));
     SetProperty("top", fmt::format("{}px", y));
 
-    if (!context) context = GetContext();
-    if (!opened && context) {
-        context->AddEventListener("mousedown", this, true);
-        context->AddEventListener("keydown", this, true);
+    if (!opened) {
+        AddEventListener("mousedown", this, true);
+        AddEventListener("keydown", this, true);
     }
     opened = true;
 }
 void RmlPopup::close() {
     SetProperty("display", "none");
 
-    if (opened && context) {
-        context->RemoveEventListener("mousedown", this, true);
-        context->RemoveEventListener("keydown", this, true);
+    if (opened) {
+        RemoveEventListener("mousedown", this, true);
+        RemoveEventListener("keydown", this, true);
     }
     opened = false;
 }
@@ -74,10 +74,12 @@ void RmlMenu::open(i32 x, i32 y) {
     SetProperty("left", fmt::format("{}px", x));
     SetProperty("top", fmt::format("{}px", y));
 
-    if (!context) context = GetContext();
-    if (is_root() && !opened && context) {
-        context->AddEventListener("mousedown", this, true);
-        context->AddEventListener("keydown", this, true);
+    if (is_root() && !opened) {
+        event_target = GetOwnerDocument();
+        if (event_target != nullptr) {
+            event_target->AddEventListener("mousedown", this, true);
+            event_target->AddEventListener("keydown", this, true);
+        }
     }
     opened = true;
 }
@@ -85,9 +87,11 @@ void RmlMenu::open(i32 x, i32 y) {
 void RmlMenu::close() {
     SetProperty("display", "none");
 
-    if (is_root() && opened && context) {
-        context->RemoveEventListener("mousedown", this, true);
-        context->RemoveEventListener("keydown", this, true);
+    if (event_target != nullptr) {
+        Rml::Element *target = event_target;
+        target->RemoveEventListener("mousedown", this, true);
+        target->RemoveEventListener("keydown", this, true);
+        event_target = nullptr;
     }
     if (this->submenu) {
         this->submenu->close();
@@ -101,6 +105,12 @@ void RmlMenu::close() {
 void RmlMenu::ProcessEvent(Rml::Event &event) {
     if (event.GetType() == "mousedown") {
         if (!element_contains(this, event.GetTargetElement())) close();
+    }
+}
+
+void RmlMenu::OnDetach(Rml::Element *element) {
+    if (event_target == element) {
+        event_target = nullptr;
     }
 }
 
@@ -140,5 +150,4 @@ void RmlMenuItem::ProcessDefaultAction(Rml::Event &event) {
         SetProperty("background-color", "transparent");
     }
 }
-
 }  // namespace Seed

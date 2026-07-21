@@ -6,34 +6,146 @@
 
     <body>
         <div id="right-panel" class="panel" data-model="world_editor">
-            <div class="panel-header">Scene</div>
-            <div id="scene-list">
-                <div class="scene-row muted" data-if="show_scene_empty">No static objects</div>
-                <div data-for="object, i : scene_objects"
-                     class="scene-row"
-                     data-class-active="object.selected"
-                     data-event-click="select_scene_object(i)">
-                    <div>{{ object.name }}</div>
-                    <div class="subtle-text">{{ object.asset }}</div>
+            <div class="inspector-toolbar">
+                <div class="panel-header compact">World Editor</div>
+                <button class="small-button primary" data-event-click="save_world">Save</button>
+            </div>
+            <div class="status-text" data-if="has_status">{{ status }}</div>
+
+            <div class="segmented inspector-mode">
+                <button class="segment" data-class-active="editor_mode == 'World'"
+                    data-event-click="set_mode('World')">World</button>
+                <button class="segment" data-class-active="editor_mode == 'Terrain'"
+                    data-event-click="set_mode('Terrain')">Terrain</button>
+            </div>
+
+            <div class="empty-text inspector-section" data-if="!has_world">Open a world from Assets.</div>
+
+            <div class="inspector-section" data-if="has_world &amp;&amp; editor_mode == 'World'">
+                <div class="section-title first-section">World</div>
+                <label>Name</label>
+                <input class="world-name-input" type="text" data-value="world.name"
+                    data-event-change="commit_world_settings" />
+
+                <div class="field-group">
+                    <div class="field-title">Skybox</div>
+                    <div class="skybox-grid">
+                        <div class="uuid-field">
+                            <div class="uuid-label">Up</div>
+                            <x-uuid-drop class="uuid-drop" data-value="world.sky.up"
+                                data-event-change="set_skybox_face('up')">
+                                <x-preview class="uuid-preview" data-value="world.sky.up"></x-preview>
+                            </x-uuid-drop>
+                        </div>
+                        <div class="uuid-field">
+                            <div class="uuid-label">Down</div>
+                            <x-uuid-drop class="uuid-drop" data-value="world.sky.down"
+                                data-event-change="set_skybox_face('down')">
+                                <x-preview class="uuid-preview" data-value="world.sky.down"></x-preview>
+                            </x-uuid-drop>
+                        </div>
+                        <div class="uuid-field">
+                            <div class="uuid-label">Left</div>
+                            <x-uuid-drop class="uuid-drop" data-value="world.sky.left"
+                                data-event-change="set_skybox_face('left')">
+                                <x-preview class="uuid-preview" data-value="world.sky.left"></x-preview>
+                            </x-uuid-drop>
+                        </div>
+                        <div class="uuid-field">
+                            <div class="uuid-label">Right</div>
+                            <x-uuid-drop class="uuid-drop" data-value="world.sky.right"
+                                data-event-change="set_skybox_face('right')">
+                                <x-preview class="uuid-preview" data-value="world.sky.right"></x-preview>
+                            </x-uuid-drop>
+                        </div>
+                        <div class="uuid-field">
+                            <div class="uuid-label">Front</div>
+                            <x-uuid-drop class="uuid-drop" data-value="world.sky.front"
+                                data-event-change="set_skybox_face('front')">
+                                <x-preview class="uuid-preview" data-value="world.sky.front"></x-preview>
+                            </x-uuid-drop>
+                        </div>
+                        <div class="uuid-field">
+                            <div class="uuid-label">Back</div>
+                            <x-uuid-drop class="uuid-drop" data-value="world.sky.back"
+                                data-event-change="set_skybox_face('back')">
+                                <x-preview class="uuid-preview" data-value="world.sky.back"></x-preview>
+                            </x-uuid-drop>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <div class="field-title">Directional Light</div>
+                    <div class="vector-field">
+                        <div class="vector-label">Direction</div>
+                        <div class="axis-row"><span>X</span><input type="text" data-value="world.directional_light.direction.x" data-event-change="commit_world_settings" /></div>
+                        <div class="axis-row"><span>Y</span><input type="text" data-value="world.directional_light.direction.y" data-event-change="commit_world_settings" /></div>
+                        <div class="axis-row"><span>Z</span><input type="text" data-value="world.directional_light.direction.z" data-event-change="commit_world_settings" /></div>
+                    </div>
+                    <div class="vector-field">
+                        <div class="vector-label">Diffuse</div>
+                        <div class="axis-row"><span>R</span><input type="text" data-value="world.directional_light.diffuse.x" data-event-change="commit_world_settings" /></div>
+                        <div class="axis-row"><span>G</span><input type="text" data-value="world.directional_light.diffuse.y" data-event-change="commit_world_settings" /></div>
+                        <div class="axis-row"><span>B</span><input type="text" data-value="world.directional_light.diffuse.z" data-event-change="commit_world_settings" /></div>
+                    </div>
+                    <div class="vector-field">
+                        <div class="vector-label">Specular</div>
+                        <div class="axis-row"><span>R</span><input type="text" data-value="world.directional_light.specular.x" data-event-change="commit_world_settings" /></div>
+                        <div class="axis-row"><span>G</span><input type="text" data-value="world.directional_light.specular.y" data-event-change="commit_world_settings" /></div>
+                        <div class="axis-row"><span>B</span><input type="text" data-value="world.directional_light.specular.z" data-event-change="commit_world_settings" /></div>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <div class="field-title">Selection</div>
+                    <div class="empty-text" data-if="!has_selected_object">Select a scene object.</div>
+                    <div data-if="has_selected_object">
+                        <label>Name</label>
+                        <input id="selected-name" type="text" data-value="selected_name"
+                            data-event-change="commit_selected_object" />
+                        <div class="vector-field">
+                            <div class="vector-label">Position</div>
+                            <div class="axis-row"><span>X</span><input id="selected-x" type="text" data-value="selected_x" data-event-change="commit_selected_object" /></div>
+                            <div class="axis-row"><span>Y</span><input id="selected-y" type="text" data-value="selected_y" data-event-change="commit_selected_object" /></div>
+                            <div class="axis-row"><span>Z</span><input id="selected-z" type="text" data-value="selected_z" data-event-change="commit_selected_object" /></div>
+                        </div>
+                        <label>Asset</label>
+                        <div class="asset-ref">{{ selected_asset }}</div>
+                    </div>
                 </div>
             </div>
 
-            <div class="panel-header inspector-title">Inspector</div>
-            <div class="empty-text" data-if="show_inspector_empty">Select a scene object.</div>
-            <div data-if="has_selected_object">
-                <label>Name</label>
-                <input id="selected-name" type="text" data-value="selected_name" data-event-change="commit_selected_object" />
-
-                <div class="field-group">
-                    <div class="field-title">Transform</div>
-                    <div class="axis-row"><span>X</span><input id="selected-x" type="text" data-value="selected_x" data-event-change="commit_selected_object" /></div>
-                    <div class="axis-row"><span>Y</span><input id="selected-y" type="text" data-value="selected_y" data-event-change="commit_selected_object" /></div>
-                    <div class="axis-row"><span>Z</span><input id="selected-z" type="text" data-value="selected_z" data-event-change="commit_selected_object" /></div>
+            <div class="inspector-section" data-if="has_world &amp;&amp; editor_mode == 'Terrain'">
+                <div class="section-title first-section">Terrain</div>
+                <div class="button-row">
+                    <button class="action" data-event-click="add_terrain_tile">Add Tile</button>
+                    <button class="action danger" data-event-click="request_clear_tiles">Clear</button>
                 </div>
+                <div class="metric-row"><span>Dirty maps</span><span class="metric-value">{{ dirty_maps }}</span></div>
 
                 <div class="field-group">
-                    <div class="field-title">Asset</div>
-                    <div class="asset-ref">{{ selected_asset }}</div>
+                    <div class="field-title">Tool</div>
+                    <div class="tool-grid">
+                        <button class="tool" data-class-active="terrain_tool == 'Raise'"
+                            data-event-click="set_tool('Raise')">Raise</button>
+                        <button class="tool" data-class-active="terrain_tool == 'Lower'"
+                            data-event-click="set_tool('Lower')">Lower</button>
+                        <button class="tool" data-class-active="terrain_tool == 'Smooth'"
+                            data-event-click="set_tool('Smooth')">Smooth</button>
+                        <button class="tool" data-class-active="terrain_tool == 'Flatten'"
+                            data-event-click="set_tool('Flatten')">Flatten</button>
+                        <button class="tool" data-class-active="terrain_tool == 'Pick'"
+                            data-event-click="set_tool('Pick')">Pick</button>
+                        <button class="tool" data-class-active="terrain_tool == 'Splat'"
+                            data-event-click="set_tool('Splat')">Splat</button>
+                    </div>
+                    <label>Radius {{ brush_setting.radius }}</label>
+                    <input class="range" type="range" min="0" max="50" step="1"
+                        data-value="brush_setting.radius" />
+                    <label>Strength {{ brush_setting.strength }}</label>
+                    <input class="range" type="range" min="0" max="50" step="1"
+                        data-value="brush_setting.strength" />
                 </div>
             </div>
         </div>

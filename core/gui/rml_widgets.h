@@ -1,6 +1,7 @@
 #ifndef _SEED_RML_WIDGETS_H_
 #define _SEED_RML_WIDGETS_H_
 #include "core/types.h"
+#include "core/misc/uuid.h"
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/EventListener.h>
 
@@ -13,7 +14,6 @@ namespace Seed {
 class RmlPopup : public Rml::Element, public Rml::EventListener {
     private:
         bool opened = false;
-        Rml::Context *context = nullptr;
 
     public:
         void open(i32 x, i32 y);
@@ -36,22 +36,24 @@ class RmlMenuItem : public Rml::Element {
 };
 
 class RmlMenu : public Rml::Element, public Rml::EventListener {
-    friend RmlMenuItem;
+        friend RmlMenuItem;
+
     private:
         bool opened = false;
-        Rml::Context *context = nullptr;
         bool is_popup;
         RmlMenu *submenu = nullptr;
+        Rml::Element *event_target = nullptr;
         bool is_root();
+
     public:
         void open(i32 x, i32 y);
         void close();
         void ProcessEvent(Rml::Event &event) override;
+        void OnDetach(Rml::Element *element) override;
 
         RmlMenu(const Rml::String &tag);
         ~RmlMenu() { close(); }
 };
-
 }  // namespace Seed
 
 #endif

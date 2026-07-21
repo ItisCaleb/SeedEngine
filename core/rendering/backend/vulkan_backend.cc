@@ -1677,9 +1677,13 @@ void RenderBackendVK::handle_frame_begin() {
                             image_transition_queue.size());
 
     std::set<std::pair<u32, u32>> copied;
+
+    /* prevent image copy between barrier and copy */
+    u32 copied_left = 0;
     for (auto it = image_copy_queue.rbegin(); it != image_copy_queue.rend();
          ++it) {
         ImageUpdate &copy = *it;
+        copied_left++;
         /* make sure only copy once every frame */
         if (copied.count({copy.texture, copy.face}) > 0) {
             copy.texture = NULL_HANDLE;
@@ -1752,7 +1756,7 @@ void RenderBackendVK::handle_frame_begin() {
                            copy.size);
         dynamic_buffer_update_queue.pop();
     }
-    while (!image_copy_queue.is_empty()) {
+    while (copied_left--) {
         ImageUpdate &copy = image_copy_queue.peek();
         HardwareTextureVk *texture = this->textures.get_or_null(copy.texture);
         if (texture) {

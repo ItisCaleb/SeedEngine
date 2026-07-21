@@ -49,27 +49,6 @@ void Editor::set_last_open_world(const UUID uuid) {
     cache->write_str(project_cache.dump());
 }
 
-void Editor::set_current_inspect(Inspectable *inspectable) {
-    Project *project = SeedEngine::get_instance()->get_project();
-
-    if (this->ctx.current_inspect != nullptr) {
-        this->ctx.current_inspect->save();
-        delete this->ctx.current_inspect;
-        ResourceLoader::get_instance()->get_entries().save(
-            project->get_entry_path());
-    }
-    this->ctx.current_inspect = inspectable;
-}
-
-void Editor::set_current_popup(Popup *popup) {
-    if (this->ctx.current_popup != nullptr) {
-        delete this->ctx.current_popup;
-        // ResourceLoader::get_instance()->get_entries().save(
-        //     current_project->get_entry_path());
-    }
-    this->ctx.current_popup = popup;
-}
-
 ResourceTypeID Editor::extension_to_tid(KStr ext) {
     if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" ||
         ext == ".exr" || ext == ".hdr")
@@ -235,7 +214,6 @@ Editor::Editor() : RmlGUI(ES::get_instance()->editor_ui_doc) {
     try_open_project();
 
     world_editor.init();
-    asset_viewer.init();
 
 #ifdef _WIN32
     Window *window = SeedEngine::get_instance()->get_window();
@@ -271,6 +249,8 @@ i32 main(i32, char **) {
     Seed::SeedEngine *engine = new Seed::SeedEngine(60.0f);
     RenderEngine *render_engine = RenderEngine::get_instance();
     new EditorStorage;
+    EditorRmlElementInstancer rml_instancer;
+    rml_instancer.RegisterElements();
     Editor *editor = new Editor;
     GuiEngine::get_instance()->load_rmlui(editor);
 

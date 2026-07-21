@@ -33,13 +33,15 @@ void GuiEngine::register_seed_rml(Rml::Context *context) {
         [](KString &str, const Rml::Variant &variant) {
             str = variant.Get<Rml::String>();
         });
+
+    constructor.RegisterScalar<UUID>(
+        [](const UUID &uuid, Rml::Variant &variant) {
+            variant = uuid.to_string();
+        },
+        [](UUID &uuid, const Rml::Variant &variant) {
+            uuid = UUID::from_string(variant.Get<Rml::String>());
+        });
     Rml::RegisterEventType("hover", true, true);
-    Rml::Factory::RegisterElementInstancer(RML_POPUP_NAME,
-                                           &rml_element_instancer);
-    Rml::Factory::RegisterElementInstancer(RML_MENU_NAME,
-                                           &rml_element_instancer);
-    Rml::Factory::RegisterElementInstancer(RML_MENU_ITEM_NAME,
-                                           &rml_element_instancer);
 }
 
 GuiEngine::GuiEngine(Window *window) {
@@ -67,6 +69,7 @@ GuiEngine::GuiEngine(Window *window) {
     rml_context = Rml::CreateContext(
         "main",
         Rml::Vector2i((int)window->get_width(), (int)window->get_height()));
+    rml_element_instancer.RegisterElements();
     register_seed_rml(rml_context);
 }
 

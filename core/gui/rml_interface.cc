@@ -3,6 +3,7 @@
 #include "core/resource/resource_loader.h"
 #include "core/gui/gui_engine.h"
 #include "core/gui/rml_widgets.h"
+#include <RmlUi/Core/Factory.h>
 #include <RmlUi/Core/URL.h>
 #include <GLFW/glfw3.h>
 
@@ -153,6 +154,12 @@ void SeedRmlRenderInterface::SetTransform(const Rml::Matrix4f *transform) {
         /* we use row major */
         this->transform = transform->Transpose();
     }
+}
+
+void SeedRmlElementInstancer::RegisterElements() {
+    Rml::Factory::RegisterElementInstancer(RML_POPUP_NAME, this);
+    Rml::Factory::RegisterElementInstancer(RML_MENU_NAME, this);
+    Rml::Factory::RegisterElementInstancer(RML_MENU_ITEM_NAME, this);
 }
 
 Rml::ElementPtr SeedRmlElementInstancer::InstanceElement(

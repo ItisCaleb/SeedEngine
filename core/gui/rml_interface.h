@@ -83,6 +83,8 @@ class SeedRmlRenderInterface : public Rml::RenderInterface {
 };
 
 class SeedRmlElementInstancer : public Rml::ElementInstancer {
+    public:
+        void RegisterElements();
         // Instances an element given the tag name and attributes.
         // @param[in] parent The element the new element is destined to be
         // parented to.

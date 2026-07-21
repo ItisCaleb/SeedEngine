@@ -15,50 +15,16 @@
             <template src="main-menu"></template>
             <div id="workspace">
                 <div id="left-panel" class="panel" data-model="world_editor">
-                    <div class="panel-header">World</div>
-                    <div class="status-text" data-if="has_status">{{ status }}</div>
-
-                    <div class="button-row">
-                        <button class="action primary" data-event-click="save_world">Save</button>
-                        <button class="action" data-event-click="inspect_world">Inspect</button>
-                    </div>
-
-                    <div class="segmented">
-                        <button class="segment" data-class-active="world_mode"
-                            data-event-click="set_mode('world')">World</button>
-                        <button class="segment" data-class-active="terrain_mode"
-                            data-event-click="set_mode('terrain')">Terrain</button>
-                    </div>
-
-                    <div class="section-title">Terrain</div>
-                    <div class="button-row">
-                        <button class="action" data-event-click="add_terrain_tile">Add Tile</button>
-                        <button class="action danger" data-event-click="request_clear_tiles">Clear</button>
-                    </div>
-                    <div class="metric-row"><span>Dirty</span><span class="metric-value">{{ dirty_maps }}</span></div>
-
-                    <div data-if="terrain_mode">
-                        <div class="section-title">Brush</div>
-                        <div class="tool-grid">
-                            <button class="tool" data-class-active="terrain_tool == 'Raise'"
-                                data-event-click="set_tool('Raise')">Raise</button>
-                            <button class="tool" data-class-active="terrain_tool == 'Lower'"
-                                data-event-click="set_tool('Lower')">Lower</button>
-                            <button class="tool" data-class-active="terrain_tool == 'Smooth'"
-                                data-event-click="set_tool('Smooth')">Smooth</button>
-                            <button class="tool" data-class-active="terrain_tool == 'Flatten'"
-                                data-event-click="set_tool('Flatten')">Flatten</button>
-                            <button class="tool" data-class-active="terrain_tool == 'Pick'"
-                                data-event-click="set_tool('Pick')">Pick</button>
-                            <button class="tool" data-class-active="terrain_tool == 'Splat'"
-                                data-event-click="set_tool('Splat')">Splat</button>
+                    <div class="panel-header">Scene</div>
+                    <div id="scene-list">
+                        <div class="scene-row muted" data-if="show_scene_empty">No static objects</div>
+                        <div data-for="object, i : scene_objects"
+                            class="scene-row"
+                            data-class-active="object.selected"
+                            data-event-click="select_scene_object(i)">
+                            <div>{{ object.name }}</div>
+                            <div class="subtle-text">{{ object.asset }}</div>
                         </div>
-                        <label>Radius {{brush_setting.radius}}</label>
-                        <input class="range" type="range" min="0" max="50" step="1"
-                            data-value="brush_setting.radius" />
-                        <label>Strength {{brush_setting.strength}}</label>
-                        <input class="range" type="range" min="0" max="50" step="1"
-                            data-value="brush_setting.strength" />
                     </div>
                     <handle class="resize-x resize-right" size_target="left-panel"></handle>
                 </div>

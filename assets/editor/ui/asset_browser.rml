@@ -26,13 +26,12 @@
                 <div id="asset-grid" data-event-mouseup="open_menu">
                     <div class="breadcrumb">{{ breadcrumb }}</div>
                     <div class="asset-list">
-                        <div data-for="asset, i : assets" class="asset-cell" data-attr-type="asset.type"
-                            data-event-click="open_asset(i)">
-                            <div class="asset-icon" data-attr-type="asset.type">
-                                {{ asset.icon }}
-                            </div>
+                        <x-uuid-drag data-for="asset, i : assets" class="asset-cell" data-attr-type="asset.type"
+                            data-event-dblclick="open_asset(i)" data-value="asset.uuid">
+                            <x-preview class="asset-icon" data-attr-type="asset.type" data-value="asset.uuid">
+                            </x-preview>
                             <div class="asset-name">{{ asset.name }}</div>
-                        </div>
+                        </x-uuid-drag>
                     </div>
                 </div>
             </div>

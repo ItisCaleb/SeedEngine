@@ -188,6 +188,16 @@ EditorTerrain::EditorTerrain() {
                            PixelFormat::RGBA,
                            SamplerProperty{.wrap_u = SamplerWrap::REPEAT,
                                            .wrap_v = SamplerWrap::REPEAT});
+    fallback_texture.create(PixelFormat::RGBA, TERRAIN_TEXTURE_SIZE,
+                            TERRAIN_TEXTURE_SIZE);
+    fallback_texture->fill(Color{128, 128, 128, 255}, TERRAIN_TEXTURE_SIZE,
+                           TERRAIN_TEXTURE_SIZE);
+    fallback_normal.create(PixelFormat::RGBA, TERRAIN_TEXTURE_SIZE,
+                           TERRAIN_TEXTURE_SIZE);
+    fallback_normal->fill(Color{128, 128, 255, 255}, TERRAIN_TEXTURE_SIZE,
+                          TERRAIN_TEXTURE_SIZE);
+    upload_fallback_layer(0);
+
     material.create(ES::get_instance()->editor_terrain_shader, heightmaps,
                     controlmaps, textures, texture_normals);
     this->instances.create();
@@ -195,6 +205,46 @@ EditorTerrain::EditorTerrain() {
     build_mesh();
     this->mesh->set_material(ref_cast<Material>(material));
 }
+
+void EditorTerrain::upload_fallback_layer(u32 layer) {
+    if (layer >= TERRAIN_TEXTURE_LAYERS || fallback_texture.is_null() ||
+        fallback_normal.is_null()) {
+        return;
+    }
+
+    textures->update_layer(TERRAIN_TEXTURE_SIZE, TERRAIN_TEXTURE_SIZE, layer,
+                           fallback_texture->get_data());
+    texture_normals->update_layer(TERRAIN_TEXTURE_SIZE, TERRAIN_TEXTURE_SIZE,
+                                  layer, fallback_normal->get_data());
+}
+
+bool EditorTerrain::update_texture_layer(u32 layer,
+                                         RHI::UpdateBufferInfo info) {
+    if (layer >= TERRAIN_TEXTURE_LAYERS) return false;
+    if (info.data == nullptr) {
+        upload_fallback_layer(layer);
+        return false;
+    }
+
+    textures->update_layer(layer, info);
+    return true;
+}
+
+bool EditorTerrain::update_normal_layer(u32 layer,
+                                        RHI::UpdateBufferInfo info) {
+    if (layer >= TERRAIN_TEXTURE_LAYERS) return false;
+    if (info.data == nullptr) {
+        texture_normals->update_layer(
+            TERRAIN_TEXTURE_SIZE, TERRAIN_TEXTURE_SIZE, layer,
+            fallback_normal->get_data());
+        return false;
+    }
+
+    texture_normals->update_layer(layer, info);
+    return true;
+}
+
+void EditorTerrain::reset_texture_palette() { upload_fallback_layer(0); }
 
 void EditorTerrain::add_chunk(i32 x, i32 y, Ref<Image> height_map,
                               Ref<Image> control_map) {
@@ -718,5 +768,4 @@ void EditorTerrain::save_dirty_maps(const std::vector<ChunkSetting> &chunks) {
     clear_dirty_maps();
 }
 
-EditorTerrain::~EditorTerrain() {}
 }  // namespace Seed

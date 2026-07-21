@@ -1,6 +1,7 @@
 #include "world_editor.h"
-#include "core/input.h"
-#include "editor/world/editor_world.h"
+
+#include <utility>
+
 #include <fmt/format.h>
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/Element.h>
@@ -8,56 +9,146 @@
 #include <RmlUi/Core/Variant.h>
 #include "core/engine.h"
 #include "core/gui/gui_engine.h"
+#include "core/input.h"
 #include "core/misc/enums.h"
+#include "core/misc/type_name.h"
 #include "core/project.h"
 #include "core/rendering/rhi/render_engine.h"
+#include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
+#include "core/resource/texture.h"
 #include "editor/editor.h"
+#include "editor/world/editor_world.h"
 #include "editor/world/world_renderer.h"
 
 namespace Seed {
 
-WorldEditor::~WorldEditor() { delete current_world; }
+namespace {
+
+constexpr u32 kViewportWidth = 1024;
+constexpr u32 kViewportHeight = 768;
+
+struct SkyboxFaceBinding {
+    const char *name;
+    UUID SkySetting::*setting;
+    CubemapFace cubemap_face;
+};
+
+constexpr SkyboxFaceBinding skybox_faces[] = {
+    {"up", &SkySetting::up, CubemapFace::TOP},
+    {"down", &SkySetting::down, CubemapFace::BOTTOM},
+    {"left", &SkySetting::left, CubemapFace::LEFT},
+    {"right", &SkySetting::right, CubemapFace::RIGHT},
+    {"front", &SkySetting::front, CubemapFace::FRONT},
+    {"back", &SkySetting::back, CubemapFace::BACK},
+};
+
+const SkyboxFaceBinding *find_skybox_face(const Rml::String &name) {
+    for (const SkyboxFaceBinding &face : skybox_faces) {
+        if (name == face.name) return &face;
+    }
+    return nullptr;
+}
+
+template <typename T>
+void register_enum(Rml::DataModelConstructor &constructor) {
+    constructor.RegisterScalar<T>(
+        [](const T &value, Rml::Variant &variant) {
+            variant = Rml::String(enum_to_string(value));
+        },
+        [](T &value, const Rml::Variant &variant) {
+            value = string_to_enum<T>(variant.Get<Rml::String>());
+        });
+}
+
+}  // namespace
+
+WorldEditor::~WorldEditor() {
+    world_setting = &empty_world_setting;
+    delete current_world;
+}
 
 bool WorldEditor::load_world(const UUID uuid) {
-    status_text.clear();
+    set_status("");
 
-    if (gEditor != nullptr && gEditor->ctx.current_inspect != nullptr) {
-        gEditor->set_current_inspect(nullptr);
-    }
-
+    world_setting = &empty_world_setting;
     delete current_world;
     current_world = nullptr;
-    current_entry =
+    reset_selection();
+
+    ResourceEntry *entry =
         ResourceLoader::get_instance()->get_entries().get_entry(uuid);
-    if (current_entry == nullptr) {
-        status_text = "World file is not registered in resource entries.";
+    if (entry == nullptr) {
+        set_status("World file is not registered in resource entries.");
+        sync_view_model();
+        dirty_view_model();
         return false;
     }
 
-    current_world = new EditorWorld(current_entry);
-
-    selected_static_chunk = -1;
-    selected_static_object = -1;
-    last_pick_valid = false;
-
-    set_current_world_inspector();
+    current_world = new EditorWorld(entry);
+    world_setting = current_world->get_setting();
     if (gEditor != nullptr) {
-        gEditor->set_last_open_world(current_entry->uuid);
+        gEditor->set_last_open_world(entry->uuid);
     }
-    status_text = "World loaded.";
+    set_status("World loaded.");
+    sync_view_model();
+    dirty_view_model();
     return true;
 }
 
 void WorldEditor::init() {
-    renderer = new WorldRenderer(texture_width, texture_height);
-    GuiEngine::get_instance()->add_texture("main_view", renderer->get_screen_texture());
+    renderer = new WorldRenderer(kViewportWidth, kViewportHeight);
+    GuiEngine::get_instance()->add_texture("main_view",
+                                           renderer->get_screen_texture());
     RenderEngine::get_instance()->register_renderer(1, renderer);
 }
 
-void WorldEditor::set_current_world_inspector() {
-    if (gEditor == nullptr || current_world == nullptr) return;
-    gEditor->set_current_inspect(new EditorWorldInspector(current_world));
+bool WorldEditor::is_viewport_hovered() const {
+    if (document == nullptr) return false;
+
+    GuiEngine *gui = GuiEngine::get_instance();
+    if (gui == nullptr) return false;
+    Rml::Context *context = gui->get_rml_context();
+    Rml::Element *viewport = document->GetElementById("viewport");
+    Rml::Element *hovered = context == nullptr ? nullptr
+                                               : context->GetHoverElement();
+    while (hovered != nullptr) {
+        if (hovered == viewport) return true;
+        hovered = hovered->GetParentNode();
+    }
+    return false;
+}
+
+bool WorldEditor::get_camera_focus(Vec3 &target) const {
+    if (current_world == nullptr) return false;
+
+    const std::vector<ChunkSetting> &chunks = current_world->get_chunks();
+    if (selected_static_chunk >= 0 && selected_static_object >= 0 &&
+        selected_static_chunk < (i32)chunks.size()) {
+        const ChunkSetting &chunk = chunks[(u32)selected_static_chunk];
+        if (selected_static_object < (i32)chunk.static_objects.size()) {
+            const StaticObjectSetting &object =
+                chunk.static_objects[(u32)selected_static_object];
+            target = Vec3{(f32)object.x, (f32)object.y, (f32)object.z};
+            return true;
+        }
+    }
+
+    if (!last_pick_valid || current_world->terrain.is_null()) return false;
+    u8 height = 0;
+    if (!current_world->terrain->read_height(last_pick_x, last_pick_y,
+                                             height)) {
+        return false;
+    }
+    target = Vec3{(f32)last_pick_x, (f32)height + HEIGHT_OFFSET,
+                  (f32)last_pick_y};
+    return true;
+}
+
+f32 WorldEditor::consume_viewport_scroll() {
+    const f32 delta = viewport_scroll_delta;
+    viewport_scroll_delta = 0.0f;
+    return delta;
 }
 
 bool WorldEditor::chunk_exists_at(i32 chunk_x, i32 chunk_y) const {
@@ -65,55 +156,55 @@ bool WorldEditor::chunk_exists_at(i32 chunk_x, i32 chunk_y) const {
            current_world->terrain_chunk_exists_at(chunk_x, chunk_y);
 }
 
-std::string WorldEditor::static_model_label(UUID uuid) const {
+KString WorldEditor::static_model_label(UUID uuid) const {
     ResourceEntry *entry =
         ResourceLoader::get_instance()->get_entries().get_entry(uuid);
-    if (entry == nullptr) return "Missing Model";
-    KStr name = entry->path.filename();
-    return std::string(name.data(), name.length());
+    if (entry == nullptr) return KString("Missing Model");
+    return KString(entry->path.filename());
 }
 
 void WorldEditor::select_static_object(u32 chunk_index, u32 object_index) {
     if (current_world == nullptr) return;
     selected_static_chunk = (i32)chunk_index;
     selected_static_object = (i32)object_index;
-    gEditor->set_current_inspect(new EditorStaticObjectInspector(
-        current_world, chunk_index, object_index));
 }
 
-void WorldEditor::save_current_world() {
-    if (current_world == nullptr) return;
+bool WorldEditor::save_current_world() {
+    if (current_world == nullptr) return false;
     current_world->save_dirty_terrain_maps();
     current_world->save();
 
     Project *project = SeedEngine::get_instance()->get_project();
-    if (project != nullptr) {
-        ResourceLoader::get_instance()->get_entries().save(
-            project->get_entry_path());
-        status_text = "World saved through resource entries.";
-    }
+    if (project == nullptr) return false;
+
+    ResourceLoader::get_instance()->get_entries().save(
+        project->get_entry_path());
+    return true;
 }
 
 bool WorldEditor::add_chunk_at(i32 chunk_x, i32 chunk_y) {
     if (current_world == nullptr) return false;
     if (chunk_exists_at(chunk_x, chunk_y)) {
-        status_text = "Terrain tile already exists.";
+        set_status("Terrain tile already exists.");
         return false;
     }
 
     if (!current_world->add_new_chunk(chunk_x, chunk_y)) {
-        status_text = "Failed to add terrain tile.";
+        set_status("Failed to add terrain tile.");
         return false;
     }
 
-    save_current_world();
-    status_text = fmt::format("Added terrain tile ({}, {}).", chunk_x, chunk_y);
+    if (!save_current_world()) {
+        set_status("Terrain tile added, but the world could not be saved.");
+        return true;
+    }
+    set_status(fmt::format("Added terrain tile ({}, {}).", chunk_x, chunk_y));
     return true;
 }
 
 void WorldEditor::add_chunk() {
     if (current_world == nullptr) return;
-    std::vector<ChunkSetting> chunks = current_world->get_chunks();
+    const std::vector<ChunkSetting> &chunks = current_world->get_chunks();
     if (chunks.empty()) {
         add_chunk_at(0, 0);
         return;
@@ -151,15 +242,39 @@ void WorldEditor::clear_tiles() {
     }
 
     current_world->clear_tiles();
+    reset_selection();
+    if (save_current_world()) {
+        set_status("All terrain tiles cleared.");
+    } else {
+        set_status("Terrain tiles cleared, but the world could not be saved.");
+    }
+}
+
+void WorldEditor::set_status(std::string status) {
+    status_text = std::move(status);
+    has_status = !status_text.empty();
+    if (!view_model) return;
+    view_model.DirtyVariable("status");
+    view_model.DirtyVariable("has_status");
+}
+
+void WorldEditor::sync_dirty_maps() {
+    dirty_maps_text =
+        current_world != nullptr && current_world->has_dirty_terrain_maps()
+            ? "Yes"
+            : "No";
+}
+
+void WorldEditor::reset_selection() {
+    selected_static_chunk = -1;
+    selected_static_object = -1;
     last_pick_valid = false;
-    save_current_world();
-    status_text = "All terrain tiles cleared.";
+    world_text = "-";
 }
 
 void WorldEditor::sync_scene_view_model() {
     scene_objects.clear();
     if (current_world == nullptr) {
-        has_scene_objects = false;
         show_scene_empty = true;
         return;
     }
@@ -172,10 +287,8 @@ void WorldEditor::sync_scene_view_model() {
             const StaticObjectSetting &object =
                 chunk.static_objects[object_index];
             SceneObjectView view;
-            view.name = object.name.is_empty()
-                            ? KString(static_model_label(object.model))
-                            : object.name;
             view.asset = static_model_label(object.model);
+            view.name = object.name.is_empty() ? view.asset : object.name;
             view.selected = selected_static_chunk == (i32)chunk_index &&
                             selected_static_object == (i32)object_index;
             view.chunk_index = (i32)chunk_index;
@@ -184,13 +297,11 @@ void WorldEditor::sync_scene_view_model() {
         }
     }
 
-    has_scene_objects = !scene_objects.empty();
     show_scene_empty = scene_objects.empty();
 }
 
 void WorldEditor::sync_selected_object_view_model() {
     has_selected_object = false;
-    show_inspector_empty = true;
     selected_name.clear();
     selected_x = 0;
     selected_y = 0;
@@ -216,20 +327,12 @@ void WorldEditor::sync_selected_object_view_model() {
     selected_z = object.z;
     selected_asset = static_model_label(object.model);
     has_selected_object = true;
-    show_inspector_empty = false;
 }
 
 void WorldEditor::sync_view_model() {
-    world_mode = active_mode == WorldEditorMode::World;
-    terrain_mode = active_mode == WorldEditorMode::Terrain;
-    mode_text = world_mode ? "World" : "Terrain";
     has_world = current_world != nullptr;
     has_status = !status_text.empty();
-    dirty_maps_text =
-        current_world != nullptr && current_world->has_dirty_terrain_maps()
-            ? "Yes"
-            : "No";
-
+    sync_dirty_maps();
     if (current_world == nullptr) {
         viewport_message = "Open a world from Assets.";
         world_text = "-";
@@ -249,35 +352,20 @@ void WorldEditor::sync_view_model() {
 
 void WorldEditor::dirty_view_model() {
     if (!view_model) return;
-    view_model.DirtyVariable("world_mode");
-    view_model.DirtyVariable("terrain_mode");
-    view_model.DirtyVariable("mode");
-    view_model.DirtyVariable("status");
-    view_model.DirtyVariable("dirty_maps");
-    view_model.DirtyVariable("viewport_message");
-    view_model.DirtyVariable("world_text");
-    view_model.DirtyVariable("brush_setting");
-    view_model.DirtyVariable("scene_objects");
-    view_model.DirtyVariable("selected_name");
-    view_model.DirtyVariable("selected_x");
-    view_model.DirtyVariable("selected_y");
-    view_model.DirtyVariable("selected_z");
-    view_model.DirtyVariable("selected_asset");
-    view_model.DirtyVariable("terrain_tool");
-    view_model.DirtyVariable("has_world");
-    view_model.DirtyVariable("has_status");
-    view_model.DirtyVariable("has_scene_objects");
-    view_model.DirtyVariable("has_selected_object");
-    view_model.DirtyVariable("show_scene_empty");
-    view_model.DirtyVariable("show_inspector_empty");
-    view_model.DirtyVariable("show_viewport_empty");
-    view_model.DirtyVariable("show_clear_tiles");
+    view_model.DirtyAllVariables();
 }
 
 bool WorldEditor::viewport_event_to_pixel(Rml::Event &event, i32 &image_x,
                                           i32 &image_y) const {
+    if (renderer == nullptr) return false;
+
     Rml::Element *element = event.GetCurrentElement();
     if (element == nullptr) return false;
+
+    Ref<Texture> viewport_texture = renderer->get_screen_texture();
+    if (viewport_texture.is_null()) return false;
+    const u32 texture_width = viewport_texture->get_width();
+    const u32 texture_height = viewport_texture->get_height();
 
     f32 x = event.GetParameter<f32>("mouse_x", -1.0f);
     f32 y = event.GetParameter<f32>("mouse_y", -1.0f);
@@ -308,10 +396,13 @@ bool WorldEditor::viewport_event_to_pixel(Rml::Event &event, i32 &image_x,
 
 bool WorldEditor::pick_world_at_pixel(i32 image_x, i32 image_y, i32 &world_x,
                                       i32 &world_y) const {
+    if (renderer == nullptr) return false;
+
     Ref<MappableTexture> picking_texture = renderer->get_picking_texture();
     if (picking_texture.is_null()) return false;
-    if (image_x < 0 || image_y < 0 || image_x >= (i32)texture_width ||
-        image_y >= (i32)texture_height) {
+    if (image_x < 0 || image_y < 0 ||
+        image_x >= (i32)picking_texture->get_width() ||
+        image_y >= (i32)picking_texture->get_height()) {
         return false;
     }
 
@@ -343,29 +434,24 @@ bool WorldEditor::update_pick_from_event(Rml::Event &event) {
 }
 
 void WorldEditor::rml_set_mode(RML_EVENT_ARGS) {
-    Rml::String mode = args[0].Get<Rml::String>("");
-    if (mode == "world") active_mode = WorldEditorMode::World;
-    if (mode == "terrain") active_mode = WorldEditorMode::Terrain;
-    sync_view_model();
-    dirty_view_model();
+    if (args.empty()) return;
+    active_mode = string_to_enum<WorldEditorMode>(
+        args[0].Get<Rml::String>("World"));
+    if (view_model) view_model.DirtyVariable("editor_mode");
 }
 
 void WorldEditor::rml_set_tool(RML_EVENT_ARGS) {
-    Rml::String str = args[0].Get<Rml::String>("");
-    brush_type = string_to_enum<TerrainBrush>(str);
-
-    sync_view_model();
-    dirty_view_model();
+    if (args.empty()) return;
+    brush_type = string_to_enum<TerrainBrush>(
+        args[0].Get<Rml::String>("Raise"));
+    if (view_model) view_model.DirtyVariable("terrain_tool");
 }
 
 void WorldEditor::rml_save_world(RML_EVENT_ARGS) {
-    save_current_world();
+    set_status(save_current_world() ? "World saved."
+                                    : "Failed to save world.");
     sync_view_model();
     dirty_view_model();
-}
-
-void WorldEditor::rml_inspect_world(RML_EVENT_ARGS) {
-    set_current_world_inspector();
 }
 
 void WorldEditor::rml_add_tile(RML_EVENT_ARGS) {
@@ -376,12 +462,12 @@ void WorldEditor::rml_add_tile(RML_EVENT_ARGS) {
 
 void WorldEditor::rml_request_clear_tiles(RML_EVENT_ARGS) {
     show_clear_tiles = true;
-    dirty_view_model();
+    if (view_model) view_model.DirtyVariable("show_clear_tiles");
 }
 
 void WorldEditor::rml_cancel_clear_tiles(RML_EVENT_ARGS) {
     show_clear_tiles = false;
-    dirty_view_model();
+    if (view_model) view_model.DirtyVariable("show_clear_tiles");
 }
 
 void WorldEditor::rml_confirm_clear_tiles(RML_EVENT_ARGS) {
@@ -389,6 +475,50 @@ void WorldEditor::rml_confirm_clear_tiles(RML_EVENT_ARGS) {
     clear_tiles();
     sync_view_model();
     dirty_view_model();
+}
+
+void WorldEditor::rml_commit_world_settings(RML_EVENT_ARGS) {
+    if (current_world == nullptr) return;
+
+    current_world->apply_directional_light_to_runtime();
+    set_status("World settings updated.");
+}
+
+void WorldEditor::rml_set_skybox_face(RML_EVENT_ARGS) {
+    if (current_world == nullptr || args.empty()) return;
+
+    const Rml::String face_name = args[0].Get<Rml::String>("");
+    const SkyboxFaceBinding *face = find_skybox_face(face_name);
+    if (face == nullptr) return;
+
+    const UUID uuid = UUID::from_string(
+        e.GetParameter<Rml::String>("uuid", ""));
+    ResourceEntry *entry =
+        ResourceLoader::get_instance()->get_entries().get_entry(uuid);
+    if (uuid.is_null() || entry == nullptr ||
+        entry->type_id != type_id<Texture>()) {
+        world_setting->sky.*(face->setting) =
+            current_world->get_sky().*(face->setting);
+        set_status("Skybox faces only accept texture assets.");
+        if (view_model) view_model.DirtyVariable("world");
+        return;
+    }
+
+    EditorSky &sky = current_world->get_sky();
+    sky.*(face->setting) = uuid;
+    world_setting->sky.*(face->setting) = uuid;
+    current_world->update_skybox_face(uuid, face->cubemap_face);
+    if (save_current_world()) {
+        set_status(fmt::format("Skybox {} face updated and saved.", face_name));
+    } else {
+        set_status(fmt::format("Skybox {} face updated but not saved.",
+                               face_name));
+    }
+    sync_dirty_maps();
+    if (view_model) {
+        view_model.DirtyVariable("world");
+        view_model.DirtyVariable("dirty_maps");
+    }
 }
 
 void WorldEditor::rml_select_scene_object(RML_EVENT_ARGS) {
@@ -421,39 +551,41 @@ void WorldEditor::rml_commit_selected_object(RML_EVENT_ARGS) {
     object.z = selected_z;
     current_world->update_static_model_instance((u32)selected_static_chunk,
                                                 (u32)selected_static_object);
-    status_text = "Object updated.";
+    set_status("Object updated.");
     sync_view_model();
     dirty_view_model();
 }
 
 void WorldEditor::rml_viewport_pick(RML_EVENT_ARGS) {
     bool picked = update_pick_from_event(e);
-    if (picked && terrain_mode && brush_type != TerrainBrush::Pick &&
+    if (picked && active_mode == WorldEditorMode::Terrain &&
+        !e.GetParameter<bool>("alt_key", false) &&
+        brush_type != TerrainBrush::Pick &&
         Input::get_instance()->is_mouse_pressed(MouseEvent::LEFT)) {
+        bool changed = false;
         if (current_world != nullptr && !current_world->terrain.is_null()) {
-            current_world->terrain->apply_brush(last_pick_x, last_pick_y,
-                                                brush_type, brush_setting);
+            changed = current_world->terrain->apply_brush(
+                last_pick_x, last_pick_y, brush_type, brush_setting);
         }
-        sync_view_model();
-        dirty_view_model();
-        return;
+        if (changed) {
+            sync_dirty_maps();
+            if (view_model) view_model.DirtyVariable("dirty_maps");
+        }
     }
 
     if (view_model) view_model.DirtyVariable("world_text");
 }
 
-void WorldEditor::bind_model(Rml::Context *context) {
-    Rml::DataModelConstructor constructor =
-        context->CreateDataModel("world_editor");
-    if (!constructor) return;
-    constructor.RegisterScalar<TerrainBrush>(
-        [](const TerrainBrush &tool, Rml::Variant &variant) {
-            variant = Rml::String(enum_to_string(tool));
-        },
-        [](TerrainBrush &tool, const Rml::Variant &variant) {
-            Rml::String str = variant.Get<Rml::String>();
-            tool = string_to_enum<TerrainBrush>(str);
-        });
+void WorldEditor::rml_viewport_scroll(RML_EVENT_ARGS) {
+    viewport_scroll_delta +=
+        e.GetParameter<f32>("wheel_delta_y", 0.0f);
+    e.StopPropagation();
+}
+
+void WorldEditor::register_view_model_types(
+    Rml::DataModelConstructor &constructor) {
+    register_enum<WorldEditorMode>(constructor);
+    register_enum<TerrainBrush>(constructor);
     if (auto object = constructor.RegisterStruct<SceneObjectView>()) {
         object.RegisterMember("name", &SceneObjectView::name);
         object.RegisterMember("asset", &SceneObjectView::asset);
@@ -466,10 +598,36 @@ void WorldEditor::bind_model(Rml::Context *context) {
         object.RegisterMember("flatten_height",
                               &TerrainBrushSetting::flatten_height);
     }
+    if (auto object = constructor.RegisterStruct<Vec3>()) {
+        object.RegisterMember("x", &Vec3::x);
+        object.RegisterMember("y", &Vec3::y);
+        object.RegisterMember("z", &Vec3::z);
+    }
+    if (auto object = constructor.RegisterStruct<SkySetting>()) {
+        object.RegisterMember("up", &SkySetting::up);
+        object.RegisterMember("down", &SkySetting::down);
+        object.RegisterMember("left", &SkySetting::left);
+        object.RegisterMember("right", &SkySetting::right);
+        object.RegisterMember("front", &SkySetting::front);
+        object.RegisterMember("back", &SkySetting::back);
+    }
+    if (auto object = constructor.RegisterStruct<DirectionalLightSetting>()) {
+        object.RegisterMember("direction", &DirectionalLightSetting::direction);
+        object.RegisterMember("diffuse", &DirectionalLightSetting::diffuse);
+        object.RegisterMember("specular", &DirectionalLightSetting::specular);
+    }
+    if (auto object = constructor.RegisterStruct<WorldSetting>()) {
+        object.RegisterMember("name", &WorldSetting::name);
+        object.RegisterMember("sky", &WorldSetting::sky);
+        object.RegisterMember("directional_light", &WorldSetting::dir_light);
+    }
     constructor.RegisterArray<std::vector<SceneObjectView>>();
-    constructor.Bind("world_mode", &world_mode);
-    constructor.Bind("terrain_mode", &terrain_mode);
-    constructor.Bind("mode", &mode_text);
+}
+
+void WorldEditor::bind_view_model_values(
+    Rml::DataModelConstructor &constructor) {
+    constructor.Bind("world", &world_setting);
+    constructor.Bind("editor_mode", &active_mode);
     constructor.Bind("status", &status_text);
     constructor.Bind("dirty_maps", &dirty_maps_text);
     constructor.Bind("viewport_message", &viewport_message);
@@ -484,18 +642,18 @@ void WorldEditor::bind_model(Rml::Context *context) {
     constructor.Bind("terrain_tool", &brush_type);
     constructor.Bind("has_world", &has_world);
     constructor.Bind("has_status", &has_status);
-    constructor.Bind("has_scene_objects", &has_scene_objects);
     constructor.Bind("has_selected_object", &has_selected_object);
     constructor.Bind("show_scene_empty", &show_scene_empty);
-    constructor.Bind("show_inspector_empty", &show_inspector_empty);
     constructor.Bind("show_viewport_empty", &show_viewport_empty);
     constructor.Bind("show_clear_tiles", &show_clear_tiles);
+}
+
+void WorldEditor::bind_view_model_events(
+    Rml::DataModelConstructor &constructor) {
     constructor.BindEventCallback("set_mode", &WorldEditor::rml_set_mode, this);
     constructor.BindEventCallback("set_tool", &WorldEditor::rml_set_tool, this);
     constructor.BindEventCallback("save_world", &WorldEditor::rml_save_world,
                                   this);
-    constructor.BindEventCallback("inspect_world",
-                                  &WorldEditor::rml_inspect_world, this);
     constructor.BindEventCallback("add_terrain_tile",
                                   &WorldEditor::rml_add_tile, this);
     constructor.BindEventCallback("request_clear_tiles",
@@ -504,6 +662,11 @@ void WorldEditor::bind_model(Rml::Context *context) {
                                   &WorldEditor::rml_cancel_clear_tiles, this);
     constructor.BindEventCallback("confirm_clear_tiles",
                                   &WorldEditor::rml_confirm_clear_tiles, this);
+    constructor.BindEventCallback("commit_world_settings",
+                                  &WorldEditor::rml_commit_world_settings,
+                                  this);
+    constructor.BindEventCallback("set_skybox_face",
+                                  &WorldEditor::rml_set_skybox_face, this);
     constructor.BindEventCallback("select_scene_object",
                                   &WorldEditor::rml_select_scene_object, this);
     constructor.BindEventCallback("commit_selected_object",
@@ -511,6 +674,18 @@ void WorldEditor::bind_model(Rml::Context *context) {
                                   this);
     constructor.BindEventCallback("viewport_pick",
                                   &WorldEditor::rml_viewport_pick, this);
+    constructor.BindEventCallback("viewport_scroll",
+                                  &WorldEditor::rml_viewport_scroll, this);
+}
+
+void WorldEditor::bind_model(Rml::Context *context) {
+    Rml::DataModelConstructor constructor =
+        context->CreateDataModel("world_editor");
+    if (!constructor) return;
+
+    register_view_model_types(constructor);
+    bind_view_model_values(constructor);
+    bind_view_model_events(constructor);
 
     view_model = constructor.GetModelHandle();
     sync_view_model();

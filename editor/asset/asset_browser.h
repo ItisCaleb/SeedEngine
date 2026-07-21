@@ -11,18 +11,19 @@
 #include "core/resource/image.h"
 #include "core/types.h"
 #include "editor/asset/asset.h"
-#include "editor/gui/inspectable.h"
 #include "core/gui/gui.h"
 
 namespace Seed {
 
 class AssetBrowser : public RmlGUI {
     public:
+        AssetBrowser();
         void init(KStr project_root);
         Ref<Dir> get_current_dir() { return current_dir; }
 
     private:
         struct AssetItemView {
+                UUID uuid;
                 KString name;
                 KString type;
                 KString icon;
@@ -63,29 +64,19 @@ class AssetBrowser : public RmlGUI {
                 bool failed = false;
         };
 
-        std::mutex thumbnail_results_mutex;
-        std::vector<ThumbnailResult> thumbnail_results;
         void refresh();
         void sync_view_model();
         void dirty_view_model();
         void invalidate_current_folder_cache();
-        void process_thumbnail_results();
-        void queue_thumbnail_result(ThumbnailResult result);
-        bool apply_thumbnail_result(std::vector<AssetEntry> &target_entries,
-                                    const ThumbnailResult &result,
-                                    Ref<Texture> texture);
         void navigate_to(KStr dir);
 
-        //void handle_external_drop_target();
         void open_asset(AssetEntry &entry);
-        void request_texture_thumbnail(AssetEntry &entry);
         void begin_rename(i32 idx);
         void commit_rename();
         UUID get_asset_uuid(AssetEntry &entry);
         Path get_project_asset_path(const AssetEntry &entry) const;
         std::vector<Path> list_child_directories(const Path &dir);
         bool matches_search(const Path &path, KStr filter);
-        Inspectable *create_inspectable(AssetEntry &entry);
         AssetType classify(const Path &p);
         const char *asset_type_icon(AssetType t);
         const char *asset_type_name(AssetType t);

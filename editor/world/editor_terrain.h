@@ -60,6 +60,8 @@ class EditorTerrain : public Resource {
         Ref<TextureArray> controlmaps;
         Ref<TextureArray> textures;
         Ref<TextureArray> texture_normals;
+        Ref<Image> fallback_texture;
+        Ref<Image> fallback_normal;
 
         Ref<TerrainMaterial> material;
         Ref<TerrainInstanceData> instances;
@@ -79,6 +81,7 @@ class EditorTerrain : public Resource {
         };
 
         void build_mesh();
+        void upload_fallback_layer(u32 layer);
         i32 find_chunk_index(i32 world_x, i32 world_y) const;
         bool world_to_heightmap_pixel(i32 world_x, i32 world_y, u32 &chunk_idx,
                                       u32 &pixel_x, u32 &pixel_y) const;
@@ -110,8 +113,9 @@ class EditorTerrain : public Resource {
         void update_chunk_controlmap(u32 chunk_index, Ref<Image> control_map);
         void connect_chunk(u32 chunk_index);
         void sync_loaded_tile_seams();
-        Ref<TextureArray> get_heightmap() { return heightmaps; }
-        Ref<TerrainMaterial> get_material() { return material; }
+        bool update_texture_layer(u32 layer, RHI::UpdateBufferInfo info);
+        bool update_normal_layer(u32 layer, RHI::UpdateBufferInfo info);
+        void reset_texture_palette();
         Ref<Mesh> get_mesh() { return mesh; }
         Ref<TerrainInstanceData> get_instances() { return instances; }
         i32 find_chunk_index_at(i32 x, i32 y) const;
@@ -129,7 +133,7 @@ class EditorTerrain : public Resource {
         }
         void clear_dirty_maps();
         void save_dirty_maps(const std::vector<ChunkSetting> &chunks);
-        ~EditorTerrain();
+        ~EditorTerrain() = default;
 };
 }  // namespace Seed
 
