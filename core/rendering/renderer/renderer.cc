@@ -6,13 +6,14 @@
 namespace Seed {
 
 void FrameGlobal::init() {
-    RenderEngine *engine = RenderEngine::get_instance();
     visible = RHI::alloc_storage_buffer(sizeof(int) * 65536,
                                         UpdateFrequence::PERFRAME);
-    transform =
-        engine->get_instance_pool(TRANSFORM_POOL_NAME)->get_render_buffer();
-    terrain = engine->get_instance_pool(TERRAIN_POOL_NAME)->get_render_buffer();
-    bones = engine->get_instance_pool(SKELETON_POOL_NAME)->get_render_buffer();
+    transform = System::gRenderEngine->get_instance_pool(TRANSFORM_POOL_NAME)
+                    ->get_render_buffer();
+    terrain = System::gRenderEngine->get_instance_pool(TERRAIN_POOL_NAME)
+                  ->get_render_buffer();
+    bones = System::gRenderEngine->get_instance_pool(SKELETON_POOL_NAME)
+                ->get_render_buffer();
     camera = RHI::alloc_constant(sizeof(Camera::ShaderCamera) * 64,
                                  UpdateFrequence::PERFRAME);
     lights =

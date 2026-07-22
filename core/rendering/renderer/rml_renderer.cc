@@ -4,12 +4,12 @@
 #include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/resource/default_storage.h"
+#include "core/gui/gui_engine.h"
 #include <algorithm>
 
 namespace Seed {
 
 void RmlRenderer::init(Window *window) {
-    instance = this;
     this->window = window;
     create_material();
     gui_pass.setup(window);
@@ -21,9 +21,11 @@ void RmlRenderer::create_material() {
         .func = BlendFunc::create(
             BlendFactor::ONE, BlendFactor::ONE_MINUS_SRC_ALPHA,
             BlendFactor::ONE, BlendFactor::ONE_MINUS_SRC_ALPHA)};
-    fd.material.create(DS::get_instance()->rml_shader, RenderRasterizerState{},
-                       RenderDepthStencilState{}, blend_state);
-    fd.material->set_texture("u_texture", DS::get_instance()->white_texture);
+    fd.material.create(System::gDefaultStorage->rml_shader,
+                       RenderRasterizerState{}, RenderDepthStencilState{},
+                       blend_state);
+    fd.material->set_texture("u_texture",
+                             System::gDefaultStorage->white_texture);
 }
 
 void RmlRenderer::preprocess() {}
@@ -36,15 +38,15 @@ void RmlRenderer::cleanup() {}
 
 void RmlRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
                                    Viewport &viewport, FrameData &fd) {
-    SeedRmlRenderInterface *rml = SeedRmlRenderInterface::get_instance();
-    if (!rml) return;
+    SeedRmlRenderInterface *rml =
+        System::gGuiEngine->get_rml_render_interface();
 
     RectF view_rect = viewport.get_actual_dimension();
     i32 fb_width = (i32)view_rect.w;
     i32 fb_height = (i32)view_rect.h;
     if (fb_width <= 0 || fb_height <= 0) return;
 
-    FrameGlobal &g_frame = RenderEngine::get_instance()->get_frame_global();
+    FrameGlobal &g_frame = System::gRenderEngine->get_frame_global();
     f32 L = 0;
     f32 R = (f32)fb_width;
     f32 T = 0;
@@ -82,8 +84,7 @@ void RmlRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
 
         TextureHandle texture = rml->get_texture(cmd.texture);
         if (texture == NULL_HANDLE)
-            texture = DS::get_instance()->white_texture->get_handle();
-
+            texture = System::gDefaultStorage->white_texture->get_handle();
 
         RenderDrawDataBuilder builder;
         builder.bind_texture(0, texture);
@@ -94,11 +95,10 @@ void RmlRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
         builder.push_constant(Vec2{0, 0});
         builder.push_constant(cmd.transform);
 
-
         builder.set_viewport(view_rect.x, view_rect.y, fb_width, fb_height);
         builder.set_scissor(scissor_x, scissor_y, scissor_w, scissor_h);
         builder.bind_vertex(geometry->vertex);
-        builder.bind_description(&DS::get_instance()->gui_desc);
+        builder.bind_description(&System::gDefaultStorage->gui_desc);
         builder.bind_index(geometry->index);
         builder.set_draw_vertex(geometry->vertex_count, 0);
         builder.set_draw_index(geometry->index_count, 0);

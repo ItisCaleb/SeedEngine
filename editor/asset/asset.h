@@ -28,8 +28,8 @@ struct AssetEntry {
         AssetType type;
 };
 
-class Asset{
-    static AssetType uuid_to_type(UUID uuid);
+class Asset {
+        static AssetType uuid_to_type(UUID uuid);
 };
 
 }  // namespace Seed

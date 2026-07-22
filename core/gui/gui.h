@@ -41,7 +41,7 @@ class RmlGUI {
     public:
         void init();
         bool reload();
-        RmlGUI(Ref<GuiDocument> doc) : original_document(doc){}
+        RmlGUI(Ref<GuiDocument> doc) : original_document(doc) {}
         virtual ~RmlGUI();
 };
 }  // namespace Seed

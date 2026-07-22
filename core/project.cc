@@ -10,7 +10,6 @@
 
 namespace Seed {
 
-
 Project *Project::load(const Path &path) {
     auto file = File::open(path);
     if (file.is_null()) return nullptr;
@@ -28,12 +27,10 @@ Project *Project::load(const Path &path) {
     return project;
 }
 
-
-
-const Path Project::resolve_asset(const Path &path){
-    if(path.is_absolute()){
+const Path Project::resolve_asset(const Path &path) {
+    if (path.is_absolute()) {
         return path;
-    }else{
+    } else {
         return this->path.append(path);
     }
 }
@@ -46,7 +43,7 @@ void Project::save() {
     // j["name"] = this->name;
     // std::string json_s = j.dump();
     // file->write(json_s.data(), json_s.size());
-    ResourceLoader::get_instance()->get_entries().save(get_entry_path());
+    System::gResourceEntries->save(get_entry_path());
 }
 
 }  // namespace Seed

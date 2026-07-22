@@ -1,6 +1,7 @@
 #ifndef _SEED_PROFILER_H_
 #define _SEED_PROFILER_H_
 
+#include "core/system.h"
 #include <vector>
 #include "core/container/kstring.h"
 #include "core/types.h"
@@ -10,6 +11,7 @@ namespace Seed {
 class Profiler;
 class ProfileScope {
         friend Profiler;
+
     public:
         KString name;
         std::chrono::time_point<std::chrono::steady_clock> begin;
@@ -19,19 +21,15 @@ class ProfileScope {
         ~ProfileScope();
 };
 
-struct RecordScope{
-    KString name;
-    u64 cpu_time;
+struct RecordScope {
+        KString name;
+        u64 cpu_time;
 };
 
 class Profiler {
         friend ProfileScope;
 
-    private:
-        inline static Profiler *instance = nullptr;
-
     public:
-        static Profiler *get_instance() { return instance; }
         std::vector<KStr> scope_stack;
         std::vector<RecordScope> recorded_scope;
         std::vector<RecordScope> last_recorded_scope;

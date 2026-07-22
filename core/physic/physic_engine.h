@@ -7,11 +7,7 @@
 namespace Seed {
 
 class PhysicEngine {
-    private:
-        inline static PhysicEngine *instance = nullptr;
-
     public:
-        static PhysicEngine *get_instance() { return instance; }
         void process();
         void create_body(PhysicBody &body, const PhysicShape &shape,
                          const PhysicBodyType type, const Vec3 &pos,

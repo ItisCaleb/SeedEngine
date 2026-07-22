@@ -5,7 +5,7 @@
 
 namespace Seed {
 
-#define RD RenderEngine::get_instance()->get_device()
+#define RD System::gRenderEngine->get_device()
 
 void RenderDrawDataBuilder::bind_vertex(VertexHandle handle) {
     RenderDrawData::Operation *op =

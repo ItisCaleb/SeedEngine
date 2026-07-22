@@ -15,6 +15,7 @@
 #include "core/transform.h"
 #include "core/world/components.h"
 #include "core/resource/resource_loader.h"
+#include "core/rendering/rhi/render_engine.h"
 #include "entity.h"
 
 namespace Seed {
@@ -23,24 +24,25 @@ WorldChunk::WorldChunk(Ref<Terrain> terrain) : terrain(terrain) {}
 PhysicBody WorldChunk::create_object_physic(const Transform &transform,
                                             const PhysicShape shape) {
     PhysicBody body;
-    PhysicEngine::get_instance()->create_body(
-        body, shape, PhysicBodyType::STATIC, transform.get_position(),
-        transform.get_rotation());
+    System::gPhysicEngine->create_body(body, shape, PhysicBodyType::STATIC,
+                                       transform.get_position(),
+                                       transform.get_rotation());
     return body;
 }
 
 void WorldChunk::register_model_instance(Ref<Model> model,
                                          Ref<InstanceData> instance) {
     model_instances[*model] = instance;
-    MeshStorage::get_instance()->add_model(model, instance);
+    System::gRenderEngine->get_mesh_storage()->add_model(model, instance);
 }
 
 WorldChunk::~WorldChunk() {
     for (PhysicBody &body : physic_bodies) {
-        PhysicEngine::get_instance()->delete_body(body);
+        System::gPhysicEngine->delete_body(body);
     }
     for (auto [model, instance] : model_instances) {
-        MeshStorage::get_instance()->remove_model(model, instance);
+        System::gRenderEngine->get_mesh_storage()->remove_model(model,
+                                                                instance);
     }
 }
 
@@ -49,7 +51,7 @@ Ref<Sky> World::get_sky() { return sky; }
 void World::tick(f32 dt) {
     PROFILE_SCOPE("World");
 
-    PhysicEngine *phys = PhysicEngine::get_instance();
+    PhysicEngine *phys = System::gPhysicEngine;
 
     // sync transform to physic
     entity_manager.run_system<Transform, PhysicBody>(
@@ -59,7 +61,7 @@ void World::tick(f32 dt) {
             }
         });
 
-    PhysicEngine::get_instance()->process();
+    System::gPhysicEngine->process();
 
     /* sync physic to transform */
     entity_manager.run_system<Transform, PhysicBody>(
@@ -98,7 +100,7 @@ void World::tick(f32 dt) {
 void World::register_model_instance(Ref<Model> model,
                                     Ref<InstanceData> instance) {
     model_instances[*model] = instance;
-    MeshStorage::get_instance()->add_model(model, instance);
+    System::gRenderEngine->get_mesh_storage()->add_model(model, instance);
 }
 
 void World::register_engine_components() {
@@ -116,7 +118,7 @@ void World::register_engine_components() {
                 return;
             }
 
-            PhysicEngine::get_instance()->create_body(
+            System::gPhysicEngine->create_body(
                 *ph, shape, type, tf->get_position(), tf->get_rotation());
         });
     ecs.on_add<MeshInstance>([&](EntityManager &m, Entity e, MeshInstance *ph) {
@@ -157,11 +159,10 @@ World::World() {
 
 void World::load_setting(Ref<WorldSetting> setting) {
     this->setting = setting;
-    ResourceLoader *loader = ResourceLoader::get_instance();
-    Ref<TextureCubemap> sky_cubemap =
-        ResourceLoader::get_instance()->load_cubemap(
-            2048, 2048, setting->sky.right, setting->sky.left, setting->sky.up,
-            setting->sky.down, setting->sky.front, setting->sky.back);
+    ResourceLoader *loader = System::gResourceLoader;
+    Ref<TextureCubemap> sky_cubemap = loader->load_cubemap(
+        2048, 2048, setting->sky.right, setting->sky.left, setting->sky.up,
+        setting->sky.down, setting->sky.front, setting->sky.back);
     sky.create(sky_cubemap);
     direction_light = DirectionalLight(setting->dir_light.direction,
                                        setting->dir_light.diffuse,
@@ -176,7 +177,6 @@ void World::load_setting(Ref<WorldSetting> setting) {
     normal_image.create(PixelFormat::RGBA, 1024, 1024);
     normal_image->fill(Color{128, 128, 255, 255}, 1024, 1024);
     for (u32 i = 0; i < setting->terrain_textures.size(); i++) {
-        
         /* upload texture */
         RHI::UpdateBufferInfo tex_info =
             loader->load_image_to_upload(setting->terrain_textures[i], true);

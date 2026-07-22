@@ -34,8 +34,7 @@ class Mesh : public RefCounted {
               bounding_box(bounding_box) {
             this->lod_indices.reserve(LOD_MAX);
             this->lod_indices.emplace_back(
-                gen_indices(vertex_data->get_count()),
-                UpdateFrequence::STATIC);
+                gen_indices(vertex_data->get_count()), UpdateFrequence::STATIC);
         }
 
         template <typename T>

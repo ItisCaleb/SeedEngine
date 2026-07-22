@@ -1,5 +1,6 @@
 #ifndef _SEED_EDITOR_H_
 #define _SEED_EDITOR_H_
+#include "editor/editor_system.h"
 #include <string>
 #include "core/container/kstring.h"
 #include "core/io/path.h"
@@ -12,12 +13,12 @@
 #include "editor/gui/editor_widget.h"
 
 namespace Seed {
+
 class Editor : public RmlGUI {
         nlohmann::json project_cache;
         void set_last_open(const Path &path);
 
     public:
-
         WorldEditor world_editor;
         AssetBrowser asset_browser;
         Preprocessor preprocessor;
@@ -46,11 +47,12 @@ class Editor : public RmlGUI {
 
         void bind_model(Rml::Context *context) override;
 
+        void start();
         Editor();
         ~Editor();
 };
 
-extern Editor *gEditor;
+extern Editor *System::gEditor;
 
 }  // namespace Seed
 

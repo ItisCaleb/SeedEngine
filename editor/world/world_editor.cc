@@ -29,9 +29,9 @@ constexpr u32 kViewportWidth = 1024;
 constexpr u32 kViewportHeight = 768;
 
 struct SkyboxFaceBinding {
-    const char *name;
-    UUID SkySetting::*setting;
-    CubemapFace cubemap_face;
+        const char *name;
+        UUID SkySetting::*setting;
+        CubemapFace cubemap_face;
 };
 
 constexpr SkyboxFaceBinding skybox_faces[] = {
@@ -76,8 +76,7 @@ bool WorldEditor::load_world(const UUID uuid) {
     current_world = nullptr;
     reset_selection();
 
-    ResourceEntry *entry =
-        ResourceLoader::get_instance()->get_entries().get_entry(uuid);
+    ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
     if (entry == nullptr) {
         set_status("World file is not registered in resource entries.");
         sync_view_model();
@@ -87,8 +86,8 @@ bool WorldEditor::load_world(const UUID uuid) {
 
     current_world = new EditorWorld(entry);
     world_setting = current_world->get_setting();
-    if (gEditor != nullptr) {
-        gEditor->set_last_open_world(entry->uuid);
+    if (System::gEditor != nullptr) {
+        System::gEditor->set_last_open_world(entry->uuid);
     }
     set_status("World loaded.");
     sync_view_model();
@@ -98,20 +97,18 @@ bool WorldEditor::load_world(const UUID uuid) {
 
 void WorldEditor::init() {
     renderer = new WorldRenderer(kViewportWidth, kViewportHeight);
-    GuiEngine::get_instance()->add_texture("main_view",
-                                           renderer->get_screen_texture());
-    RenderEngine::get_instance()->register_renderer(1, renderer);
+    System::gGuiEngine->add_texture("main_view",
+                                    renderer->get_screen_texture());
+    System::gRenderEngine->register_renderer(1, renderer);
 }
 
 bool WorldEditor::is_viewport_hovered() const {
     if (document == nullptr) return false;
 
-    GuiEngine *gui = GuiEngine::get_instance();
-    if (gui == nullptr) return false;
-    Rml::Context *context = gui->get_rml_context();
+    Rml::Context *context = System::gGuiEngine->get_rml_context();
     Rml::Element *viewport = document->GetElementById("viewport");
-    Rml::Element *hovered = context == nullptr ? nullptr
-                                               : context->GetHoverElement();
+    Rml::Element *hovered =
+        context == nullptr ? nullptr : context->GetHoverElement();
     while (hovered != nullptr) {
         if (hovered == viewport) return true;
         hovered = hovered->GetParentNode();
@@ -140,8 +137,8 @@ bool WorldEditor::get_camera_focus(Vec3 &target) const {
                                              height)) {
         return false;
     }
-    target = Vec3{(f32)last_pick_x, (f32)height + HEIGHT_OFFSET,
-                  (f32)last_pick_y};
+    target =
+        Vec3{(f32)last_pick_x, (f32)height + HEIGHT_OFFSET, (f32)last_pick_y};
     return true;
 }
 
@@ -157,8 +154,7 @@ bool WorldEditor::chunk_exists_at(i32 chunk_x, i32 chunk_y) const {
 }
 
 KString WorldEditor::static_model_label(UUID uuid) const {
-    ResourceEntry *entry =
-        ResourceLoader::get_instance()->get_entries().get_entry(uuid);
+    ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
     if (entry == nullptr) return KString("Missing Model");
     return KString(entry->path.filename());
 }
@@ -174,11 +170,10 @@ bool WorldEditor::save_current_world() {
     current_world->save_dirty_terrain_maps();
     current_world->save();
 
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
     if (project == nullptr) return false;
 
-    ResourceLoader::get_instance()->get_entries().save(
-        project->get_entry_path());
+    System::gResourceEntries->save(project->get_entry_path());
     return true;
 }
 
@@ -224,7 +219,7 @@ void WorldEditor::add_chunk() {
 }
 
 void WorldEditor::clear_tiles() {
-    if (current_world == nullptr || gEditor == nullptr) return;
+    if (current_world == nullptr || System::gEditor == nullptr) return;
 
     std::vector<UUID> tile_assets;
     tile_assets.reserve(current_world->get_chunks().size() * 2);
@@ -238,7 +233,7 @@ void WorldEditor::clear_tiles() {
     }
 
     for (UUID uuid : tile_assets) {
-        gEditor->remove_asset(uuid);
+        System::gEditor->remove_asset(uuid);
     }
 
     current_world->clear_tiles();
@@ -435,21 +430,20 @@ bool WorldEditor::update_pick_from_event(Rml::Event &event) {
 
 void WorldEditor::rml_set_mode(RML_EVENT_ARGS) {
     if (args.empty()) return;
-    active_mode = string_to_enum<WorldEditorMode>(
-        args[0].Get<Rml::String>("World"));
+    active_mode =
+        string_to_enum<WorldEditorMode>(args[0].Get<Rml::String>("World"));
     if (view_model) view_model.DirtyVariable("editor_mode");
 }
 
 void WorldEditor::rml_set_tool(RML_EVENT_ARGS) {
     if (args.empty()) return;
-    brush_type = string_to_enum<TerrainBrush>(
-        args[0].Get<Rml::String>("Raise"));
+    brush_type =
+        string_to_enum<TerrainBrush>(args[0].Get<Rml::String>("Raise"));
     if (view_model) view_model.DirtyVariable("terrain_tool");
 }
 
 void WorldEditor::rml_save_world(RML_EVENT_ARGS) {
-    set_status(save_current_world() ? "World saved."
-                                    : "Failed to save world.");
+    set_status(save_current_world() ? "World saved." : "Failed to save world.");
     sync_view_model();
     dirty_view_model();
 }
@@ -491,10 +485,9 @@ void WorldEditor::rml_set_skybox_face(RML_EVENT_ARGS) {
     const SkyboxFaceBinding *face = find_skybox_face(face_name);
     if (face == nullptr) return;
 
-    const UUID uuid = UUID::from_string(
-        e.GetParameter<Rml::String>("uuid", ""));
-    ResourceEntry *entry =
-        ResourceLoader::get_instance()->get_entries().get_entry(uuid);
+    const UUID uuid =
+        UUID::from_string(e.GetParameter<Rml::String>("uuid", ""));
+    ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
     if (uuid.is_null() || entry == nullptr ||
         entry->type_id != type_id<Texture>()) {
         world_setting->sky.*(face->setting) =
@@ -511,8 +504,8 @@ void WorldEditor::rml_set_skybox_face(RML_EVENT_ARGS) {
     if (save_current_world()) {
         set_status(fmt::format("Skybox {} face updated and saved.", face_name));
     } else {
-        set_status(fmt::format("Skybox {} face updated but not saved.",
-                               face_name));
+        set_status(
+            fmt::format("Skybox {} face updated but not saved.", face_name));
     }
     sync_dirty_maps();
     if (view_model) {
@@ -561,7 +554,7 @@ void WorldEditor::rml_viewport_pick(RML_EVENT_ARGS) {
     if (picked && active_mode == WorldEditorMode::Terrain &&
         !e.GetParameter<bool>("alt_key", false) &&
         brush_type != TerrainBrush::Pick &&
-        Input::get_instance()->is_mouse_pressed(MouseEvent::LEFT)) {
+        System::gInput->is_mouse_pressed(MouseEvent::LEFT)) {
         bool changed = false;
         if (current_world != nullptr && !current_world->terrain.is_null()) {
             changed = current_world->terrain->apply_brush(
@@ -577,8 +570,7 @@ void WorldEditor::rml_viewport_pick(RML_EVENT_ARGS) {
 }
 
 void WorldEditor::rml_viewport_scroll(RML_EVENT_ARGS) {
-    viewport_scroll_delta +=
-        e.GetParameter<f32>("wheel_delta_y", 0.0f);
+    viewport_scroll_delta += e.GetParameter<f32>("wheel_delta_y", 0.0f);
     e.StopPropagation();
 }
 
@@ -662,9 +654,8 @@ void WorldEditor::bind_view_model_events(
                                   &WorldEditor::rml_cancel_clear_tiles, this);
     constructor.BindEventCallback("confirm_clear_tiles",
                                   &WorldEditor::rml_confirm_clear_tiles, this);
-    constructor.BindEventCallback("commit_world_settings",
-                                  &WorldEditor::rml_commit_world_settings,
-                                  this);
+    constructor.BindEventCallback(
+        "commit_world_settings", &WorldEditor::rml_commit_world_settings, this);
     constructor.BindEventCallback("set_skybox_face",
                                   &WorldEditor::rml_set_skybox_face, this);
     constructor.BindEventCallback("select_scene_object",

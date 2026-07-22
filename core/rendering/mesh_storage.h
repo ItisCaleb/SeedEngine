@@ -15,7 +15,6 @@ class MeshStorage {
         };
 
     private:
-        inline static MeshStorage *instance = nullptr;
         std::unordered_map<u64, MeshInstance> meshes;
 
     public:
@@ -26,7 +25,6 @@ class MeshStorage {
         std::unordered_map<u64, MeshInstance> &get_meshes() { return meshes; }
         MeshStorage();
         ~MeshStorage();
-        static MeshStorage *get_instance() { return instance; }
 };
 }  // namespace Seed
 

@@ -14,7 +14,6 @@
 #include "core/window.h"
 
 namespace Seed {
-RenderEngine *RenderEngine::get_instance() { return instance; }
 
 void RenderEngine::bind_vulken(Window *window) {
     spdlog::info("Initializing Vulkan Rendering backend");
@@ -68,7 +67,6 @@ void RenderEngine::set_renderer_enable(Renderer *renderer, bool enable) {
 }
 
 RenderEngine::RenderEngine(Window *window) {
-    instance = this;
     spdlog::info("Initializing Rendering engine");
     if (!window) {
         SPDLOG_ERROR(
@@ -83,15 +81,15 @@ RenderEngine::RenderEngine(Window *window) {
     this->shader_proxy = new ShaderProxy(DEFAULT_INCLUDE_PATHS);
     this->mesh_storage = new MeshStorage;
     this->current_window = window;
+}
+
+void RenderEngine::init() {
     this->instance_pools[TRANSFORM_POOL_NAME] =
         new InstanceDataPool(sizeof(Mat4), 65536);
     this->instance_pools[TERRAIN_POOL_NAME] =
         new InstanceDataPool(sizeof(Vec4), 1024);
     this->instance_pools[SKELETON_POOL_NAME] =
         new InstanceDataPool(sizeof(Mat4), 65536);
-}
-
-void RenderEngine::init() {
     default_renderer = new DefaultRenderer;
     imgui_renderer = new ImguiRenderer;
     rml_renderer = new RmlRenderer;
@@ -113,7 +111,7 @@ void RenderEngine::process() {
     PROFILE_SCOPE("Rendering");
     RenderCommandDispatcher dp;
     RenderStateDataBuilder builder;
-    RenderEngine::get_instance()->get_frame_global().bind(builder);
+    System::gRenderEngine->get_frame_global().bind(builder);
     dp.set_states(builder);
 
     for (RendererLayer &layer : this->renderers) {
@@ -145,8 +143,5 @@ ShaderHandle RenderEngine::compile_shader(
     return this->shader_proxy->compile_shader(path, shader, layout, defines);
 }
 
-RenderEngine::~RenderEngine() {
-    instance = nullptr;
-    delete shader_proxy;
-}
+RenderEngine::~RenderEngine() { delete shader_proxy; }
 }  // namespace Seed

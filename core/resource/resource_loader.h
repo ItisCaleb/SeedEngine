@@ -34,7 +34,7 @@ class AsyncResource : public RefCounted {
             if (this->loaded) {
                 return this->resource;
             }
-            ThreadPool::get_instance()->wait(this->work_id);
+            System::gThreadPool->wait(this->work_id);
             return this->resource;
         }
         bool is_loaded() { return loaded; }
@@ -45,7 +45,6 @@ class AsyncResource : public RefCounted {
 
 class ResourceLoader {
     private:
-        inline static ResourceLoader *instance = nullptr;
         std::unordered_map<UUID, Resource *> res_cache;
         std::unordered_map<ResourceTypeID, ResourceTypeInfo> infos;
         std::unordered_map<ResourceTypeID, Ref<Resource>> default_resources;
@@ -61,13 +60,10 @@ class ResourceLoader {
                                 std::vector<Ref<Mesh>> &meshes,
                                 Ref<Skeleton> skeleton,
                                 std::vector<Ref<Animation>> &animations);
-        ResourceEntries entries;
 
     public:
-        static ResourceLoader *get_instance();
         void register_resource(Resource *res);
         void unregister_resource(Resource *res);
-        ResourceEntries &get_entries() { return entries; }
 
         RHI::UpdateBufferInfo load_image_to_upload(UUID uuid,
                                                    bool force_rgba = false);
@@ -79,7 +75,7 @@ class ResourceLoader {
             if (res_cache.find(uuid) != res_cache.end()) {
                 return Ref<T>(static_cast<T *>(res_cache[uuid]));
             }
-            ResourceEntry *entry = entries.get_entry(uuid);
+            ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
             if (entry == nullptr) {
                 return Ref<T>();
             }
@@ -91,8 +87,7 @@ class ResourceLoader {
             Ref<Resource> res;
 
             const Path path =
-                SeedEngine::get_instance()->get_project()->resolve_asset(
-                    entry->path);
+                System::gEngine->get_project()->resolve_asset(entry->path);
             Ref<File> file = File::open(path);
             if (file.is_null()) {
                 return Ref<T>();
@@ -114,7 +109,7 @@ class ResourceLoader {
         template <typename T>
         Ref<T> load_from_path(const Path &path) {
             static_assert(std::is_base_of_v<Resource, T>);
-            UUID uuid = entries.get_uuid(path);
+            UUID uuid = System::gResourceEntries->get_uuid(path);
             if (uuid.is_null()) {
                 return Ref<T>();
             }
@@ -137,12 +132,12 @@ class ResourceLoader {
             /* internal load */
             static_assert(std::is_base_of_v<Resource, T>);
             u64 tid = type_id<T>();
-            UUID uuid = entries.insert_entry(path, tid, true);
+            UUID uuid = System::gResourceEntries->insert_entry(path, tid, true);
             auto iter = infos.find(tid);
             if (iter == infos.end()) {
                 return Ref<T>();
             }
-            ResourceEntry *entry = entries.get_entry(uuid);
+            ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
             Ref<Resource> res;
             Ref<File> file = File::open(entry->path);
             if (file.is_null()) {
@@ -167,7 +162,7 @@ class ResourceLoader {
             UUID uuid, std::function<void(Ref<T>)> callback = {}) {
             Ref<AsyncResource<T>> async_rc;
             async_rc.create();
-            async_rc->work_id = ThreadPool::get_instance()->add_work(
+            async_rc->work_id = System::gThreadPool->add_work(
                 [=](void *) mutable {
                     async_rc->resource = load<T>(uuid);
                     async_rc->loaded = true;
@@ -183,7 +178,7 @@ class ResourceLoader {
             const Path &path, std::function<void(Ref<T>)> callback = {}) {
             Ref<AsyncResource<T>> async_rc;
             async_rc.create();
-            async_rc->work_id = ThreadPool::get_instance()->add_work(
+            async_rc->work_id = System::gThreadPool->add_work(
                 [=](void *) mutable {
                     async_rc->resource = load_from_path<T>(path);
                     async_rc->loaded = true;

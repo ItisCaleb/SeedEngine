@@ -79,7 +79,7 @@ class EntityManager {
         }
 
         template <typename T, typename... Args>
-        T* add_component(Entity entity, Args &&...args) {
+        T *add_component(Entity entity, Args &&...args) {
             assert(entity > -1);
             u64 component_id = type_id<T>();
             T *component_array = create_or_get_components<T>(component_id);
@@ -119,8 +119,7 @@ class EntityManager {
             }
 
             on_add_hooks[type_id<T>()] = [hook](EntityManager &w, Entity e,
-                                                    void *component,
-                                                    void *args) {
+                                                void *component, void *args) {
                 T *comp = static_cast<T *>(component);
                 if constexpr (has_create_args_v<T>) {
                     typename ComponentTrait<T>::create_args &tuple =

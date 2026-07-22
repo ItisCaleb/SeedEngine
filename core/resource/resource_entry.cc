@@ -23,7 +23,7 @@ Path ResourceEntry::real_path() {
     if (is_internal)
         return path;
     else
-        return SeedEngine::get_instance()->get_project()->resolve_asset(path);
+        return System::gEngine->get_project()->resolve_asset(path);
 }
 
 UUID ResourceEntries::get_uuid(const Path &path) {
@@ -35,7 +35,7 @@ UUID ResourceEntries::get_uuid(const Path &path) {
 }
 UUID ResourceEntries::insert_entry(const Path &p, ResourceTypeID id,
                                    bool is_internal) {
-    ResourceTypeInfo *info = ResourceLoader::get_instance()->get_type_info(id);
+    ResourceTypeInfo *info = System::gResourceLoader->get_type_info(id);
     if (!info) {
         SPDLOG_ERROR(
             "Can't create entry with a type that doesn't registered yet!");
@@ -70,11 +70,11 @@ void ResourceEntries::save(const Path &path) {
     Ref<File> file = File::open(path, "wb");
     nlohmann::ordered_json j;
     j["entries"] = nlohmann::json::array();
-    ResourceLoader *loader = ResourceLoader::get_instance();
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
     for (auto &[uuid, entry] : uuid_to_entry) {
         if (entry.is_internal) continue;
-        ResourceTypeInfo *info = loader->get_type_info(entry.type_id);
+        ResourceTypeInfo *info =
+            System::gResourceLoader->get_type_info(entry.type_id);
         nlohmann::ordered_json j_entry;
         j_entry["UUID"] = uuid;
         j_entry["resource_type_id"] = entry.type_id;
@@ -94,15 +94,15 @@ void ResourceEntries::load(const Path &path) {
     Ref<File> file = File::open(path);
     nlohmann::json j = file->read_json();
     auto &j_entries = j["entries"];
-    ResourceLoader *loader = ResourceLoader::get_instance();
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
 
     for (auto &j_entry : j_entries) {
         UUID uuid = j_entry["UUID"];
         ResourceTypeID type_id = j_entry["resource_type_id"];
         Path p = j_entry["path"];
         nlohmann::json jconfig;
-        ResourceTypeInfo *info = loader->get_type_info(type_id);
+        ResourceTypeInfo *info =
+            System::gResourceLoader->get_type_info(type_id);
         if (info && !info->has_data) {
             Ref<File> config = File::open(project->resolve_asset(p));
             if (config.is_null()) {

@@ -114,7 +114,7 @@ void InstanceData::_upload(RHI::UpdateBufferInfo &update_info,
     } else {
         auto block = pool->query(instance_handle);
         if (block.size < size) {
-            if(block.size > 0) pool->free(instance_handle);
+            if (block.size > 0) pool->free(instance_handle);
             instance_handle = pool->alloc(size);
         }
     }
@@ -136,7 +136,7 @@ void InstanceData::_upload(std::vector<RHI::UpdateBufferInfo> &update_infos) {
     } else {
         auto block = pool->query(instance_handle);
         if (block.size < size) {
-            if(block.size > 0) pool->free(instance_handle);
+            if (block.size > 0) pool->free(instance_handle);
             instance_handle = pool->alloc(size);
         }
     }
@@ -173,15 +173,13 @@ void StaticInstanceData::frustum_culling(const Frustum &frustum,
                                          std::vector<u32> &instance_ids,
                                          std::vector<f32> &depths) {
     u32 i = pool->query(instance_handle).idx;
-    DebugDrawer *drawer = DebugDrawer::get_instance();
-
     for (Mat4 &mat : world_matrices) {
         AABB result = bounding_box.translate(mat);
         /* frustum culling */
         if (frustum.within_frustum(result)) {
-            if (SeedEngine::get_instance()->get_debug_flag() &
+            if (System::gEngine->get_debug_flag() &
                 EngineConfig::BOUNDING_BOX) {
-                drawer->draw_aabb(result);
+                System::gDebugDrawer->draw_aabb(result);
             }
             /* push instance indices */
             instance_ids.push_back(i);
@@ -192,6 +190,6 @@ void StaticInstanceData::frustum_culling(const Frustum &frustum,
 };
 
 StaticInstanceData::StaticInstanceData()
-    : InstanceData(RenderEngine::get_instance()->get_instance_pool(
-          TRANSFORM_POOL_NAME)) {}
+    : InstanceData(
+          System::gRenderEngine->get_instance_pool(TRANSFORM_POOL_NAME)) {}
 }  // namespace Seed

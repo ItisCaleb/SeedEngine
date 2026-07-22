@@ -35,16 +35,16 @@ void WorldRenderer::init(Window *window) {
 }
 void WorldRenderer::preprocess() {
     fd = {};
-    EditorWorld *world = gEditor->world_editor.get_current_world();
+    EditorWorld *world = System::gEditor->world_editor.get_current_world();
 
     if (!world) {
         return;
     }
 
-    FrameGlobal &g_frame = RenderEngine::get_instance()->get_frame_global();
+    FrameGlobal &g_frame = System::gRenderEngine->get_frame_global();
     fd.sky = world->sky.sky;
 
-    Camera *cam = &SeedEngine::get_instance()->get_world()->get_camera();
+    Camera *cam = &System::gEngine->get_world()->get_camera();
     RHI::UpdateBufferInfo cam_info =
         RHI::alloc_heap(sizeof(Camera::ShaderCamera) * 64);
     Camera::ShaderCamera *matrices = (Camera::ShaderCamera *)cam_info.data;
@@ -52,7 +52,7 @@ void WorldRenderer::preprocess() {
     cam->fill_shader_camera(matrices);
     RHI::update_from_heap(g_frame.camera, 0, cam_info);
 
-    World *runtime_world = SeedEngine::get_instance()->get_world();
+    World *runtime_world = System::gEngine->get_world();
     RHI::UpdateBufferInfo light_info = RHI::alloc_heap(sizeof(STB140Lights));
     std::memset(light_info.data, 0, light_info.size);
     STB140Lights *light_buf = (STB140Lights *)light_info.data;
@@ -110,8 +110,8 @@ void WorldRenderer::_process(RenderCommandDispatcher &dp) {
 }
 void WorldRenderer::cleanup() {}
 
-void WorldRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
-                                       Viewport &, FrameData &fd) {
+void WorldRenderer::ColorPass::execute(RenderCommandDispatcher &dp, Viewport &,
+                                       FrameData &fd) {
     if (!fd.mesh.is_null() && fd.visible_size > 0) {
         Ref<Material> material = fd.mesh->get_material();
         RenderDrawDataBuilder mesh_builder = dp.generate_render_data(material);
@@ -147,7 +147,7 @@ void WorldRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
             dp.generate_render_data(ref_cast<Material>(fd.sky->get_material()));
         sky_builder.push_constant(0);
         sky_builder.push_constant(0);
-        sky_builder.bind_vertex_data(DS::get_instance()->sky_vertices);
+        sky_builder.bind_vertex_data(System::gDefaultStorage->sky_vertices);
         sky_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
         dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
                   fd.sky->get_material()->get_pipeline(), 1.0);

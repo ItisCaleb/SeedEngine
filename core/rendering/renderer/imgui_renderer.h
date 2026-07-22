@@ -6,7 +6,6 @@
 namespace Seed {
 class ImguiRenderer : public Renderer {
     private:
-        inline static ImguiRenderer *instance = nullptr;
         void create_font_material();
         struct FrameData {
                 Ref<Material> font_material;
@@ -26,12 +25,11 @@ class ImguiRenderer : public Renderer {
         GUIPass gui_pass;
 
         void _process(RenderCommandDispatcher &dp) override;
+
     public:
         void init(Window *window) override;
-        void new_frame();
         void preprocess() override;
         void cleanup() override;
-        static ImguiRenderer *get_instance() { return instance; }
 };
 }  // namespace Seed
 

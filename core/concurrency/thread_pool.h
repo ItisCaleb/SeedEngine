@@ -33,8 +33,7 @@ class ThreadPool {
         // Use to track workds
         FreeList<Work *> work_list;
         FreeList<Group> group_list;
-        inline static ThreadPool *instance = nullptr;
-        static void thread_func(ThreadData *td);
+        static void thread_func(ThreadPool *pool, ThreadData *td);
         u32 last_worker = -1;
         ThreadData *select_worker();
         struct ThreadData {
@@ -44,13 +43,11 @@ class ThreadPool {
                 std::mutex mutex;
                 RingBuffer<Work> queue;
                 bool exit = false;
-                ThreadData(u32 index)
-                    : index(index), th(thread_func, this), queue(256) {}
+                ThreadData(ThreadPool *pool, u32 index)
+                    : index(index), th(thread_func, pool, this), queue(256) {}
         };
 
     public:
-        static ThreadPool *get_instance();
-
         WorkId add_work(UserFunc func, void *user_data = nullptr);
         GroupId add_group(UserFunc func, std::vector<void *> &user_datas);
         void wait(WorkId id);

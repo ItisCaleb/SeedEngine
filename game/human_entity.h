@@ -12,6 +12,7 @@ class HumanBehaviour : public Behaviour {
     private:
         Ref<SkeletonModel> model;
         AnimationState *state;
+
     public:
         HumanBehaviour();
         virtual void start() override;

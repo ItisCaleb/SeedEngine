@@ -6,7 +6,7 @@
 #include "mesh.h"
 
 namespace Seed {
-MeshStorage::MeshStorage() { instance = this; }
+MeshStorage::MeshStorage() {}
 
 void MeshStorage::add_mesh(Ref<Mesh> mesh, Ref<InstanceData> instance) {
     EXPECT_NOT_NULL_RET(*mesh);

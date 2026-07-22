@@ -120,8 +120,8 @@ AssetBrowser::AssetBrowser() {
     Ref<Image> default_preview;
     default_preview.create(PixelFormat::RGBA, 48, 48);
     default_preview->fill(Color{128, 128, 128, 255}, 48, 48);
-    GuiEngine::get_instance()->add_texture("preview-default",
-                                           default_preview->create_texture());
+    System::gGuiEngine->add_texture("preview-default",
+                                    default_preview->create_texture());
 }
 
 void AssetBrowser::init(KStr project_root) {
@@ -285,7 +285,7 @@ bool AssetBrowser::matches_search(const Path &path, KStr filter) {
 }
 
 Path AssetBrowser::get_project_asset_path(const AssetEntry &entry) const {
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
     if (project == nullptr) return entry.path;
     if (entry.path.is_absolute())
         return entry.path.relative(project->get_path());
@@ -293,7 +293,7 @@ Path AssetBrowser::get_project_asset_path(const AssetEntry &entry) const {
 }
 
 Path AssetBrowser::current_asset_directory() const {
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
     if (project == nullptr || !current_dir.is_valid()) return Path("assets");
 
     Path dir = current_dir->get_path();
@@ -308,7 +308,7 @@ bool AssetBrowser::create_world_asset() {
         return false;
     }
 
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
     if (project == nullptr) {
         world_create_error = "No project is loaded.";
         has_world_create_error = true;
@@ -324,15 +324,15 @@ bool AssetBrowser::create_world_asset() {
     if (!name.end_with(".world")) file_name.append(".world");
     Path asset_path = folder.append(file_name);
 
-    ResourceEntries &entries = ResourceLoader::get_instance()->get_entries();
-    if (!entries.get_uuid(asset_path).is_null()) {
+    ResourceEntries *entries = System::gResourceEntries;
+    if (!entries->get_uuid(asset_path).is_null()) {
         world_create_error = "World already exists.";
         has_world_create_error = true;
         return false;
     }
 
-    UUID uuid = entries.insert_entry(asset_path, type_id<WorldSetting>());
-    ResourceEntry *entry = entries.get_entry(uuid);
+    UUID uuid = entries->insert_entry(asset_path, type_id<WorldSetting>());
+    ResourceEntry *entry = entries->get_entry(uuid);
     if (entry == nullptr) {
         world_create_error = "Failed to create world.";
         has_world_create_error = true;
@@ -353,9 +353,9 @@ bool AssetBrowser::create_world_asset() {
     };
     j["chunks"] = nlohmann::ordered_json::array();
 
-    entries.save(project->get_entry_path());
-    gEditor->save_project();
-    gEditor->world_editor.load_world(entry->uuid);
+    entries->save(project->get_entry_path());
+    System::gEditor->save_project();
+    System::gEditor->world_editor.load_world(entry->uuid);
 
     invalidate_current_folder_cache();
     needs_refresh = true;
@@ -368,18 +368,19 @@ UUID AssetBrowser::get_asset_uuid(AssetEntry &entry) {
     Path _p = get_project_asset_path(entry);
 
     if (entry.type == AssetType::Mesh) {
-        PreprocessEntry *pentry = gEditor->preprocessor.get_entry_from_path(_p);
+        PreprocessEntry *pentry =
+            System::gEditor->preprocessor.get_entry_from_path(_p);
         if (pentry == nullptr) return UUID();
         return pentry->target_uuid;
     } else {
-        UUID uuid = ResourceLoader::get_instance()->get_entries().get_uuid(_p);
+        UUID uuid = System::gResourceEntries->get_uuid(_p);
         return uuid;
     }
 }
 
 // Inspectable *AssetBrowser::create_inspectable(AssetEntry &entry) {
 //     ResourceEntry *rentry =
-//         ResourceLoader::get_instance()->get_entries().get_entry(
+//         System::gResourceEntries->get_entry(
 //             get_asset_uuid(entry));
 //     if (rentry == nullptr) return nullptr;
 //     switch (entry.type) {
@@ -398,7 +399,7 @@ void AssetBrowser::open_asset(AssetEntry &entry) {
     }
 
     if (entry.type == AssetType::World) {
-        gEditor->world_editor.load_world(get_asset_uuid(entry));
+        System::gEditor->world_editor.load_world(get_asset_uuid(entry));
         return;
     }
 }
@@ -457,7 +458,7 @@ void AssetBrowser::rml_open_folder(RML_EVENT_ARGS) {
 }
 
 void AssetBrowser::rml_open_menu(RML_EVENT_ARGS) {
-    if (!Input::get_instance()->is_mouse_released(MouseEvent::RIGHT)) {
+    if (!System::gInput->is_mouse_released(MouseEvent::RIGHT)) {
         return;
     }
     Rml::Element *_menu = document->GetElementById("asset-popup");

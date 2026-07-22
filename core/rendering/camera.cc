@@ -135,7 +135,7 @@ Mat4 Camera::projection() {
 Mat4 Camera::projection_zero() {
     if (this->frustum.is_ortho) {
         return Mat4::ortho_mat_zero(frustum.right, frustum.left, frustum.top,
-                               frustum.bottom, frustum.near, frustum.far);
+                                    frustum.bottom, frustum.near, frustum.far);
 
     } else {
         f32 w = frustum.right - frustum.left;
@@ -143,10 +143,11 @@ Mat4 Camera::projection_zero() {
         f32 h = frustum.top - frustum.bottom;
         f32 tb = frustum.top + frustum.bottom;
         f32 d = frustum.far - frustum.near;
-        return Mat4({Vec4{2 * frustum.near / w, 0, rl / w, 0},
-                     Vec4{0, 2 * frustum.near / h, tb / h, 0},
-                     Vec4{0, 0, -frustum.far / d , -frustum.far * frustum.near / d},
-                     Vec4{0, 0, -1, 0}});
+        return Mat4(
+            {Vec4{2 * frustum.near / w, 0, rl / w, 0},
+             Vec4{0, 2 * frustum.near / h, tb / h, 0},
+             Vec4{0, 0, -frustum.far / d, -frustum.far * frustum.near / d},
+             Vec4{0, 0, -1, 0}});
     }
 }
 

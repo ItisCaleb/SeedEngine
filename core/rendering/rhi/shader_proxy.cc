@@ -176,7 +176,7 @@ void ShaderProxy::append_binding_set(slang::TypeLayoutReflection *layout,
 ShaderHandle ShaderProxy::compile_shader(
     const Path &path, const KString &shader, ShaderLayout *layout,
     const std::vector<ShaderDefine> &defines) {
-    RenderBackend *backend = RenderEngine::get_instance()->get_device();
+    RenderBackend *backend = System::gRenderEngine->get_device();
     Slang::ComPtr<slang::ISession> session;
     std::vector<slang::PreprocessorMacroDesc> macros;
     for (const ShaderDefine &define : defines) {
@@ -286,11 +286,9 @@ ShaderHandle ShaderProxy::compile_shader(
         }
     }
 
-    ShaderHandle handle =
-        RenderEngine::get_instance()->get_device()->alloc_shader(
-            vert, frag, geom, tesc, tese);
-    RenderEngine::get_instance()->get_device()->setup_shader_layout(handle,
-                                                                    _layout);
+    ShaderHandle handle = System::gRenderEngine->get_device()->alloc_shader(
+        vert, frag, geom, tesc, tese);
+    System::gRenderEngine->get_device()->setup_shader_layout(handle, _layout);
     if (layout) {
         *layout = _layout;
     }

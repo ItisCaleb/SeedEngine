@@ -96,20 +96,19 @@ bool RmlPreview::set_uuid(UUID uuid) {
     image->SetAttribute("src", "internal://preview-default");
 
     if (uuid.is_null()) return false;
-    ResourceEntries &entries = ResourceLoader::get_instance()->get_entries();
-    ResourceEntry *entry = entries.get_entry(uuid);
+    ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
     if (entry == nullptr || entry->type_id != type_id<Texture>()) {
         return false;
     }
 
     KString preview_name = fmt::format("preview-{}", uuid.to_string());
-    Ref<Texture> preview = GuiEngine::get_instance()->get_texture(preview_name);
+    Ref<Texture> preview = System::gGuiEngine->get_texture(preview_name);
     if (preview.is_null()) {
         preview.create(TextureType::TEXTURE_2D, 48, 48, PixelFormat::RGBA);
-        GuiEngine::get_instance()->add_texture(preview_name, preview);
+        System::gGuiEngine->add_texture(preview_name, preview);
         /* use CPU downscale */
         /* we probably don't want to upload to GPU just for this */
-        ThreadPool::get_instance()->add_work([=](void *) {
+        System::gThreadPool->add_work([=](void *) {
             Ref<Image> preview_img =
                 Image::load_from_file(entry->real_path(), true);
             preview_img->downscale(48, 48)->upload(preview);

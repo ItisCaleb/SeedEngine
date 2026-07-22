@@ -40,9 +40,7 @@ bool File::exists(const Path &path) {
 #endif
 }
 
-bool File::remove(const Path &path) {
-    return std::remove(path.data()) == 0;
-}
+bool File::remove(const Path &path) { return std::remove(path.data()) == 0; }
 
 KString File::read_str(size_t size) {
     KString data;

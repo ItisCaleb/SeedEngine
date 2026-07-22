@@ -16,7 +16,7 @@ class Resource : public RefCounted {
         UUID uuid;
 
     public:
-        const Path& get_path() const;
+        const Path &get_path() const;
         void set_uuid(UUID uuid) { this->uuid = uuid; }
         UUID get_uuid() { return uuid; }
         Resource();

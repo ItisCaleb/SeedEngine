@@ -29,10 +29,10 @@ class Camera {
         void calculate_dirty();
 
     public:
-        struct ShaderCamera{
-            alignas(16) Vec4 position;
-            Mat4 projection;
-            Mat4 view;
+        struct ShaderCamera {
+                alignas(16) Vec4 position;
+                Mat4 projection;
+                Mat4 view;
         };
         void set_position(Vec3 pos);
         Vec3 get_position();

@@ -34,7 +34,9 @@ class RenderPass {
             this->viewport = viewport;
         }
         void set_name(const std::string &name) { this->name = name; }
-        void set_clear_flag(StateClearFlag clear_flag) { this->clear_flag = clear_flag; }
+        void set_clear_flag(StateClearFlag clear_flag) {
+            this->clear_flag = clear_flag;
+        }
         void bind_color_attachment(Ref<Texture> texture, u32 layer, u8 slot) {
             for (Attachment &attachment : color_attachments) {
                 if (attachment.slot == slot) {

@@ -4,12 +4,20 @@
 #include "core/math/vec3.h"
 
 namespace Seed {
-enum class PhysicShapeType : u8 { EMPTY_SHAPE, SPHERE, BOX, CAPSULE, PLANE, HEIGHT_MAP };
+enum class PhysicShapeType : u8 {
+    EMPTY_SHAPE,
+    SPHERE,
+    BOX,
+    CAPSULE,
+    PLANE,
+    HEIGHT_MAP
+};
 
 class PhysicShape {
     public:
         const PhysicShapeType type = PhysicShapeType::EMPTY_SHAPE;
         PhysicShape() = default;
+
     protected:
         PhysicShape(PhysicShapeType type) : type(type) {}
 };

@@ -2,7 +2,6 @@
 #include <algorithm>
 #include "core/debug/profiler.h"
 
-
 namespace Seed {
 void *RenderBackend::alloc(u64 size, void *data) {
     RenderCommandQueue &queue = this->cmd_queue[get_current_frame_index()];

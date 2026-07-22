@@ -6,12 +6,6 @@
 
 #define CONCAT(a, b) CONCAT_INTERNAL(a, b)
 
-#define SEED_INSTANCE(_class)                                \
-private:                                             \
-    inline static _class *instance = nullptr; \
-public:                                              \
-    static _class *get_instance() { return instance; }
-
 #define EXPECT_NOT_NULL_RET(val, ...)                                 \
     if ((val) == nullptr) {                                           \
         SPDLOG_ERROR("{}: Variable " #val " is null.", __FUNCTION__); \

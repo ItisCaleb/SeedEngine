@@ -4,6 +4,4 @@
 #include "core/misc/uuid.h"
 #include "core/serialize/json_impl.h"
 
-namespace Seed {
-
-}  // namespace Seed
+namespace Seed {}  // namespace Seed

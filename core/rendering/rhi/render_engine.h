@@ -1,6 +1,7 @@
 #ifndef _SEED_RENDER_ENGINE_H_
 #define _SEED_RENDER_ENGINE_H_
 
+#include "core/system.h"
 #include <vector>
 #include "core/rendering/backend/render_backend.h"
 #include "core/resource/model.h"
@@ -22,7 +23,6 @@ class RenderEngine {
                 bool enabled;
                 Renderer *renderer;
         };
-        inline static RenderEngine *instance = nullptr;
         RenderBackend *device;
         MeshStorage *mesh_storage;
         ShaderProxy *shader_proxy;
@@ -37,7 +37,6 @@ class RenderEngine {
         void bind_vulkan_xr(Window *window);
 
     public:
-        static RenderEngine *get_instance();
         void init();
         void process();
         RenderBackend *get_device();
@@ -52,6 +51,7 @@ class RenderEngine {
         Renderer *get_default_renderer() { return default_renderer; }
         Renderer *get_imgui_renderer() { return imgui_renderer; }
         Renderer *get_rml_renderer() { return rml_renderer; }
+        MeshStorage *get_mesh_storage() { return mesh_storage; }
         void set_renderer_layer(Renderer *renderer, u8 layer);
         void set_renderer_enable(Renderer *renderer, bool enable);
         FrameGlobal &get_frame_global() { return g_frame; }

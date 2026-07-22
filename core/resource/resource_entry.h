@@ -1,6 +1,7 @@
 #ifndef _SEED_RESOURCE_ENTRY_H_
 #define _SEED_RESOURCE_ENTRY_H_
 
+#include "core/system.h"
 #include <map>
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>

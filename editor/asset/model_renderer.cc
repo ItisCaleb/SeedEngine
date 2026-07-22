@@ -19,12 +19,12 @@ void ModelRenderer::init(Window *window) {
                                              UpdateFrequence::PERFRAME);
     mvp = RHI::alloc_constant(sizeof(Mat4) * 2, UpdateFrequence::PERFRAME);
 
-    transform_ssbo = RenderEngine::get_instance()
-                         ->get_instance_pool(TRANSFORM_POOL_NAME)
-                         ->get_render_buffer();
+    transform_ssbo =
+        System::gRenderEngine->get_instance_pool(TRANSFORM_POOL_NAME)
+            ->get_render_buffer();
 }
 void ModelRenderer::preprocess() {
-    EditorModel *model = gEditor->asset_viewer.current_model;
+    EditorModel *model = System::gEditor->asset_viewer.current_model;
 
     if (!model) {
         return;
@@ -38,7 +38,7 @@ void ModelRenderer::preprocess() {
     if (instance.is_null() || !instance.is_null() && instance->size() == 0) {
         return;
     }
-    Camera *cam = &SeedEngine::get_instance()->get_world()->get_camera();
+    Camera *cam = &System::gEngine->get_world()->get_camera();
     Mat4 *matrices = (Mat4 *)RHI::alloc_heap(sizeof(Mat4) * 2);
 
     matrices[0] = cam->projection_zero();

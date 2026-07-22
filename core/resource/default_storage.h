@@ -1,16 +1,14 @@
 #ifndef _SEED_DEFAULT_STORAGE
 #define _SEED_DEFAULT_STORAGE
+#include "core/system.h"
 #include "core/resource/shader.h"
 #include "core/rendering/vertex_layout.h"
 #include "core/rendering/vertex_data.h"
 #include "core/resource/texture.h"
 
 namespace Seed {
-#define DS DefaultStorage
 
 class DefaultStorage {
-        inline static DefaultStorage *instance = nullptr;
-
     public:
         Ref<Shader> sky_shader;
         Ref<Shader> mesh_shader;
@@ -37,7 +35,6 @@ class DefaultStorage {
         Ref<VertexData> quad_vertices;
         Ref<VertexData> sky_vertices;
 
-        static DefaultStorage *get_instance() { return instance; }
         void reload_shaders();
         DefaultStorage();
 };

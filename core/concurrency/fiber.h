@@ -16,7 +16,8 @@ struct FiberContext {
         void *rsi;
         void *r12, *r13, *r14, *r15;
         void *rip;
-        __m128i xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15;
+        __m128i xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14,
+            xmm15;
 #else
         static_assert(false, "Fiber for current architecture not implemented.");
 #endif

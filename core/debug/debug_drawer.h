@@ -18,7 +18,6 @@ class DebugDrawer {
                 Color color;
         };
         std::mutex mu;
-        inline static DebugDrawer *instance = nullptr;
         std::vector<DebugVertex> line_vertices;
         std::vector<DebugVertex> triangle_vertices;
         std::vector<u32> triangle_indices;
@@ -40,7 +39,6 @@ class DebugDrawer {
         bool try_lock() { return mu.try_lock(); };
         void lock() { mu.lock(); }
         void unlock() { mu.unlock(); }
-        static DebugDrawer *get_instance() { return instance; }
         DebugDrawer();
 };
 }  // namespace Seed

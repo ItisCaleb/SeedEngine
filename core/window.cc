@@ -24,7 +24,7 @@ void Window::create() {
 
     glfwSetFramebufferSizeCallback(
         (GLFWwindow *)this->window, [](GLFWwindow *, i32 w, i32 h) {
-            Window *window = SeedEngine::get_instance()->get_window();
+            Window *window = System::gEngine->get_window();
             window->w = w;
             window->h = h;
         });

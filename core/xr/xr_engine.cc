@@ -111,9 +111,7 @@ XrSession XREngine::bind_graphic_api(void *graphicBinding) {
     return xr_session;
 }
 
-
 XREngine::XREngine() {
-    instance = this;
     create_xr_instance();
     load_functions();
     create_debug_messenger();

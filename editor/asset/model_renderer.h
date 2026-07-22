@@ -39,8 +39,7 @@ class ModelRenderer : public Renderer {
         ColorPass color_pass;
 
     public:
-        ModelRenderer(Ref<Texture> screen_texture,
-                              Ref<Texture> screen_depth);
+        ModelRenderer(Ref<Texture> screen_texture, Ref<Texture> screen_depth);
         void init(Window *window) override;
         void preprocess() override;
         void _process(RenderCommandDispatcher &dp) override;

@@ -7,7 +7,6 @@ namespace Seed {
 template <typename T>
 class LRUCache {
         std::vector<T> data;
-        
 };
 
 }  // namespace Seed

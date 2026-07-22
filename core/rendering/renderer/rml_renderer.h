@@ -9,7 +9,6 @@ namespace Seed {
 
 class RmlRenderer : public Renderer {
     private:
-        inline static RmlRenderer *instance = nullptr;
         struct FrameData {
                 Ref<Material> material;
         } fd;
@@ -32,7 +31,6 @@ class RmlRenderer : public Renderer {
         void init(Window *window) override;
         void preprocess() override;
         void cleanup() override;
-        static RmlRenderer *get_instance() { return instance; }
 };
 
 }  // namespace Seed

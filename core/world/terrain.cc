@@ -21,7 +21,7 @@ TerrainMaterial::TerrainMaterial(Ref<Shader> shader,
     this->set_texture("control_map", ref_cast<Texture>(controlmaps));
     this->set_texture("textures", ref_cast<Texture>(textures));
     this->set_texture("texture_normals", ref_cast<Texture>(texture_normals));
-    this->set_texture("noise_texture", DS::get_instance()->noise_texture);
+    this->set_texture("noise_texture", System::gDefaultStorage->noise_texture);
     this->textures = textures;
     this->texture_normals = texture_normals;
     this->raster_state = {.cull_mode = Cullmode::BACK,
@@ -33,7 +33,7 @@ TerrainMaterial::TerrainMaterial(Ref<TextureArray> heightmaps,
                                  Ref<TextureArray> controlmaps,
                                  Ref<TextureArray> textures,
                                  Ref<TextureArray> texture_normals)
-    : TerrainMaterial(DS::get_instance()->terrain_shader, heightmaps,
+    : TerrainMaterial(System::gDefaultStorage->terrain_shader, heightmaps,
                       controlmaps, textures, texture_normals) {}
 
 void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {
@@ -75,7 +75,7 @@ void TerrainInstanceData::frustum_culling(const Frustum &frustum,
 }
 TerrainInstanceData::TerrainInstanceData()
     : InstanceData(
-          RenderEngine::get_instance()->get_instance_pool(TERRAIN_POOL_NAME)) {}
+          System::gRenderEngine->get_instance_pool(TERRAIN_POOL_NAME)) {}
 
 void Terrain::build_mesh() {
     i32 half_chunk = CHUNK_SIZE / 2;
@@ -106,7 +106,7 @@ void Terrain::build_mesh() {
         }
     }
 
-    this->mesh.create(&DS::get_instance()->terrain_desc, vertices, indices,
+    this->mesh.create(&System::gDefaultStorage->terrain_desc, vertices, indices,
                       AABB{.center = Vec3{0, 0, 0},
                            .ext = Vec3{CHUNK_SIZE / 2, 0, CHUNK_SIZE / 2}});
     this->mesh->set_type(RenderPrimitiveType::PATCHES);
@@ -134,7 +134,7 @@ Terrain::Terrain() {
 
     build_mesh();
     this->mesh->set_material(ref_cast<Material>(material));
-    MeshStorage::get_instance()->add_mesh(
+    System::gRenderEngine->get_mesh_storage()->add_mesh(
         this->mesh, ref_cast<InstanceData>(this->instances));
 }
 
@@ -176,15 +176,15 @@ void Terrain::add_chunk(i32 x, i32 y, Ref<Image> height_map,
         height_field.data(), CHUNK_SIZE,
         Vec3{-(i32)CHUNK_SIZE / 2, 0, -(i32)CHUNK_SIZE / 2});
 
-    PhysicEngine::get_instance()->create_body(
-        body, shape, PhysicBodyType::STATIC, Vec3{wx, 0, wy});
+    System::gPhysicEngine->create_body(body, shape, PhysicBodyType::STATIC,
+                                       Vec3{wx, 0, wy});
     this->instances->upload();
 
     last_heightmap++;
 }
 
 Terrain::~Terrain() {
-    MeshStorage::get_instance()->remove_mesh(
+    System::gRenderEngine->get_mesh_storage()->remove_mesh(
         this->mesh, ref_cast<InstanceData>(this->instances));
 }
 }  // namespace Seed

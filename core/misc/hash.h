@@ -15,22 +15,19 @@ class Hash {
     public:
         Hash() = default;
         template <typename T>
-        void update(T *data){
+        void update(T *data) {
             assert(size + sizeof(T) < HASH_BUFFER_SIZE);
             memcpy(buffer + size, data, sizeof(T));
             size += sizeof(T);
         }
-        void clear(){
-            this->size = 0;
-        }
+        void clear() { this->size = 0; }
         u64 digest();
-        static u64 hash_from_buffer(const void* data, u64 size);
+        static u64 hash_from_buffer(const void *data, u64 size);
 };
 
 inline constexpr uint64_t fnv1a(std::string_view s) {
     uint64_t h = 14695981039346656037ULL;
-    for (char c : s)
-        h = (h ^ static_cast<uint64_t>(c)) * 1099511628211ULL;
+    for (char c : s) h = (h ^ static_cast<uint64_t>(c)) * 1099511628211ULL;
     return h;
 }
 }  // namespace Seed

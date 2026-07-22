@@ -7,10 +7,7 @@ namespace Seed {
 
 static JoltBackend *backend;
 
-PhysicEngine::PhysicEngine() {
-    instance = this;
-    backend = new JoltBackend();
-};
+PhysicEngine::PhysicEngine() { backend = new JoltBackend(); };
 
 void PhysicEngine::create_body(PhysicBody &body, const PhysicShape &shape,
                                const PhysicBodyType type, const Vec3 &pos,

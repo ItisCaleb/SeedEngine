@@ -28,7 +28,7 @@ static Vec3 light_dir;
 class DebugGUI : public ImGUI {
     public:
         void update() override {
-            auto world = Seed::SeedEngine::get_instance()->get_world();
+            auto world = Seed::System::gEngine->get_world();
             ImGui::Begin("Debug");
             light_dir = world->get_direction_light().get_direction();
             static f32 shadow_lambda =
@@ -40,18 +40,18 @@ class DebugGUI : public ImGUI {
             auto cam = world->get_camera();
             auto cam_pos = cam.get_position();
             ImGui::Text("%.2f %.2f %.2f", cam_pos.x, cam_pos.y, cam_pos.z);
-            ImGui::Text("FPS: %.2f", SeedEngine::get_instance()->get_fps());
+            ImGui::Text("FPS: %.2f", System::gEngine->get_fps());
             ImGui::SliderFloat("Shadow Lambda", &shadow_lambda, 0, 1.0);
             world->get_direction_light().set_csm_lamda(shadow_lambda);
             if (ImGui::CollapsingHeader("Profiler")) {
-                for (auto &scopes : Profiler::get_instance()->get_recorded()) {
+                for (auto &scopes : System::gProfiler->get_recorded()) {
                     ImGui::Text("%s %lld us", scopes.name.data(),
                                 scopes.cpu_time);
                 }
             }
 
             if (ImGui::Button("Reload all shaders")) {
-                DS::get_instance()->reload_shaders();
+                System::gDefaultStorage->reload_shaders();
             }
 
             ImGui::End();
@@ -61,7 +61,7 @@ class DebugGUI : public ImGUI {
 int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
     engine->load_project("test_project/Ave Mujica.json");
-    ResourceLoader *loader = ResourceLoader::get_instance();
+    ResourceLoader *loader = System::gResourceLoader;
     // auto backpack = loader->load_async<BasicModel>(
     //     "test_project/assets/backpack.json", [=](Ref<BasicModel> rc) {
 
@@ -79,7 +79,7 @@ int main(void) {
         "assets/.internal/scene.bin");
     auto world_setting =
         loader->load_from_path<WorldSetting>("assets/new_world.world");
-    GuiEngine::get_instance()->add_imgui(new DebugGUI);
+    System::gGuiEngine->add_imgui(new DebugGUI);
     World *world = engine->get_world();
     world->load_setting(world_setting);
     world->get_point_lights().push_back(
@@ -101,7 +101,7 @@ int main(void) {
     HumanEntity::create_entity(ecs, t, man_model);
     auto document =
         loader->load_internal<GuiDocument>("assets/ui/rmlui_example.rml");
-    GuiEngine::get_instance()->load_rmlui(new RmlGUI(document));
+    System::gGuiEngine->load_rmlui(new RmlGUI(document));
     engine->start();
     delete engine;
     return 0;

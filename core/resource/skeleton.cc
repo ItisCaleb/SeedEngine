@@ -9,7 +9,8 @@
 namespace Seed {
 void Skeleton::apply_fk(Mat4 *bone_tranforms, u64 size) {
     if (size != bone_parents.size()) {
-        SEED_WARN("Bone pose array size doen't match bone size. Skipping apply fk.");
+        SEED_WARN(
+            "Bone pose array size doen't match bone size. Skipping apply fk.");
         return;
     }
     for (u32 i = 0; i < size; i++) {
@@ -73,6 +74,6 @@ void SkeletonInstanceData::frustum_culling(const Frustum &frustum,
 
 SkeletonInstanceData::SkeletonInstanceData(Ref<Skeleton> skeleton)
     : InstanceData(
-          RenderEngine::get_instance()->get_instance_pool(SKELETON_POOL_NAME)),
+          System::gRenderEngine->get_instance_pool(SKELETON_POOL_NAME)),
       skeleton(skeleton) {}
 }  // namespace Seed

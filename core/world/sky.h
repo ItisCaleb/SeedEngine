@@ -8,7 +8,7 @@ namespace Seed {
 class SkyMaterial : public Material {
     public:
         SkyMaterial(Ref<Texture> cube_map)
-            : Material(DS::get_instance()->sky_shader) {
+            : Material(System::gDefaultStorage->sky_shader) {
             this->set_texture("skybox", cube_map);
         }
 };

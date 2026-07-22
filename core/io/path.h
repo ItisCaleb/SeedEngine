@@ -73,7 +73,7 @@ class Path {
         Path parent() const;
         Path replace_extension(KStr str) const;
         KStr to_str() const;
-        
+
         Path relative(const Path &base) const;
         bool is_absolute() const;
         bool absolute();

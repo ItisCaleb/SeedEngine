@@ -111,7 +111,7 @@ class KString {
 
         KString &operator=(const KString &other);
         KString &operator=(KString &&other) noexcept;
-        
+
         void operator+=(const KStr &str) { append(str); }
         void operator+=(KString &str) { append(str); }
         bool operator==(const KString &other) const;
@@ -152,7 +152,7 @@ class KStr {
 
         KString string() const;
         const char *data() const { return _data; }
-        const char *end() const {return &_data[_length];}
+        const char *end() const { return &_data[_length]; }
         u32 length() const { return _length; }
         bool operator==(const KStr &str) const;
         bool operator!=(const KStr &str) const { return !operator==(str); }

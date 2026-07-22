@@ -8,7 +8,7 @@ namespace Seed {
 class DecalMaterial : public Material {
     public:
         DecalMaterial(Ref<Texture> texture)
-            : Material(DS::get_instance()->decal_shader) {
+            : Material(System::gDefaultStorage->decal_shader) {
             this->depth_state.depth_mode = DepthMode::ALPHA_TEST;
         }
 };

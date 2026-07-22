@@ -70,7 +70,7 @@ JoltBackend::JoltBackend() {
 
 void JoltBackend::process() {
     system.Update(1.0f / 60, 1, temp_allocator, job_system);
-    if (SeedEngine::get_instance()->get_debug_flag() & EngineConfig::PHYSIC) {
+    if (System::gEngine->get_debug_flag() & EngineConfig::PHYSIC) {
         JPH::BodyManager::DrawSettings setting;
         system.DrawBodies(setting, JPH::DebugRenderer::sInstance);
     }
@@ -180,15 +180,15 @@ void JoltBackend::delete_body(PhysicBody &body) {
 
 void JoltDebugRenderer::DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo,
                                  JPH::ColorArg inColor) {
-    DebugDrawer::get_instance()->draw_line(from_jolt(inFrom), from_jolt(inTo),
-                                           from_jolt(inColor));
+    System::gDebugDrawer->draw_line(from_jolt(inFrom), from_jolt(inTo),
+                                    from_jolt(inColor));
 }
 
 void JoltDebugRenderer::DrawTriangle(JPH::RVec3Arg inV1, JPH::RVec3Arg inV2,
                                      JPH::RVec3Arg inV3, JPH::ColorArg inColor,
                                      ECastShadow inCastShadow) {
-    DebugDrawer::get_instance()->draw_triangle(
-        from_jolt(inV1), from_jolt(inV2), from_jolt(inV3), from_jolt(inColor));
+    System::gDebugDrawer->draw_triangle(from_jolt(inV1), from_jolt(inV2),
+                                        from_jolt(inV3), from_jolt(inColor));
 }
 
 JPH::DebugRenderer::Batch JoltDebugRenderer::CreateTriangleBatch(
@@ -227,7 +227,7 @@ void JoltDebugRenderer::DrawGeometry(
     float inLODScaleSq, JPH::ColorArg inModelColor,
     const GeometryRef &inGeometry, ECullMode inCullMode,
     ECastShadow inCastShadow, EDrawMode inDrawMode) {
-    auto cam = SeedEngine::get_instance()->get_world()->get_camera();
+    auto cam = System::gEngine->get_world()->get_camera();
     auto aabb = inGeometry->mBounds;
     aabb.mMin = inModelMatrix * aabb.mMin;
     aabb.mMax = inModelMatrix * aabb.mMax;
@@ -246,22 +246,25 @@ void JoltDebugRenderer::DrawGeometry(
     for (const Vertex &v : batch->vertices) {
         vertices.push_back(from_jolt(inModelMatrix * JPH::Vec3(v.mPosition)));
     }
-    DebugDrawer *drawer = DebugDrawer::get_instance();
     Color color = from_jolt(inModelColor);
     switch (inDrawMode) {
         case EDrawMode::Wireframe:
             for (u32 i = 0; i < batch->indices.size(); i += 3) {
-                drawer->draw_line(vertices[batch->indices[i]],
-                                  vertices[batch->indices[i + 1]], color);
-                drawer->draw_line(vertices[batch->indices[i + 1]],
-                                  vertices[batch->indices[i + 2]], color);
-                drawer->draw_line(vertices[batch->indices[i + 2]],
-                                  vertices[batch->indices[i]], color);
+                System::gDebugDrawer->draw_line(vertices[batch->indices[i]],
+                                                vertices[batch->indices[i + 1]],
+                                                color);
+                System::gDebugDrawer->draw_line(vertices[batch->indices[i + 1]],
+                                                vertices[batch->indices[i + 2]],
+                                                color);
+                System::gDebugDrawer->draw_line(vertices[batch->indices[i + 2]],
+                                                vertices[batch->indices[i]],
+                                                color);
             }
             break;
 
         case EDrawMode::Solid:
-            drawer->draw_triangles(vertices, batch->indices, color);
+            System::gDebugDrawer->draw_triangles(vertices, batch->indices,
+                                                 color);
             break;
     }
 }

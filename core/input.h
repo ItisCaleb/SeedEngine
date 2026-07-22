@@ -82,7 +82,6 @@ class Input {
         friend InputHandler;
 
     private:
-        inline static Input *instance = nullptr;
         std::set<KeyCode> last_key_pressed;
         std::set<KeyCode> key_pressed;
         std::set<MouseEvent> last_mouse_pressed;
@@ -91,7 +90,6 @@ class Input {
         f32 last_x = 0, last_y = 0;
 
     public:
-        static Input *get_instance();
         void reset_input();
         bool is_key_clicked(KeyCode code);
         bool is_key_pressed(KeyCode code);

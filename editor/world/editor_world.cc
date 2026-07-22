@@ -29,7 +29,7 @@ void EditorWorld::copy_sky_setting_to_editor(const SkySetting &setting) {
     sky.front = setting.front;
     sky.back = setting.back;
 
-    ResourceLoader *loader = ResourceLoader::get_instance();
+    ResourceLoader *loader = System::gResourceLoader;
     if (loader == nullptr) return;
     sky.cubemap = loader->load_cubemap(2048, 2048, sky.right, sky.left, sky.up,
                                        sky.down, sky.front, sky.back);
@@ -49,7 +49,7 @@ void EditorWorld::copy_editor_sky_to_setting(SkySetting &setting) {
 void EditorWorld::update_skybox_face(UUID uuid, CubemapFace face) {
     if (uuid.is_null() || sky.cubemap.is_null()) return;
 
-    Ref<Image> image = ResourceLoader::get_instance()->load_image(uuid, true);
+    Ref<Image> image = System::gResourceLoader->load_image(uuid, true);
     if (image.is_null()) return;
     sky.cubemap->update_face(sky.cubemap->get_width(),
                              sky.cubemap->get_height(), face, image);
@@ -69,20 +69,20 @@ void EditorWorld::save_dirty_terrain_maps() {
 }
 
 bool EditorWorld::add_new_chunk(i32 x, i32 y) {
-    if (setting.is_null() || terrain.is_null() || gEditor == nullptr) {
+    if (setting.is_null() || terrain.is_null() || System::gEditor == nullptr) {
         return false;
     }
     if (terrain_chunk_exists_at(x, y)) return false;
 
-    ResourceEntry *heightmap_entry = gEditor->create_internal_asset(
+    ResourceEntry *heightmap_entry = System::gEditor->create_internal_asset(
         fmt::format("{}_{}_{}.png", setting->name, x, y), type_id<Texture>());
     if (heightmap_entry == nullptr) return false;
 
-    ResourceEntry *controlmap_entry = gEditor->create_internal_asset(
+    ResourceEntry *controlmap_entry = System::gEditor->create_internal_asset(
         fmt::format("{}_{}_{}_control.png", setting->name, x, y),
         type_id<Texture>());
     if (controlmap_entry == nullptr) {
-        gEditor->remove_asset(heightmap_entry->uuid);
+        System::gEditor->remove_asset(heightmap_entry->uuid);
         return false;
     }
 
@@ -141,7 +141,7 @@ void EditorWorld::normalize_terrain_palette_size() {
 void EditorWorld::upload_terrain_palette_to_gpu() {
     if (setting.is_null() || terrain.is_null()) return;
 
-    ResourceLoader *loader = ResourceLoader::get_instance();
+    ResourceLoader *loader = System::gResourceLoader;
     if (loader == nullptr) return;
 
     if (setting->terrain_textures.empty()) {
@@ -149,9 +149,8 @@ void EditorWorld::upload_terrain_palette_to_gpu() {
         return;
     }
 
-    const u32 texture_count =
-        std::min((u32)setting->terrain_textures.size(),
-                 (u32)TERRAIN_TEXTURE_LAYERS);
+    const u32 texture_count = std::min((u32)setting->terrain_textures.size(),
+                                       (u32)TERRAIN_TEXTURE_LAYERS);
     for (u32 i = 0; i < texture_count; i++) {
         const UUID texture_uuid = setting->terrain_textures[i];
         RHI::UpdateBufferInfo texture_info{};
@@ -181,7 +180,7 @@ void EditorWorld::reload() {
     terrain->clear_chunks();
     if (entry == nullptr) return;
 
-    ResourceLoader *loader = ResourceLoader::get_instance();
+    ResourceLoader *loader = System::gResourceLoader;
     if (loader == nullptr) return;
 
     Ref<WorldSetting> loaded = loader->load<WorldSetting>(entry->uuid);
@@ -284,8 +283,7 @@ bool EditorWorld::update_static_model_instance(u32 chunk_index,
     EditorStaticModel &entry =
         static_models[std::pair<u32, u32>(chunk_index, object_index)];
     if (entry.model.is_null()) {
-        entry.model = ResourceLoader::get_instance()->load<BasicModel>(
-            object.model);
+        entry.model = System::gResourceLoader->load<BasicModel>(object.model);
         if (entry.model.is_null()) return false;
     }
     if (entry.instance.is_null()) {
@@ -306,8 +304,8 @@ void EditorWorld::rebuild_static_model_instances() {
     for (u32 chunk_index = 0; chunk_index < setting->chunks.size();
          chunk_index++) {
         ChunkSetting &chunk = setting->chunks[chunk_index];
-        for (u32 object_index = 0;
-             object_index < chunk.static_objects.size(); object_index++) {
+        for (u32 object_index = 0; object_index < chunk.static_objects.size();
+             object_index++) {
             update_static_model_instance(chunk_index, object_index);
         }
     }
@@ -315,7 +313,7 @@ void EditorWorld::rebuild_static_model_instances() {
 
 void EditorWorld::apply_directional_light_to_runtime() {
     if (setting.is_null()) return;
-    SeedEngine *engine = SeedEngine::get_instance();
+    SeedEngine *engine = System::gEngine;
     if (engine == nullptr || engine->get_world() == nullptr) return;
 
     engine->get_world()->get_direction_light() = DirectionalLight(

@@ -29,9 +29,8 @@
 #include <stb_image.h>
 
 namespace Seed {
-ResourceLoader *ResourceLoader::get_instance() { return instance; }
 
-ResourceLoader::~ResourceLoader() { instance = nullptr; }
+ResourceLoader::~ResourceLoader() {}
 
 Ref<Resource> ResourceLoader::load_shader(ResourceLoader &loader,
                                           ResourceConfiguration &config,
@@ -60,15 +59,16 @@ void ResourceLoader::load_meshes(ResourceLoader &loader,
             std::vector<SkeletonVertex> vertices;
             data->read_vector(vertices, jmesh["vertex_count"]);
             data->read_vector(indices, jmesh["index_count"]);
-            meshes.push_back(Ref<Mesh>(&DS::get_instance()->skeleton_mesh_desc,
-                                       vertices, indices,
-                                       (AABB)jmesh["bounding_box"]));
+            meshes.push_back(
+                Ref<Mesh>(&System::gDefaultStorage->skeleton_mesh_desc,
+                          vertices, indices, (AABB)jmesh["bounding_box"]));
         } else {
             std::vector<ModelVertex> vertices;
             data->read_vector(vertices, jmesh["vertex_count"]);
             data->read_vector(indices, jmesh["index_count"]);
-            meshes.push_back(Ref<Mesh>(&DS::get_instance()->mesh_desc, vertices,
-                                       indices, (AABB)jmesh["bounding_box"]));
+            meshes.push_back(Ref<Mesh>(&System::gDefaultStorage->mesh_desc,
+                                       vertices, indices,
+                                       (AABB)jmesh["bounding_box"]));
         }
 
         mesh_mats.push_back(jmesh["material_id"]);
@@ -173,7 +173,7 @@ Ref<Resource> ResourceLoader::load_skeleton_model(ResourceLoader &loader,
 /* since we now use malloc in update heap, we do not need to free here */
 RHI::UpdateBufferInfo ResourceLoader::load_image_to_upload(UUID uuid,
                                                            bool force_rgba) {
-    ResourceEntry *entry = entries.get_entry(uuid);
+    ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
     RHI::UpdateBufferInfo info;
     info.data = nullptr;
     if (!entry) return info;
@@ -298,7 +298,7 @@ Ref<Resource> ResourceLoader::load_mappable_texture(
 }
 
 Ref<Image> ResourceLoader::load_image(UUID uuid, bool force_rgba) {
-    ResourceEntry *entry = entries.get_entry(uuid);
+    ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
     Ref<Image> image;
     if (!entry) return image;
     Path path = entry->real_path();
@@ -402,7 +402,6 @@ Ref<Resource> ResourceLoader::load_ui(ResourceLoader &loader,
     return ref_cast<Resource>(document);
 }
 ResourceLoader::ResourceLoader() {
-    instance = this;
     spdlog::info("Initializing Resource loader");
     register_type<Shader>(load_shader, true);
     register_type<BasicModel>(load_basic_model, true);

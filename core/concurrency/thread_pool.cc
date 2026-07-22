@@ -3,9 +3,7 @@
 
 namespace Seed {
 
-ThreadPool *ThreadPool::get_instance() { return instance; }
-
-void ThreadPool::thread_func(ThreadData *td) {
+void ThreadPool::thread_func(ThreadPool *pool, ThreadData *td) {
     while (!td->exit) {
         std::unique_lock lock(td->mutex);
         while (td->queue.is_empty()) {
@@ -16,7 +14,7 @@ void ThreadPool::thread_func(ThreadData *td) {
         lock.unlock();
         w.func(w.user_data);
         w.is_completed = true;
-        ThreadPool::get_instance()->work_list.erase(w.id);
+        pool->work_list.erase(w.id);
         td->cv.notify_one();
     }
 }
@@ -46,11 +44,10 @@ WorkId ThreadPool::add_work(UserFunc func, void *user_data) {
     return new_work->id;
 }
 
-GroupId ThreadPool::add_group(UserFunc func, std::vector<void *> &user_datas){
+GroupId ThreadPool::add_group(UserFunc func, std::vector<void *> &user_datas) {
     u32 group_id = this->group_list.insert({});
     Group &g = this->group_list[group_id];
-    for (void *data : user_datas)
-    {
+    for (void *data : user_datas) {
         WorkId work_id = this->add_work(func, data);
         g.works.push_back(work_id);
     }
@@ -74,17 +71,16 @@ void ThreadPool::wait(WorkId id) {
 void ThreadPool::wait_group(GroupId id) {
     if (group_list.present(id)) {
         Group &group = group_list[id];
-        for (WorkId wid : group.works){
+        for (WorkId wid : group.works) {
             this->wait(wid);
         }
     }
 }
 
 ThreadPool::ThreadPool(u32 thread_cnt) {
-    instance = this;
     spdlog::info("Initializing Thread pool with thread count '{}'", thread_cnt);
     for (i32 i = 0; i < thread_cnt; i++) {
-        this->threads.push_back(new ThreadData(i));
+        this->threads.push_back(new ThreadData(this, i));
     }
 }
 

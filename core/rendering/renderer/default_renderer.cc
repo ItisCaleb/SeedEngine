@@ -11,10 +11,7 @@
 
 namespace Seed {
 
-
-
 void DefaultRenderer::init(Window *window) {
-    RenderEngine *engine = RenderEngine::get_instance();
     u32 res_w = window->get_width();
     u32 res_h = window->get_height();
     Ref<Texture> color_tex(TextureType::TEXTURE_2D, res_w, res_h,
@@ -37,23 +34,22 @@ void DefaultRenderer::init(Window *window) {
     post_pass.setup(window);
     debug_pass.setup(color_pass);
 
-    fd.post_mat.create(DS::get_instance()->post_shader);
+    fd.post_mat.create(System::gDefaultStorage->post_shader);
     fd.post_mat->set_texture("image", color_tex);
-   
 
-    DebugDrawer *drawer = DebugDrawer::get_instance();
-
-    fd.debug_line.create(&drawer->debug_desc, UpdateFrequence::PERFRAME);
-    fd.debug_triangle.create(&drawer->debug_desc, UpdateFrequence::PERFRAME);
+    fd.debug_line.create(&System::gDebugDrawer->debug_desc,
+                         UpdateFrequence::PERFRAME);
+    fd.debug_triangle.create(&System::gDebugDrawer->debug_desc,
+                             UpdateFrequence::PERFRAME);
     fd.debug_triangle_indices.create(std::vector<u32>{},
                                      UpdateFrequence::PERFRAME);
 }
 
 void DefaultRenderer::prepare_lights() {
-    World *world = SeedEngine::get_instance()->get_world();
+    World *world = System::gEngine->get_world();
     DirectionalLight &dir_light = world->get_direction_light();
     Camera &cam = world->get_camera();
-    FrameGlobal &g_frame = RenderEngine::get_instance()->get_frame_global();
+    FrameGlobal &g_frame = System::gRenderEngine->get_frame_global();
     /* fill main camera */
     RHI::UpdateBufferInfo cam_info =
         RHI::alloc_heap(sizeof(Camera::ShaderCamera) * 64);
@@ -105,13 +101,13 @@ void DefaultRenderer::prepare_lights() {
 }
 
 void DefaultRenderer::prepare_meshes() {
-    World *world = SeedEngine::get_instance()->get_world();
+    World *world = System::gEngine->get_world();
 
     Camera &cam = world->get_camera();
     DirectionalLight &dir_light = world->get_direction_light();
-    FrameGlobal &g_frame = RenderEngine::get_instance()->get_frame_global();
+    FrameGlobal &g_frame = System::gRenderEngine->get_frame_global();
 
-    MeshStorage *mesh_storage = MeshStorage::get_instance();
+    MeshStorage *mesh_storage = System::gRenderEngine->get_mesh_storage();
     std::set<InstanceData *> uploaded_instance;
     std::vector<u32> visible_instances;
 
@@ -167,16 +163,12 @@ void DefaultRenderer::prepare_meshes() {
 }
 
 void DefaultRenderer::preprocess() {
-    World *world = SeedEngine::get_instance()->get_world();
-
     prepare_lights();
     prepare_meshes();
 
-    DebugDrawer *drawer = DebugDrawer::get_instance();
-
-    fd.debug_line->update(drawer->line_vertices);
-    fd.debug_triangle->update(drawer->triangle_vertices);
-    fd.debug_triangle_indices->update(drawer->triangle_indices);
+    fd.debug_line->update(System::gDebugDrawer->line_vertices);
+    fd.debug_triangle->update(System::gDebugDrawer->triangle_vertices);
+    fd.debug_triangle_indices->update(System::gDebugDrawer->triangle_indices);
 }
 
 void DefaultRenderer::_process(RenderCommandDispatcher &dp) {
@@ -348,13 +340,13 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
         }
     }
 
-    auto sky = SeedEngine::get_instance()->get_world()->get_sky();
+    auto sky = System::gEngine->get_world()->get_sky();
     if (sky.is_valid()) {
         RenderDrawDataBuilder sky_builder =
             dp.generate_render_data(ref_cast<Material>(sky->get_material()));
         sky_builder.push_constant(0);
         sky_builder.push_constant(0);
-        sky_builder.bind_vertex_data(DS::get_instance()->sky_vertices);
+        sky_builder.bind_vertex_data(System::gDefaultStorage->sky_vertices);
         sky_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
         dp.render(sky_builder, RenderPrimitiveType::TRIANGLES,
                   sky->get_material()->get_pipeline(), 1.0);
@@ -363,7 +355,7 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
 
 void DefaultRenderer::DebugPass::execute(RenderCommandDispatcher &dp,
                                          Viewport &viewport, FrameData &fd) {
-    DebugDrawer *drawer = DebugDrawer::get_instance();
+    DebugDrawer *drawer = System::gDebugDrawer;
 
     if (drawer->try_lock()) {
         if (fd.debug_line->get_count() != 0) {
@@ -390,7 +382,7 @@ void DefaultRenderer::DebugPass::execute(RenderCommandDispatcher &dp,
 void DefaultRenderer::PostPass::execute(RenderCommandDispatcher &dp,
                                         Viewport &viewport, FrameData &fd) {
     auto builder = dp.generate_render_data(fd.post_mat);
-    builder.bind_vertex_data(DS::get_instance()->quad_vertices);
+    builder.bind_vertex_data(System::gDefaultStorage->quad_vertices);
     dp.render(builder, RenderPrimitiveType::TRIANGLES,
               fd.post_mat->get_pipeline(), 0);
 }

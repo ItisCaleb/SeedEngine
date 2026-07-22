@@ -10,8 +10,8 @@ namespace Seed {
 
 void RmlGUI::load_document(Ref<GuiDocument> doc) {
     if (doc.is_null()) return;
-    GuiEngine *engine = GuiEngine::get_instance();
-    if (!engine || !engine->get_rml_context()) return;
+    Rml::Context *context = System::gGuiEngine->get_rml_context();
+    if (!context) return;
     if (this->document) {
         document->Close();
     }
@@ -19,12 +19,12 @@ void RmlGUI::load_document(Ref<GuiDocument> doc) {
     Rml::StreamMemory stream((const Rml::byte *)doc->content.data(),
                              doc->content.size());
     stream.SetSourceURL(doc->source.data());
-    this->document = engine->get_rml_context()->LoadDocument(&stream);
+    this->document = context->LoadDocument(&stream);
 }
 
 void RmlGUI::init() {
     if (!first_init) {
-        bind_model(GuiEngine::get_instance()->get_rml_context());
+        bind_model(System::gGuiEngine->get_rml_context());
         first_init = true;
     }
     load_document(this->original_document);
@@ -47,9 +47,8 @@ void RmlGUI::open_gui(RmlGUI *gui) {
 bool RmlGUI::reload() {
     if (original_document.is_null()) return false;
 
-    Ref<GuiDocument> doc =
-        ResourceLoader::get_instance()->load_internal<GuiDocument>(
-            original_document->source);
+    Ref<GuiDocument> doc = System::gResourceLoader->load_internal<GuiDocument>(
+        original_document->source);
     if (doc.is_null()) return false;
     Rml::Factory::ClearTemplateCache();
     Rml::Factory::ClearStyleSheetCache();

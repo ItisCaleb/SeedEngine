@@ -22,9 +22,7 @@ class Window {
         }
         void create();
         void resize(u32 width, u32 height);
-        Viewport get_viewport(){
-            return Viewport(w, h);
-        }
+        Viewport get_viewport() { return Viewport(w, h); }
         Window(u32 w, u32 h, const std::string &title);
         ~Window();
 };

@@ -2,7 +2,6 @@
 #include "core/engine.h"
 
 namespace Seed {
-Input *Input::get_instance() { return instance; }
 
 void Input::reset_input() { key_pressed.clear(); }
 
@@ -29,13 +28,11 @@ bool Input::is_mouse_released(MouseEvent e) {
 }
 
 Vec2i Input::get_mouse_actual_pos() {
-    RectF dim = SeedEngine::get_instance()
-                    ->get_window()
-                    ->get_viewport()
-                    .get_actual_dimension();
+    RectF dim =
+        System::gEngine->get_window()->get_viewport().get_actual_dimension();
     return Vec2i{(i32)(last_x * dim.w), (i32)(last_y * dim.h)};
 }
 
-Input::Input() { instance = this; }
-Input::~Input() { instance = nullptr; }
+Input::Input() {}
+Input::~Input() {}
 }  // namespace Seed

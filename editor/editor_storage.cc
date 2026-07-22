@@ -4,10 +4,10 @@
 namespace Seed {
 
 EditorStorage::EditorStorage() {
-    instance = this;
-    ResourceLoader *loader = ResourceLoader::get_instance();
-    editor_terrain_shader = DS::get_instance()->terrain_shader->create_variant(
-        {ShaderDefine{.name = "EDITOR", .value = "1"}});
+    ResourceLoader *loader = System::gResourceLoader;
+    editor_terrain_shader =
+        System::gDefaultStorage->terrain_shader->create_variant(
+            {ShaderDefine{.name = "EDITOR", .value = "1"}});
     editor_ui_doc =
         loader->load_internal<GuiDocument>("assets/editor/ui/editor.rml");
 }

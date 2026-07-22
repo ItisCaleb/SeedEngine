@@ -79,8 +79,7 @@ class WorldEditor : public RmlGUI {
         void rml_viewport_scroll(RML_EVENT_ARGS);
 
         void bind_model(Rml::Context *context) override;
-        void register_view_model_types(
-            Rml::DataModelConstructor &constructor);
+        void register_view_model_types(Rml::DataModelConstructor &constructor);
         void bind_view_model_values(Rml::DataModelConstructor &constructor);
         void bind_view_model_events(Rml::DataModelConstructor &constructor);
 

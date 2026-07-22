@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "core/system.h"
 #include <GLFW/glfw3.h>
 #include "debug/profiler.h"
 #include "input.h"
@@ -19,17 +20,27 @@
 
 namespace Seed {
 
+namespace System {
+SeedEngine *gEngine = nullptr;
+RenderEngine *gRenderEngine = nullptr;
+ResourceEntries *gResourceEntries = nullptr;
+ResourceLoader *gResourceLoader = nullptr;
+GuiEngine *gGuiEngine = nullptr;
+Input *gInput = nullptr;
+DefaultStorage *gDefaultStorage = nullptr;
+DebugDrawer *gDebugDrawer = nullptr;
+ThreadPool *gThreadPool = nullptr;
+PhysicEngine *gPhysicEngine = nullptr;
+Profiler *gProfiler = nullptr;
+};  // namespace System
+
 static void error_callback(int error, const char *description) {
     spdlog::error("GLFW Error: {}", description);
 }
 
-SeedEngine *SeedEngine::get_instance() { return instance; }
-
 void SeedEngine::setup_logger() {
     auto callback_sink = std::make_shared<spdlog::sinks::callback_sink_mt>(
-        [](const spdlog::details::log_msg &msg) { 
-            return;
-         });
+        [](const spdlog::details::log_msg &msg) { return; });
     callback_sink->set_level(spdlog::level::err);
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     spdlog::logger logger("Main", {console_sink, callback_sink});
@@ -37,36 +48,44 @@ void SeedEngine::setup_logger() {
 }
 
 void SeedEngine::init_systems() {
-    ResourceLoader *resource_loader = new ResourceLoader;
+    System::gResourceLoader = new ResourceLoader;
+    System::gResourceEntries = new ResourceEntries;
 #ifdef SEED_XR
     XREngine *xr_engine = new XREngine();
 #endif
-    RenderEngine *render_engine = new RenderEngine(window);
-    GuiEngine *gui = new GuiEngine(this->window);
+    System::gEngine = this;
+    System::gRenderEngine = new RenderEngine(window);
+    System::gGuiEngine = new GuiEngine(this->window);
     input_handler.init(this->window);
-    Input *input = new Input;
-    DefaultStorage *storage = new DefaultStorage();
-    DebugDrawer *debug_drawer = new DebugDrawer();
-    ThreadPool *pool = new ThreadPool(OS::cpu_count());
-    PhysicEngine *phys_engine = new PhysicEngine();
-    Profiler *profiler = new Profiler;
-    render_engine->init();
+    System::gInput = new Input;
+    System::gDefaultStorage = new DefaultStorage();
+    System::gDebugDrawer = new DebugDrawer();
+    System::gThreadPool = new ThreadPool(OS::cpu_count());
+    System::gPhysicEngine = new PhysicEngine();
+    System::gProfiler = new Profiler;
+    System::gRenderEngine->init();
     this->world = new World;
 }
 
 void SeedEngine::deinit_systems() {
-    delete GuiEngine::get_instance();
-    // delete RenderEngine::get_instance();
+    delete System::gProfiler;
+    delete System::gPhysicEngine;
+    delete System::gThreadPool;
+    delete System::gDebugDrawer;
+    delete System::gDefaultStorage;
+    delete System::gInput;
+    delete System::gGuiEngine;
+    delete System::gRenderEngine;
+    delete System::gResourceEntries;
+    delete System::gResourceLoader;
 }
 
 bool SeedEngine::load_project(const Path &path) {
     current_project = Project::load(path);
     if (!File::exists(current_project->get_entry_path())) {
-        ResourceLoader::get_instance()->get_entries().save(
-            current_project->get_entry_path());
+        System::gResourceEntries->save(current_project->get_entry_path());
     } else {
-        ResourceLoader::get_instance()->get_entries().load(
-            current_project->get_entry_path());
+        System::gResourceEntries->load(current_project->get_entry_path());
     }
     return current_project != nullptr;
 }
@@ -76,33 +95,29 @@ void SeedEngine::start() {
         return;
     }
     spdlog::info("Starting SeedEngine");
-    Input *input = Input::get_instance();
-    RenderEngine *render_engine = RenderEngine::get_instance();
     f64 delta = frame_limit;
     GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
-    Profiler *profiler = Profiler::get_instance();
     while (!glfwWindowShouldClose(glfw_window)) {
         f64 start = glfwGetTime();
 
         input_handler.update();
         glfwPollEvents();
-        GuiEngine::get_instance()->update();
+        System::gGuiEngine->update();
         world->tick(delta);
 
-        render_engine->process();
+        System::gRenderEngine->process();
 
         delta = glfwGetTime() - start;
         if (delta < frame_limit) {
             OS::delay(frame_limit - delta);
             delta = frame_limit;
         }
-        profiler->clear_records();
+        System::gProfiler->clear_records();
         last_fps = 1 / delta;
     }
 }
 
 SeedEngine::SeedEngine(f32 target_fps) {
-    instance = this;
     setup_logger();
     glfwSetErrorCallback(error_callback);
     spdlog::set_level(spdlog::level::debug);
@@ -122,6 +137,5 @@ SeedEngine::~SeedEngine() {
     deinit_systems();
     delete window;
     glfwTerminate();
-    instance = nullptr;
 }
 }  // namespace Seed

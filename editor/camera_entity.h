@@ -17,8 +17,8 @@ class EditorCameraBehaviour : public Behaviour {
         f32 yaw = 0.0f;
         f32 pitch = 0.0f;
         f32 speed = 1000.0f;
-        f64 last_mouse_x = 0.0;
-        f64 last_mouse_y = 0.0;
+        i32 last_mouse_x = 0;
+        i32 last_mouse_y = 0;
 
         bool begin_navigation(NavigationMode mode);
         void end_navigation();

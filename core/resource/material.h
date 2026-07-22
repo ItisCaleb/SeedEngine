@@ -35,7 +35,8 @@ class Material : public Resource {
         void remove_texture_unit(u32 unit);
         void remove_texture(const std::string &name);
 
-        void set_parameter(const std::string &name, const void *value, u32 size);
+        void set_parameter(const std::string &name, const void *value,
+                           u32 size);
 
         template <typename T>
         void set_parameter(const std::string &name, const T &value) {
@@ -83,15 +84,15 @@ class BaseMaterial : public Material {
         enum TextureMapType : u8 { DIFFUSE = 0, SPECULAR, NORMAl, MAX };
 
         f32 shiness;
-        BaseMaterial() : BaseMaterial(DS::get_instance()->mesh_shader) {}
+        BaseMaterial() : BaseMaterial(System::gDefaultStorage->mesh_shader) {}
 
         BaseMaterial(Ref<Shader> shader) : Material(shader) {
             this->set_texture(name_map[DIFFUSE],
-                              DS::get_instance()->white_texture);
+                              System::gDefaultStorage->white_texture);
             this->set_texture(name_map[SPECULAR],
-                              DS::get_instance()->white_texture);
+                              System::gDefaultStorage->white_texture);
             this->set_texture(name_map[NORMAl],
-                              DS::get_instance()->normal_texture);
+                              System::gDefaultStorage->normal_texture);
             depth_state = {.depth_mode = DepthMode::OPAQUE};
         }
         void set_texture_map(TextureMapType type, Ref<Texture> tex) {

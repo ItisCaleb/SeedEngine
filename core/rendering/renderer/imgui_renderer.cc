@@ -7,15 +7,15 @@
 
 namespace Seed {
 void ImguiRenderer::init(Window *window) {
-    instance = this;
     ImGuiIO &io = ImGui::GetIO();
     IMGUI_CHECKVERSION();
     IM_ASSERT(io.BackendRendererUserData == nullptr &&
               "Already initialized a renderer backend!");
     io.BackendRendererName = "imgui_impl_seed";
 
-    fd.vertex = RHI::alloc_vertex(DS::get_instance()->gui_desc.get_stride(), 0,
-                                  UpdateFrequence::PERDRAW, nullptr);
+    fd.vertex =
+        RHI::alloc_vertex(System::gDefaultStorage->gui_desc.get_stride(), 0,
+                          UpdateFrequence::PERDRAW, nullptr);
     fd.indices = RHI::alloc_index(std::vector<u16>(), UpdateFrequence::PERDRAW);
     // Build texture atlas
     create_font_material();
@@ -37,20 +37,18 @@ void ImguiRenderer::create_font_material() {
             BlendFactor::SRC_ALPHA, BlendFactor::ONE_MINUS_SRC_ALPHA,
             BlendFactor::ONE, BlendFactor::ONE_MINUS_SRC_ALPHA)};
     io.Fonts->SetTexID((ImTextureID)(u64)font_tex->get_handle());
-    fd.font_material.create(DS::get_instance()->gui_shader,
+    fd.font_material.create(System::gDefaultStorage->gui_shader,
                             RenderRasterizerState{}, RenderDepthStencilState{},
                             blend_state);
     fd.font_material->set_texture("u_texture", font_tex);
 }
 
-void ImguiRenderer::new_frame() {
+void ImguiRenderer::preprocess() {
     ImGuiIO &io = ImGui::GetIO();
     if (!io.Fonts->IsBuilt()) {
         create_font_material();
     }
 }
-
-void ImguiRenderer::preprocess() {}
 
 void ImguiRenderer::_process(RenderCommandDispatcher &dp) {
     gui_pass.draw(dp, fd);
@@ -58,7 +56,7 @@ void ImguiRenderer::_process(RenderCommandDispatcher &dp) {
 void ImguiRenderer::cleanup() {}
 void ImguiRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
                                      Viewport &viewport, FrameData &fd) {
-    FrameGlobal &g_frame = RenderEngine::get_instance()->get_frame_global();
+    FrameGlobal &g_frame = System::gRenderEngine->get_frame_global();
     ImDrawData *draw_data = ImGui::GetDrawData();
     RectF view_rect = viewport.get_actual_dimension();
     int fb_width = view_rect.w;
@@ -123,7 +121,7 @@ void ImguiRenderer::GUIPass::execute(RenderCommandDispatcher &dp,
                                     clip_max.x - clip_min.x,
                                     clip_max.y - clip_min.y);
                 builder.bind_vertex(fd.vertex);
-                builder.bind_description(&DS::get_instance()->gui_desc);
+                builder.bind_description(&System::gDefaultStorage->gui_desc);
                 builder.bind_index(fd.indices);
                 builder.set_draw_vertex(draw_list->VtxBuffer.Size,
                                         pcmd->VtxOffset);

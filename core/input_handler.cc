@@ -154,20 +154,19 @@ void InputHandler::init(Window *window) {
 
     GLFWwindow *glfw_window = window->get_window<GLFWwindow>();
     glfwSetCharCallback(glfw_window, [](GLFWwindow *, unsigned int codepoint) {
-        Rml::Context *context = GuiEngine::get_instance()->get_rml_context();
+        Rml::Context *context = System::gGuiEngine->get_rml_context();
         if (!context) return;
         context->ProcessTextInput((Rml::Character)codepoint);
     });
     glfwSetKeyCallback(glfw_window, [](GLFWwindow *window, int key,
                                        int scancode, int action, int mods) {
         KeyCode k = static_cast<KeyCode>(key);
-        Input *input = Input::get_instance();
         if (action == GLFW_PRESS) {
-            input->key_pressed.insert(k);
+            System::gInput->key_pressed.insert(k);
         } else if (action == GLFW_RELEASE) {
-            input->key_pressed.erase(k);
+            System::gInput->key_pressed.erase(k);
         }
-        Rml::Context *context = GuiEngine::get_instance()->get_rml_context();
+        Rml::Context *context = System::gGuiEngine->get_rml_context();
         if (!context) return;
         Rml::Input::KeyIdentifier rml_key = translate_key(key);
         if (rml_key == Rml::Input::KI_UNKNOWN) return;
@@ -178,9 +177,9 @@ void InputHandler::init(Window *window) {
     });
     glfwSetCursorPosCallback(glfw_window, [](GLFWwindow *window, double x,
                                              double y) {
-        Input *input = Input::get_instance();
+        Input *input = System::gInput;
         i32 ww, wh;
-        Rml::Context *context = GuiEngine::get_instance()->get_rml_context();
+        Rml::Context *context = System::gGuiEngine->get_rml_context();
         if (context) {
             context->ProcessMouseMove((int)x, (int)y, modifier_state(window));
         }
@@ -194,47 +193,47 @@ void InputHandler::init(Window *window) {
         input->last_x = x;
         input->last_y = y;
     });
-    glfwSetMouseButtonCallback(glfw_window, [](GLFWwindow *window, int button,
-                                               int action, int mods) {
-        Input *input = Input::get_instance();
-        MouseEvent me = MouseEvent::LEFT;
-        if (button == GLFW_MOUSE_BUTTON_LEFT) {
-            me = MouseEvent::LEFT;
-        } else if (button == GLFW_MOUSE_BUTTON_MIDDLE) {
-            me = MouseEvent::MIDDLE;
-        } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
-            me = MouseEvent::RIGHT;
-        }
-        if (action == GLFW_PRESS) {
-            input->mouse_pressed.insert(me);
-        } else if (action == GLFW_RELEASE) {
-            input->mouse_pressed.erase(me);
-        }
-        Rml::Context *context = GuiEngine::get_instance()->get_rml_context();
-        if (!context) return;
-        int rml_button = -1;
-        if (button == GLFW_MOUSE_BUTTON_LEFT) rml_button = 0;
-        if (button == GLFW_MOUSE_BUTTON_RIGHT) rml_button = 1;
-        if (button == GLFW_MOUSE_BUTTON_MIDDLE) rml_button = 2;
-        if (rml_button < 0) return;
-        if (action == GLFW_PRESS)
-            context->ProcessMouseButtonDown(rml_button,
-                                            modifier_state(window, mods));
-        if (action == GLFW_RELEASE)
-            context->ProcessMouseButtonUp(rml_button,
-                                          modifier_state(window, mods));
-    });
+    glfwSetMouseButtonCallback(
+        glfw_window, [](GLFWwindow *window, int button, int action, int mods) {
+            Input *input = System::gInput;
+            MouseEvent me = MouseEvent::LEFT;
+            if (button == GLFW_MOUSE_BUTTON_LEFT) {
+                me = MouseEvent::LEFT;
+            } else if (button == GLFW_MOUSE_BUTTON_MIDDLE) {
+                me = MouseEvent::MIDDLE;
+            } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+                me = MouseEvent::RIGHT;
+            }
+            if (action == GLFW_PRESS) {
+                input->mouse_pressed.insert(me);
+            } else if (action == GLFW_RELEASE) {
+                input->mouse_pressed.erase(me);
+            }
+            Rml::Context *context = System::gGuiEngine->get_rml_context();
+            if (!context) return;
+            int rml_button = -1;
+            if (button == GLFW_MOUSE_BUTTON_LEFT) rml_button = 0;
+            if (button == GLFW_MOUSE_BUTTON_RIGHT) rml_button = 1;
+            if (button == GLFW_MOUSE_BUTTON_MIDDLE) rml_button = 2;
+            if (rml_button < 0) return;
+            if (action == GLFW_PRESS)
+                context->ProcessMouseButtonDown(rml_button,
+                                                modifier_state(window, mods));
+            if (action == GLFW_RELEASE)
+                context->ProcessMouseButtonUp(rml_button,
+                                              modifier_state(window, mods));
+        });
 
-    glfwSetScrollCallback(glfw_window, [](GLFWwindow *window, double xoffset,
-                                          double yoffset) {
-        Rml::Context *context = GuiEngine::get_instance()->get_rml_context();
-        if (!context) return;
-        context->ProcessMouseWheel(-(float)yoffset, modifier_state(window));
-    });
+    glfwSetScrollCallback(
+        glfw_window, [](GLFWwindow *window, double xoffset, double yoffset) {
+            Rml::Context *context = System::gGuiEngine->get_rml_context();
+            if (!context) return;
+            context->ProcessMouseWheel(-(float)yoffset, modifier_state(window));
+        });
 }
 
 void InputHandler::update() {
-    Input *input = Input::get_instance();
+    Input *input = System::gInput;
     input->last_mouse_pressed = input->mouse_pressed;
     input->last_key_pressed = input->key_pressed;
 }

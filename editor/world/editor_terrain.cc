@@ -26,8 +26,8 @@ constexpr i32 kTilePadLast = HEIGHTMAP_SIZE - 1;
 void EditorTile::clamp_border(Ref<Image> image) {
     if (image.is_null()) return;
 
-    image->copy_column(image, kTileFirst, kTileFirst, kTilePadFirst,
-                       kTileFirst, kTileSize);
+    image->copy_column(image, kTileFirst, kTileFirst, kTilePadFirst, kTileFirst,
+                       kTileSize);
     image->copy_column(image, kTileLast, kTileFirst, kTilePadLast, kTileFirst,
                        kTileSize);
     image->copy_row(image, kTilePadFirst, kTileFirst, kTilePadFirst,
@@ -61,11 +61,11 @@ bool EditorTile::build_edge_from_image(Ref<Image> image, Ref<Image> source,
 
     switch (direction) {
         case TileDirection::LEFT:
-            return source->copy_column(image, kTileLast, kTileFirst,
-                                       kTileFirst, kTileFirst, kTileSize);
+            return source->copy_column(image, kTileLast, kTileFirst, kTileFirst,
+                                       kTileFirst, kTileSize);
         case TileDirection::RIGHT:
-            return source->copy_column(image, kTileFirst, kTileFirst,
-                                       kTileLast, kTileFirst, kTileSize);
+            return source->copy_column(image, kTileFirst, kTileFirst, kTileLast,
+                                       kTileFirst, kTileSize);
         case TileDirection::BOTTOM:
             return source->copy_row(image, kTileFirst, kTileLast, kTileFirst,
                                     kTileFirst, kTileSize);
@@ -90,8 +90,7 @@ bool EditorTile::build_edge_from_tile(EditorTile *tile,
     return copied;
 }
 
-bool EditorTile::build_edge_from_tile(EditorTile *tile,
-                                      TileDirection direction,
+bool EditorTile::build_edge_from_tile(EditorTile *tile, TileDirection direction,
                                       TileImage image_type) {
     if (tile == nullptr) return false;
     return build_edge_from_image(get_image(image_type),
@@ -165,7 +164,7 @@ void EditorTerrain::build_mesh() {
         }
     }
 
-    this->mesh.create(&DS::get_instance()->terrain_desc, vertices, indices,
+    this->mesh.create(&System::gDefaultStorage->terrain_desc, vertices, indices,
                       AABB{.center = Vec3{0, 0, 0},
                            .ext = Vec3{CHUNK_SIZE / 2, 0, CHUNK_SIZE / 2}});
     this->mesh->set_type(RenderPrimitiveType::PATCHES);
@@ -198,7 +197,7 @@ EditorTerrain::EditorTerrain() {
                           TERRAIN_TEXTURE_SIZE);
     upload_fallback_layer(0);
 
-    material.create(ES::get_instance()->editor_terrain_shader, heightmaps,
+    material.create(System::gEditorStorage->editor_terrain_shader, heightmaps,
                     controlmaps, textures, texture_normals);
     this->instances.create();
 
@@ -230,13 +229,12 @@ bool EditorTerrain::update_texture_layer(u32 layer,
     return true;
 }
 
-bool EditorTerrain::update_normal_layer(u32 layer,
-                                        RHI::UpdateBufferInfo info) {
+bool EditorTerrain::update_normal_layer(u32 layer, RHI::UpdateBufferInfo info) {
     if (layer >= TERRAIN_TEXTURE_LAYERS) return false;
     if (info.data == nullptr) {
-        texture_normals->update_layer(
-            TERRAIN_TEXTURE_SIZE, TERRAIN_TEXTURE_SIZE, layer,
-            fallback_normal->get_data());
+        texture_normals->update_layer(TERRAIN_TEXTURE_SIZE,
+                                      TERRAIN_TEXTURE_SIZE, layer,
+                                      fallback_normal->get_data());
         return false;
     }
 
@@ -283,10 +281,8 @@ void EditorTerrain::add_chunk(i32 x, i32 y, Ref<Image> height_map,
         .max_height = max_height,
         .min_height = min_height});
 
-    tiles[chunk_index] = EditorTile{.x = x,
-                                    .y = y,
-                                    .heightmap = height_map,
-                                    .controlmap = control_map};
+    tiles[chunk_index] = EditorTile{
+        .x = x, .y = y, .heightmap = height_map, .controlmap = control_map};
     pos_to_index[std::pair<i32, i32>(x, y)] = chunk_index;
     last_heightmap++;
 }
@@ -496,14 +492,12 @@ bool EditorTerrain::apply_brush_sample(i32 x, i32 y, TerrainBrush type,
     switch (type) {
         case TerrainBrush::Raise:
             return read_height(x, y, current) &&
-                   write_height(x, y,
-                                current + (i32)std::round(255.0f * amount),
-                                edit);
+                   write_height(
+                       x, y, current + (i32)std::round(255.0f * amount), edit);
         case TerrainBrush::Lower:
             return read_height(x, y, current) &&
-                   write_height(x, y,
-                                current - (i32)std::round(255.0f * amount),
-                                edit);
+                   write_height(
+                       x, y, current - (i32)std::round(255.0f * amount), edit);
         case TerrainBrush::Flatten:
             return read_height(x, y, current) &&
                    write_height(
@@ -528,8 +522,7 @@ bool EditorTerrain::apply_brush_sample(i32 x, i32 y, TerrainBrush type,
             if (count == 0) return false;
             f32 target = (f32)sum / (f32)count;
             return write_height(
-                x, y,
-                current + (i32)std::round((target - current) * amount),
+                x, y, current + (i32)std::round((target - current) * amount),
                 edit);
         }
         case TerrainBrush::Splat:
@@ -553,8 +546,8 @@ bool EditorTerrain::apply_brush(i32 x, i32 y, TerrainBrush type,
             if (dist > (f32)radius) continue;
 
             f32 falloff = 1.0f - dist / std::max(1.0f, (f32)radius);
-            f32 amount = std::clamp((f32)setting.strength * 0.01f * falloff,
-                                    0.0f, 1.0f);
+            f32 amount =
+                std::clamp((f32)setting.strength * 0.01f * falloff, 0.0f, 1.0f);
             apply_brush_sample(x + dx, y + dy, type, amount, setting, edit);
         }
     }
@@ -575,8 +568,7 @@ void EditorTerrain::rebuild_tile_border(u32 chunk_index,
     tile->build_border_from_tile(get_tile_at(tile->x + 1, tile->y),
                                  EditorTile::TileDirection::RIGHT, image_type);
     tile->build_border_from_tile(get_tile_at(tile->x, tile->y - 1),
-                                 EditorTile::TileDirection::BOTTOM,
-                                 image_type);
+                                 EditorTile::TileDirection::BOTTOM, image_type);
     tile->build_border_from_tile(get_tile_at(tile->x, tile->y + 1),
                                  EditorTile::TileDirection::UP, image_type);
 }
@@ -621,18 +613,18 @@ void EditorTerrain::sync_tile_seams(std::set<u32> &touched_chunks,
         EditorTile *tile = get_tile(chunk_index);
         if (tile == nullptr) continue;
 
-        sync_tile_neighbor(chunk_index, find_chunk_index_at(tile->x - 1, tile->y),
-                           EditorTile::TileDirection::LEFT, image_type,
-                           touched_chunks);
-        sync_tile_neighbor(chunk_index, find_chunk_index_at(tile->x + 1, tile->y),
-                           EditorTile::TileDirection::RIGHT, image_type,
-                           touched_chunks);
-        sync_tile_neighbor(chunk_index, find_chunk_index_at(tile->x, tile->y - 1),
-                           EditorTile::TileDirection::BOTTOM, image_type,
-                           touched_chunks);
-        sync_tile_neighbor(chunk_index, find_chunk_index_at(tile->x, tile->y + 1),
-                           EditorTile::TileDirection::UP, image_type,
-                           touched_chunks);
+        sync_tile_neighbor(
+            chunk_index, find_chunk_index_at(tile->x - 1, tile->y),
+            EditorTile::TileDirection::LEFT, image_type, touched_chunks);
+        sync_tile_neighbor(
+            chunk_index, find_chunk_index_at(tile->x + 1, tile->y),
+            EditorTile::TileDirection::RIGHT, image_type, touched_chunks);
+        sync_tile_neighbor(
+            chunk_index, find_chunk_index_at(tile->x, tile->y - 1),
+            EditorTile::TileDirection::BOTTOM, image_type, touched_chunks);
+        sync_tile_neighbor(
+            chunk_index, find_chunk_index_at(tile->x, tile->y + 1),
+            EditorTile::TileDirection::UP, image_type, touched_chunks);
     }
 
     std::set<u32> border_chunks = touched_chunks;
@@ -738,14 +730,14 @@ void EditorTerrain::clear_dirty_maps() {
 void EditorTerrain::save_dirty_maps(const std::vector<ChunkSetting> &chunks) {
     if (dirty_heightmaps.empty() && dirty_controlmaps.empty()) return;
 
-    ResourceLoader *loader = ResourceLoader::get_instance();
+    ResourceLoader *loader = System::gResourceLoader;
     if (loader == nullptr) return;
 
     for (u32 chunk_idx : dirty_heightmaps) {
         if (chunk_idx >= chunks.size()) continue;
 
         ResourceEntry *entry =
-            loader->get_entries().get_entry(chunks[chunk_idx].height_map);
+            System::gResourceEntries->get_entry(chunks[chunk_idx].height_map);
         EditorTile *tile = get_tile(chunk_idx);
         if (entry == nullptr || tile == nullptr || tile->heightmap.is_null()) {
             continue;
@@ -757,7 +749,7 @@ void EditorTerrain::save_dirty_maps(const std::vector<ChunkSetting> &chunks) {
         if (chunk_idx >= chunks.size()) continue;
 
         ResourceEntry *entry =
-            loader->get_entries().get_entry(chunks[chunk_idx].control_map);
+            System::gResourceEntries->get_entry(chunks[chunk_idx].control_map);
         EditorTile *tile = get_tile(chunk_idx);
         if (entry == nullptr || tile == nullptr || tile->controlmap.is_null()) {
             continue;

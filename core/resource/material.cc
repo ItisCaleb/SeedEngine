@@ -65,7 +65,7 @@ void Material::remove_texture(const std::string &name) {
     u32 unit = shader->get_layout().get_texture_unit(name);
     if (unit == -1) {
         SEED_WARN("Texture name '{}' is not in shader {}", name,
-                    shader->get_path());
+                  shader->get_path());
         return;
     }
     remove_texture_unit(unit);
@@ -110,7 +110,7 @@ Ref<Texture> Material::get_texture(const std::string &name) {
     u32 unit = shader->get_layout().get_texture_unit(name);
     if (unit == -1) {
         SEED_WARN("Texture name '{}' is not in shader {}", name,
-                    shader->get_path());
+                  shader->get_path());
         return Ref<Texture>();
     }
     return get_texture_unit(unit);

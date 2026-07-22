@@ -45,7 +45,6 @@ void GuiEngine::register_seed_rml(Rml::Context *context) {
 }
 
 GuiEngine::GuiEngine(Window *window) {
-    instance = this;
     this->window = window;
     if (!window) {
         SPDLOG_ERROR("Can't initialize Gui engine, window is null, exiting.");
@@ -79,7 +78,6 @@ GuiEngine::~GuiEngine() {
     NFD_Quit();
     ImGui_ImplGlfw_Shutdown();
     if (ImGui::GetCurrentContext()) ImGui::DestroyContext();
-    instance = nullptr;
 }
 
 void GuiEngine::update_rml_context() {
@@ -90,7 +88,6 @@ void GuiEngine::update_rml_context() {
 
 void GuiEngine::update() {
     ImGui_ImplGlfw_NewFrame();
-    ImguiRenderer::get_instance()->new_frame();
     ImGui::NewFrame();
 
     update_rml_context();
@@ -105,7 +102,7 @@ void GuiEngine::update() {
         Rml::Element *hover = rml_context->GetHoverElement();
         if (hover != nullptr) {
             Rml::Dictionary params;
-            Vec2i pos = Input::get_instance()->get_mouse_actual_pos();
+            Vec2i pos = System::gInput->get_mouse_actual_pos();
 
             params["mouse_x"] = pos.x;
             params["mouse_y"] = pos.y;

@@ -15,9 +15,12 @@ class Viewport {
             set_dimension(dimension);
         }
 
-        Viewport(Vec2 size, bool flip_y = false) : size(size) { set_dimension(RectF{0, 0, 1, 1}, flip_y); }
+        Viewport(Vec2 size, bool flip_y = false) : size(size) {
+            set_dimension(RectF{0, 0, 1, 1}, flip_y);
+        }
 
-        Viewport(u32 w, u32 h, bool flip_y = false) : Viewport(Vec2{(f32)w, (f32)h}, flip_y) {}
+        Viewport(u32 w, u32 h, bool flip_y = false)
+            : Viewport(Vec2{(f32)w, (f32)h}, flip_y) {}
 
         void set_dimension(RectF dim, bool flip_y = false);
 

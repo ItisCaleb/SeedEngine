@@ -14,9 +14,7 @@ class HandleOwner {
         FreeList<T> datas;
 
     public:
-        Handle insert(const T &d) {
-            return datas.insert(d);
-        }
+        Handle insert(const T &d) { return datas.insert(d); }
 
         T *get_or_null(Handle h) {
             if (datas.present(h)) {
@@ -26,27 +24,22 @@ class HandleOwner {
             }
         }
 
-        void remove(Handle h) {
-            datas.erase(h);
-        }
+        void remove(Handle h) { datas.erase(h); }
 };
 
 template <typename T>
 class HandleIdOwner {
     private:
-        struct IDType{
-            i32 id;
-            T element;
+        struct IDType {
+                i32 id;
+                T element;
         };
         FreeList<IDType> datas;
         i32 current_id = 0;
 
     public:
         Handle insert(const T &d) {
-            i32 index = datas.insert(IDType{
-                .id = current_id++,
-                .element = d                
-            });
+            i32 index = datas.insert(IDType{.id = current_id++, .element = d});
             return index;
         }
 
@@ -58,7 +51,7 @@ class HandleIdOwner {
             }
         }
 
-        i32 get_id(Handle h){
+        i32 get_id(Handle h) {
             if (datas.present(h)) {
                 return datas[h].id;
             } else {
@@ -66,17 +59,15 @@ class HandleIdOwner {
             }
         }
 
-        void remove(Handle h) {
-            datas.erase(h);
-        }
+        void remove(Handle h) { datas.erase(h); }
 };
 
-template<typename T>
-struct TypedHandle{
-    Handle handle;
-    constexpr TypedHandle() = default;
-    constexpr TypedHandle(Handle handle):handle(handle) {}
-    constexpr operator Handle() const { return handle;}
+template <typename T>
+struct TypedHandle {
+        Handle handle;
+        constexpr TypedHandle() = default;
+        constexpr TypedHandle(Handle handle) : handle(handle) {}
+        constexpr operator Handle() const { return handle; }
 };
 
 }  // namespace Seed

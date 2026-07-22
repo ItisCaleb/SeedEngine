@@ -21,9 +21,9 @@ static void premultiply_alpha(Ref<Image> image) {
     }
 }
 
-SeedRmlRenderInterface::SeedRmlRenderInterface() { instance = this; }
+SeedRmlRenderInterface::SeedRmlRenderInterface() {}
 
-SeedRmlRenderInterface::~SeedRmlRenderInterface() { instance = nullptr; }
+SeedRmlRenderInterface::~SeedRmlRenderInterface() {}
 
 void SeedRmlRenderInterface::begin_frame() { commands.clear(); }
 
@@ -109,15 +109,13 @@ Rml::TextureHandle SeedRmlRenderInterface::LoadTexture(
     } else if (protocol == "uuid") {
         UUID uuid = UUID::from_string(url.GetHost());
         if (uuid.is_null()) return 0;
-        Ref<Texture> texture =
-            ResourceLoader::get_instance()->load<Texture>(uuid);
+        Ref<Texture> texture = System::gResourceLoader->load<Texture>(uuid);
         if (texture.is_null()) return 0;
         texture_dimensions =
             Rml::Vector2i(texture->get_width(), texture->get_height());
         return store_texture(texture);
     } else if (protocol == "internal") {
-        Ref<Texture> texture =
-            GuiEngine::get_instance()->get_texture(url.GetHost());
+        Ref<Texture> texture = System::gGuiEngine->get_texture(url.GetHost());
         if (texture.is_null()) return 0;
         texture_dimensions =
             Rml::Vector2i(texture->get_width(), texture->get_height());

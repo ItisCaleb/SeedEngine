@@ -21,8 +21,7 @@ Shader::Shader(const Path &path, const KString &code,
 }
 
 bool Shader::reload_from_disk() {
-    ResourceEntry *entry =
-        ResourceLoader::get_instance()->get_entries().get_entry(get_uuid());
+    ResourceEntry *entry = System::gResourceEntries->get_entry(get_uuid());
     if (!entry) {
         SPDLOG_ERROR("Can't reload shader, this shader is not from disk.");
         return false;
@@ -48,8 +47,7 @@ bool Shader::reload_from_disk() {
     return true;
 }
 Ref<Shader> Shader::create_variant(const std::vector<ShaderDefine> &defines) {
-    ResourceEntry *entry =
-        ResourceLoader::get_instance()->get_entries().get_entry(get_uuid());
+    ResourceEntry *entry = System::gResourceEntries->get_entry(get_uuid());
     if (!entry) {
         SPDLOG_ERROR("Can't reload shader, this shader is not from disk.");
         return Ref<Shader>();

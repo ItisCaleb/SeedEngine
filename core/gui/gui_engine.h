@@ -1,5 +1,6 @@
 #ifndef _SEED_GUI_ENGINE_H_
 #define _SEED_GUI_ENGINE_H_
+#include "core/system.h"
 #include "core/window.h"
 #include "core/gui/gui.h"
 #include "core/gui/rml_interface.h"
@@ -9,9 +10,11 @@
 
 namespace Seed {
 
+class RmlRenderer;
 class GuiEngine {
+        friend RmlRenderer;
+
     private:
-        inline static GuiEngine *instance = nullptr;
         std::vector<ImGUI *> guis;
         std::unordered_map<KString, Ref<Texture>> stored_texture;
         RmlGUI *rml_root = nullptr;
@@ -23,10 +26,12 @@ class GuiEngine {
 
         void update_rml_context();
         void register_seed_rml(Rml::Context *context);
+        SeedRmlRenderInterface *get_rml_render_interface() {
+            return &this->rml_interface;
+        }
 
     public:
         void update();
-        static GuiEngine *get_instance() { return instance; }
         Rml::Context *get_rml_context() { return rml_context; }
         void add_imgui(ImGUI *gui) {
             if (!gui) return;

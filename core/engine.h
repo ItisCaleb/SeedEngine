@@ -1,12 +1,13 @@
 #ifndef _SEED_ENGINE_H_
 #define _SEED_ENGINE_H_
 
+#include "core/types.h"
+#include "core/system.h"
 #include "core/io/path.h"
-#include "project.h"
-#include "types.h"
-#include "world/world.h"
-#include "input_handler.h"
-#include "window.h"
+#include "core/project.h"
+#include "core/world/world.h"
+#include "core/input_handler.h"
+#include "core/window.h"
 
 namespace Seed {
 
@@ -23,7 +24,6 @@ struct EngineConfig {
 
 class SeedEngine {
     private:
-        inline static SeedEngine *instance = nullptr;
         Project *current_project = nullptr;
         InputHandler input_handler;
         f32 frame_limit = 60.0;
@@ -34,8 +34,8 @@ class SeedEngine {
         void setup_logger();
         void init_systems();
         void deinit_systems();
+
     public:
-        static SeedEngine *get_instance();
         int width, height;
         void start();
         Project *get_project() { return current_project; }

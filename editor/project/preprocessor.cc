@@ -75,7 +75,7 @@ void PreprocessEntries::load(const Path &path) {
     Ref<File> file = File::open(path);
     nlohmann::json j = file->read_json();
     auto j_entries = j["entries"];
-    ResourceLoader *loader = ResourceLoader::get_instance();
+    ResourceLoader *loader = System::gResourceLoader;
     for (auto j_entry : j_entries) {
         UUID uuid = j_entry["UUID"];
         ResourceTypeID type_id = j_entry["resource_type_id"];
@@ -107,7 +107,7 @@ void PreprocessEntries::load(const Path &path) {
 bool Preprocessor::preprocess(ResourceEntries &entries, Ref<File> file,
                               const Path &moved_path,
                               PreprocessTypeInfo &info) {
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
     Path &internal_dir = project->get_internal_dir();
     Dir::create_if_not_exists(internal_dir);
 
@@ -125,8 +125,8 @@ bool Preprocessor::preprocess(ResourceEntries &entries, Ref<File> file,
         return false;
     }
     Path out_path = internal_dir.append(result.out_file);
-    UUID to_uuid = entries.insert_entry(
-        out_path.relative(project->get_path()), result.target_tid);
+    UUID to_uuid = entries.insert_entry(out_path.relative(project->get_path()),
+                                        result.target_tid);
     preprocess_entries.link_entry(from_uuid, to_uuid);
     entries.get_entry(to_uuid)->config = out_config;
 

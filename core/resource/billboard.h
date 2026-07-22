@@ -9,7 +9,7 @@ namespace Seed {
 class BillboardMaterial : public Material {
     public:
         BillboardMaterial(Ref<Texture> tex)
-            : Material(DS::get_instance()->billboard_shader) {
+            : Material(System::gDefaultStorage->billboard_shader) {
             this->set_texture("u_billboard", tex);
             this->depth_state.depth_mode = DepthMode::ALPHA_TEST;
         }

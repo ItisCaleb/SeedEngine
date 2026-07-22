@@ -30,8 +30,11 @@
 #include <RmlUi/Core/Factory.h>
 
 namespace Seed {
-Editor *gEditor = nullptr;
 
+namespace System {
+Editor *gEditor = nullptr;
+EditorStorage *gEditorStorage = nullptr;
+}  // namespace System
 #ifdef _WIN32
 static WindowDropTarget *drag_dropper = nullptr;
 
@@ -60,11 +63,10 @@ ResourceTypeID Editor::extension_to_tid(KStr ext) {
 }
 
 void Editor::scan_assets() {
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
     Ref<Dir> dir = Dir::open(project->get_asset_dir());
     std::queue<Ref<Dir>> dirs_to_process;
     dirs_to_process.push(dir);
-    ResourceEntries &entries = ResourceLoader::get_instance()->get_entries();
     while (!dirs_to_process.empty()) {
         Ref<Dir> d = dirs_to_process.front();
         dirs_to_process.pop();
@@ -76,70 +78,67 @@ void Editor::scan_assets() {
                 dirs_to_process.push(Dir::open(path));
             } else {
                 path = path.relative(project->get_path());
-                if (!entries.get_uuid(path).is_null()) continue;
+                if (!System::gResourceEntries->get_uuid(path).is_null())
+                    continue;
                 KStr extension = path.extension();
                 u64 tid = extension_to_tid(extension);
                 if (tid == 0) continue;
-                entries.insert_entry(path, tid);
+                System::gResourceEntries->insert_entry(path, tid);
             }
         }
     }
-    entries.save(project->get_entry_path());
+    System::gResourceEntries->save(project->get_entry_path());
 }
 ResourceEntry *Editor::create_asset(KStr name, ResourceTypeID tid) {
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
 
     Path path = "assets";
     path.push(name);
-    ResourceEntries &entries = ResourceLoader::get_instance()->get_entries();
-    UUID uuid = entries.insert_entry(path, tid);
-    entries.save(project->get_entry_path());
-    return entries.get_entry(uuid);
+    UUID uuid = System::gResourceEntries->insert_entry(path, tid);
+    System::gResourceEntries->save(project->get_entry_path());
+    return System::gResourceEntries->get_entry(uuid);
 }
 
 ResourceEntry *Editor::create_internal_asset(KStr name, ResourceTypeID tid) {
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
 
     Path path = "assets/.internal";
     path.push(name);
-    ResourceEntries &entries = ResourceLoader::get_instance()->get_entries();
-    UUID uuid = entries.insert_entry(path, tid);
-    entries.save(project->get_entry_path());
-    return entries.get_entry(uuid);
+    UUID uuid = System::gResourceEntries->insert_entry(path, tid);
+    System::gResourceEntries->save(project->get_entry_path());
+    return System::gResourceEntries->get_entry(uuid);
 }
 
 void Editor::remove_asset(UUID uuid) {
-    ResourceEntries &entries = ResourceLoader::get_instance()->get_entries();
-    ResourceEntry *entry = entries.get_entry(uuid);
+    ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
     if (!entry) return;
     File::remove(entry->real_path());
-    entries.remove_entry(uuid);
+    System::gResourceEntries->remove_entry(uuid);
 }
 
 void Editor::import_asset(const Path &origin_path, const Path &target_dir) {
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
 
-    ResourceEntries &entries = ResourceLoader::get_instance()->get_entries();
     Path moved_path = target_dir.append(origin_path.filename());
     Ref<File> origin = File::open(origin_path);
     origin->copy_to(project->get_path().append(moved_path));
 
-    bool r = gEditor->preprocessor.try_preprocess(entries, origin, moved_path);
+    bool r = preprocessor.try_preprocess(*System::gResourceEntries, origin,
+                                         moved_path);
     if (r) {
-        gEditor->preprocessor.get_entries().save(
-            project->get_preprocess_entry_path());
+        preprocessor.get_entries().save(project->get_preprocess_entry_path());
     } else {
         KStr extension = origin_path.extension();
         u64 tid = extension_to_tid(extension);
         if (tid == 0) return;
-        entries.insert_entry(moved_path, tid);
+        System::gResourceEntries->insert_entry(moved_path, tid);
     }
-    entries.save(project->get_entry_path());
+    System::gResourceEntries->save(project->get_entry_path());
 }
 
 void Editor::try_open_project() {
     Ref<File> cache = File::open(".seed_cache", "rb");
-    SeedEngine *engine = SeedEngine::get_instance();
+    SeedEngine *engine = System::gEngine;
     if (cache.is_valid()) {
         project_cache = cache->read_json();
         if (project_cache.contains("last_open")) {
@@ -162,7 +161,7 @@ void Editor::try_open_project() {
 }
 
 void Editor::save_project() {
-    Project *project = SeedEngine::get_instance()->get_project();
+    Project *project = System::gEngine->get_project();
     project->save();
 }
 
@@ -180,8 +179,8 @@ void Editor::load_project(RML_EVENT_ARGS) {
     nfdopendialogu8args_t _args = {0};
     nfdresult_t r = NFD_OpenDialogU8_With(&path, &_args);
     if (r == NFD_OKAY) {
-        if (SeedEngine::get_instance()->load_project(path)) {
-            gEditor->set_last_open(path);
+        if (System::gEngine->load_project(path)) {
+            set_last_open(path);
         }
     }
 }
@@ -190,8 +189,8 @@ void Editor::bind_model(Rml::Context *context) {
     if (Rml::DataModelConstructor constructor =
             context->CreateDataModel("editor")) {
         constructor.BindEventCallback("reload_shaders", [](RML_EVENT_ARGS) {
-            DS::get_instance()->reload_shaders();
-            ES::get_instance()->reload_shaders();
+            System::gDefaultStorage->reload_shaders();
+            System::gEditorStorage->reload_shaders();
         });
         constructor.BindEventCallback("reload_gui",
                                       [=](RML_EVENT_ARGS) { this->reload(); });
@@ -209,27 +208,29 @@ void Editor::bind_model(Rml::Context *context) {
     }
 }
 
-Editor::Editor() : RmlGUI(ES::get_instance()->editor_ui_doc) {
-    gEditor = this;
+void Editor::start() {
+    open_gui(&world_editor);
+    open_gui(&asset_browser);
+    System::gGuiEngine->load_rmlui(System::gEditor);
+}
+
+Editor::Editor() : RmlGUI(System::gEditorStorage->editor_ui_doc) {
     try_open_project();
 
     world_editor.init();
 
 #ifdef _WIN32
-    Window *window = SeedEngine::get_instance()->get_window();
+    Window *window = System::gEngine->get_window();
     HWND hwnd = glfwGetWin32Window(window->get_window<GLFWwindow>());
     OleInitialize(nullptr);
     drag_dropper = new WindowDropTarget();
     RegisterDragDrop(hwnd, drag_dropper);
 #endif
-
-    open_gui(&world_editor);
-    open_gui(&asset_browser);
 }
 
 Editor::~Editor() {
 #ifdef _WIN32
-    Window *window = SeedEngine::get_instance()->get_window();
+    Window *window = System::gEngine->get_window();
 
     HWND hwnd = glfwGetWin32Window(window->get_window<GLFWwindow>());
 
@@ -247,21 +248,23 @@ using namespace Seed;
 i32 main(i32, char **) {
     // Main loop
     Seed::SeedEngine *engine = new Seed::SeedEngine(60.0f);
-    RenderEngine *render_engine = RenderEngine::get_instance();
-    new EditorStorage;
+    RenderEngine *render_engine = System::gRenderEngine;
     EditorRmlElementInstancer rml_instancer;
     rml_instancer.RegisterElements();
-    Editor *editor = new Editor;
-    GuiEngine::get_instance()->load_rmlui(editor);
+
+    System::gEditorStorage = new EditorStorage;
+
+    System::gEditor = new Editor;
 
     auto &ecs = engine->get_world()->ecs();
     EditorCameraEntity::create_entity(ecs);
-    ResourceLoader *loader = ResourceLoader::get_instance();
+    ResourceLoader *loader = System::gResourceLoader;
     render_engine->set_renderer_enable(render_engine->get_default_renderer(),
                                        false);
-
+    System::gEditor->start();
     engine->start();
-    delete editor;
+    delete System::gEditorStorage;
+    delete System::gEditor;
     delete engine;
     return 0;
 }

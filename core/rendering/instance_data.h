@@ -55,9 +55,7 @@ class InstanceData : public RefCounted {
         /* if instance only contains transform, then instance size is 1 */
         /* if instance contains transform and skeleton, */
         /* then instance size is 1 + bone_count */
-        virtual u32 instance_size() {
-            return 1;;
-        }
+        virtual u32 instance_size() { return 1; }
         virtual void frustum_culling(const Frustum &frustum,
                                      const AABB &bounding_box,
                                      std::vector<u32> &instance_ids,

@@ -6,7 +6,8 @@
 namespace Seed {
 class World;
 class Behaviour : public RefCounted {
-    friend World;
+        friend World;
+
     protected:
         EntityManager *m;
         Entity self;

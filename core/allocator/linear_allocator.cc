@@ -31,7 +31,7 @@ void LinearAllocator::free_all() {
         tmp_bufs.clear();
         this->cap = roundup_to_pow2(this->cap + this->overflow_size);
         void *new_ptr = realloc(this->memory_base, this->cap);
-        if(new_ptr != nullptr){
+        if (new_ptr != nullptr) {
             this->memory_base = new_ptr;
         }
         this->overflow_size = 0;

@@ -38,7 +38,6 @@ struct RmlDrawCommand {
 
 class SeedRmlRenderInterface : public Rml::RenderInterface {
     private:
-        inline static SeedRmlRenderInterface *instance = nullptr;
         std::unordered_map<Rml::CompiledGeometryHandle, RmlGeometry> geometries;
         std::unordered_map<Rml::TextureHandle, Ref<Texture>> textures;
         std::vector<RmlDrawCommand> commands;
@@ -52,7 +51,6 @@ class SeedRmlRenderInterface : public Rml::RenderInterface {
         Rml::TextureHandle store_texture(Ref<Texture> texture);
 
     public:
-        static SeedRmlRenderInterface *get_instance() { return instance; }
         const std::vector<RmlDrawCommand> &get_commands() const {
             return commands;
         }
