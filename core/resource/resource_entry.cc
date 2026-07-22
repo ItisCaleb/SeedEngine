@@ -1,4 +1,5 @@
 #include "resource_entry.h"
+#include "core/system.h"
 #include <spdlog/spdlog.h>
 #include <nlohmann/json_fwd.hpp>
 #include "core/engine.h"

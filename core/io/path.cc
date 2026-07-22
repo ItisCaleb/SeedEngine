@@ -93,9 +93,9 @@ void Path::normalize() {
 
     /* Since  */
     if (is_absolute) {
-        path._size -= path._size - root.length();
+        path.resize(root.length());
     } else {
-        path._size = 0;
+        path.clear();
     }
     for (i32 i = 0; i < (i32)stack.size(); i++) {
         /* skip windows drive */
@@ -109,7 +109,7 @@ void Path::normalize() {
         root = KStr(path, 1);
     }
 }
-void Path::push(const KStr &segment) {
+void Path::push(KStr segment) {
     if (!path.to_str().is_empty() && !path.to_str().end_with(get_splitter())) {
         path.append(get_splitter());
     }
@@ -128,7 +128,7 @@ void Path::pop() {
     }
 }
 
-Path Path::append(const KStr &segment) const {
+Path Path::append(KStr segment) const {
     Path new_path = *this;
     new_path.push(segment);
     return new_path;

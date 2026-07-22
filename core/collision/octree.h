@@ -5,7 +5,6 @@
 #include <set>
 
 #include "shape.h"
-#include "core/entity.h"
 #include "core/container/freelist.h"
 
 namespace Seed {

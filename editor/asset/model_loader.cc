@@ -1,5 +1,7 @@
 #include "model_loader.h"
 
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
 #include <spdlog/spdlog.h>
 #include "core/container/kstring.h"
 #include "core/io/file.h"

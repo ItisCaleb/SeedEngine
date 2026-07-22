@@ -1,5 +1,7 @@
 #ifndef _SEED_RENDER_PASS_H_
 #define _SEED_RENDER_PASS_H_
+#include <string>
+#include <vector>
 #include "core/rendering/viewport.h"
 #include "core/resource/texture.h"
 #include "core/rendering/rhi/render_command.h"

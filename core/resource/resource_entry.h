@@ -1,17 +1,13 @@
 #ifndef _SEED_RESOURCE_ENTRY_H_
 #define _SEED_RESOURCE_ENTRY_H_
 
-#include "core/system.h"
 #include <map>
 #include <nlohmann/json.hpp>
-#include <nlohmann/json_fwd.hpp>
 #include <unordered_map>
-#include <unordered_set>
 #include "core/container/kstring.h"
 #include "core/io/path.h"
 #include "core/misc/uuid.h"
 #include "core/resource/resource.h"
-#include "resource.h"
 
 namespace Seed {
 

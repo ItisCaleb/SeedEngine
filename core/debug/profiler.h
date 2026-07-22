@@ -1,7 +1,6 @@
 #ifndef _SEED_PROFILER_H_
 #define _SEED_PROFILER_H_
 
-#include "core/system.h"
 #include <vector>
 #include "core/container/kstring.h"
 #include "core/types.h"

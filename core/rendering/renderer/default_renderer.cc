@@ -1,4 +1,5 @@
 #include "default_renderer.h"
+#include <set>
 #include "core/rendering/instance_data.h"
 #include "core/rendering/light.h"
 #include "core/rendering/rhi/render_resource.h"
@@ -7,7 +8,10 @@
 #include <vector>
 #include "core/debug/debug_drawer.h"
 #include "core/rendering/mesh_storage.h"
+#include "core/resource/default_storage.h"
 #include "core/resource/material.h"
+#include "core/system.h"
+#include "core/world/world.h"
 
 namespace Seed {
 

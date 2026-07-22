@@ -1,6 +1,10 @@
 #include "engine.h"
 #include "core/system.h"
 #include <GLFW/glfw3.h>
+#include "core/io/file.h"
+#include "core/project.h"
+#include "core/window.h"
+#include "core/world/world.h"
 #include "debug/profiler.h"
 #include "input.h"
 #include "core/rendering/rhi/render_engine.h"

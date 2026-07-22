@@ -3,8 +3,10 @@
 #include "core/math/vec4.h"
 #include "core/resource/default_storage.h"
 #include "core/physic/physic_engine.h"
+#include "core/rendering/mesh_storage.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/resource/texture.h"
+#include "core/system.h"
 #include "core/types.h"
 #include <math.h>
 #include <cfloat>

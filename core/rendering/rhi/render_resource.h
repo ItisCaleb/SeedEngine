@@ -1,15 +1,16 @@
 #ifndef _SEED_RENDERING_RESOURCE_H_
 #define _SEED_RENDERING_RESOURCE_H_
+#include "core/collision/shape.h"
+#include "core/container/kstring.h"
 #include "core/io/path.h"
 #include "core/types.h"
 #include <vector>
-#include <string>
 #include "core/rendering/render_common.h"
 #include "core/handle.h"
-#include "core/rendering/shader_layout.h"
-#include "core/collision/shape.h"
 
 namespace Seed {
+
+class ShaderLayout;
 
 enum class RenderResourceType : u8 {
     TEXTURE,

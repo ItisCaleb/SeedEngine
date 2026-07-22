@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include "core/container/kstring.h"
 #include "core/engine.h"
+#include "core/project.h"
+#include "core/system.h"
 #include "core/io/file.h"
 #include "core/io/path.h"
 #include "core/misc/uuid.h"
@@ -13,12 +15,16 @@
 #include "core/rendering/rhi/render_resource.h"
 #include "core/resource/resource.h"
 #include "core/concurrency/thread_pool.h"
-#include "resource.h"
 #include "resource_entry.h"
 #include "core/misc/type_name.h"
 
 namespace Seed {
+class Animation;
+class Image;
+class Mesh;
 class ResourceLoader;
+class Skeleton;
+class TextureCubemap;
 
 template <typename T>
 class AsyncResource : public RefCounted {

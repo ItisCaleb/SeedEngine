@@ -1,6 +1,5 @@
 #ifndef _SEED_DEFAULT_STORAGE
 #define _SEED_DEFAULT_STORAGE
-#include "core/system.h"
 #include "core/resource/shader.h"
 #include "core/rendering/vertex_layout.h"
 #include "core/rendering/vertex_data.h"

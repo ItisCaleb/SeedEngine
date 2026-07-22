@@ -1,4 +1,5 @@
 #include "file.h"
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <sys/stat.h>
 #include "path.h"
@@ -10,7 +11,7 @@
 #endif
 
 namespace Seed {
-Ref<File> File::open(KStr path, const char *mode) {
+Ref<File> File::open(const Path &path, const char *mode) {
     Ref<File> file;
     FILE *f = fopen(path.data(), mode);
     if (!f) {

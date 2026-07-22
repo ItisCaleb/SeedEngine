@@ -1,17 +1,18 @@
 #ifndef _SEED_MATERIAL_H_
 #define _SEED_MATERIAL_H_
 
-#include "core/rendering/rhi/render_command.h"
+#include <cstdlib>
+#include <string>
+#include <unordered_map>
 #include "core/rendering/rhi/render_resource.h"
 #include "core/resource/texture.h"
 #include "core/resource/resource.h"
 #include "core/resource/shader.h"
-#include "core/resource/default_storage.h"
-#include "core/container/kstring.h"
 
 namespace Seed {
 
 class RenderDrawDataBuilder;
+class RenderCommandDispatcher;
 class Material : public Resource {
     protected:
         u16 id;
@@ -84,17 +85,8 @@ class BaseMaterial : public Material {
         enum TextureMapType : u8 { DIFFUSE = 0, SPECULAR, NORMAl, MAX };
 
         f32 shiness;
-        BaseMaterial() : BaseMaterial(System::gDefaultStorage->mesh_shader) {}
-
-        BaseMaterial(Ref<Shader> shader) : Material(shader) {
-            this->set_texture(name_map[DIFFUSE],
-                              System::gDefaultStorage->white_texture);
-            this->set_texture(name_map[SPECULAR],
-                              System::gDefaultStorage->white_texture);
-            this->set_texture(name_map[NORMAl],
-                              System::gDefaultStorage->normal_texture);
-            depth_state = {.depth_mode = DepthMode::OPAQUE};
-        }
+        BaseMaterial();
+        BaseMaterial(Ref<Shader> shader);
         void set_texture_map(TextureMapType type, Ref<Texture> tex) {
             this->set_texture(name_map[type], tex);
         }

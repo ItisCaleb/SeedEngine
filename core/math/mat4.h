@@ -1,9 +1,8 @@
 #ifndef _SEED_Mat4_H_
 #define _SEED_Mat4_H_
 #include "core/math/vec4.h"
-#include "vec4.h"
-#include "vec3.h"
-#include "quaternion.h"
+#include "core/math/vec3.h"
+#include "core/math/quaternion.h"
 #include <fmt/format.h>
 
 namespace Seed {

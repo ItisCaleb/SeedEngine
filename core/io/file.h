@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <vector>
 #include <string>
-#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 namespace Seed {
 
 #ifndef SPLITOR
@@ -29,7 +29,7 @@ class File : public RefCounted {
         u64 write_cnt;
 
     public:
-        static Ref<File> open(KStr path, const char *mode = "rb");
+        static Ref<File> open(const Path &path, const char *mode = "rb");
         static bool exists(const Path &path);
         static bool remove(const Path &path);
 

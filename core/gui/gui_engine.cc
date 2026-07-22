@@ -1,5 +1,6 @@
 #include "gui_engine.h"
 
+#include <algorithm>
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Input.h>
 #include <imgui.h>
@@ -7,10 +8,32 @@
 #include <nfd.h>
 #include <spdlog/spdlog.h>
 #include "core/input.h"
+#include "core/gui/gui.h"
 #include "core/rendering/renderer/imgui_renderer.h"
 #include "core/gui/rml_widgets.h"
+#include "core/system.h"
 
 namespace Seed {
+
+void GuiEngine::add_imgui(ImGUI *gui) {
+    if (gui == nullptr) return;
+    guis.push_back(gui);
+}
+
+void GuiEngine::remove_imgui(ImGUI *gui) {
+    auto iter = std::find(guis.begin(), guis.end(), gui);
+    if (iter != guis.end()) {
+        guis.erase(iter);
+    }
+}
+
+void GuiEngine::load_rmlui(RmlGUI *gui) {
+    if (gui == nullptr || gui->original_document.is_null()) return;
+
+    gui->init();
+    gui->document->Show();
+    rml_root = gui;
+}
 
 void GuiEngine::add_texture(KStr name, Ref<Texture> texture) {
     stored_texture[name] = texture;

@@ -6,6 +6,7 @@
 #include <RmlUi/Core/DataModelHandle.h>
 #include "core/container/kstring.h"
 #include "core/gui/gui.h"
+#include "core/math/vec3.h"
 #include "core/resource/world_setting.h"
 #include "editor_terrain.h"
 

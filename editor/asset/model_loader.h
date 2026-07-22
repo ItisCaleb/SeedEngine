@@ -1,22 +1,21 @@
 #ifndef _SEED_MODEL_LOADER_H_
 #define _SEED_MODEL_LOADER_H_
 
-#include "core/io/dir.h"
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <assimp/scene.h>
+#include "core/io/file.h"
 #include "core/io/path.h"
 #include "core/rendering/mesh.h"
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
-#include <assimp/Importer.hpp>
 #include "core/collision/shape.h"
-#include <string>
-#include <vector>
-#include <map>
-#include <filesystem>
 #include "core/resource/model.h"
 #include "core/resource/animation.h"
-#include "editor/project/preprocessor.h"
 
 namespace Seed {
+class ResourceConfiguration;
+
 struct EditorMesh {
         std::vector<Seed::ModelVertex> vertices;
         std::vector<u32> indices;

@@ -4,11 +4,8 @@
 #include <map>
 #include <vector>
 
-#include "core/container/kstring.h"
 #include "core/misc/uuid.h"
-#include "core/resource/image.h"
 #include "core/resource/model.h"
-#include "core/resource/resource_entry.h"
 #include "core/resource/texture.h"
 #include "core/resource/world_setting.h"
 #include "core/types.h"
@@ -16,6 +13,9 @@
 #include "editor_terrain.h"
 
 namespace Seed {
+
+class ResourceConfiguration;
+class ResourceEntry;
 
 struct EditorSky : public SkySetting {
         Ref<TextureCubemap> cubemap;

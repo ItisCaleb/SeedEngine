@@ -1,9 +1,10 @@
 #ifndef _SEED_RENDERER_H_
 #define _SEED_RENDERER_H_
 #include "core/rendering/rhi/render_command.h"
-#include "core/window.h"
 
 namespace Seed {
+
+class Window;
 
 namespace GlobalBinding {
 constexpr u32 Visible = 0;

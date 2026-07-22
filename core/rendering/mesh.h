@@ -4,6 +4,7 @@
 #include "core/resource/material.h"
 #include "core/rendering/vertex_data.h"
 #include "core/collision/shape.h"
+#include <utility>
 #include <vector>
 
 #define LOD_MAX 4

@@ -4,7 +4,9 @@
 #include <fmt/core.h>
 #include "core/math/utils.h"
 #include "core/ref.h"
+#include "core/rendering/camera.h"
 #include "core/world/entity.h"
+#include "core/world/world.h"
 
 namespace Seed {
 

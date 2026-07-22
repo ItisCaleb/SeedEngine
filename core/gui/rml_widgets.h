@@ -1,7 +1,6 @@
 #ifndef _SEED_RML_WIDGETS_H_
 #define _SEED_RML_WIDGETS_H_
 #include "core/types.h"
-#include "core/misc/uuid.h"
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/EventListener.h>
 

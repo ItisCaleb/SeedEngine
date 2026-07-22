@@ -2,10 +2,11 @@
 #define CAMERA_ENTITY
 #include "core/types.h"
 #include "core/world/behaviour.h"
-#include "core/rendering/camera.h"
 #include "core/world/entity.h"
 
 namespace Seed {
+
+class Camera;
 
 class CameraBehaviour : public Behaviour {
         Camera *cam;

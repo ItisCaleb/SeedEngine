@@ -3,6 +3,8 @@
 #include "core/math/mat4.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_engine.h"
+#include "core/resource/default_storage.h"
+#include "core/system.h"
 #include "renderer.h"
 
 namespace Seed {

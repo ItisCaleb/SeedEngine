@@ -1,4 +1,5 @@
 #include "profiler.h"
+#include "core/system.h"
 #include <algorithm>
 #include <chrono>
 #include <utility>

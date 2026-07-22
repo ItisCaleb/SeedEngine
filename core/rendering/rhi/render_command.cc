@@ -1,7 +1,9 @@
 #include "render_command.h"
+#include "core/rendering/backend/render_backend.h"
 #include "render_engine.h"
 #include "core/macro.h"
 #include "core/resource/material.h"
+#include "core/system.h"
 
 namespace Seed {
 

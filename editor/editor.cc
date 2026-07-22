@@ -14,10 +14,11 @@
 #include "core/resource/resource_loader.h"
 #include "core/serialize/json_impl.h"
 #include "core/concurrency/thread_pool.h"
+#include "core/window.h"
+#include "core/world/world.h"
 #include "editor/camera_entity.h"
 #include "editor/editor_storage.h"
-#include "editor/editor.h"
-#include "editor/editor_storage.h"
+#include "editor/gui/editor_widget.h"
 #include <GLFW/glfw3.h>
 #ifdef _WIN32
 #include "editor/asset/win_drag_dropper.h"
@@ -121,7 +122,7 @@ void Editor::import_asset(const Path &origin_path, const Path &target_dir) {
 
     Path moved_path = target_dir.append(origin_path.filename());
     Ref<File> origin = File::open(origin_path);
-    origin->copy_to(project->get_path().append(moved_path));
+    origin->copy_to(project->get_path().append(moved_path.to_str()));
 
     bool r = preprocessor.try_preprocess(*System::gResourceEntries, origin,
                                          moved_path);

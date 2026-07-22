@@ -6,6 +6,7 @@
 #include "core/handle.h"
 #include "core/allocator/linear_allocator.h"
 #include "core/rendering/shader_layout.h"
+#include <atomic>
 #include <shared_mutex>
 #include <deque>
 

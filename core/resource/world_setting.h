@@ -1,6 +1,7 @@
 #ifndef _SEED_WORLD_SETTING_H_
 #define _SEED_WORLD_SETTING_H_
 
+#include <vector>
 #include "core/container/kstring.h"
 #include "core/misc/uuid.h"
 #include "core/math/vec3.h"

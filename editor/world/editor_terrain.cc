@@ -5,10 +5,12 @@
 #include "core/ref.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_resource.h"
+#include "core/resource/default_storage.h"
 #include "core/resource/image.h"
 #include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
 #include "core/resource/texture.h"
+#include "core/system.h"
 #include "editor/editor_storage.h"
 
 namespace Seed {

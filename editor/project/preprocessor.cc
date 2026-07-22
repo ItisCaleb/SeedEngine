@@ -124,7 +124,7 @@ bool Preprocessor::preprocess(ResourceEntries &entries, Ref<File> file,
         SPDLOG_ERROR("Preprocess failed!");
         return false;
     }
-    Path out_path = internal_dir.append(result.out_file);
+    Path out_path = internal_dir.append(result.out_file.to_str());
     UUID to_uuid = entries.insert_entry(out_path.relative(project->get_path()),
                                         result.target_tid);
     preprocess_entries.link_entry(from_uuid, to_uuid);

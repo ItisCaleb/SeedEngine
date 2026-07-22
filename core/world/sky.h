@@ -3,6 +3,7 @@
 #include "core/ref.h"
 #include "core/resource/material.h"
 #include "core/resource/default_storage.h"
+#include "core/system.h"
 
 namespace Seed {
 class SkyMaterial : public Material {

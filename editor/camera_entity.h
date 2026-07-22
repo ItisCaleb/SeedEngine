@@ -1,11 +1,13 @@
 #ifndef EDITOR_CAMERA_ENTITY
 #define EDITOR_CAMERA_ENTITY
 #include "core/types.h"
+#include "core/math/vec3.h"
 #include "core/world/behaviour.h"
-#include "core/rendering/camera.h"
 #include "core/world/entity.h"
 
 namespace Seed {
+
+class Camera;
 
 class EditorCameraBehaviour : public Behaviour {
         enum class NavigationMode { None, Fly, Pan, Orbit };

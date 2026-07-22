@@ -1,5 +1,6 @@
 #ifndef _SEED_TRANSFORM_H_
 #define _SEED_TRANSFORM_H_
+#include <cmath>
 #include "core/math/vec3.h"
 #include "core/math/mat4.h"
 #include "core/collision/shape.h"

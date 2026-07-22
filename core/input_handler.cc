@@ -1,5 +1,9 @@
 #include "input_handler.h"
 #include "core/input.h"
+#include "core/system.h"
+#include "core/window.h"
+#include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/Input.h>
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 #include "core/gui/gui_engine.h"

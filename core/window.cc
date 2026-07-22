@@ -1,6 +1,7 @@
 #include "window.h"
 #include <GLFW/glfw3.h>
 #include "core/engine.h"
+#include "core/system.h"
 
 namespace Seed {
 

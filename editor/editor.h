@@ -10,7 +10,6 @@
 #include "editor/world/world_editor.h"
 #include "editor/asset/asset_browser.h"
 #include <RmlUi/Core/DataModelHandle.h>
-#include "editor/gui/editor_widget.h"
 
 namespace Seed {
 

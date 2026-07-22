@@ -56,12 +56,9 @@ struct KChar {
         u8 size() const { return _code_point_length(b[0]); }
 };
 class KStr;
-class Path;
 /* UTF8 string */
 /* all methods will assume the buffer is valid utf8 string*/
 class KString {
-        friend Path;
-
     private:
         /* string raw length without null byte*/
         u32 _size = 0;
@@ -141,7 +138,6 @@ class KStr {
         KStr(const char *data, u32 length) : _data(data), _length(length) {};
         KStr(const KString &str);
         KStr(const KString &str, u32 length);
-        KStr(const Path &path);
         constexpr KStr(const char *str) {
             _data = str;
             for (u32 i = 0; str[i] != '\0'; i++) {

@@ -8,7 +8,7 @@
 #endif
 
 namespace Seed {
-Ref<Dir> Dir::open(KStr path) {
+Ref<Dir> Dir::open(const Path &path) {
     Ref<Dir> dir;
     Path _path = path;
     if (!Dir::exists(_path)) {
@@ -20,8 +20,9 @@ Ref<Dir> Dir::open(KStr path) {
     return dir;
 }
 
-Ref<File> Dir::open_file(const KStr path, const char *mode) {
-    return File::open(fmt::format("{}/{}", this->path.to_str(), path), mode);
+Ref<File> Dir::open_file(const Path &path, const char *mode) {
+    Path file = this->path.append(path.to_str());
+    return File::open(file, mode);
 }
 
 std::vector<Path> Dir::list() {

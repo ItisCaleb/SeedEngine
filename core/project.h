@@ -1,11 +1,7 @@
 #ifndef _SEED_PROJECT_H_
 #define _SEED_PROJECT_H_
-#include <list>
 #include <string>
-#include "core/container/kstring.h"
 #include "core/io/path.h"
-#include "core/resource/resource_entry.h"
-#include "core/resource/resource.h"
 
 namespace Seed {
 

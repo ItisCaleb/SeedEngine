@@ -1,8 +1,11 @@
 #include "shader_proxy.h"
+#include "core/system.h"
 #include "core/container/kstring.h"
+#include "core/rendering/backend/render_backend.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/rendering/rhi/shader_proxy.h"
 #include "core/rendering/shader_layout.h"
+#include "core/resource/shader.h"
 #include "core/types.h"
 #include "core/macro.h"
 

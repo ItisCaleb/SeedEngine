@@ -4,10 +4,13 @@
 #include <stdexcept>
 #include "core/io/path.h"
 #include "core/rendering/backend/vulkan_backend.h"
+#include "core/rendering/mesh_storage.h"
 #include "core/rendering/renderer/default_renderer.h"
 #include "core/rendering/renderer/imgui_renderer.h"
 #include "core/rendering/renderer/rml_renderer.h"
+#include "core/rendering/rhi/shader_proxy.h"
 #include "core/debug/profiler.h"
+#include "core/system.h"
 #ifdef SEED_XR
 #include "core/rendering/backend/xr_vulkan_backend.h"
 #endif

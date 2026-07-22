@@ -1,5 +1,7 @@
 #include "input.h"
 #include "core/engine.h"
+#include "core/system.h"
+#include "core/window.h"
 
 namespace Seed {
 

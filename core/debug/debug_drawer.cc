@@ -1,4 +1,6 @@
 #include "debug_drawer.h"
+#include "core/macro.h"
+#include "core/system.h"
 #include "core/resource/resource_loader.h"
 
 namespace Seed {

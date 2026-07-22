@@ -1,5 +1,7 @@
 #include "editor_storage.h"
+#include "core/resource/default_storage.h"
 #include "core/resource/resource_loader.h"
+#include "core/system.h"
 
 namespace Seed {
 

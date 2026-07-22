@@ -6,8 +6,10 @@
 
 #include "core/engine.h"
 #include "core/resource/image.h"
+#include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
 #include "core/serialize/json_impl.h"
+#include "core/world/world.h"
 #include "editor/editor.h"
 
 namespace Seed {

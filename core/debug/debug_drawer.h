@@ -2,6 +2,7 @@
 #define _SEED_DEBUG_DRAWER_H_
 #include "core/math/vec3.h"
 #include "core/rendering/render_common.h"
+#include "core/rendering/vertex_layout.h"
 #include "core/collision/shape.h"
 #include "core/resource/material.h"
 #include <vector>

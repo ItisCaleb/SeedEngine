@@ -4,7 +4,6 @@
 #include "core/math/vec3.h"
 #include "core/math/mat4.h"
 #include "core/collision/shape.h"
-#include "core/collision/shape.h"
 
 namespace Seed {
 class DirectionalLight;

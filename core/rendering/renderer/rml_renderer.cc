@@ -5,6 +5,7 @@
 #include "core/rendering/rhi/render_engine.h"
 #include "core/resource/default_storage.h"
 #include "core/gui/gui_engine.h"
+#include "core/system.h"
 #include <algorithm>
 
 namespace Seed {

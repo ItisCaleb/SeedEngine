@@ -8,12 +8,10 @@
 #include "core/rendering/instance_data.h"
 #include "core/resource/skeleton.h"
 #include "core/transform.h"
+#include <utility>
 #include <vector>
 
 namespace Seed {
-
-class RenderEngine;
-class DefaultRenderer;
 
 struct ModelVertex {
         Vec3 position;

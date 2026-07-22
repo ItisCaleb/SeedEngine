@@ -4,6 +4,8 @@
 #include "core/rendering/rhi/render_engine.h"
 #include "core/macro.h"
 #include "core/rendering/rhi/render_resource.h"
+#include "core/resource/animation.h"
+#include "core/system.h"
 #include "core/transform.h"
 
 namespace Seed {

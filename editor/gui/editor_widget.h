@@ -1,13 +1,11 @@
 #ifndef _SEED_EDITOR_WIDGET_H_
 #define _SEED_EDITOR_WIDGET_H_
 
+#include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementInstancer.h>
 #include <RmlUi/Core/EventListener.h>
 #include "core/container/kstring.h"
-#include "core/math/vec3.h"
-#include "core/ref.h"
-#include "core/resource/texture.h"
-#include "core/types.h"
+#include "core/misc/uuid.h"
 
 namespace Seed {
 

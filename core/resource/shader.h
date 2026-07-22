@@ -1,6 +1,8 @@
 #ifndef _SEED_SHADER_H_
 #define _SEED_SHADER_H_
 
+#include <vector>
+#include "core/container/kstring.h"
 #include "core/handle.h"
 #include "core/io/path.h"
 #include "core/rendering/rhi/render_resource.h"

@@ -8,6 +8,7 @@
 #include "core/debug/debug_drawer.h"
 #include "core/engine.h"
 #include "core/resource/model.h"
+#include "core/system.h"
 #include "core/transform.h"
 #include "core/types.h"
 #include "rhi/render_resource.h"

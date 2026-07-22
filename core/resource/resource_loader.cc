@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include "core/io/path.h"
 #include "core/misc/uuid.h"
+#include "core/macro.h"
 #include "core/ref.h"
 #include "core/rendering/mesh.h"
 
@@ -12,6 +13,7 @@
 #include <vector>
 #include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_resource.h"
+#include "core/resource/default_storage.h"
 #include "core/resource/resource_entry.h"
 #include "core/serialize/json_impl.h"
 

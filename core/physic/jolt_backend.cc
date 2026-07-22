@@ -8,6 +8,8 @@
 #include "core/macro.h"
 #include "core/engine.h"
 #include "core/math/quaternion.h"
+#include "core/system.h"
+#include "core/world/world.h"
 #include "physic_body.h"
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
 

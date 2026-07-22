@@ -1,7 +1,6 @@
 #ifndef _SEED_PATH_H_
 #define _SEED_PATH_H_
 
-#include <vector>
 #include "core/container/kstring.h"
 #include "core/os.h"
 namespace Seed {
@@ -54,9 +53,10 @@ class Path {
         };
 
         void normalize();
-        void push(const KStr &segment);
+        void push(KStr segment);
         void pop();
-        Path append(const KStr &segment) const;
+        Path append(KStr segment) const;
+        
         bool is_empty() { return path.is_empty(); }
 
         /* Warning: Do not modify Path instance after this call! */

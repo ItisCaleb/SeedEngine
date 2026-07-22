@@ -3,11 +3,12 @@
 #include <set>
 #include <functional>
 #include "core/types.h"
-#include "core/input_handler.h"
 #include "core/math/vec2.h"
 #include "core/math/vec2i.h"
 
 namespace Seed {
+
+class InputHandler;
 
 enum class KeyCode {
     SPACE = 0x0020,

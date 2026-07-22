@@ -5,6 +5,8 @@
 #include "core/engine.h"
 #include "core/rendering/light.h"
 #include "core/rendering/rhi/render_engine.h"
+#include "core/system.h"
+#include "core/world/world.h"
 
 namespace Seed {
 WorldRenderer::WorldRenderer(u32 screen_w, u32 screen_h) {

@@ -5,6 +5,7 @@
 #include <slang.h>
 #include <slang-com-ptr.h>
 #include <slang-com-helper.h>
+#include "core/container/kstring.h"
 #include "core/io/path.h"
 #include "core/rendering/rhi/render_resource.h"
 

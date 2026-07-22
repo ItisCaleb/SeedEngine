@@ -4,11 +4,10 @@
 #include <string>
 #include <RmlUi/Core/DataModelHandle.h>
 #include <map>
-#include <mutex>
 #include <vector>
 #include "core/container/kstring.h"
 #include "core/io/dir.h"
-#include "core/resource/image.h"
+#include "core/io/path.h"
 #include "core/types.h"
 #include "editor/asset/asset.h"
 #include "core/gui/gui.h"
@@ -18,7 +17,7 @@ namespace Seed {
 class AssetBrowser : public RmlGUI {
     public:
         AssetBrowser();
-        void init(KStr project_root);
+        void init(const Path &project_root);
         Ref<Dir> get_current_dir() { return current_dir; }
 
     private:
@@ -56,19 +55,11 @@ class AssetBrowser : public RmlGUI {
         char rename_buf[256] = {};
         std::vector<Path> breadcrumbs;
 
-        struct ThumbnailResult {
-                Path path;
-                Ref<Image> image;
-                u32 source_width = 0;
-                u32 source_height = 0;
-                bool failed = false;
-        };
-
         void refresh();
         void sync_view_model();
         void dirty_view_model();
         void invalidate_current_folder_cache();
-        void navigate_to(KStr dir);
+        void navigate_to(const Path &dir);
 
         void open_asset(AssetEntry &entry);
         void begin_rename(i32 idx);

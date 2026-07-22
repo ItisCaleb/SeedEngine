@@ -1,4 +1,5 @@
 #include "resource.h"
+#include "core/system.h"
 #include "core/io/path.h"
 #include "core/resource/resource_loader.h"
 #include "core/resource/resource_entry.h"

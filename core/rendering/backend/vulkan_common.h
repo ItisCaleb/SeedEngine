@@ -1,5 +1,8 @@
 #ifndef _SEED_VULKAN_COMMON_H_
 #define _SEED_VULKAN_COMMON_H_
+#include <vector>
+#include "core/container/kstring.h"
+#include "core/rendering/rhi/render_command.h"
 #include "core/rendering/shader_layout.h"
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>

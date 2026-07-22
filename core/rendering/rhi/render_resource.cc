@@ -1,5 +1,7 @@
 #include "render_resource.h"
+#include "core/system.h"
 #include "core/io/path.h"
+#include "core/rendering/backend/render_backend.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/macro.h"

@@ -9,7 +9,6 @@
 #include "core/world/terrain.h"
 #include "core/world/sky.h"
 #include "core/rendering/light.h"
-#include "core/resource/billboard.h"
 #include "core/transform.h"
 #include "core/world/entity.h"
 #include "core/resource/world_setting.h"

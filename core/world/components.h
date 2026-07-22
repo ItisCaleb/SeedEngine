@@ -1,6 +1,7 @@
 #ifndef _SEED_COMPONENTS_H_
 #define _SEED_COMPONENTS_H_
 #include <tuple>
+#include <type_traits>
 #include "core/physic/physic_body.h"
 #include "core/physic/physic_shape.h"
 #include "core/ref.h"

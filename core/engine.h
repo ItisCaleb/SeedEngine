@@ -1,15 +1,15 @@
 #ifndef _SEED_ENGINE_H_
 #define _SEED_ENGINE_H_
 
-#include "core/types.h"
-#include "core/system.h"
 #include "core/io/path.h"
-#include "core/project.h"
-#include "core/world/world.h"
+#include "core/types.h"
 #include "core/input_handler.h"
-#include "core/window.h"
 
 namespace Seed {
+
+class Project;
+class Window;
+class World;
 
 struct EngineConfig {
         enum DebugFlag : u8 {

@@ -1,5 +1,7 @@
 #ifndef _SEED_VERTEX_DATA_H_
 #define _SEED_VERTEX_DATA_H_
+#include <stdexcept>
+#include <vector>
 #include "core/rendering/rhi/render_resource.h"
 #include "core/rendering/vertex_layout.h"
 #include "core/ref.h"

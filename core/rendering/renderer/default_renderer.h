@@ -9,6 +9,8 @@
 #include <vector>
 
 namespace Seed {
+class RenderEngine;
+
 class DefaultRenderer : public Renderer {
         friend RenderEngine;
 

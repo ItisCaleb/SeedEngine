@@ -1,6 +1,9 @@
 #ifndef _SEED_MODEL_RENDERER_H
 #define _SEED_MODEL_RENDERER_H
+#include "core/rendering/mesh.h"
+#include "core/rendering/render_pass.h"
 #include "core/rendering/renderer/renderer.h"
+#include "core/resource/texture.h"
 
 namespace Seed {
 class ModelRenderer : public Renderer {

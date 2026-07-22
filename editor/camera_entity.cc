@@ -6,7 +6,9 @@
 #include "core/engine.h"
 #include "core/input.h"
 #include "core/ref.h"
+#include "core/rendering/camera.h"
 #include "core/world/entity.h"
+#include "core/world/world.h"
 #include "editor/editor.h"
 
 namespace Seed {

@@ -31,7 +31,7 @@ const Path Project::resolve_asset(const Path &path) {
     if (path.is_absolute()) {
         return path;
     } else {
-        return this->path.append(path);
+        return this->path.append(path.to_str());
     }
 }
 

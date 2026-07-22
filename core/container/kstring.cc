@@ -7,7 +7,6 @@
 #include <utility>
 #include <vector>
 #include "core/types.h"
-#include "core/io/path.h"
 
 namespace Seed {
 
@@ -266,7 +265,6 @@ KStr::KStr(const KString &str, u32 length) : _data(str.data()) {
 
 KStr::KStr(const std::string &str) : _data(str.data()), _length(str.size()) {}
 
-KStr::KStr(const Path &path) : KStr(path.to_str()) {}
 KString KStr::string() const {
     KString s(_length + 1);
     s.append(*this);

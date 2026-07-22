@@ -1,7 +1,8 @@
 #ifndef _SEED_GUI_H_
 #define _SEED_GUI_H_
+#include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/ElementDocument.h>
-#include <imgui.h>
+#include <vector>
 #include "core/io/path.h"
 #include "core/resource/resource.h"
 

@@ -1,18 +1,13 @@
 #ifndef _SEED_BILLBOARD_H_
 #define _SEED_BILLBOARD_H_
 #include "core/ref.h"
-#include "core/rendering/instance_data.h"
 #include "core/resource/material.h"
 #include "core/rendering/mesh.h"
 
 namespace Seed {
 class BillboardMaterial : public Material {
     public:
-        BillboardMaterial(Ref<Texture> tex)
-            : Material(System::gDefaultStorage->billboard_shader) {
-            this->set_texture("u_billboard", tex);
-            this->depth_state.depth_mode = DepthMode::ALPHA_TEST;
-        }
+        BillboardMaterial(Ref<Texture> tex);
 };
 
 class Billboard : public Resource {

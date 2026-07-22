@@ -1,11 +1,12 @@
 #ifndef _SEED_RENDERING_COMMAND_H_
 #define _SEED_RENDERING_COMMAND_H_
+#include <string>
+#include <vector>
 #include "render_resource.h"
 #include "core/rendering/vertex_data.h"
 #include "core/rendering/vertex_layout.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/viewport.h"
-#include <fmt/format.h>
 
 namespace Seed {
 enum class RenderCommandType : u8 {

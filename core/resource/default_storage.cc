@@ -1,4 +1,5 @@
 #include "default_storage.h"
+#include "core/system.h"
 #include "core/resource/resource_loader.h"
 #include "core/math/vec2.h"
 

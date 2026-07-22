@@ -1,19 +1,25 @@
 #ifndef _SEED_RENDER_ENGINE_H_
 #define _SEED_RENDER_ENGINE_H_
 
-#include "core/system.h"
+#include <string>
+#include <unordered_map>
 #include <vector>
-#include "core/rendering/backend/render_backend.h"
-#include "core/resource/model.h"
+#include "core/container/kstring.h"
+#include "core/io/path.h"
 #include "core/rendering/renderer/renderer.h"
-#include "core/window.h"
-#include "core/rendering/mesh_storage.h"
-#include "core/rendering/rhi/shader_proxy.h"
 
 namespace Seed {
 #define TRANSFORM_POOL_NAME "TransformDataPool"
 #define TERRAIN_POOL_NAME "TerrainDataPool"
 #define SKELETON_POOL_NAME "SkeletonInstancePool"
+
+class InstanceDataPool;
+class MeshStorage;
+class RenderBackend;
+class ShaderLayout;
+class ShaderProxy;
+class Window;
+struct ShaderDefine;
 
 class RenderEngine {
     private:

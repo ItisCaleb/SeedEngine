@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "core/container/kstring.h"
+#include "core/io/file.h"
 #include "path.h"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -12,16 +13,15 @@
 #include "core/ref.h"
 
 namespace Seed {
-class File;
 class Dir : public RefCounted {
     private:
         Path path;
 
     public:
-        static Ref<Dir> open(KStr path);
-        Path concat(KStr path) {
+        static Ref<Dir> open(const Path &path);
+        Path concat(const Path &path) {
             Path new_path = this->path;
-            new_path.push(path);
+            new_path.push(path.to_str());
             return new_path;
         }
 
@@ -39,7 +39,7 @@ class Dir : public RefCounted {
             return S_ISDIR(s.st_mode);
 #endif
         }
-        Ref<File> open_file(const KStr path, const char *mode = "rb");
+        Ref<File> open_file(const Path &path, const char *mode = "rb");
 
         /* return false when fail to create */
         static bool create_if_not_exists(const Path &path) {

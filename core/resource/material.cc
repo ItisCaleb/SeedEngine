@@ -7,10 +7,22 @@
 #include "core/rendering/rhi/render_command.h"
 #include "core/rendering/rhi/render_resource.h"
 #include "core/rendering/shader_layout.h"
+#include "core/resource/default_storage.h"
+#include "core/system.h"
 #include "core/types.h"
 #include "shader.h"
 
 namespace Seed {
+
+BaseMaterial::BaseMaterial()
+    : BaseMaterial(System::gDefaultStorage->mesh_shader) {}
+
+BaseMaterial::BaseMaterial(Ref<Shader> shader) : Material(shader) {
+    set_texture(name_map[DIFFUSE], System::gDefaultStorage->white_texture);
+    set_texture(name_map[SPECULAR], System::gDefaultStorage->white_texture);
+    set_texture(name_map[NORMAl], System::gDefaultStorage->normal_texture);
+    depth_state = {.depth_mode = DepthMode::OPAQUE};
+}
 
 Material::Material(Ref<Shader> shader, const RenderRasterizerState &rst_state,
                    const RenderDepthStencilState &depth_state,

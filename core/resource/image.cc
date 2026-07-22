@@ -3,7 +3,6 @@
 #include "core/macro.h"
 #include "core/rendering/render_common.h"
 #include "core/types.h"
-#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #if defined(__x86_64__) || defined(_M_X64)

@@ -1,5 +1,6 @@
 #include "asset_browser.h"
 #include <algorithm>
+#include <imgui.h>
 #include <utility>
 #include <vector>
 #include <RmlUi/Core/Context.h>
@@ -124,13 +125,13 @@ AssetBrowser::AssetBrowser() {
                                     default_preview->create_texture());
 }
 
-void AssetBrowser::init(KStr project_root) {
+void AssetBrowser::init(const Path &project_root) {
     root_dir = Dir::open(project_root);
     current_dir = Dir::open(project_root);
     navigate_to(project_root);
 }
 
-void AssetBrowser::navigate_to(KStr dir) {
+void AssetBrowser::navigate_to(const Path &dir) {
     current_dir = Dir::open(dir);
     selected_idx = -1;
     renaming_idx = -1;

@@ -1,5 +1,6 @@
 #ifndef _SEED_ANIMATION_H_
 #define _SEED_ANIMATION_H_
+#include <cmath>
 #include <string>
 #include "core/types.h"
 #include "core/math/quaternion.h"

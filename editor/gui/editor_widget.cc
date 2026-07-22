@@ -2,6 +2,7 @@
 
 #include <RmlUi/Core/Factory.h>
 #include "core/gui/gui_engine.h"
+#include "core/resource/image.h"
 #include "core/resource/resource_loader.h"
 
 namespace Seed {

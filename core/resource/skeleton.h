@@ -4,9 +4,9 @@
 #include "core/math/mat4.h"
 #include "core/rendering/instance_data.h"
 #include <vector>
-#include "core/resource/animation.h"
 
 namespace Seed {
+class AnimationState;
 class ResourceLoader;
 
 class Skeleton : public RefCounted {
