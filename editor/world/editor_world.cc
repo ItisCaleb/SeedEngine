@@ -57,6 +57,44 @@ void EditorWorld::update_skybox_face(UUID uuid, CubemapFace face) {
                              sky.cubemap->get_height(), face, image);
 }
 
+bool EditorWorld::update_terrain_texture(u32 layer, UUID uuid,
+                                         TerrainTextureKind kind) {
+    if (setting.is_null() || terrain.is_null() || uuid.is_null() ||
+        layer >= TERRAIN_TEXTURE_LAYERS) {
+        return false;
+    }
+
+    ResourceLoader *loader = System::gResourceLoader;
+    if (loader == nullptr) return false;
+
+    RHI::UpdateBufferInfo info = loader->load_image_to_upload(uuid, true);
+    if (info.data == nullptr) return false;
+
+    if (kind == TerrainTextureKind::Diffuse) {
+        if (!terrain->update_texture_layer(layer, info)) return false;
+    } else if (!terrain->update_normal_layer(layer, info)) {
+        return false;
+    }
+
+    if (setting->terrain_textures.size() <= layer) {
+        setting->terrain_textures.resize(layer + 1);
+    }
+    setting->terrain_normals.resize(setting->terrain_textures.size());
+
+    if (kind == TerrainTextureKind::Diffuse) {
+        setting->terrain_textures[layer] = uuid;
+        if (setting->terrain_normals[layer].is_null()) {
+            terrain->update_normal_layer(layer, {});
+        }
+    } else {
+        setting->terrain_normals[layer] = uuid;
+        if (setting->terrain_textures[layer].is_null()) {
+            terrain->update_texture_layer(layer, {});
+        }
+    }
+    return true;
+}
+
 bool EditorWorld::terrain_chunk_exists_at(i32 x, i32 y) const {
     return !terrain.is_null() && terrain->chunk_exists_at(x, y);
 }

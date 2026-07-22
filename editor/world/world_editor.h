@@ -29,6 +29,11 @@ class WorldEditor : public RmlGUI {
                 i32 object_index = -1;
         };
 
+        struct TerrainPaletteView {
+                i32 slot = 0;
+                bool selected = false;
+        };
+
         EditorWorld *current_world = nullptr;
         WorldSetting empty_world_setting;
         WorldSetting *world_setting = &empty_world_setting;
@@ -51,6 +56,9 @@ class WorldEditor : public RmlGUI {
         i32 selected_z = 0;
         KString selected_asset;
         std::vector<SceneObjectView> scene_objects;
+        std::vector<TerrainPaletteView> terrain_palette;
+        UUID selected_terrain_diffuse;
+        UUID selected_terrain_normal;
         bool has_world = false;
         bool has_status = false;
         bool has_selected_object = false;
@@ -74,6 +82,8 @@ class WorldEditor : public RmlGUI {
         void rml_confirm_clear_tiles(RML_EVENT_ARGS);
         void rml_commit_world_settings(RML_EVENT_ARGS);
         void rml_set_skybox_face(RML_EVENT_ARGS);
+        void rml_select_terrain_layer(RML_EVENT_ARGS);
+        void rml_set_terrain_texture(RML_EVENT_ARGS);
         void rml_select_scene_object(RML_EVENT_ARGS);
         void rml_commit_selected_object(RML_EVENT_ARGS);
         void rml_viewport_pick(RML_EVENT_ARGS);
@@ -86,6 +96,7 @@ class WorldEditor : public RmlGUI {
 
         void sync_scene_view_model();
         void sync_selected_object_view_model();
+        void sync_terrain_palette_view_model();
         bool viewport_event_to_pixel(Rml::Event &event, i32 &image_x,
                                      i32 &image_y) const;
         bool pick_world_at_pixel(i32 image_x, i32 image_y, i32 &world_x,

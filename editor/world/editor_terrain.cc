@@ -223,7 +223,8 @@ bool EditorTerrain::update_texture_layer(u32 layer,
                                          RHI::UpdateBufferInfo info) {
     if (layer >= TERRAIN_TEXTURE_LAYERS) return false;
     if (info.data == nullptr) {
-        upload_fallback_layer(layer);
+        textures->update_layer(TERRAIN_TEXTURE_SIZE, TERRAIN_TEXTURE_SIZE,
+                               layer, fallback_texture->get_data());
         return false;
     }
 

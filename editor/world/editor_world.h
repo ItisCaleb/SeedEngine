@@ -27,6 +27,8 @@ struct EditorStaticModel {
         Ref<InstanceData> instance;
 };
 
+enum class TerrainTextureKind { Diffuse, Normal };
+
 class WorldEditor;
 class WorldRenderer;
 class EditorWorld {
@@ -57,6 +59,8 @@ class EditorWorld {
         void save();
         void apply_directional_light_to_runtime();
         void update_skybox_face(UUID uuid, CubemapFace face);
+        bool update_terrain_texture(u32 layer, UUID uuid,
+                                    TerrainTextureKind kind);
         void rebuild_static_model_instances();
         bool update_static_model_instance(u32 chunk_index, u32 object_index);
         bool terrain_chunk_exists_at(i32 x, i32 y) const;

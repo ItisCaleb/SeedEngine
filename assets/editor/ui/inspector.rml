@@ -147,6 +147,33 @@
                     <input class="range" type="range" min="0" max="50" step="1"
                         data-value="brush_setting.strength" />
                 </div>
+
+                <div class="field-group">
+                    <div class="field-title">Texture Layers</div>
+                    <div class="terrain-slot-grid">
+                        <button data-for="layer, i : terrain_palette" class="terrain-slot"
+                            data-class-active="layer.selected"
+                            data-event-click="select_terrain_layer(i)">{{ layer.slot }}</button>
+                    </div>
+                    <div class="terrain-map-grid">
+                        <div class="terrain-map">
+                            <div class="terrain-map-label">Diffuse</div>
+                            <x-uuid-drop class="terrain-texture-drop" data-value="selected_terrain_diffuse"
+                                data-event-change="set_terrain_texture('Diffuse')">
+                                <x-preview class="terrain-texture-preview"
+                                    data-value="selected_terrain_diffuse"></x-preview>
+                            </x-uuid-drop>
+                        </div>
+                        <div class="terrain-map">
+                            <div class="terrain-map-label">Normal</div>
+                            <x-uuid-drop class="terrain-texture-drop" data-value="selected_terrain_normal"
+                                data-event-change="set_terrain_texture('Normal')">
+                                <x-preview class="terrain-texture-preview"
+                                    data-value="selected_terrain_normal"></x-preview>
+                            </x-uuid-drop>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </body>

@@ -272,6 +272,12 @@ label {
     background-color: #343c48;
 }
 
+.tool.active {
+    color: #f0f3f7;
+    background-color: #34516f;
+    border-color: #5f83ad;
+}
+
 .metric-row {
     display: flex;
     flex-direction: row;
@@ -721,6 +727,77 @@ input {
     overflow: hidden;
 }
 
+.terrain-slot-grid {
+    width: 280dp;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 6dp;
+}
+
+.terrain-slot {
+    width: 66dp;
+    height: 26dp;
+    margin-right: 4dp;
+    margin-bottom: 4dp;
+    padding: 3dp 0dp;
+    color: #d7dde7;
+    background-color: #2a3039;
+    border: 1dp #3a424e;
+    text-align: center;
+    tab-index: auto;
+}
+
+.terrain-slot.active {
+    border-color: #5f83ad;
+    background-color: #26303a;
+}
+
+.terrain-slot:hover {
+    background-color: #343c48;
+}
+
+.terrain-map-grid {
+    width: 280dp;
+    display: flex;
+    flex-direction: row;
+}
+
+.terrain-map {
+    width: 136dp;
+    margin-right: 4dp;
+}
+
+.terrain-map-label {
+    width: 136dp;
+    color: #9aa5b4;
+    font-size: 11dp;
+    text-align: center;
+    margin-bottom: 2dp;
+}
+
+.terrain-texture-drop {
+    display: block;
+    width: 136dp;
+    height: 60dp;
+    padding: 0dp;
+    background-color: #181b21;
+    border: 1dp #3a424e;
+    overflow: hidden;
+}
+
+.terrain-texture-drop:hover {
+    background-color: #26303a;
+    border-color: #5f83ad;
+}
+
+.terrain-texture-preview {
+    display: block;
+    width: 58dp;
+    height: 58dp;
+    margin: 0dp auto;
+}
+
 .vector-field {
     width: 280dp;
     margin-top: 6dp;
@@ -813,15 +890,15 @@ input.range {
 }
 
 input.range slidertrack {
-    height: 4dp;
-    margin-top: 7dp;
+    height: 6dp;
+    margin-top: 6dp;
     background-color: #11151b;
     border: 1dp #46505f;
 }
 
 input.range sliderprogress {
     height: 4dp;
-    margin-top: 7dp;
+    margin: 0dp;
     background-color: #5f83ad;
 }
 

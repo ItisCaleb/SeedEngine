@@ -50,6 +50,12 @@ const SkyboxFaceBinding *find_skybox_face(const Rml::String &name) {
     return nullptr;
 }
 
+bool is_texture_asset(UUID uuid) {
+    ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
+    return !uuid.is_null() && entry != nullptr &&
+           entry->type_id == type_id<Texture>();
+}
+
 template <typename T>
 void register_enum(Rml::DataModelConstructor &constructor) {
     constructor.RegisterScalar<T>(
@@ -324,6 +330,30 @@ void WorldEditor::sync_selected_object_view_model() {
     has_selected_object = true;
 }
 
+void WorldEditor::sync_terrain_palette_view_model() {
+    terrain_palette.resize(TERRAIN_TEXTURE_LAYERS);
+    for (u32 slot = 0; slot < TERRAIN_TEXTURE_LAYERS; slot++) {
+        TerrainPaletteView &view = terrain_palette[slot];
+        view.slot = (i32)slot;
+        view.selected = brush_setting.terrain_palette_slot == (i32)slot;
+    }
+
+    const i32 slot = brush_setting.terrain_palette_slot;
+    if (slot < 0 || slot >= TERRAIN_TEXTURE_LAYERS) {
+        selected_terrain_diffuse = {};
+        selected_terrain_normal = {};
+        return;
+    }
+
+    selected_terrain_diffuse =
+        (u32)slot < world_setting->terrain_textures.size()
+            ? world_setting->terrain_textures[(u32)slot]
+            : UUID{};
+    selected_terrain_normal = (u32)slot < world_setting->terrain_normals.size()
+                                  ? world_setting->terrain_normals[(u32)slot]
+                                  : UUID{};
+}
+
 void WorldEditor::sync_view_model() {
     has_world = current_world != nullptr;
     has_status = !status_text.empty();
@@ -334,6 +364,7 @@ void WorldEditor::sync_view_model() {
         show_viewport_empty = true;
         sync_scene_view_model();
         sync_selected_object_view_model();
+        sync_terrain_palette_view_model();
         return;
     }
 
@@ -343,6 +374,7 @@ void WorldEditor::sync_view_model() {
 
     sync_scene_view_model();
     sync_selected_object_view_model();
+    sync_terrain_palette_view_model();
 }
 
 void WorldEditor::dirty_view_model() {
@@ -432,13 +464,35 @@ void WorldEditor::rml_set_mode(RML_EVENT_ARGS) {
     if (args.empty()) return;
     active_mode =
         string_to_enum<WorldEditorMode>(args[0].Get<Rml::String>("World"));
-    if (view_model) view_model.DirtyVariable("editor_mode");
+    if (active_mode == WorldEditorMode::Terrain &&
+        brush_setting.terrain_palette_slot < 0) {
+        brush_setting.terrain_palette_slot = 0;
+        sync_terrain_palette_view_model();
+    }
+    if (view_model) {
+        view_model.DirtyVariable("editor_mode");
+        view_model.DirtyVariable("brush_setting");
+        view_model.DirtyVariable("terrain_palette");
+        view_model.DirtyVariable("selected_terrain_diffuse");
+        view_model.DirtyVariable("selected_terrain_normal");
+    }
 }
 
 void WorldEditor::rml_set_tool(RML_EVENT_ARGS) {
     if (args.empty()) return;
     brush_type =
         string_to_enum<TerrainBrush>(args[0].Get<Rml::String>("Raise"));
+    if (brush_type == TerrainBrush::Splat &&
+        brush_setting.terrain_palette_slot < 0) {
+        brush_setting.terrain_palette_slot = 0;
+        sync_terrain_palette_view_model();
+        if (view_model) {
+            view_model.DirtyVariable("brush_setting");
+            view_model.DirtyVariable("terrain_palette");
+            view_model.DirtyVariable("selected_terrain_diffuse");
+            view_model.DirtyVariable("selected_terrain_normal");
+        }
+    }
     if (view_model) view_model.DirtyVariable("terrain_tool");
 }
 
@@ -485,11 +539,8 @@ void WorldEditor::rml_set_skybox_face(RML_EVENT_ARGS) {
     const SkyboxFaceBinding *face = find_skybox_face(face_name);
     if (face == nullptr) return;
 
-    const UUID uuid =
-        UUID::from_string(e.GetParameter<Rml::String>("uuid", ""));
-    ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
-    if (uuid.is_null() || entry == nullptr ||
-        entry->type_id != type_id<Texture>()) {
+    const UUID uuid = UUID::from_string(e.GetParameter<Rml::String>("value", ""));
+    if (!is_texture_asset(uuid)) {
         world_setting->sky.*(face->setting) =
             current_world->get_sky().*(face->setting);
         set_status("Skybox faces only accept texture assets.");
@@ -511,6 +562,71 @@ void WorldEditor::rml_set_skybox_face(RML_EVENT_ARGS) {
     if (view_model) {
         view_model.DirtyVariable("world");
         view_model.DirtyVariable("dirty_maps");
+    }
+}
+
+void WorldEditor::rml_select_terrain_layer(RML_EVENT_ARGS) {
+    if (args.empty()) return;
+    i32 slot = args[0].Get<i32>(-1);
+    if (slot < 0 || slot >= TERRAIN_TEXTURE_LAYERS) return;
+
+    brush_setting.terrain_palette_slot = slot;
+    sync_terrain_palette_view_model();
+    if (view_model) {
+        view_model.DirtyVariable("brush_setting");
+        view_model.DirtyVariable("terrain_palette");
+        view_model.DirtyVariable("selected_terrain_diffuse");
+        view_model.DirtyVariable("selected_terrain_normal");
+    }
+}
+
+void WorldEditor::rml_set_terrain_texture(RML_EVENT_ARGS) {
+    if (current_world == nullptr || args.empty()) return;
+
+    const i32 slot = brush_setting.terrain_palette_slot;
+    if (slot < 0 || slot >= TERRAIN_TEXTURE_LAYERS) return;
+
+    const Rml::String kind_name = args[0].Get<Rml::String>("");
+    TerrainTextureKind kind;
+    if (kind_name == "Diffuse") {
+        kind = TerrainTextureKind::Diffuse;
+    } else if (kind_name == "Normal") {
+        kind = TerrainTextureKind::Normal;
+    } else {
+        return;
+    }
+
+    UUID uuid = UUID::from_string(e.GetParameter<Rml::String>("value", ""));
+    if (!is_texture_asset(uuid)) {
+        set_status("Terrain layers only accept texture assets.");
+        sync_terrain_palette_view_model();
+        if (view_model) {
+            view_model.DirtyVariable("selected_terrain_diffuse");
+            view_model.DirtyVariable("selected_terrain_normal");
+        }
+        return;
+    }
+
+    if (!current_world->update_terrain_texture((u32)slot, uuid, kind)) {
+        set_status("Failed to upload terrain texture.");
+        sync_terrain_palette_view_model();
+        if (view_model) {
+            view_model.DirtyVariable("selected_terrain_diffuse");
+            view_model.DirtyVariable("selected_terrain_normal");
+        }
+        return;
+    }
+
+    brush_setting.terrain_palette_slot = slot;
+    bool saved = save_current_world();
+    set_status(fmt::format("Terrain layer {} {} texture updated {}.", slot,
+                           kind_name, saved ? "and saved" : "but not saved"));
+    sync_terrain_palette_view_model();
+    if (view_model) {
+        view_model.DirtyVariable("brush_setting");
+        view_model.DirtyVariable("terrain_palette");
+        view_model.DirtyVariable("selected_terrain_diffuse");
+        view_model.DirtyVariable("selected_terrain_normal");
     }
 }
 
@@ -589,6 +705,12 @@ void WorldEditor::register_view_model_types(
         object.RegisterMember("strength", &TerrainBrushSetting::strength);
         object.RegisterMember("flatten_height",
                               &TerrainBrushSetting::flatten_height);
+        object.RegisterMember("terrain_palette_slot",
+                              &TerrainBrushSetting::terrain_palette_slot);
+    }
+    if (auto object = constructor.RegisterStruct<TerrainPaletteView>()) {
+        object.RegisterMember("slot", &TerrainPaletteView::slot);
+        object.RegisterMember("selected", &TerrainPaletteView::selected);
     }
     if (auto object = constructor.RegisterStruct<Vec3>()) {
         object.RegisterMember("x", &Vec3::x);
@@ -614,6 +736,7 @@ void WorldEditor::register_view_model_types(
         object.RegisterMember("directional_light", &WorldSetting::dir_light);
     }
     constructor.RegisterArray<std::vector<SceneObjectView>>();
+    constructor.RegisterArray<std::vector<TerrainPaletteView>>();
 }
 
 void WorldEditor::bind_view_model_values(
@@ -626,6 +749,9 @@ void WorldEditor::bind_view_model_values(
     constructor.Bind("world_text", &world_text);
     constructor.Bind("brush_setting", &brush_setting);
     constructor.Bind("scene_objects", &scene_objects);
+    constructor.Bind("terrain_palette", &terrain_palette);
+    constructor.Bind("selected_terrain_diffuse", &selected_terrain_diffuse);
+    constructor.Bind("selected_terrain_normal", &selected_terrain_normal);
     constructor.Bind("selected_name", &selected_name);
     constructor.Bind("selected_x", &selected_x);
     constructor.Bind("selected_y", &selected_y);
@@ -658,6 +784,10 @@ void WorldEditor::bind_view_model_events(
         "commit_world_settings", &WorldEditor::rml_commit_world_settings, this);
     constructor.BindEventCallback("set_skybox_face",
                                   &WorldEditor::rml_set_skybox_face, this);
+    constructor.BindEventCallback("select_terrain_layer",
+                                  &WorldEditor::rml_select_terrain_layer, this);
+    constructor.BindEventCallback("set_terrain_texture",
+                                  &WorldEditor::rml_set_terrain_texture, this);
     constructor.BindEventCallback("select_scene_object",
                                   &WorldEditor::rml_select_scene_object, this);
     constructor.BindEventCallback("commit_selected_object",
