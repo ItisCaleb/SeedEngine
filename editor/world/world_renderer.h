@@ -16,7 +16,7 @@ class WorldRenderer : public Renderer {
                         u32 visible_size = 0;
                 };
 
-                Ref<Mesh> mesh;
+                Ref<Mesh> terrain_mesh;
                 Ref<Sky> sky;
                 u32 visible_size = 0;
                 std::vector<StaticMesh> static_meshes;

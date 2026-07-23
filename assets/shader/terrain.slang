@@ -263,10 +263,19 @@ float hash(vec2 p) {
     return fract((p3.x + p3.y) * p3.z);
 }
 
-vec3 textureNoTile(uint layer, in vec2 uv )
+
+float Random2D(float2 uv)
+{
+    // A dot product compresses uv into a unique scalar number
+    float d = dot(uv, float2(12.9898, 78.233));
+    // Multiplying by a massive constant pushes precision limits to force chaos
+    return frac(sin(d) * 43758.5453123);
+}
+
+vec3 textureNoTile(Sampler2DArray tex, uint layer, in vec2 uv )
 {
     // sample variation pattern    
-    float k = prop.noise_texture.Sample(uv).x; // cheap (cache friendly) lookup    
+    float k = prop.noise_texture.Sample(uv * 0.05).x; // cheap (cache friendly) lookup    
     
     // compute index    
     float index = k*8.0;
@@ -281,14 +290,13 @@ vec3 textureNoTile(uint layer, in vec2 uv )
     vec2 dx = ddx_fine(uv), dy = ddy_fine(uv);
     
     // sample the two closest virtual patterns    
-    vec3 cola = prop.textures.SampleGrad(vec3(uv + offa, layer), dx, dy ).rgb;
-    vec3 colb = prop.textures.SampleGrad(vec3(uv + offb, layer), dx, dy ).rgb;
+    vec3 cola = tex.SampleGrad(vec3(uv + offa, layer), dx, dy ).rgb;
+    vec3 colb = tex.SampleGrad(vec3(uv + offb, layer), dx, dy ).rgb;
 
     vec3 s = cola-colb;
     float sum = s.x + s.y + s.z;
-    // interpolate between the two virtual patterns    
-    return lerp(cola, colb, smoothstep(0.2,0.8,f-0.1*sum) );
-
+    // interpolate between the two virtual patterns  
+    return lerp(cola, colb, smoothstep(0.2,0.8,f-0.1*sum) );  
 }
 
 vec3 sample_control_diffuse(vec3 frag_pos, vec3 world_normal, vec2 uv, uint layer, float scale1, float scale2){
@@ -298,8 +306,8 @@ vec3 sample_control_diffuse(vec3 frag_pos, vec3 world_normal, vec2 uv, uint laye
     float blend = control.z;
     vec2 uv1 = frag_pos.xz / scale1;
     vec2 uv2 = frag_pos.xz / scale2;
-    vec3 diffuse1 = textureNoTile(tex1, uv1);
-    vec3 diffuse2 = textureNoTile(tex2, uv2);
+    vec3 diffuse1 = textureNoTile(prop.textures, tex1, uv1);
+    vec3 diffuse2 = textureNoTile(prop.textures, tex2, uv2);
     // vec3 diffuse1 = triplanar_mapping(frag_pos, world_normal, prop.textures, tex1, scale1);
     // vec3 diffuse2 = triplanar_mapping(frag_pos, world_normal, prop.textures, tex2, scale2);
 
@@ -334,13 +342,13 @@ vec3 sample_control_normal(vec3 frag_pos, vec3 world_normal, vec2 uv, uint layer
     vec4 control = prop.control_map.SampleLevelZero(vec3(uv, layer));
     uint tex1 = uint(control.x * 255 + 0.5);
     uint tex2 = uint(control.y * 255 + 0.5);
+    vec2 uv1 = frag_pos.xz / scale1;
+    vec2 uv2 = frag_pos.xz / scale2;
     float blend = control.z;
-    vec3 norm1 = prop.texture_normals.SampleLevelZero(vec3(frag_pos.xz / scale1, tex1)).rgb;
-    vec3 norm2 = prop.texture_normals.SampleLevelZero(vec3(frag_pos.xz / scale2, tex2)).rgb;
+    vec3 norm1 = textureNoTile(prop.texture_normals, tex1, uv1);
+    vec3 norm2 = textureNoTile(prop.texture_normals, tex2, uv2);
     norm1 = normalize(norm1 * 2 - 1.0);
     norm2 = normalize(norm2 * 2 - 1.0);
-    // vec3 diffuse1 = triplanar_mapping(frag_pos, world_normal, prop.textures, tex1, scale1);
-    // vec3 diffuse2 = triplanar_mapping(frag_pos, world_normal, prop.textures, tex2, scale2);
 
     return normalize(norm1 * (1-blend) + norm2 * blend);
 }

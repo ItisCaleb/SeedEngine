@@ -192,6 +192,7 @@ void Editor::bind_model(Rml::Context *context) {
         constructor.BindEventCallback("reload_shaders", [](RML_EVENT_ARGS) {
             System::gDefaultStorage->reload_shaders();
             System::gEditorStorage->reload_shaders();
+            spdlog::info("Reloaded shaders");
         });
         constructor.BindEventCallback("reload_gui",
                                       [=](RML_EVENT_ARGS) { this->reload(); });

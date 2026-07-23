@@ -29,12 +29,33 @@ struct SkeletonVertex {
         f32 bone_weights[4];
 };
 
+/*
+ * Instance data usage:
+ *
+ *   Ref<InstanceData> data = model->create_instance();
+ *   mesh_storage->add_model(ref_cast<Model>(model), data);
+ *
+ *   data->clear();
+ *   model->add_instance(data, transform);          // BasicModel
+ *   model->add_instance(data, transform, state);   // SkeletonModel
+ *
+ * create_instance() creates one batch for a model in a world or other render
+ * group. It should not be called once per visible object. All meshes belonging
+ * to the model share that batch, and the renderer uploads it automatically
+ * after the batch has been registered with MeshStorage.
+ */
 class Model : public Resource {
         std::vector<Ref<Mesh>> meshes;
 
     public:
         Model(std::vector<Ref<Mesh>> &meshes) : meshes(std::move(meshes)) {}
         std::vector<Ref<Mesh>> &get_meshes() { return meshes; }
+
+        /*
+         * Create an empty InstanceData subtype compatible with this model.
+         * This only creates the batch; it does not register, populate, or
+         * upload it.
+         */
         virtual Ref<InstanceData> create_instance() = 0;
         virtual ~Model() = default;
 };
@@ -43,6 +64,11 @@ template <typename Derived>
 class ModelBase : public Model {
     public:
         ModelBase<Derived>(std::vector<Ref<Mesh>> &meshes) : Model(meshes) {}
+
+        /*
+         * Forward one logical instance to the derived model's _add_instance()
+         * implementation. Arguments differ by model type.
+         */
         template <typename... Args>
         void add_instance(Ref<InstanceData> data, Args &&...args) {
             static_cast<Derived *>(this)->_add_instance(
@@ -56,10 +82,17 @@ class BasicModel : public ModelBase<BasicModel> {
     public:
         BasicModel(std::vector<Ref<Mesh>> &meshes)
             : ModelBase<BasicModel>(meshes) {}
+
+        /*
+         * Append one transform to the StaticInstanceData returned by
+         * create_instance(). GPU upload is deferred to the renderer.
+         */
         void _add_instance(Ref<InstanceData> data, Transform &transform) {
             Ref<StaticInstanceData> tdata = ref_cast<StaticInstanceData>(data);
             tdata->insert_transform(transform);
         };
+
+        /* Create the empty transform batch used by all meshes in this model. */
         Ref<InstanceData> create_instance() override {
             Ref<StaticInstanceData> instance;
             instance.create();
@@ -82,6 +115,12 @@ class SkeletonModel : public ModelBase<SkeletonModel> {
         void add_animation(Ref<Animation> animation) {
             this->animations.push_back(animation);
         }
+
+        /*
+         * Append one transform and animation pose to the
+         * SkeletonInstanceData returned by create_instance(). A null state
+         * inserts the bind/default pose. GPU upload is deferred.
+         */
         void _add_instance(Ref<InstanceData> data, Transform &transform,
                            AnimationState *state) {
             Ref<SkeletonInstanceData> sdata =
@@ -89,6 +128,10 @@ class SkeletonModel : public ModelBase<SkeletonModel> {
             sdata->insert_instance(transform, state);
         };
 
+        /*
+         * Create an empty skeletal batch. Each logical instance occupies one
+         * world transform followed by one matrix per skeleton bone.
+         */
         Ref<InstanceData> create_instance() override {
             Ref<SkeletonInstanceData> instance;
             instance.create(skeleton);

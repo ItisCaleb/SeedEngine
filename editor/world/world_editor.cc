@@ -137,10 +137,12 @@ bool WorldEditor::get_camera_focus(Vec3 &target) const {
         }
     }
 
-    if (!last_pick_valid || current_world->terrain.is_null()) return false;
+    if (!last_pick_valid || current_world->get_terrain() == nullptr) {
+        return false;
+    }
     u8 height = 0;
-    if (!current_world->terrain->read_height(last_pick_x, last_pick_y,
-                                             height)) {
+    if (!current_world->get_terrain()->read_height(last_pick_x, last_pick_y,
+                                                   height)) {
         return false;
     }
     target =
@@ -528,7 +530,7 @@ void WorldEditor::rml_confirm_clear_tiles(RML_EVENT_ARGS) {
 void WorldEditor::rml_commit_world_settings(RML_EVENT_ARGS) {
     if (current_world == nullptr) return;
 
-    current_world->apply_directional_light_to_runtime();
+    current_world->apply_directional_light();
     set_status("World settings updated.");
 }
 
@@ -539,7 +541,8 @@ void WorldEditor::rml_set_skybox_face(RML_EVENT_ARGS) {
     const SkyboxFaceBinding *face = find_skybox_face(face_name);
     if (face == nullptr) return;
 
-    const UUID uuid = UUID::from_string(e.GetParameter<Rml::String>("value", ""));
+    const UUID uuid =
+        UUID::from_string(e.GetParameter<Rml::String>("value", ""));
     if (!is_texture_asset(uuid)) {
         world_setting->sky.*(face->setting) =
             current_world->get_sky().*(face->setting);
@@ -658,8 +661,7 @@ void WorldEditor::rml_commit_selected_object(RML_EVENT_ARGS) {
     object.x = selected_x;
     object.y = selected_y;
     object.z = selected_z;
-    current_world->update_static_model_instance((u32)selected_static_chunk,
-                                                (u32)selected_static_object);
+    current_world->rebuild_static_models();
     set_status("Object updated.");
     sync_view_model();
     dirty_view_model();
@@ -672,8 +674,9 @@ void WorldEditor::rml_viewport_pick(RML_EVENT_ARGS) {
         brush_type != TerrainBrush::Pick &&
         System::gInput->is_mouse_pressed(MouseEvent::LEFT)) {
         bool changed = false;
-        if (current_world != nullptr && !current_world->terrain.is_null()) {
-            changed = current_world->terrain->apply_brush(
+        if (current_world != nullptr &&
+            current_world->get_terrain() != nullptr) {
+            changed = current_world->get_terrain()->apply_brush(
                 last_pick_x, last_pick_y, brush_type, brush_setting);
         }
         if (changed) {
