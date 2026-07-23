@@ -30,7 +30,7 @@ void ModelRenderer::preprocess() {
         return;
     }
     fd.mesh = model->get_mesh();
-    Ref<TerrainInstanceData> instance = model->get_instances();
+    Ref<TerrainInstanceBatch> instance = model->get_instances();
     AABB bounding_box = fd.mesh->get_bounding_box();
     fd.screen_w = screen_tex->get_width();
     fd.screen_h = screen_tex->get_height();

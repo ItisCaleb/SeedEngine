@@ -13,7 +13,7 @@ namespace Seed {
 #define TERRAIN_POOL_NAME "TerrainDataPool"
 #define SKELETON_POOL_NAME "SkeletonInstancePool"
 
-class InstanceDataPool;
+class InstanceBatchPool;
 class MeshStorage;
 class RenderBackend;
 class ShaderLayout;
@@ -33,7 +33,7 @@ class RenderEngine {
         MeshStorage *mesh_storage;
         ShaderProxy *shader_proxy;
         std::vector<RendererLayer> renderers;
-        std::unordered_map<std::string, InstanceDataPool *> instance_pools;
+        std::unordered_map<std::string, InstanceBatchPool *> instance_pools;
         Renderer *default_renderer;
         Renderer *imgui_renderer;
         Renderer *rml_renderer;
@@ -48,7 +48,7 @@ class RenderEngine {
         RenderBackend *get_device();
         void register_renderer(u8 layer, Renderer *renderer);
         Window *get_current_window() { return current_window; }
-        InstanceDataPool *get_instance_pool(const std::string &name);
+        InstanceBatchPool *get_instance_pool(const std::string &name);
 
         /* if not null, layout will be filled */
         ShaderHandle compile_shader(const Path &path, const KString &shader,

@@ -2,7 +2,7 @@
 #define _SEED_SKELETON_H_
 #include "core/ref.h"
 #include "core/math/mat4.h"
-#include "core/rendering/instance_data.h"
+#include "core/rendering/instance_batch.h"
 #include <vector>
 
 namespace Seed {
@@ -23,7 +23,7 @@ class Skeleton : public RefCounted {
         u64 bone_count() { return bones.size(); }
 };
 
-class SkeletonInstanceData : public InstanceData {
+class SkeletonInstanceBatch : public InstanceBatch {
     private:
         Ref<Skeleton> skeleton;
         std::vector<RHI::UpdateBufferInfo> upload_buffers;
@@ -39,7 +39,7 @@ class SkeletonInstanceData : public InstanceData {
             return 1 + skeleton->bone_count();
         }
         void clear() override { upload_buffers.clear(); }
-        SkeletonInstanceData(Ref<Skeleton> skeleton);
+        SkeletonInstanceBatch(Ref<Skeleton> skeleton);
 };
 }  // namespace Seed
 

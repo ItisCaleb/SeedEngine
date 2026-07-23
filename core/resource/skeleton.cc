@@ -30,7 +30,7 @@ void Skeleton::apply_skinning(Mat4 *bone_tranforms, u64 size) {
     }
 }
 
-void SkeletonInstanceData::insert_instance(Transform &transform,
+void SkeletonInstanceBatch::insert_instance(Transform &transform,
                                            AnimationState *state) {
     RHI::UpdateBufferInfo skeleton_info =
         RHI::alloc_heap(sizeof(Mat4) * (1 + skeleton->bone_count()));
@@ -46,7 +46,7 @@ void SkeletonInstanceData::insert_instance(Transform &transform,
     this->upload_buffers.push_back(skeleton_info);
 }
 
-void SkeletonInstanceData::upload() {
+void SkeletonInstanceBatch::upload() {
     /* upload */
     for (RHI::UpdateBufferInfo &info : this->upload_buffers) {
         Mat4 *buffer = (Mat4 *)info.data;
@@ -55,7 +55,7 @@ void SkeletonInstanceData::upload() {
     }
     _upload(this->upload_buffers);
 }
-void SkeletonInstanceData::frustum_culling(const Frustum &frustum,
+void SkeletonInstanceBatch::frustum_culling(const Frustum &frustum,
                                            const AABB &bounding_box,
                                            std::vector<u32> &instance_ids,
                                            std::vector<f32> &depths) {
@@ -74,8 +74,8 @@ void SkeletonInstanceData::frustum_culling(const Frustum &frustum,
     }
 }
 
-SkeletonInstanceData::SkeletonInstanceData(Ref<Skeleton> skeleton)
-    : InstanceData(
+SkeletonInstanceBatch::SkeletonInstanceBatch(Ref<Skeleton> skeleton)
+    : InstanceBatch(
           System::gRenderEngine->get_instance_pool(SKELETON_POOL_NAME)),
       skeleton(skeleton) {}
 }  // namespace Seed

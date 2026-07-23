@@ -3,7 +3,7 @@ target_sources(seed PRIVATE
     vertex_layout.cc
     vertex_data.cc
     shadow_map.cc
-    instance_data.cc
+    instance_batch.cc
     mesh_storage.cc
     viewport.cc
     light.cc

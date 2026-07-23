@@ -25,7 +25,7 @@ class EditorTerrain : public Resource {
         Ref<Image> fallback_normal;
 
         Ref<TerrainMaterial> material;
-        Ref<TerrainInstanceData> instances;
+        Ref<TerrainInstanceBatch> instances;
 
         TerrainTileMap tile_map;
 
@@ -56,7 +56,7 @@ class EditorTerrain : public Resource {
         void save_dirty_maps(const std::vector<ChunkSetting> &chunks);
 
         Ref<Mesh> get_mesh() { return mesh; }
-        Ref<TerrainInstanceData> get_instances() { return instances; }
+        Ref<TerrainInstanceBatch> get_instances() { return instances; }
         ~EditorTerrain() = default;
 };
 }  // namespace Seed

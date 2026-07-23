@@ -1,6 +1,6 @@
 #include "default_renderer.h"
 #include <set>
-#include "core/rendering/instance_data.h"
+#include "core/rendering/instance_batch.h"
 #include "core/rendering/light.h"
 #include "core/rendering/rhi/render_resource.h"
 #include "core/rendering/rhi/render_engine.h"
@@ -112,13 +112,13 @@ void DefaultRenderer::prepare_meshes() {
     FrameGlobal &g_frame = System::gRenderEngine->get_frame_global();
 
     MeshStorage *mesh_storage = System::gRenderEngine->get_mesh_storage();
-    std::set<InstanceData *> uploaded_instance;
+    std::set<InstanceBatch *> uploaded_instance;
     std::vector<u32> visible_instances;
 
     u32 last_visible_offset = 0;
     for (auto &[_, mesh_instance] : mesh_storage->get_meshes()) {
         Ref<Mesh> mesh = mesh_instance.mesh;
-        Ref<InstanceData> instance = mesh_instance.instance;
+        Ref<InstanceBatch> instance = mesh_instance.instance;
         AABB bounding_box = mesh->get_bounding_box();
 
         /* check instance mesh size > 0 */

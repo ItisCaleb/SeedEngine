@@ -2,20 +2,20 @@
 #include <vector>
 #include "core/macro.h"
 #include "core/misc//hash.h"
-#include "instance_data.h"
+#include "instance_batch.h"
 #include "mesh.h"
 
 namespace Seed {
 MeshStorage::MeshStorage() {}
 
-void MeshStorage::add_mesh(Ref<Mesh> mesh, Ref<InstanceData> instance) {
+void MeshStorage::add_mesh(Ref<Mesh> mesh, Ref<InstanceBatch> instance) {
     EXPECT_NOT_NULL_RET(*mesh);
     EXPECT_NOT_NULL_RET(*instance);
     /* since mesh and instance address will be same across entire game */
     /* we can use it's address as hash key */
     Hash h;
     Mesh *mesh_ptr = mesh.ptr();
-    InstanceData *instance_ptr = instance.ptr();
+    InstanceBatch *instance_ptr = instance.ptr();
     h.update(&mesh_ptr);
     h.update(&instance_ptr);
     u64 key = h.digest();
@@ -26,26 +26,26 @@ void MeshStorage::add_mesh(Ref<Mesh> mesh, Ref<InstanceData> instance) {
     }
 }
 
-void MeshStorage::remove_mesh(Ref<Mesh> mesh, Ref<InstanceData> instance) {
+void MeshStorage::remove_mesh(Ref<Mesh> mesh, Ref<InstanceBatch> instance) {
     EXPECT_NOT_NULL_RET(*mesh);
     EXPECT_NOT_NULL_RET(*instance);
 
     Hash h;
     Mesh *mesh_ptr = mesh.ptr();
-    InstanceData *instance_ptr = instance.ptr();
+    InstanceBatch *instance_ptr = instance.ptr();
     h.update(&mesh_ptr);
     h.update(&instance_ptr);
     u64 key = h.digest();
     this->meshes.erase(key);
 }
 
-void MeshStorage::add_model(Ref<Model> model, Ref<InstanceData> instance) {
+void MeshStorage::add_model(Ref<Model> model, Ref<InstanceBatch> instance) {
     std::vector<Ref<Mesh>> meshes = model->get_meshes();
     for (Ref<Mesh> mesh : meshes) {
         add_mesh(mesh, instance);
     }
 }
-void MeshStorage::remove_model(Ref<Model> model, Ref<InstanceData> instance) {
+void MeshStorage::remove_model(Ref<Model> model, Ref<InstanceBatch> instance) {
     std::vector<Ref<Mesh>> meshes = model->get_meshes();
     for (Ref<Mesh> mesh : meshes) {
         remove_mesh(mesh, instance);

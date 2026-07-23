@@ -1,5 +1,5 @@
-#ifndef _SEED_INSTANCE_DATA_H_
-#define _SEED_INSTANCE_DATA_H_
+#ifndef _SEED_INSTANCE_BATCH_H_
+#define _SEED_INSTANCE_BATCH_H_
 #include "core/collision/shape.h"
 #include "core/math/mat4.h"
 #include "core/ref.h"
@@ -14,7 +14,7 @@ namespace Seed {
  * Owns one shared GPU storage buffer and suballocates it in elements with a
  * buddy allocator. Block indices and sizes are element counts, not bytes.
  */
-class InstanceDataPool {
+class InstanceBatchPool {
     public:
         struct Block {
                 /* First element in the shared storage buffer. */
@@ -39,13 +39,13 @@ class InstanceDataPool {
         void free(Handle handle);
         Block query(Handle handle);
         SSBOHandle get_render_buffer() { return ssbo_handle; }
-        InstanceDataPool(u32 element_size, u32 size);
-        ~InstanceDataPool();
+        InstanceBatchPool(u32 element_size, u32 size);
+        ~InstanceBatchPool();
 };
 
 /*
  * A CPU-side batch of logical instances backed by a block in an
- * InstanceDataPool.
+ * InstanceBatchPool.
  *
  * Typical lifecycle:
  *   1. Create the model-compatible batch with Model::create_instance().
@@ -58,10 +58,10 @@ class InstanceDataPool {
  * one logical instance occupies. The allocated GPU block remains owned by this
  * object across clear()/upload() calls and is released by the destructor.
  */
-class InstanceData : public RefCounted {
+class InstanceBatch : public RefCounted {
     protected:
-        InstanceData(InstanceDataPool *pool) : pool(pool) {}
-        InstanceDataPool *pool = nullptr;
+        InstanceBatch(InstanceBatchPool *pool) : pool(pool) {}
+        InstanceBatchPool *pool = nullptr;
         Handle instance_handle = NULL_HANDLE;
 
         /*
@@ -110,11 +110,11 @@ class InstanceData : public RefCounted {
          * keeps the allocated pool block for reuse by a later upload().
          */
         virtual void clear() = 0;
-        virtual ~InstanceData();
+        virtual ~InstanceBatch();
 };
 
 /* One logical instance is represented by one world transform matrix. */
-class StaticInstanceData : public InstanceData {
+class StaticInstanceBatch : public InstanceBatch {
     private:
         std::vector<Mat4> world_matrices;
         bool updated = false;
@@ -129,7 +129,7 @@ class StaticInstanceData : public InstanceData {
                              std::vector<f32> &depths) override;
         void clear() override { this->world_matrices.clear(); }
 
-        StaticInstanceData();
+        StaticInstanceBatch();
 };
 
 }  // namespace Seed

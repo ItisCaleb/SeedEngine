@@ -1,6 +1,6 @@
 #include "renderer.h"
 #include "core/system.h"
-#include "core/rendering/instance_data.h"
+#include "core/rendering/instance_batch.h"
 #include "core/rendering/rhi/render_engine.h"
 #include "core/rendering/camera.h"
 #include "core/rendering/light.h"

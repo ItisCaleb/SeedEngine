@@ -8,7 +8,7 @@
 #include "core/collision/shape.h"
 #include <vector>
 #include "core/rendering/mesh.h"
-#include "core/rendering/instance_data.h"
+#include "core/rendering/instance_batch.h"
 #include "core/resource/texture.h"
 
 namespace Seed {
@@ -51,7 +51,7 @@ class TerrainMaterial : public Material {
         Ref<TextureArray> get_texture_normals() { return texture_normals; }
 };
 
-class TerrainInstanceData : public InstanceData {
+class TerrainInstanceBatch : public InstanceBatch {
     private:
         std::vector<TerrainInstance> instances;
 
@@ -64,7 +64,7 @@ class TerrainInstanceData : public InstanceData {
                              std::vector<u32> &instance_ids,
                              std::vector<f32> &depths) override;
         void clear() override { instances.clear(); }
-        TerrainInstanceData();
+        TerrainInstanceBatch();
 };
 
 class Terrain : public RefCounted {
@@ -80,13 +80,13 @@ class Terrain : public RefCounted {
         Ref<TerrainMaterial> material;
         Ref<Mesh> mesh;
 
-        Ref<TerrainInstanceData> instances;
+        Ref<TerrainInstanceBatch> instances;
         void build_mesh();
 
     public:
         Terrain();
         Ref<TerrainMaterial> get_material() { return material; }
-        Ref<TerrainInstanceData> get_instance() { return instances; }
+        Ref<TerrainInstanceBatch> get_instance() { return instances; }
         Ref<Mesh> get_mesh() { return mesh; }
         void add_chunk(i32 x, i32 y, Ref<Image> height_map,
                        Ref<Image> control_map);

@@ -1,4 +1,4 @@
-#include "instance_data.h"
+#include "instance_batch.h"
 #include <cstring>
 #include "core/collision/shape.h"
 #include "core/macro.h"
@@ -17,7 +17,7 @@ namespace Seed {
 
 /* Since all instance is same size */
 /* We use a slab allocator to implement the pool */
-InstanceDataPool::Block InstanceDataPool::split(Block &block) {
+InstanceBatchPool::Block InstanceBatchPool::split(Block &block) {
     if (block.size == 1) return block;
     u32 halfsize = block.size >> 1;
     Block right = Block{.idx = block.idx + halfsize, .size = halfsize};
@@ -26,7 +26,7 @@ InstanceDataPool::Block InstanceDataPool::split(Block &block) {
     return left;
 }
 
-Handle InstanceDataPool::alloc(u32 size) {
+Handle InstanceBatchPool::alloc(u32 size) {
     /* get correspond zone */
     u32 lg = log2(roundup_to_pow2(size));
     if (lg >= this->max_order) return NULL_HANDLE;
@@ -54,7 +54,7 @@ Handle InstanceDataPool::alloc(u32 size) {
     return NULL_HANDLE;
 }
 
-void InstanceDataPool::merge(Block *b, u32 lg) {
+void InstanceBatchPool::merge(Block *b, u32 lg) {
     if (lg == this->max_order) return;
     Block block = *b;
     auto &zone = this->free_zones[lg];
@@ -81,7 +81,7 @@ void InstanceDataPool::merge(Block *b, u32 lg) {
     /* no pair block found */
     this->free_zones[lg].push_back(block);
 }
-void InstanceDataPool::free(Handle handle) {
+void InstanceBatchPool::free(Handle handle) {
     Block *b = this->used_blocks.get_or_null(handle);
     EXPECT_NOT_NULL_RET(b);
     merge(b, log2(b->size));
@@ -89,13 +89,13 @@ void InstanceDataPool::free(Handle handle) {
     this->used_blocks.remove(handle);
 }
 
-InstanceDataPool::Block InstanceDataPool::query(Handle handle) {
+InstanceBatchPool::Block InstanceBatchPool::query(Handle handle) {
     Block *b = this->used_blocks.get_or_null(handle);
     if (!b) return Block{0, 0};
     return *b;
 }
 
-InstanceDataPool::InstanceDataPool(u32 element_size, u32 size)
+InstanceBatchPool::InstanceBatchPool(u32 element_size, u32 size)
     : element_size(element_size) {
     this->max_order = log2(roundup_to_pow2(size)) + 1;
     this->ssbo_handle = RHI::alloc_storage_buffer(
@@ -104,9 +104,9 @@ InstanceDataPool::InstanceDataPool(u32 element_size, u32 size)
     this->free_zones[this->max_order - 1].push_back(
         Block{0, 1u << (this->max_order - 1)});
 }
-InstanceDataPool::~InstanceDataPool() {}
+InstanceBatchPool::~InstanceBatchPool() {}
 
-void InstanceData::_upload(RHI::UpdateBufferInfo &update_info,
+void InstanceBatch::_upload(RHI::UpdateBufferInfo &update_info,
                            u32 element_offset) {
     u32 element_size = pool->get_element_size();
     u32 size = update_info.size / element_size;
@@ -120,12 +120,12 @@ void InstanceData::_upload(RHI::UpdateBufferInfo &update_info,
         }
     }
     /* upload */
-    InstanceDataPool::Block block = pool->query(instance_handle);
+    InstanceBatchPool::Block block = pool->query(instance_handle);
     u32 offset = element_size * block.idx + element_size * element_offset;
     RHI::update_from_heap(pool->get_render_buffer(), offset, update_info);
 }
 
-void InstanceData::_upload(std::vector<RHI::UpdateBufferInfo> &update_infos) {
+void InstanceBatch::_upload(std::vector<RHI::UpdateBufferInfo> &update_infos) {
     u32 element_size = pool->get_element_size();
     u32 total_size = 0;
     for (RHI::UpdateBufferInfo &info : update_infos) {
@@ -142,25 +142,25 @@ void InstanceData::_upload(std::vector<RHI::UpdateBufferInfo> &update_infos) {
         }
     }
     /* upload */
-    InstanceDataPool::Block block = pool->query(instance_handle);
+    InstanceBatchPool::Block block = pool->query(instance_handle);
     u32 offset = element_size * block.idx;
     for (RHI::UpdateBufferInfo &info : update_infos) {
         RHI::update_from_heap(pool->get_render_buffer(), offset, info);
         offset += info.size;
     }
 }
-InstanceData::~InstanceData() {
+InstanceBatch::~InstanceBatch() {
     if (this->instance_handle != NULL_HANDLE) {
         pool->free(this->instance_handle);
         this->instance_handle = NULL_HANDLE;
     }
 }
 
-void StaticInstanceData::insert_transform(Transform &transform) {
+void StaticInstanceBatch::insert_transform(Transform &transform) {
     this->world_matrices.push_back(transform.get_model_matrix());
     updated = false;
 }
-void StaticInstanceData::upload() {
+void StaticInstanceBatch::upload() {
     if (updated) {
         return;
     }
@@ -169,7 +169,7 @@ void StaticInstanceData::upload() {
     memcpy(mat_info.data, world_matrices.data(), mat_info.size);
     _upload(mat_info);
 };
-void StaticInstanceData::frustum_culling(const Frustum &frustum,
+void StaticInstanceBatch::frustum_culling(const Frustum &frustum,
                                          const AABB &bounding_box,
                                          std::vector<u32> &instance_ids,
                                          std::vector<f32> &depths) {
@@ -190,7 +190,7 @@ void StaticInstanceData::frustum_culling(const Frustum &frustum,
     }
 };
 
-StaticInstanceData::StaticInstanceData()
-    : InstanceData(
+StaticInstanceBatch::StaticInstanceBatch()
+    : InstanceBatch(
           System::gRenderEngine->get_instance_pool(TRANSFORM_POOL_NAME)) {}
 }  // namespace Seed

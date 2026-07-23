@@ -16,7 +16,7 @@ Billboard::Billboard(Ref<Texture> texture) {
                           ref_cast<Material>(material),
                           AABB{Vec3{0.5, 0.5, 0}, Vec3{0.5, 0.5, 0}});
     // System::gRenderEngine->get_mesh_storage()->add_mesh(billboard_mesh,
-    //                                       ref_cast<InstanceData>(instances));
+    //                                       ref_cast<InstanceBatch>(instances));
 }
 
 Billboard::~Billboard() {}

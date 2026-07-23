@@ -5,7 +5,7 @@
 #include "core/physic/physic_body.h"
 #include "core/physic/physic_engine.h"
 #include "core/ref.h"
-#include "core/rendering/instance_data.h"
+#include "core/rendering/instance_batch.h"
 #include "core/rendering/mesh_storage.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/rhi/render_resource.h"
@@ -31,7 +31,7 @@ PhysicBody WorldChunk::create_object_physic(const Transform &transform,
 }
 
 void WorldChunk::register_model_instance(Ref<Model> model,
-                                         Ref<InstanceData> instance) {
+                                         Ref<InstanceBatch> instance) {
     model_instances[*model] = instance;
     System::gRenderEngine->get_mesh_storage()->add_model(model, instance);
 }
@@ -82,12 +82,12 @@ void World::tick(f32 dt) {
     /* upload model transform to instance*/
     entity_manager.run_system<Transform, MeshInstance>(
         [=](Entity e, Transform *tf, MeshInstance *inst) {
-            Ref<InstanceData> data = model_instances[*inst->model];
+            Ref<InstanceBatch> data = model_instances[*inst->model];
             inst->model->_add_instance(data, *tf);
         });
     entity_manager.run_system<Transform, SkeletonMeshInstance>(
         [&](Entity e, Transform *tf, SkeletonMeshInstance *inst) {
-            Ref<InstanceData> data = model_instances[*inst->model];
+            Ref<InstanceBatch> data = model_instances[*inst->model];
             AnimationState *state =
                 entity_manager.query_component<AnimationState>(e);
             if (state) {
@@ -98,7 +98,7 @@ void World::tick(f32 dt) {
 }
 
 void World::register_model_instance(Ref<Model> model,
-                                    Ref<InstanceData> instance) {
+                                    Ref<InstanceBatch> instance) {
     model_instances[*model] = instance;
     System::gRenderEngine->get_mesh_storage()->add_model(model, instance);
 }
@@ -126,7 +126,7 @@ void World::register_engine_components() {
         Ref<Model> _model = ref_cast<Model>(ph->model);
         auto iter = model_instances.find(*_model);
         if (iter == model_instances.end()) {
-            Ref<InstanceData> instance = ph->model->create_instance();
+            Ref<InstanceBatch> instance = ph->model->create_instance();
             register_model_instance(_model, instance);
         }
     });
@@ -136,7 +136,7 @@ void World::register_engine_components() {
             Ref<Model> _model = ref_cast<Model>(ph->model);
             auto iter = model_instances.find(*_model);
             if (iter == model_instances.end()) {
-                Ref<InstanceData> instance = ph->model->create_instance();
+                Ref<InstanceBatch> instance = ph->model->create_instance();
                 register_model_instance(_model, instance);
             }
         });

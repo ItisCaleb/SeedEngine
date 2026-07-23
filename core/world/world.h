@@ -4,7 +4,7 @@
 #include "core/physic/physic_body.h"
 #include "core/physic/physic_shape.h"
 #include "core/ref.h"
-#include "core/rendering/instance_data.h"
+#include "core/rendering/instance_batch.h"
 #include "core/resource/model.h"
 #include "core/world/terrain.h"
 #include "core/world/sky.h"
@@ -25,11 +25,11 @@ class WorldChunk : public RefCounted {
          * tranform*/
         std::vector<PhysicBody> physic_bodies;
         std::vector<Ref<Model>> models;
-        std::unordered_map<Model *, Ref<InstanceData>> model_instances;
+        std::unordered_map<Model *, Ref<InstanceBatch>> model_instances;
         PhysicBody create_object_physic(const Transform &transform,
                                         const PhysicShape shape);
         void register_model_instance(Ref<Model> model,
-                                     Ref<InstanceData> instance);
+                                     Ref<InstanceBatch> instance);
 
     public:
         WorldChunk(Ref<Terrain> terrain);
@@ -53,7 +53,7 @@ class WorldChunk : public RefCounted {
             if (model.is_null()) return;
             auto iter = model_instances.find(*_model);
             if (iter == model_instances.end()) {
-                Ref<InstanceData> instance = model->create_instance();
+                Ref<InstanceBatch> instance = model->create_instance();
                 register_model_instance(_model, instance);
                 model->add_instance(instance, args...);
             } else {
@@ -74,13 +74,13 @@ class World {
         std::vector<PointLight> point_lights;
         Camera camera;
         std::vector<Ref<WorldChunk>> chunks;
-        std::unordered_map<Model *, Ref<InstanceData>> model_instances;
+        std::unordered_map<Model *, Ref<InstanceBatch>> model_instances;
         Ref<Terrain> terrain;
 
         EntityManager entity_manager;
         void register_engine_components();
         void register_model_instance(Ref<Model> model,
-                                     Ref<InstanceData> instance);
+                                     Ref<InstanceBatch> instance);
 
     public:
         Ref<Sky> get_sky();

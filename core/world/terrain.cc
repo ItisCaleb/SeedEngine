@@ -38,11 +38,11 @@ TerrainMaterial::TerrainMaterial(Ref<TextureArray> heightmaps,
     : TerrainMaterial(System::gDefaultStorage->terrain_shader, heightmaps,
                       controlmaps, textures, texture_normals) {}
 
-void TerrainInstanceData::insert_terrain_data(const TerrainInstance &instance) {
+void TerrainInstanceBatch::insert_terrain_data(const TerrainInstance &instance) {
     this->instances.push_back(instance);
 }
 
-void TerrainInstanceData::upload() {
+void TerrainInstanceBatch::upload() {
     u32 stride = sizeof(Vec4);
     RHI::UpdateBufferInfo instance_info =
         RHI::alloc_heap(stride * this->instances.size());
@@ -54,7 +54,7 @@ void TerrainInstanceData::upload() {
     }
     _upload(instance_info);
 }
-void TerrainInstanceData::frustum_culling(const Frustum &frustum,
+void TerrainInstanceBatch::frustum_culling(const Frustum &frustum,
                                           const AABB &bounding_box,
                                           std::vector<u32> &instance_ids,
                                           std::vector<f32> &depths) {
@@ -75,8 +75,8 @@ void TerrainInstanceData::frustum_culling(const Frustum &frustum,
         i++;
     }
 }
-TerrainInstanceData::TerrainInstanceData()
-    : InstanceData(
+TerrainInstanceBatch::TerrainInstanceBatch()
+    : InstanceBatch(
           System::gRenderEngine->get_instance_pool(TERRAIN_POOL_NAME)) {}
 
 void Terrain::build_mesh() {
@@ -137,7 +137,7 @@ Terrain::Terrain() {
     build_mesh();
     this->mesh->set_material(ref_cast<Material>(material));
     System::gRenderEngine->get_mesh_storage()->add_mesh(
-        this->mesh, ref_cast<InstanceData>(this->instances));
+        this->mesh, ref_cast<InstanceBatch>(this->instances));
 }
 
 void Terrain::add_chunk(i32 x, i32 y, Ref<Image> height_map,
@@ -187,6 +187,6 @@ void Terrain::add_chunk(i32 x, i32 y, Ref<Image> height_map,
 
 Terrain::~Terrain() {
     System::gRenderEngine->get_mesh_storage()->remove_mesh(
-        this->mesh, ref_cast<InstanceData>(this->instances));
+        this->mesh, ref_cast<InstanceBatch>(this->instances));
 }
 }  // namespace Seed

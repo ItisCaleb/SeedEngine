@@ -88,11 +88,11 @@ RenderEngine::RenderEngine(Window *window) {
 
 void RenderEngine::init() {
     this->instance_pools[TRANSFORM_POOL_NAME] =
-        new InstanceDataPool(sizeof(Mat4), 65536);
+        new InstanceBatchPool(sizeof(Mat4), 65536);
     this->instance_pools[TERRAIN_POOL_NAME] =
-        new InstanceDataPool(sizeof(Vec4), 1024);
+        new InstanceBatchPool(sizeof(Vec4), 1024);
     this->instance_pools[SKELETON_POOL_NAME] =
-        new InstanceDataPool(sizeof(Mat4), 65536);
+        new InstanceBatchPool(sizeof(Mat4), 65536);
     default_renderer = new DefaultRenderer;
     imgui_renderer = new ImguiRenderer;
     rml_renderer = new RmlRenderer;
@@ -132,7 +132,7 @@ void RenderEngine::process() {
     }
 }
 
-InstanceDataPool *RenderEngine::get_instance_pool(const std::string &name) {
+InstanceBatchPool *RenderEngine::get_instance_pool(const std::string &name) {
     auto iter = this->instance_pools.find(name);
     if (iter != this->instance_pools.end()) {
         return iter->second;

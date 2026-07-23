@@ -75,7 +75,7 @@ void WorldRenderer::preprocess() {
     if (terrain == nullptr) return;
 
     fd.terrain_mesh = terrain->get_mesh();
-    Ref<TerrainInstanceData> terrain_instance = terrain->get_instances();
+    Ref<TerrainInstanceBatch> terrain_instance = terrain->get_instances();
     if (!fd.terrain_mesh.is_null() && !terrain_instance.is_null() &&
         terrain_instance->size() > 0) {
         terrain_instance->upload();

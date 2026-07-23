@@ -5,7 +5,7 @@
 #include "core/resource/animation.h"
 #include "core/resource/resource.h"
 #include "core/rendering/mesh.h"
-#include "core/rendering/instance_data.h"
+#include "core/rendering/instance_batch.h"
 #include "core/resource/skeleton.h"
 #include "core/transform.h"
 #include <utility>
@@ -32,7 +32,7 @@ struct SkeletonVertex {
 /*
  * Instance data usage:
  *
- *   Ref<InstanceData> data = model->create_instance();
+ *   Ref<InstanceBatch> data = model->create_instance();
  *   mesh_storage->add_model(ref_cast<Model>(model), data);
  *
  *   data->clear();
@@ -52,11 +52,11 @@ class Model : public Resource {
         std::vector<Ref<Mesh>> &get_meshes() { return meshes; }
 
         /*
-         * Create an empty InstanceData subtype compatible with this model.
+         * Create an empty InstanceBatch subtype compatible with this model.
          * This only creates the batch; it does not register, populate, or
          * upload it.
          */
-        virtual Ref<InstanceData> create_instance() = 0;
+        virtual Ref<InstanceBatch> create_instance() = 0;
         virtual ~Model() = default;
 };
 
@@ -70,7 +70,7 @@ class ModelBase : public Model {
          * implementation. Arguments differ by model type.
          */
         template <typename... Args>
-        void add_instance(Ref<InstanceData> data, Args &&...args) {
+        void add_instance(Ref<InstanceBatch> data, Args &&...args) {
             static_cast<Derived *>(this)->_add_instance(
                 data, std::forward<Args>(args)...);
         }
@@ -84,19 +84,19 @@ class BasicModel : public ModelBase<BasicModel> {
             : ModelBase<BasicModel>(meshes) {}
 
         /*
-         * Append one transform to the StaticInstanceData returned by
+         * Append one transform to the StaticInstanceBatch returned by
          * create_instance(). GPU upload is deferred to the renderer.
          */
-        void _add_instance(Ref<InstanceData> data, Transform &transform) {
-            Ref<StaticInstanceData> tdata = ref_cast<StaticInstanceData>(data);
+        void _add_instance(Ref<InstanceBatch> data, Transform &transform) {
+            Ref<StaticInstanceBatch> tdata = ref_cast<StaticInstanceBatch>(data);
             tdata->insert_transform(transform);
         };
 
         /* Create the empty transform batch used by all meshes in this model. */
-        Ref<InstanceData> create_instance() override {
-            Ref<StaticInstanceData> instance;
+        Ref<InstanceBatch> create_instance() override {
+            Ref<StaticInstanceBatch> instance;
             instance.create();
-            return ref_cast<InstanceData>(instance);
+            return ref_cast<InstanceBatch>(instance);
         };
         ~BasicModel() = default;
 };
@@ -118,13 +118,13 @@ class SkeletonModel : public ModelBase<SkeletonModel> {
 
         /*
          * Append one transform and animation pose to the
-         * SkeletonInstanceData returned by create_instance(). A null state
+         * SkeletonInstanceBatch returned by create_instance(). A null state
          * inserts the bind/default pose. GPU upload is deferred.
          */
-        void _add_instance(Ref<InstanceData> data, Transform &transform,
+        void _add_instance(Ref<InstanceBatch> data, Transform &transform,
                            AnimationState *state) {
-            Ref<SkeletonInstanceData> sdata =
-                ref_cast<SkeletonInstanceData>(data);
+            Ref<SkeletonInstanceBatch> sdata =
+                ref_cast<SkeletonInstanceBatch>(data);
             sdata->insert_instance(transform, state);
         };
 
@@ -132,10 +132,10 @@ class SkeletonModel : public ModelBase<SkeletonModel> {
          * Create an empty skeletal batch. Each logical instance occupies one
          * world transform followed by one matrix per skeleton bone.
          */
-        Ref<InstanceData> create_instance() override {
-            Ref<SkeletonInstanceData> instance;
+        Ref<InstanceBatch> create_instance() override {
+            Ref<SkeletonInstanceBatch> instance;
             instance.create(skeleton);
-            return ref_cast<InstanceData>(instance);
+            return ref_cast<InstanceBatch>(instance);
         };
         ~SkeletonModel() = default;
 };
