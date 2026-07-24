@@ -20,10 +20,11 @@ class Sky : public RefCounted {
         Ref<TextureCubemap> cubemap;
 
     public:
-        Sky(Ref<TextureCubemap> cubemap) {
+        Sky(Ref<TextureCubemap> cubemap) : cubemap(cubemap) {
             sky_mat.create(ref_cast<Texture>(cubemap));
         }
         Ref<SkyMaterial> get_material() { return sky_mat; }
+        Ref<TextureCubemap> get_cubemap() { return cubemap; }
         ~Sky() {}
 };
 

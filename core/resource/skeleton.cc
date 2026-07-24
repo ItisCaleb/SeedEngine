@@ -31,7 +31,7 @@ void Skeleton::apply_skinning(Mat4 *bone_tranforms, u64 size) {
 }
 
 void SkeletonInstanceBatch::insert_instance(Transform &transform,
-                                           AnimationState *state) {
+                                            AnimationState *state) {
     RHI::UpdateBufferInfo skeleton_info =
         RHI::alloc_heap(sizeof(Mat4) * (1 + skeleton->bone_count()));
     Mat4 *buffer = (Mat4 *)skeleton_info.data;
@@ -44,38 +44,26 @@ void SkeletonInstanceBatch::insert_instance(Transform &transform,
         }
     }
     this->upload_buffers.push_back(skeleton_info);
+    mark_dirty();
 }
 
-void SkeletonInstanceBatch::upload() {
+void SkeletonInstanceBatch::prepare_uploads(
+    std::vector<RHI::UpdateBufferInfo> &uploads) {
     /* upload */
     for (RHI::UpdateBufferInfo &info : this->upload_buffers) {
         Mat4 *buffer = (Mat4 *)info.data;
         skeleton->apply_fk(&buffer[1], skeleton->bone_count());
         skeleton->apply_skinning(&buffer[1], skeleton->bone_count());
     }
-    _upload(this->upload_buffers);
+    uploads = this->upload_buffers;
 }
-void SkeletonInstanceBatch::frustum_culling(const Frustum &frustum,
-                                           const AABB &bounding_box,
-                                           std::vector<u32> &instance_ids,
-                                           std::vector<f32> &depths) {
-    u32 i = pool->query(instance_handle).idx;
-
-    for (const RHI::UpdateBufferInfo &info : upload_buffers) {
-        Mat4 world_matrix = ((Mat4 *)info.data)[0];
-        AABB aabb = bounding_box.translate(world_matrix);
-        /* frustum culling */
-        if (frustum.within_frustum(aabb)) {
-            /* push instance indices */
-            instance_ids.push_back(i);
-            depths.push_back(frustum.calculate_depth(aabb.center));
-        }
-        i += instance_size();
-    }
+AABB SkeletonInstanceBatch::translate_bounding_box(const AABB &bounding_box,
+                                                   u32 i) {
+    Mat4 world_matrix = ((Mat4 *)upload_buffers[i].data)[0];
+    AABB aabb = bounding_box.translate(world_matrix);
+    return aabb;
 }
 
 SkeletonInstanceBatch::SkeletonInstanceBatch(Ref<Skeleton> skeleton)
-    : InstanceBatch(
-          System::gRenderEngine->get_instance_pool(SKELETON_POOL_NAME)),
-      skeleton(skeleton) {}
+    : skeleton(skeleton) {}
 }  // namespace Seed

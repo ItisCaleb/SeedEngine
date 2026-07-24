@@ -4,17 +4,22 @@
 #include "core/rendering/rhi/render_engine.h"
 #include "core/rendering/camera.h"
 #include "core/rendering/light.h"
+#include "core/world/terrain.h"
+#include "core/resource/skeleton.h"
 
 namespace Seed {
 
 void FrameGlobal::init() {
     visible = RHI::alloc_storage_buffer(sizeof(int) * 65536,
                                         UpdateFrequence::PERFRAME);
-    transform = System::gRenderEngine->get_instance_pool(TRANSFORM_POOL_NAME)
-                    ->get_render_buffer();
-    terrain = System::gRenderEngine->get_instance_pool(TERRAIN_POOL_NAME)
+    transform =
+        System::gRenderEngine->get_instance_pool(type_id<StaticInstanceBatch>())
+            ->get_render_buffer();
+    terrain = System::gRenderEngine
+                  ->get_instance_pool(type_id<TerrainInstanceBatch>())
                   ->get_render_buffer();
-    bones = System::gRenderEngine->get_instance_pool(SKELETON_POOL_NAME)
+    bones = System::gRenderEngine
+                ->get_instance_pool(type_id<SkeletonInstanceBatch>())
                 ->get_render_buffer();
     camera = RHI::alloc_constant(sizeof(Camera::ShaderCamera) * 64,
                                  UpdateFrequence::PERFRAME);

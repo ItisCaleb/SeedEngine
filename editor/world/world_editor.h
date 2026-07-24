@@ -35,8 +35,6 @@ class WorldEditor : public RmlGUI {
         };
 
         EditorWorld *current_world = nullptr;
-        WorldSetting empty_world_setting;
-        WorldSetting *world_setting = &empty_world_setting;
         WorldRenderer *renderer = nullptr;
         WorldEditorMode active_mode = WorldEditorMode::World;
         TerrainBrush brush_type = TerrainBrush::Raise;
@@ -65,9 +63,11 @@ class WorldEditor : public RmlGUI {
         bool show_scene_empty = true;
         bool show_viewport_empty = true;
         bool show_clear_tiles = false;
+        bool view_model_types_registered = false;
         f32 viewport_scroll_delta = 0.0f;
         Rml::DataModelHandle view_model;
 
+        void rebind_view_model();
         void sync_view_model();
         void dirty_view_model();
         void set_status(std::string status);

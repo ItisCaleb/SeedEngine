@@ -1,4 +1,5 @@
 #include "world.h"
+
 #include <fmt/base.h>
 #include "behaviour.h"
 #include "core/debug/profiler.h"
@@ -19,6 +20,7 @@
 #include "entity.h"
 
 namespace Seed {
+
 WorldChunk::WorldChunk(Ref<Terrain> terrain) : terrain(terrain) {}
 
 PhysicBody WorldChunk::create_object_physic(const Transform &transform,
@@ -150,6 +152,7 @@ void World::register_engine_components() {
 }
 
 World::World() {
+    this->setting.create();
     this->terrain.create();
     this->ambient_light = Vec3{0.25, 0.25, 0.25};
     this->camera.set_position(Vec3{0, 20, 0});
@@ -158,43 +161,38 @@ World::World() {
 }
 
 void World::load_setting(Ref<WorldSetting> setting) {
+    if (setting.is_null()) return;
+
     this->setting = setting;
     ResourceLoader *loader = System::gResourceLoader;
+    if (loader == nullptr) return;
+
+    point_lights.clear();
+
     Ref<TextureCubemap> sky_cubemap = loader->load_cubemap(
         2048, 2048, setting->sky.right, setting->sky.left, setting->sky.up,
         setting->sky.down, setting->sky.front, setting->sky.back);
-    sky.create(sky_cubemap);
+    if (sky_cubemap.is_null()) {
+        sky = nullptr;
+    } else {
+        sky.create(sky_cubemap);
+    }
+
     direction_light = DirectionalLight(setting->dir_light.direction,
                                        setting->dir_light.diffuse,
                                        setting->dir_light.specular, true);
-    for (ChunkSetting &chunk : setting->chunks) {
-        Ref<Image> heightmap = loader->load_image(chunk.height_map);
-        Ref<Image> control_map = loader->load_image(chunk.control_map);
-        terrain->add_chunk(chunk.x, chunk.y, heightmap, control_map);
-    }
-    u32 i = 0;
-    Ref<Image> normal_image;
-    normal_image.create(PixelFormat::RGBA, 1024, 1024);
-    normal_image->fill(Color{128, 128, 255, 255}, 1024, 1024);
-    for (u32 i = 0; i < setting->terrain_textures.size(); i++) {
-        /* upload texture */
-        RHI::UpdateBufferInfo tex_info =
-            loader->load_image_to_upload(setting->terrain_textures[i], true);
 
-        terrain->get_material()->get_textures()->update_layer(i, tex_info);
-
-        /* upload normal */
-        if (setting->terrain_normals[i].is_null()) {
-            /* fallback */
-            terrain->get_material()->get_texture_normals()->update_layer(
-                1024, 1024, i, normal_image->get_data());
-        } else {
-            RHI::UpdateBufferInfo norm_info =
-                loader->load_image_to_upload(setting->terrain_normals[i], true);
-            terrain->get_material()->get_texture_normals()->update_layer(
-                i, norm_info);
+    for (const ChunkSetting &chunk : setting->chunks) {
+        for (const PointLightSetting &light : chunk.lights) {
+            point_lights.emplace_back(light.position, light.diffuse,
+                                      light.specular);
         }
     }
+}
+
+void World::set_terrain(Ref<Terrain> terrain) {
+    if (terrain.is_null()) return;
+    this->terrain = terrain;
 }
 
 }  // namespace Seed

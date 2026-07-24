@@ -14,7 +14,7 @@ class RenderEngine;
 class DefaultRenderer : public Renderer {
         friend RenderEngine;
 
-    private:
+    protected:
         inline static const u32 CSM_SPLITS = 4;
 
         /* we upload all instance to SSBO */

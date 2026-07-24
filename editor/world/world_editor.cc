@@ -17,6 +17,7 @@
 #include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
 #include "core/resource/texture.h"
+#include "core/world/world.h"
 #include "editor/editor.h"
 #include "editor/world/editor_world.h"
 #include "editor/world/world_renderer.h"
@@ -30,17 +31,13 @@ constexpr u32 kViewportHeight = 768;
 
 struct SkyboxFaceBinding {
         const char *name;
-        UUID SkySetting::*setting;
         CubemapFace cubemap_face;
 };
 
 constexpr SkyboxFaceBinding skybox_faces[] = {
-    {"up", &SkySetting::up, CubemapFace::TOP},
-    {"down", &SkySetting::down, CubemapFace::BOTTOM},
-    {"left", &SkySetting::left, CubemapFace::LEFT},
-    {"right", &SkySetting::right, CubemapFace::RIGHT},
-    {"front", &SkySetting::front, CubemapFace::FRONT},
-    {"back", &SkySetting::back, CubemapFace::BACK},
+    {"up", CubemapFace::TOP},       {"down", CubemapFace::BOTTOM},
+    {"left", CubemapFace::LEFT},   {"right", CubemapFace::RIGHT},
+    {"front", CubemapFace::FRONT}, {"back", CubemapFace::BACK},
 };
 
 const SkyboxFaceBinding *find_skybox_face(const Rml::String &name) {
@@ -69,15 +66,22 @@ void register_enum(Rml::DataModelConstructor &constructor) {
 
 }  // namespace
 
-WorldEditor::~WorldEditor() {
-    world_setting = &empty_world_setting;
-    delete current_world;
+WorldEditor::~WorldEditor() { delete current_world; }
+
+void WorldEditor::rebind_view_model() {
+    if (!view_model) return;
+
+    Rml::Context *context = System::gGuiEngine->get_rml_context();
+    if (context == nullptr) return;
+
+    context->RemoveDataModel("world_editor");
+    view_model = {};
+    bind_model(context);
 }
 
 bool WorldEditor::load_world(const UUID uuid) {
     set_status("");
 
-    world_setting = &empty_world_setting;
     delete current_world;
     current_world = nullptr;
     reset_selection();
@@ -90,8 +94,16 @@ bool WorldEditor::load_world(const UUID uuid) {
         return false;
     }
 
-    current_world = new EditorWorld(entry);
-    world_setting = current_world->get_setting();
+    World *world = System::gEngine->get_world();
+    if (world == nullptr) {
+        set_status("The runtime world is not available.");
+        sync_view_model();
+        dirty_view_model();
+        return false;
+    }
+
+    current_world = new EditorWorld(*world, entry);
+    rebind_view_model();
     if (System::gEditor != nullptr) {
         System::gEditor->set_last_open_world(entry->uuid);
     }
@@ -346,13 +358,18 @@ void WorldEditor::sync_terrain_palette_view_model() {
         selected_terrain_normal = {};
         return;
     }
+    if (current_world == nullptr) {
+        selected_terrain_diffuse = {};
+        selected_terrain_normal = {};
+        return;
+    }
+    const WorldSetting &setting = current_world->get_setting();
 
-    selected_terrain_diffuse =
-        (u32)slot < world_setting->terrain_textures.size()
-            ? world_setting->terrain_textures[(u32)slot]
-            : UUID{};
-    selected_terrain_normal = (u32)slot < world_setting->terrain_normals.size()
-                                  ? world_setting->terrain_normals[(u32)slot]
+    selected_terrain_diffuse = (u32)slot < setting.terrain_textures.size()
+                                   ? setting.terrain_textures[(u32)slot]
+                                   : UUID{};
+    selected_terrain_normal = (u32)slot < setting.terrain_normals.size()
+                                  ? setting.terrain_normals[(u32)slot]
                                   : UUID{};
 }
 
@@ -544,17 +561,14 @@ void WorldEditor::rml_set_skybox_face(RML_EVENT_ARGS) {
     const UUID uuid =
         UUID::from_string(e.GetParameter<Rml::String>("value", ""));
     if (!is_texture_asset(uuid)) {
-        world_setting->sky.*(face->setting) =
-            current_world->get_sky().*(face->setting);
         set_status("Skybox faces only accept texture assets.");
         if (view_model) view_model.DirtyVariable("world");
         return;
     }
-
-    EditorSky &sky = current_world->get_sky();
-    sky.*(face->setting) = uuid;
-    world_setting->sky.*(face->setting) = uuid;
-    current_world->update_skybox_face(uuid, face->cubemap_face);
+    if (!current_world->update_skybox_face(uuid, face->cubemap_face)) {
+        set_status(fmt::format("Failed to update skybox {} face.", face_name));
+        return;
+    }
     if (save_current_world()) {
         set_status(fmt::format("Skybox {} face updated and saved.", face_name));
     } else {
@@ -744,7 +758,8 @@ void WorldEditor::register_view_model_types(
 
 void WorldEditor::bind_view_model_values(
     Rml::DataModelConstructor &constructor) {
-    constructor.Bind("world", &world_setting);
+    constructor.Bind(
+        "world", System::gEngine->get_world()->get_setting().ptr());
     constructor.Bind("editor_mode", &active_mode);
     constructor.Bind("status", &status_text);
     constructor.Bind("dirty_maps", &dirty_maps_text);
@@ -807,7 +822,10 @@ void WorldEditor::bind_model(Rml::Context *context) {
         context->CreateDataModel("world_editor");
     if (!constructor) return;
 
-    register_view_model_types(constructor);
+    if (!view_model_types_registered) {
+        register_view_model_types(constructor);
+        view_model_types_registered = true;
+    }
     bind_view_model_values(constructor);
     bind_view_model_events(constructor);
 

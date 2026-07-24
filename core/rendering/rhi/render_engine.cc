@@ -15,6 +15,8 @@
 #include "core/rendering/backend/xr_vulkan_backend.h"
 #endif
 #include "core/window.h"
+#include "core/world/terrain.h"
+#include "core/resource/skeleton.h"
 
 namespace Seed {
 
@@ -87,12 +89,10 @@ RenderEngine::RenderEngine(Window *window) {
 }
 
 void RenderEngine::init() {
-    this->instance_pools[TRANSFORM_POOL_NAME] =
-        new InstanceBatchPool(sizeof(Mat4), 65536);
-    this->instance_pools[TERRAIN_POOL_NAME] =
-        new InstanceBatchPool(sizeof(Vec4), 1024);
-    this->instance_pools[SKELETON_POOL_NAME] =
-        new InstanceBatchPool(sizeof(Mat4), 65536);
+    this->register_instance_batch<StaticInstanceBatch>(sizeof(Mat4), 65536);
+    this->register_instance_batch<TerrainInstanceBatch>(sizeof(Vec4), 1024);
+    this->register_instance_batch<SkeletonInstanceBatch>(sizeof(Mat4), 65536);
+
     default_renderer = new DefaultRenderer;
     imgui_renderer = new ImguiRenderer;
     rml_renderer = new RmlRenderer;
@@ -132,12 +132,18 @@ void RenderEngine::process() {
     }
 }
 
-InstanceBatchPool *RenderEngine::get_instance_pool(const std::string &name) {
-    auto iter = this->instance_pools.find(name);
-    if (iter != this->instance_pools.end()) {
-        return iter->second;
+InstanceBatchPool *RenderEngine::get_instance_pool(u64 tid) {
+    auto iter = instance_pools.find(tid);
+    if (iter == instance_pools.end()) {
+        SEED_WARN("InstanceBatch with tid '{}' didn't register.", tid);
+        return nullptr;
     }
-    return nullptr;
+    return iter->second;
+}
+
+InstanceBatchPool *RenderEngine::get_instance_pool(Ref<InstanceBatch> batch) {
+    u64 id = batch->type_id();
+    return get_instance_pool(id);
 }
 
 ShaderHandle RenderEngine::compile_shader(

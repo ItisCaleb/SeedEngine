@@ -83,7 +83,9 @@ class World {
                                      Ref<InstanceBatch> instance);
 
     public:
+        Ref<WorldSetting> get_setting() const { return setting; }
         Ref<Sky> get_sky();
+        Ref<Terrain> get_terrain() const { return terrain; }
         Vec3 get_ambient_light() { return ambient_light; }
         DirectionalLight &get_direction_light() { return direction_light; }
         std::vector<PointLight> &get_point_lights() { return point_lights; }
@@ -95,6 +97,7 @@ class World {
 
         World(/* args */);
         void load_setting(Ref<WorldSetting> setting);
+        void set_terrain(Ref<Terrain> terrain);
         ~World() = default;
 };
 

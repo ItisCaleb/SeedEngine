@@ -23,7 +23,7 @@ class Skeleton : public RefCounted {
         u64 bone_count() { return bones.size(); }
 };
 
-class SkeletonInstanceBatch : public InstanceBatch {
+class SkeletonInstanceBatch : public InstanceBase<SkeletonInstanceBatch> {
     private:
         Ref<Skeleton> skeleton;
         std::vector<RHI::UpdateBufferInfo> upload_buffers;
@@ -31,11 +31,10 @@ class SkeletonInstanceBatch : public InstanceBatch {
     public:
         u32 size() override { return upload_buffers.size(); }
         void insert_instance(Transform &transform, AnimationState *state);
-        void upload() override;
-        void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
-                             std::vector<u32> &instance_ids,
-                             std::vector<f32> &depths) override;
-        virtual u32 instance_size() override {
+        void prepare_uploads(
+            std::vector<RHI::UpdateBufferInfo> &uploads) override;
+        AABB translate_bounding_box(const AABB &bounding_box, u32 i) override;
+        virtual u32 element_per_instance() override {
             return 1 + skeleton->bone_count();
         }
         void clear() override { upload_buffers.clear(); }

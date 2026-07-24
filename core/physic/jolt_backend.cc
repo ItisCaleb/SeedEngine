@@ -175,7 +175,7 @@ void JoltBackend::delete_body(PhysicBody &body) {
     JPH::BodyID *body_id = this->bodys.get_or_null(body.handle);
     EXPECT_NOT_NULL_RET(body_id);
     JPH::BodyInterface &body_if = this->system.GetBodyInterface();
-
+    body_if.RemoveBody(*body_id);
     body_if.DestroyBody(*body_id);
     this->bodys.remove(body.handle);
 }

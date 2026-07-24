@@ -5,6 +5,7 @@
 #include "core/ref.h"
 #include "core/transform.h"
 #include "core/rendering/rhi/render_resource.h"
+#include "core/misc/type_name.h"
 #include <vector>
 #include <list>
 
@@ -44,89 +45,125 @@ class InstanceBatchPool {
 };
 
 /*
- * A CPU-side batch of logical instances backed by a block in an
- * InstanceBatchPool.
+ * Stores the CPU representation of a group of logical instances.
+ *
+ * InstanceBatch owns the common upload and culling flow. Derived classes only
+ * provide the data to upload, the number of logical instances, and the world
+ * bounding box of each instance.
  *
  * Typical lifecycle:
  *   1. Create the model-compatible batch with Model::create_instance().
- *   2. Register the same batch for every mesh in the model.
- *   3. clear() the previous logical instances when rebuilding the batch.
- *   4. Append each object through Model::add_instance() / _add_instance().
- *   5. The renderer calls upload(), then frustum_culling().
+ *   2. Append logical instances through the model or batch-specific API.
+ *   3. Mutating operations call mark_dirty().
+ *   4. The renderer calls upload() before frustum_culling().
+ *   5. clear() keeps the existing pool allocation available for reuse.
  *
- * Derived classes decide the CPU representation and how many pool elements
- * one logical instance occupies. The allocated GPU block remains owned by this
- * object across clear()/upload() calls and is released by the destructor.
+ * instance_handle identifies this batch's allocation in its registered pool.
+ * Its block indices and offsets are measured in pool elements, not bytes.
  */
 class InstanceBatch : public RefCounted {
     protected:
-        InstanceBatch(InstanceBatchPool *pool) : pool(pool) {}
-        InstanceBatchPool *pool = nullptr;
+        InstanceBatch() = default;
         Handle instance_handle = NULL_HANDLE;
+        InstanceBatchPool *pool = nullptr;
+        bool dirty = false;
 
+    protected:
         /*
-         * Upload one contiguous payload to this batch's pool block. The block
-         * is allocated on first upload and grows automatically when required.
-         * `element_offset` is relative to the beginning of that block.
+         * Mark the CPU representation as newer than the GPU copy. Every
+         * operation that changes uploaded data must call this.
          */
-        void _upload(RHI::UpdateBufferInfo &update_info,
-                     u32 element_offset = 0);
-
-        /*
-         * Allocate for the combined payload and upload all buffers
-         * consecutively into one pool block.
-         */
-        void _upload(std::vector<RHI::UpdateBufferInfo> &update_infos);
+        void mark_dirty() { dirty = true; }
 
     public:
         /*
-         * Upload the current CPU batch. This must happen before
-         * frustum_culling(), because culling emits indices into the allocated
+         * Runtime key used by RenderEngine to identify this batch type.
+         * InstanceBase<T> supplies it automatically for derived classes.
+         */
+        virtual u64 type_id() = 0;
+
+        /*
+         * Upload the current CPU representation when dirty. The pool block is
+         * allocated on first upload and grows when the prepared data no longer
+         * fits. A successful upload clears the dirty flag.
+         */
+        void upload();
+
+        /*
+         * Append visible absolute pool element indices and matching depths.
+         * The supplied output vectors are appended to and are not cleared.
+         * upload() must have established a valid pool allocation first.
+         */
+        void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
+                             std::vector<u32> &instance_ids,
+                             std::vector<f32> &depths);
+
+        /*
+         * Build the contiguous upload regions for the current CPU data.
+         * InstanceBatch uploads the returned regions consecutively into one
          * pool block.
          */
-        virtual void upload() = 0;
+        virtual void prepare_uploads(
+            std::vector<RHI::UpdateBufferInfo> &uploads) = 0;
+
+        /*
+         * Transform a mesh-local bounding box for logical instance `i`.
+         * `i` is an index into the derived class's CPU instance container.
+         */
+        virtual AABB translate_bounding_box(const AABB &bounding_box,
+                                            u32 i) = 0;
 
         /* Number of logical instances currently stored in this batch. */
         virtual u32 size() = 0;
 
         /*
-         * Number of pool elements occupied by one logical instance.
-         * Static instances use one transform element. A skeletal instance uses
-         * one transform followed by `bone_count` matrices.
+         * Number of consecutive pool elements occupied by one logical
+         * instance. This advances the absolute GPU element index during
+         * culling. Static and terrain instances occupy one element; a skeletal
+         * instance occupies one transform plus its bone matrices.
          */
-        virtual u32 instance_size() { return 1; }
+        virtual u32 element_per_instance() { return 1; }
 
         /*
-         * Append visible absolute pool indices and matching depths to the
-         * supplied vectors. This function does not clear either output.
-         */
-        virtual void frustum_culling(const Frustum &frustum,
-                                     const AABB &bounding_box,
-                                     std::vector<u32> &instance_ids,
-                                     std::vector<f32> &depths) = 0;
-
-        /*
-         * Remove logical instances from the CPU batch. This intentionally
-         * keeps the allocated pool block for reuse by a later upload().
+         * Remove all logical CPU instances without discarding the reusable pool
+         * allocation. Implementations must mark the batch dirty when the empty
+         * state needs to be reflected on the GPU.
          */
         virtual void clear() = 0;
         virtual ~InstanceBatch();
 };
 
-/* One logical instance is represented by one world transform matrix. */
-class StaticInstanceBatch : public InstanceBatch {
+/*
+ * Supplies a stable engine type ID and resolves the pool registered for T.
+ * Derived batches inherit from InstanceBase<Derived> instead of repeating the
+ * type_id() implementation and pool lookup.
+ */
+template <typename T>
+class InstanceBase : public InstanceBatch {
+    protected:
+        InstanceBase() {
+            pool = System::gRenderEngine->get_instance_pool(Seed::type_id<T>());
+        }
+
+    public:
+        u64 type_id() override final { return Seed::type_id<T>(); }
+};
+
+/*
+ * Stores one world transform matrix for each logical static-model instance.
+ */
+class StaticInstanceBatch : public InstanceBase<StaticInstanceBatch> {
     private:
         std::vector<Mat4> world_matrices;
-        bool updated = false;
 
     public:
         u32 size() override { return world_matrices.size(); }
-        /* Append one logical static-model instance; upload is deferred. */
+        /* Append one transform and defer the GPU copy until upload(). */
         void insert_transform(Transform &transform);
-        void upload() override;
-        void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
-                             std::vector<u32> &instance_ids,
-                             std::vector<f32> &depths) override;
+        void prepare_uploads(
+            std::vector<RHI::UpdateBufferInfo> &uploads) override;
+        AABB translate_bounding_box(const AABB &bounding_box, u32 i) override;
+
         void clear() override { this->world_matrices.clear(); }
 
         StaticInstanceBatch();

@@ -112,7 +112,6 @@ void DefaultRenderer::prepare_meshes() {
     FrameGlobal &g_frame = System::gRenderEngine->get_frame_global();
 
     MeshStorage *mesh_storage = System::gRenderEngine->get_mesh_storage();
-    std::set<InstanceBatch *> uploaded_instance;
     std::vector<u32> visible_instances;
 
     u32 last_visible_offset = 0;
@@ -136,10 +135,9 @@ void DefaultRenderer::prepare_meshes() {
         }
 
         const Frustum &cam_frustum = cam.get_frustum();
-        if (uploaded_instance.find(instance.ptr()) == uploaded_instance.end()) {
-            uploaded_instance.insert(instance.ptr());
-            instance->upload();
-        }
+        InstanceBatchPool *pool =
+            System::gRenderEngine->get_instance_pool(instance);
+        instance->upload();
         color_mesh->visible_offset = visible_instances.size();
         instance->frustum_culling(cam_frustum, bounding_box, visible_instances,
                                   color_mesh->depth);

@@ -63,7 +63,7 @@ void InstanceBatchPool::merge(Block *b, u32 lg) {
     u32 target_idx = ((block.idx >> lg) & 1) ? block.idx - block.size
                                              : block.idx + block.size;
 
-    /* find the pair block in target zone  */
+    /* find the pair block in target zone */
     for (auto it = zone.begin(); it != zone.end();) {
         Block buddy = *it;
 
@@ -106,29 +106,16 @@ InstanceBatchPool::InstanceBatchPool(u32 element_size, u32 size)
 }
 InstanceBatchPool::~InstanceBatchPool() {}
 
-void InstanceBatch::_upload(RHI::UpdateBufferInfo &update_info,
-                           u32 element_offset) {
-    u32 element_size = pool->get_element_size();
-    u32 size = update_info.size / element_size;
-    if (instance_handle == NULL_HANDLE) {
-        instance_handle = pool->alloc(size);
-    } else {
-        auto block = pool->query(instance_handle);
-        if (block.size < size) {
-            if (block.size > 0) pool->free(instance_handle);
-            instance_handle = pool->alloc(size);
-        }
-    }
-    /* upload */
-    InstanceBatchPool::Block block = pool->query(instance_handle);
-    u32 offset = element_size * block.idx + element_size * element_offset;
-    RHI::update_from_heap(pool->get_render_buffer(), offset, update_info);
-}
+void InstanceBatch::upload() {
+    if (!dirty) return;
+    if (!pool) return;
 
-void InstanceBatch::_upload(std::vector<RHI::UpdateBufferInfo> &update_infos) {
     u32 element_size = pool->get_element_size();
     u32 total_size = 0;
-    for (RHI::UpdateBufferInfo &info : update_infos) {
+    std::vector<RHI::UpdateBufferInfo> uploads;
+    prepare_uploads(uploads);
+
+    for (RHI::UpdateBufferInfo &info : uploads) {
         total_size += info.size;
     }
     u32 size = total_size / element_size;
@@ -144,11 +131,39 @@ void InstanceBatch::_upload(std::vector<RHI::UpdateBufferInfo> &update_infos) {
     /* upload */
     InstanceBatchPool::Block block = pool->query(instance_handle);
     u32 offset = element_size * block.idx;
-    for (RHI::UpdateBufferInfo &info : update_infos) {
+    for (RHI::UpdateBufferInfo &info : uploads) {
         RHI::update_from_heap(pool->get_render_buffer(), offset, info);
         offset += info.size;
     }
+    dirty = false;
 }
+
+void InstanceBatch::frustum_culling(const Frustum &frustum,
+                                    const AABB &bounding_box,
+                                    std::vector<u32> &instance_ids,
+                                    std::vector<f32> &depths) {
+    u32 begin_idx = 0;
+    if (pool && instance_handle != NULL_HANDLE) {
+        begin_idx = pool->query(instance_handle).idx;
+    }
+    u32 stride = this->element_per_instance();
+    if (stride == 0) return;
+    for (u32 i = 0; i < this->size();) {
+        AABB result = this->translate_bounding_box(bounding_box, i);
+        /* frustum culling */
+        if (frustum.within_frustum(result)) {
+            if (System::gEngine->get_debug_flag() &
+                EngineConfig::BOUNDING_BOX) {
+                System::gDebugDrawer->draw_aabb(result);
+            }
+            /* push instance indices */
+            instance_ids.push_back(begin_idx + i);
+            depths.push_back(frustum.calculate_depth(result.center));
+        }
+        i += this->element_per_instance();
+    }
+};
+
 InstanceBatch::~InstanceBatch() {
     if (this->instance_handle != NULL_HANDLE) {
         pool->free(this->instance_handle);
@@ -158,39 +173,21 @@ InstanceBatch::~InstanceBatch() {
 
 void StaticInstanceBatch::insert_transform(Transform &transform) {
     this->world_matrices.push_back(transform.get_model_matrix());
-    updated = false;
+    mark_dirty();
 }
-void StaticInstanceBatch::upload() {
-    if (updated) {
-        return;
-    }
+void StaticInstanceBatch::prepare_uploads(
+    std::vector<RHI::UpdateBufferInfo> &uploads) {
     RHI::UpdateBufferInfo mat_info =
         RHI::alloc_heap(sizeof(Mat4) * this->world_matrices.size());
     memcpy(mat_info.data, world_matrices.data(), mat_info.size);
-    _upload(mat_info);
-};
-void StaticInstanceBatch::frustum_culling(const Frustum &frustum,
-                                         const AABB &bounding_box,
-                                         std::vector<u32> &instance_ids,
-                                         std::vector<f32> &depths) {
-    u32 i = pool->query(instance_handle).idx;
-    for (Mat4 &mat : world_matrices) {
-        AABB result = bounding_box.translate(mat);
-        /* frustum culling */
-        if (frustum.within_frustum(result)) {
-            if (System::gEngine->get_debug_flag() &
-                EngineConfig::BOUNDING_BOX) {
-                System::gDebugDrawer->draw_aabb(result);
-            }
-            /* push instance indices */
-            instance_ids.push_back(i);
-            depths.push_back(frustum.calculate_depth(result.center));
-        }
-        i++;
-    }
+    uploads.push_back(mat_info);
 };
 
-StaticInstanceBatch::StaticInstanceBatch()
-    : InstanceBatch(
-          System::gRenderEngine->get_instance_pool(TRANSFORM_POOL_NAME)) {}
+AABB StaticInstanceBatch::translate_bounding_box(const AABB &bounding_box,
+                                                 u32 i) {
+    AABB result = bounding_box.translate(world_matrices[i]);
+    return result;
+};
+
+StaticInstanceBatch::StaticInstanceBatch() {}
 }  // namespace Seed

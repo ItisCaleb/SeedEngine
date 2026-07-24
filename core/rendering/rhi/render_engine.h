@@ -7,14 +7,13 @@
 #include "core/container/kstring.h"
 #include "core/io/path.h"
 #include "core/rendering/renderer/renderer.h"
+#include "core/rendering/instance_batch.h"
+#include "core/macro.h"
+#include "core/rendering/mesh_storage.h"
 
 namespace Seed {
-#define TRANSFORM_POOL_NAME "TransformDataPool"
-#define TERRAIN_POOL_NAME "TerrainDataPool"
-#define SKELETON_POOL_NAME "SkeletonInstancePool"
 
 class InstanceBatchPool;
-class MeshStorage;
 class RenderBackend;
 class ShaderLayout;
 class ShaderProxy;
@@ -33,7 +32,7 @@ class RenderEngine {
         MeshStorage *mesh_storage;
         ShaderProxy *shader_proxy;
         std::vector<RendererLayer> renderers;
-        std::unordered_map<std::string, InstanceBatchPool *> instance_pools;
+        std::unordered_map<u64, InstanceBatchPool *> instance_pools;
         Renderer *default_renderer;
         Renderer *imgui_renderer;
         Renderer *rml_renderer;
@@ -48,7 +47,24 @@ class RenderEngine {
         RenderBackend *get_device();
         void register_renderer(u8 layer, Renderer *renderer);
         Window *get_current_window() { return current_window; }
-        InstanceBatchPool *get_instance_pool(const std::string &name);
+
+        template <typename T>
+        void register_instance_batch(u32 element_size, u32 pool_size) {
+            static_assert(std::is_base_of<InstanceBatch, T>::value,
+                          "T must be a derived class of InstanceBatch.");
+            constexpr u64 id = type_id<T>();
+            auto iter = instance_pools.find(id);
+            if (iter != instance_pools.end()) {
+                SEED_WARN("Already registered instance type {}, skipping.",
+                          type_name<T>);
+                return;
+            }
+            instance_pools[type_id<T>()] =
+                new InstanceBatchPool(element_size, pool_size);
+        }
+
+        InstanceBatchPool *get_instance_pool(u64 tid);
+        InstanceBatchPool *get_instance_pool(Ref<InstanceBatch> batch);
 
         /* if not null, layout will be filled */
         ShaderHandle compile_shader(const Path &path, const KString &shader,
