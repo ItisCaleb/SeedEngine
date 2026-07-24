@@ -60,7 +60,7 @@ class DebugGUI : public ImGUI {
 
 int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
-    engine->load_project("test_project/Ave Mujica.json");
+    engine->load_project("example/Ave Mujica.json");
     ResourceLoader *loader = System::gResourceLoader;
     // auto backpack = loader->load_async<BasicModel>(
     //     "test_project/assets/backpack.json", [=](Ref<BasicModel> rc) {
@@ -99,9 +99,6 @@ int main(void) {
     t.set_scale(Vec3{0.1, 0.1, 0.1});
     auto man_model = man->wait();
     HumanEntity::create_entity(ecs, t, man_model);
-    auto document =
-        loader->load_internal<GuiDocument>("assets/ui/rmlui_example.rml");
-    System::gGuiEngine->load_rmlui(new RmlGUI(document));
     engine->start();
     delete engine;
     return 0;

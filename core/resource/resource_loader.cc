@@ -88,7 +88,11 @@ void ResourceLoader::load_meshes(ResourceLoader &loader,
     auto jmaterials = model_info["materials"];
     for (auto &jmaterial : jmaterials) {
         Ref<BaseMaterial> mat;
-        mat.create();
+        if(skeleton.is_valid()){
+            mat.create(System::gDefaultStorage->skeleton_mesh_shader);
+        }else{
+            mat.create();
+        }
         UUID diffuse = jmaterial["diffuse"];
         UUID specular = jmaterial["specular"];
         UUID normal = jmaterial["normal"];

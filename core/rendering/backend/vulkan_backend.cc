@@ -133,9 +133,9 @@ void RenderBackendVK::create_instance() {
             VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
     }
     VkValidationFeatureEnableEXT validation_features[] = {
-        VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
-        VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
-        VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+        // VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+        // VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+        // VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
         VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
     };
     VkValidationFeaturesEXT validation_features_info{};
@@ -386,13 +386,13 @@ void RenderBackendVK::recreate_swapchain(Window *window) {
         tex->image = nullptr;
         dealloc(RenderResourceType::TEXTURE, swap_chain.textures[i]);
 
-        if (i > 0) {
-            HardwareRenderPassVk *rt =
-                this->render_pass.get_or_null(swap_chain.render_targets[i]);
-            rt->render_pass_cache = nullptr;
+        if (i == 0) {
+            dealloc(RenderResourceType::RENDER_TARGET,
+                    swap_chain.render_targets[i]);
         }
-        dealloc(RenderResourceType::RENDER_TARGET,
-                swap_chain.render_targets[i]);
+        HardwareRenderPassVk *rt =
+            this->render_pass.get_or_null(swap_chain.render_targets[i]);
+        rt->render_pass_cache = nullptr;
     }
 
     swap_chain.textures.clear();
@@ -1419,7 +1419,8 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target) {
     render_target->dirty = false;
     bool is_swapchain = render_target->is_swapchain;
 
-    if (render_target->render_pass_cache != nullptr) {
+    /* do not handle swapchain */
+    if (render_target->render_pass_cache != nullptr && !render_target->is_swapchain) {
         this->destroy_list.push_back(
             DestroyResource{.type = RenderResourceType::RENDER_TARGET,
                             .render_target = {
@@ -1454,6 +1455,7 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target) {
 
             /* msaa attachment */
             colorAttachment.samples = render_target->sample_count;
+            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             allAttachments.push_back(colorAttachment);
         }
@@ -1495,6 +1497,7 @@ void RenderBackendVK::create_render_pass(HardwareRenderPassVk *render_target) {
 
             /* msaa attachment */
             depthAttachment.samples = render_target->sample_count;
+            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             allAttachments.push_back(depthAttachment);
         }
@@ -1658,10 +1661,17 @@ std::vector<VkClearValue> RenderBackendVK::get_clear_values(
     std::vector<VkClearValue> clears;
     for (u32 i = 0; i < rp->color_attachments.size(); i++) {
         clears.emplace_back(VkClearValue{.color = {0, 0, 0, 1}});
+        if (rp->sample_count != VK_SAMPLE_COUNT_1_BIT) {
+            clears.emplace_back(VkClearValue{.color = {0, 0, 0, 1}});
+        }
     }
     if (rp->depth_attachment.texture_handle != NULL_HANDLE) {
         clears.emplace_back(
             VkClearValue{.depthStencil = {.depth = 1, .stencil = 1}});
+        if (rp->sample_count != VK_SAMPLE_COUNT_1_BIT) {
+            clears.emplace_back(
+                VkClearValue{.depthStencil = {.depth = 1, .stencil = 1}});
+        }
     }
     return clears;
 }

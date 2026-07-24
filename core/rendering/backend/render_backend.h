@@ -31,7 +31,8 @@ enum class RenderBackendType { VULKAN, XR_VULKAN };
 class RenderEngine;
 class RenderBackend {
     protected:
-        inline static const u32 FRAMES_IN_FLIGHT = 3;
+        /* TODO: fix perframe buffer update bug */
+        inline static const u32 FRAMES_IN_FLIGHT = 1;
         RenderCommandQueue cmd_queue[FRAMES_IN_FLIGHT];
         std::atomic<int> current_frame = 0;
         u32 get_current_frame_index() {

@@ -42,6 +42,7 @@ struct SamplerProperty {
         SamplerWrap wrap_u = SamplerWrap::CLAMP_TO_EDGE;
         SamplerWrap wrap_v = SamplerWrap::CLAMP_TO_EDGE;
         SamplerWrap wrap_w = SamplerWrap::CLAMP_TO_EDGE;
+        bool compare_enable = false;
 };
 
 enum class PixelFormat : u8 {

@@ -104,7 +104,8 @@ RectF ShadowMap::query_uv(Handle handle) {
 
 ShadowMap::ShadowMap() {
     this->shadow_map.create(TextureType::TEXTURE_2D, resolution, resolution,
-                            PixelFormat::D32);
+                            PixelFormat::D32,
+                            SamplerProperty{.compare_enable = true});
     this->width = resolution / min_res;
     this->spaces.resize(width * width);
 }
