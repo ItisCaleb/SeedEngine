@@ -34,6 +34,14 @@ namespace Seed {
 
 ResourceLoader::~ResourceLoader() {}
 
+void ResourceLoader::handle_async_notifies() {
+    while (!notifies.is_empty()) {
+        auto notify = notifies.peek();
+        notify();
+        notifies.pop();
+    }
+}
+
 Ref<Resource> ResourceLoader::load_shader(ResourceLoader &loader,
                                           ResourceConfiguration &config,
                                           Ref<File> data) {
@@ -88,9 +96,9 @@ void ResourceLoader::load_meshes(ResourceLoader &loader,
     auto jmaterials = model_info["materials"];
     for (auto &jmaterial : jmaterials) {
         Ref<BaseMaterial> mat;
-        if(skeleton.is_valid()){
+        if (skeleton.is_valid()) {
             mat.create(System::gDefaultStorage->skeleton_mesh_shader);
-        }else{
+        } else {
             mat.create();
         }
         UUID diffuse = jmaterial["diffuse"];

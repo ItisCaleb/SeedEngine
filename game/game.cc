@@ -75,30 +75,30 @@ int main(void) {
     // //             rc->insert_transform(tf);
     // //         }
     // //     });
-    auto man = loader->load_async_from_path<SkeletonModel>(
-        "assets/.internal/scene.bin");
     auto world_setting =
         loader->load_from_path<WorldSetting>("assets/new_world.world");
     System::gGuiEngine->add_imgui(new DebugGUI);
     World *world = engine->get_world();
+    auto &ecs = world->ecs();
+
     world->load_setting(world_setting);
     world->get_point_lights().push_back(
         PointLight{Vec3{2, 10, 2}, Vec3{0.8, 0.5, 0.5}, Vec3{}});
-    Transform t;
-    t.set_position(10, 10, 10);
-    // auto model = backpack->wait();
-    // chunk->add_object<BasicModel>(t, PhysicShape{}, model, t);
-    auto &ecs = world->ecs();
-    Entity a = ecs.create_entity();
-    PhysicBoxShape box(Vec3{1, 1, 1});
-    t.set_position(5, 10, 5);
     // ecs.add_component<Transform>(a, t);
     // ecs.add_component<PhysicBody>(a, box, PhysicBodyType::DYNAMIC);
     // ecs.add_component<MeshInstance>(a, MeshInstance{.model = model});
     CameraEntity::create_entity(ecs);
-    t.set_scale(Vec3{0.1, 0.1, 0.1});
-    auto man_model = man->wait();
-    HumanEntity::create_entity(ecs, t, man_model);
+    loader->load_async_from_path<SkeletonModel>(
+        "assets/.internal/scene.bin", [](Ref<SkeletonModel> model) {
+            World *world = System::gEngine->get_world();
+            auto &ecs = world->ecs();
+            Transform t;
+            PhysicBoxShape box(Vec3{1, 1, 1});
+            t.set_position(5, 10, 5);
+            t.set_scale(Vec3{0.1, 0.1, 0.1});
+            HumanEntity::create_entity(ecs, t, model);
+        });
+
     engine->start();
     delete engine;
     return 0;

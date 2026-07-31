@@ -17,6 +17,7 @@
 #include "core/concurrency/thread_pool.h"
 #include "resource_entry.h"
 #include "core/misc/type_name.h"
+#include "core/container/ring_buffer.h"
 
 namespace Seed {
 class Animation;
@@ -36,24 +37,19 @@ class AsyncResource : public RefCounted {
         bool loaded = false;
 
     public:
-        Ref<T> wait() {
-            if (this->loaded) {
-                return this->resource;
-            }
-            System::gThreadPool->wait(this->work_id);
-            return this->resource;
-        }
         bool is_loaded() { return loaded; }
 };
 #define RESOURCE_LOADER(name)                                                 \
     Ref<Resource> name(ResourceLoader &loader, ResourceConfiguration &config, \
                        Ref<File> data);
-
+class SeedEngine;
 class ResourceLoader {
+    friend SeedEngine;
     private:
         std::unordered_map<UUID, Resource *> res_cache;
         std::unordered_map<ResourceTypeID, ResourceTypeInfo> infos;
         std::unordered_map<ResourceTypeID, Ref<Resource>> default_resources;
+        RingBuffer<std::function<void()>> notifies;
         static RESOURCE_LOADER(load_shader);
         static RESOURCE_LOADER(load_basic_model);
         static RESOURCE_LOADER(load_skeleton_model);
@@ -66,7 +62,7 @@ class ResourceLoader {
                                 std::vector<Ref<Mesh>> &meshes,
                                 Ref<Skeleton> skeleton,
                                 std::vector<Ref<Animation>> &animations);
-
+        void handle_async_notifies();
     public:
         void register_resource(Resource *res);
         void unregister_resource(Resource *res);
@@ -172,9 +168,11 @@ class ResourceLoader {
                 [=](void *) mutable {
                     async_rc->resource = load<T>(uuid);
                     async_rc->loaded = true;
-                    if (callback) {
-                        callback(async_rc->resource);
-                    }
+                    notifies.push([=]() {
+                        if (callback) {
+                            callback(async_rc->resource);
+                        }
+                    });
                 },
                 nullptr);
             return async_rc;
@@ -188,9 +186,11 @@ class ResourceLoader {
                 [=](void *) mutable {
                     async_rc->resource = load_from_path<T>(path);
                     async_rc->loaded = true;
-                    if (callback) {
-                        callback(async_rc->resource);
-                    }
+                    notifies.push([=]() {
+                        if (callback) {
+                            callback(async_rc->resource);
+                        }
+                    });
                 },
                 nullptr);
             return async_rc;

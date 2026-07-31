@@ -106,6 +106,7 @@ void SeedEngine::start() {
 
         input_handler.update();
         glfwPollEvents();
+        System::gResourceLoader->handle_async_notifies();
         System::gGuiEngine->update();
         world->tick(delta);
 
