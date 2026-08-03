@@ -92,6 +92,8 @@ class Terrain : public RefCounted {
 
     public:
         explicit Terrain();
+        static Ref<Image> create_default_heightmap();
+        static Ref<Image> create_default_controlmap();
         Ref<Material> get_material() { return material; }
         void set_material(Ref<Material> material) {
             if (!material.is_null()) {

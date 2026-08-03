@@ -17,20 +17,30 @@ class DefaultRenderer : public Renderer {
     protected:
         inline static const u32 CSM_SPLITS = 4;
 
-        /* we upload all instance to SSBO */
-        /* then upload instance indices that is visible through frustum culling
+        /*
+         * Instance data remains in its type-specific pool. The per-frame
+         * visible buffer is an indirection table containing absolute pool
+         * element indices selected by frustum culling.
+         *
+         * Each mesh records its contiguous slice in that table. Shaders use
+         * visible_offset + instance ID to resolve the actual pool element.
          */
         struct MeshInstance {
                 Ref<Mesh> mesh;
+                /* First entry of this mesh's camera-visible slice. */
                 u32 visible_offset;
+                /* Number of entries in the camera-visible slice. */
                 u32 visible_size;
+                /* Depths in the same order as the visible entries. */
                 std::vector<f32> depth;
         };
 
         struct ShadowMeshInstance {
                 Ref<Mesh> mesh;
+                /* One visible-buffer slice per CSM split. */
                 std::vector<u32> visible_offset;
                 std::vector<u32> visible_size;
+                /* Culling depths appended in CSM split order. */
                 std::vector<f32> depth;
         };
         /* for debugging */

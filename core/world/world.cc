@@ -21,7 +21,7 @@
 
 namespace Seed {
 
-WorldChunk::WorldChunk(Ref<Terrain> terrain) : terrain(terrain) {}
+WorldChunk::WorldChunk() {}
 
 PhysicBody WorldChunk::create_object_physic(const Transform &transform,
                                             const PhysicShape shape) {
@@ -164,10 +164,46 @@ void World::load_setting(Ref<WorldSetting> setting) {
     if (setting.is_null()) return;
 
     this->setting = setting;
+    if (System::gResourceLoader == nullptr) return;
     ResourceLoader *loader = System::gResourceLoader;
-    if (loader == nullptr) return;
 
     point_lights.clear();
+    terrain->reset_texture_palette();
+    for (u32 layer = 0; layer < setting->terrain_textures.size() &&
+                        layer < TERRAIN_TEXTURE_LAYERS;
+         layer++) {
+        if (setting->terrain_textures[layer].is_null()) continue;
+        terrain->update_texture_layer(
+            layer, loader->load_image_to_upload(
+                       setting->terrain_textures[layer], true));
+    }
+    for (u32 layer = 0; layer < setting->terrain_normals.size() &&
+                        layer < TERRAIN_TEXTURE_LAYERS;
+         layer++) {
+        if (setting->terrain_normals[layer].is_null()) continue;
+        terrain->update_normal_layer(
+            layer, loader->load_image_to_upload(setting->terrain_normals[layer],
+                                                true));
+    }
+
+    terrain->clear_chunks();
+    Ref<Image> default_heightmap = Terrain::create_default_heightmap();
+    Ref<Image> default_controlmap = Terrain::create_default_controlmap();
+
+    for (u32 chunk_index = 0; chunk_index < setting->chunks.size() &&
+                              chunk_index < TERRAIN_CHUNK_LAYERS;
+         chunk_index++) {
+        const ChunkSetting &chunk = setting->chunks[chunk_index];
+        Ref<Image> heightmap = loader->load_image(chunk.height_map);
+        Ref<Image> controlmap = loader->load_image(chunk.control_map);
+        if (heightmap.is_null()) {
+            heightmap = default_heightmap;
+        }
+        if (controlmap.is_null()) {
+            controlmap = default_controlmap;
+        }
+        terrain->add_chunk(chunk.x, chunk.y, heightmap, controlmap);
+    }
 
     Ref<TextureCubemap> sky_cubemap = loader->load_cubemap(
         2048, 2048, setting->sky.right, setting->sky.left, setting->sky.up,
@@ -188,11 +224,6 @@ void World::load_setting(Ref<WorldSetting> setting) {
                                       light.specular);
         }
     }
-}
-
-void World::set_terrain(Ref<Terrain> terrain) {
-    if (terrain.is_null()) return;
-    this->terrain = terrain;
 }
 
 }  // namespace Seed

@@ -92,7 +92,7 @@ void DefaultRenderer::prepare_lights() {
         csm_data->shadow_uv[i] =
             fd.shadow_map.query_uv(fd.shadow_map_dir_handle[i]);
     }
-    /* fill cams[5 ~ 40] to directional light*/
+    /* fill cams[5 ~ 40] to point lights */
     for (u32 i = 0; i < 6; i++) {
         if (i >= point_lights.size()) {
             break;
@@ -112,6 +112,11 @@ void DefaultRenderer::prepare_meshes() {
     FrameGlobal &g_frame = System::gRenderEngine->get_frame_global();
 
     MeshStorage *mesh_storage = System::gRenderEngine->get_mesh_storage();
+    /*
+     * Camera and CSM visibility are flattened into one per-frame table.
+     * Entries are absolute element indices into the corresponding instance
+     * pool, not indices local to a mesh or InstanceBatch.
+     */
     std::vector<u32> visible_instances;
 
     u32 last_visible_offset = 0;
@@ -135,12 +140,15 @@ void DefaultRenderer::prepare_meshes() {
         }
 
         const Frustum &cam_frustum = cam.get_frustum();
-        InstanceBatchPool *pool =
-            System::gRenderEngine->get_instance_pool(instance);
+        /* Culling requires the batch to have a valid pool allocation. */
         instance->upload();
+        /* frustum_culling appends, so capture the slice start beforehand. */
         color_mesh->visible_offset = visible_instances.size();
-        instance->frustum_culling(cam_frustum, bounding_box, visible_instances,
-                                  color_mesh->depth);
+        instance->frustum_culling(
+            cam_frustum, bounding_box, [&](const VisibleInstance &instance) {
+                visible_instances.push_back(instance.gpu_index);
+                color_mesh->depth.push_back(instance.depth);
+            });
         color_mesh->visible_size =
             visible_instances.size() - color_mesh->visible_offset;
 
@@ -150,16 +158,22 @@ void DefaultRenderer::prepare_meshes() {
                 this->fd.shadow_meshes.emplace_back(
                     ShadowMeshInstance{.mesh = mesh});
             for (u32 i = 0; i < CSM_SPLITS; i++) {
+                /* Each cascade appends an independent slice to the same table.
+                 */
                 shadow_mesh.visible_offset.push_back(visible_instances.size());
-                instance->frustum_culling(dir_light.get_frustum(i),
-                                          bounding_box, visible_instances,
-                                          shadow_mesh.depth);
+                instance->frustum_culling(
+                    dir_light.get_frustum(i), bounding_box,
+                    [&](const VisibleInstance &instance) {
+                        visible_instances.push_back(instance.gpu_index);
+                        shadow_mesh.depth.push_back(instance.depth);
+                    });
                 shadow_mesh.visible_size.push_back(
                     visible_instances.size() -
                     shadow_mesh.visible_offset.back());
             }
         }
     }
+    /* Draw calls refer to slices in this table through visible_offset. */
     RHI::update(g_frame.visible, 0, sizeof(u32) * visible_instances.size(),
                 visible_instances.data());
 }
@@ -231,6 +245,10 @@ void DefaultRenderer::ShadowPass::execute(RenderCommandDispatcher &dp,
             if (mesh.visible_size[i] == 0) continue;
             shadow_map_state.set_viewport(&shadow_map_vps[i], true);
             dp.set_states(shadow_map_state);
+            /*
+             * The shader resolves gVisible[instance ID + visible_offset].
+             * camera selects the matching CSM light-space camera.
+             */
             mesh_builder.push_constant(mesh.visible_offset[i]);
             mesh_builder.push_constant(i + 1);
             mesh_builder.set_instance(mesh.visible_size[i], 0);
@@ -271,6 +289,7 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
                 }
                 last_material = material;
             }
+            /* Depth and color passes reuse the same camera-visible slice. */
             mesh_builder.push_constant(mesh.visible_offset);
             mesh_builder.push_constant(0);
             mesh_builder.bind_vertex_data(mesh.mesh->vertex_data);
@@ -334,6 +353,10 @@ void DefaultRenderer::ColorPass::execute(RenderCommandDispatcher &dp,
         mesh_builder.bind_index_data(mesh.mesh->lod_indices[0]);
         mesh_builder.set_depth_test(CompareOP::LESS_OR_EQUAL);
 
+        /*
+         * Transparent instances are submitted separately for depth sorting.
+         * first_instance selects one entry inside this mesh's visible slice.
+         */
         for (u32 i = 0; i < mesh.visible_size; i++) {
             mesh_builder.set_instance(1, i);
 

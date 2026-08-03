@@ -114,6 +114,20 @@ AABB TerrainInstanceBatch::translate_bounding_box(const AABB &bounding_box,
 
 TerrainInstanceBatch::TerrainInstanceBatch() {}
 
+Ref<Image> Terrain::create_default_heightmap() {
+    Ref<Image> image;
+    image.create(PixelFormat::RG, HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
+    image->fill(Color{64, 64}, HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
+    return image;
+}
+
+Ref<Image> Terrain::create_default_controlmap() {
+    Ref<Image> image;
+    image.create(PixelFormat::RGBA, HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
+    image->fill(Color{0, 0, 0, 0}, HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
+    return image;
+}
+
 void Terrain::build_mesh() {
     u32 chunk_cnt = 16;
     u32 vertex_row_cnt = chunk_cnt + 1;

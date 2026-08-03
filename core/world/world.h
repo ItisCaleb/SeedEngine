@@ -16,9 +16,9 @@
 #include <vector>
 
 namespace Seed {
+
 class WorldChunk : public RefCounted {
     private:
-        Ref<Terrain> terrain;
         AABB aabb;
         std::vector<PointLight> point_lights;
         /* static objects, since they don't move at all, we won't store
@@ -32,7 +32,7 @@ class WorldChunk : public RefCounted {
                                      Ref<InstanceBatch> instance);
 
     public:
-        WorldChunk(Ref<Terrain> terrain);
+        WorldChunk();
         void add_point_light(const PointLight &light) {
             this->point_lights.push_back(light);
         }
@@ -61,7 +61,6 @@ class WorldChunk : public RefCounted {
             }
         }
 
-        Ref<Terrain> get_terrain() { return terrain; }
         ~WorldChunk();
 };
 
@@ -79,10 +78,10 @@ class World {
 
         EntityManager entity_manager;
         void register_engine_components();
-        void register_model_instance(Ref<Model> model,
-                                     Ref<InstanceBatch> instance);
 
     public:
+        void register_model_instance(Ref<Model> model,
+                                     Ref<InstanceBatch> instance);
         Ref<WorldSetting> get_setting() const { return setting; }
         Ref<Sky> get_sky();
         Ref<Terrain> get_terrain() const { return terrain; }
@@ -97,7 +96,6 @@ class World {
 
         World(/* args */);
         void load_setting(Ref<WorldSetting> setting);
-        void set_terrain(Ref<Terrain> terrain);
         ~World() = default;
 };
 

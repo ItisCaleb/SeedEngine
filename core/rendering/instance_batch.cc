@@ -138,32 +138,6 @@ void InstanceBatch::upload() {
     dirty = false;
 }
 
-void InstanceBatch::frustum_culling(const Frustum &frustum,
-                                    const AABB &bounding_box,
-                                    std::vector<u32> &instance_ids,
-                                    std::vector<f32> &depths) {
-    u32 begin_idx = 0;
-    if (pool && instance_handle != NULL_HANDLE) {
-        begin_idx = pool->query(instance_handle).idx;
-    }
-    u32 stride = this->element_per_instance();
-    if (stride == 0) return;
-    for (u32 i = 0; i < this->size();) {
-        AABB result = this->translate_bounding_box(bounding_box, i);
-        /* frustum culling */
-        if (frustum.within_frustum(result)) {
-            if (System::gEngine->get_debug_flag() &
-                EngineConfig::BOUNDING_BOX) {
-                System::gDebugDrawer->draw_aabb(result);
-            }
-            /* push instance indices */
-            instance_ids.push_back(begin_idx + i);
-            depths.push_back(frustum.calculate_depth(result.center));
-        }
-        i += this->element_per_instance();
-    }
-};
-
 InstanceBatch::~InstanceBatch() {
     if (this->instance_handle != NULL_HANDLE) {
         pool->free(this->instance_handle);

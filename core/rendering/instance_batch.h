@@ -44,6 +44,12 @@ class InstanceBatchPool {
         ~InstanceBatchPool();
 };
 
+struct VisibleInstance {
+        u32 gpu_index;
+        u32 instance_index;
+        f32 depth;
+};
+
 /*
  * Stores the CPU representation of a group of logical instances.
  *
@@ -94,9 +100,29 @@ class InstanceBatch : public RefCounted {
          * The supplied output vectors are appended to and are not cleared.
          * upload() must have established a valid pool allocation first.
          */
+        template <typename Fn>
         void frustum_culling(const Frustum &frustum, const AABB &bounding_box,
-                             std::vector<u32> &instance_ids,
-                             std::vector<f32> &depths);
+                             Fn &&callback) {
+            u32 begin_idx = 0;
+            if (pool && instance_handle != NULL_HANDLE) {
+                begin_idx = pool->query(instance_handle).idx;
+            }
+            u32 stride = this->element_per_instance();
+            if (stride == 0) return;
+            for (u32 i = 0; i < this->size(); i++) {
+                AABB result = this->translate_bounding_box(bounding_box, i);
+                /* frustum culling */
+                if (!frustum.within_frustum(result)) continue;
+                if (System::gEngine->get_debug_flag() &
+                    EngineConfig::BOUNDING_BOX) {
+                    System::gDebugDrawer->draw_aabb(result);
+                }
+                callback(VisibleInstance{
+                    .gpu_index = begin_idx + i * stride,
+                    .instance_index = i,
+                    .depth = frustum.calculate_depth(result.center)});
+            }
+        }
 
         /*
          * Build the contiguous upload regions for the current CPU data.
