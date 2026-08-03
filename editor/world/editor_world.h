@@ -17,19 +17,20 @@ class World;
 
 enum class TerrainTextureKind { Diffuse, Normal };
 
-class EditorWorld {
+class EditorWorld : public RefCounted {
     private:
-        World *world;
         ResourceEntry *entry;
         Ref<EditorTerrain> terrain;
         std::vector<StaticObject> objects;
+        World *world;
 
-        void load_terrain();
-        void upload_terrain_palette();
+        World* get_world() const;
 
     public:
-        EditorWorld(World &world, ResourceEntry *entry);
+        EditorWorld(ResourceEntry *entry);
         ~EditorWorld() = default;
+
+        void register_editor_components();
 
         void reload();
         void save() const;
@@ -40,15 +41,13 @@ class EditorWorld {
                                     TerrainTextureKind kind);
         void rebuild_static_models();
         bool terrain_chunk_exists_at(i32 x, i32 y) const;
-        bool has_dirty_terrain_maps() const;
         void save_dirty_terrain_maps();
+        // void add_static_object(const Transform  );
 
-        WorldSetting &get_setting();
-        const WorldSetting &get_setting() const;
-        EditorTerrain *get_terrain() { return *terrain; }
+        Ref<WorldSetting> get_setting() const;
+        Ref<EditorTerrain> get_terrain() const { return terrain; }
         std::vector<ChunkSetting> &get_chunks();
         std::vector<StaticObject> &get_static_objects() { return objects; }
-        const std::vector<ChunkSetting> &get_chunks() const;
         bool add_new_chunk(i32 x, i32 y);
         void clear_tiles();
 };

@@ -1,5 +1,8 @@
 #include "editor_terrain.h"
 
+#include <algorithm>
+
+#include "core/resource/default_storage.h"
 #include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
 #include "core/system.h"
@@ -27,6 +30,30 @@ EditorTerrain::EditorTerrain() {
     terrain->set_material(mat);
 }
 
+void EditorTerrain::load_chunks(const std::vector<ChunkSetting> &chunks) {
+    tile_map.clear();
+    if (System::gResourceLoader == nullptr) return;
+    ResourceLoader &loader = *System::gResourceLoader;
+
+    const u32 chunk_count =
+        std::min((u32)chunks.size(), (u32)TERRAIN_CHUNK_LAYERS);
+    for (u32 chunk_index = 0; chunk_index < chunk_count; chunk_index++) {
+        const ChunkSetting &chunk = chunks[chunk_index];
+        Ref<Image> heightmap = loader.load_image(chunk.height_map);
+        Ref<Image> controlmap = loader.load_image(chunk.control_map);
+        if (heightmap.is_null()) {
+            heightmap = Terrain::create_default_heightmap();
+        }
+        if (controlmap.is_null()) {
+            controlmap = Terrain::create_default_controlmap();
+        }
+        tile_map.add_tile(chunk.x, chunk.y, heightmap, controlmap);
+    }
+
+    sync_loaded_tile_seams();
+    clear_dirty_maps();
+}
+
 void EditorTerrain::add_chunk(i32 x, i32 y, Ref<Image> heightmap,
                               Ref<Image> controlmap) {
     tile_map.add_tile(x, y, heightmap, controlmap);
@@ -45,10 +72,6 @@ bool EditorTerrain::update_texture_layer(u32 layer,
 
 bool EditorTerrain::update_normal_layer(u32 layer, RHI::UpdateBufferInfo info) {
     return terrain->update_normal_layer(layer, info);
-}
-
-void EditorTerrain::reset_texture_palette() {
-    terrain->reset_texture_palette();
 }
 
 bool EditorTerrain::chunk_exists_at(i32 x, i32 y) const {

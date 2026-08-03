@@ -8,18 +8,16 @@
 #include "core/gui/gui.h"
 #include "core/math/vec3.h"
 #include "core/resource/world_setting.h"
-#include "editor_terrain.h"
+#include "editor_world.h"
+#include "terrain_brush.h"
 
 namespace Seed {
 
-class EditorWorld;
 class WorldRenderer;
 
 enum class WorldEditorMode { World, Terrain };
 
 class WorldEditor : public RmlGUI {
-        friend WorldRenderer;
-
     private:
         struct SceneObjectView {
                 KString name;
@@ -34,7 +32,7 @@ class WorldEditor : public RmlGUI {
                 bool selected = false;
         };
 
-        EditorWorld *current_world = nullptr;
+        Ref<EditorWorld> current_world;
         WorldRenderer *renderer = nullptr;
         WorldEditorMode active_mode = WorldEditorMode::World;
         TerrainBrush brush_type = TerrainBrush::Raise;
@@ -45,8 +43,6 @@ class WorldEditor : public RmlGUI {
         i32 selected_static_chunk = -1;
         i32 selected_static_object = -1;
         std::string status_text;
-        KString dirty_maps_text;
-        KString viewport_message;
         KString world_text;
         KString selected_name;
         i32 selected_x = 0;
@@ -57,11 +53,6 @@ class WorldEditor : public RmlGUI {
         std::vector<TerrainPaletteView> terrain_palette;
         UUID selected_terrain_diffuse;
         UUID selected_terrain_normal;
-        bool has_world = false;
-        bool has_status = false;
-        bool has_selected_object = false;
-        bool show_scene_empty = true;
-        bool show_viewport_empty = true;
         bool show_clear_tiles = false;
         bool view_model_types_registered = false;
         f32 viewport_scroll_delta = 0.0f;
@@ -71,7 +62,6 @@ class WorldEditor : public RmlGUI {
         void sync_view_model();
         void dirty_view_model();
         void set_status(std::string status);
-        void sync_dirty_maps();
         void reset_selection();
         void rml_set_mode(RML_EVENT_ARGS);
         void rml_set_tool(RML_EVENT_ARGS);
@@ -97,6 +87,7 @@ class WorldEditor : public RmlGUI {
         void sync_scene_view_model();
         void sync_selected_object_view_model();
         void sync_terrain_palette_view_model();
+        bool selected_object_exists() const;
         bool viewport_event_to_pixel(Rml::Event &event, i32 &image_x,
                                      i32 &image_y) const;
         bool pick_world_at_pixel(i32 image_x, i32 image_y, i32 &world_x,
@@ -112,12 +103,10 @@ class WorldEditor : public RmlGUI {
 
     public:
         void init();
-        ~WorldEditor();
         bool load_world(const UUID uuid);
         bool is_viewport_hovered() const;
         bool get_camera_focus(Vec3 &target) const;
         f32 consume_viewport_scroll();
-        EditorWorld *get_current_world() { return current_world; }
 };
 
 }  // namespace Seed

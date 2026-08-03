@@ -7,7 +7,7 @@
 #include "core/resource/resource.h"
 #include "core/resource/world_setting.h"
 #include "core/world/terrain.h"
-#include "terrain_brush.h"
+#include "editor/world/terrain_brush.h"
 
 namespace Seed {
 
@@ -22,6 +22,7 @@ class EditorTerrain : public Resource {
 
     public:
         EditorTerrain();
+        void load_chunks(const std::vector<ChunkSetting> &chunks);
         void add_chunk(i32 x, i32 y, Ref<Image> height_map,
                        Ref<Image> control_map);
         void clear_chunks();
@@ -29,7 +30,6 @@ class EditorTerrain : public Resource {
         void sync_loaded_tile_seams();
         bool update_texture_layer(u32 layer, RHI::UpdateBufferInfo info);
         bool update_normal_layer(u32 layer, RHI::UpdateBufferInfo info);
-        void reset_texture_palette();
 
         bool chunk_exists_at(i32 x, i32 y) const;
         bool read_height(i32 world_x, i32 world_y, u8 &height);
@@ -40,7 +40,9 @@ class EditorTerrain : public Resource {
         void clear_dirty_maps();
         void save_dirty_maps(const std::vector<ChunkSetting> &chunks);
 
-        Ref<Terrain> get_terrain() const { return terrain; }
+        Ref<Terrain> get_terrain() const {
+            return terrain;
+        }
         ~EditorTerrain() = default;
 };
 }  // namespace Seed

@@ -403,6 +403,11 @@
       "config": {}
     },
     {
+      "UUID": "77f81afb-6da8-47ce-b2e6-e266d67a3d1a",
+      "resource_type_id": 10849148638007426714,
+      "path": "assets\\new_world.world"
+    },
+    {
       "UUID": "a19f86e1-366d-47a0-b2ff-a507c6d19d89",
       "resource_type_id": 5244098326367020329,
       "path": "assets\\.internal\\new_world_1_1.png",

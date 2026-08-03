@@ -66,8 +66,6 @@ void register_enum(Rml::DataModelConstructor &constructor) {
 
 }  // namespace
 
-WorldEditor::~WorldEditor() { delete current_world; }
-
 void WorldEditor::rebind_view_model() {
     if (!view_model) return;
 
@@ -82,8 +80,7 @@ void WorldEditor::rebind_view_model() {
 bool WorldEditor::load_world(const UUID uuid) {
     set_status("");
 
-    delete current_world;
-    current_world = nullptr;
+    current_world = {};
     reset_selection();
 
     ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
@@ -94,15 +91,14 @@ bool WorldEditor::load_world(const UUID uuid) {
         return false;
     }
 
-    World *world = System::gEngine->get_world();
-    if (world == nullptr) {
+    if (System::gEngine == nullptr || System::gEngine->get_world() == nullptr) {
         set_status("The runtime world is not available.");
         sync_view_model();
         dirty_view_model();
         return false;
     }
 
-    current_world = new EditorWorld(*world, entry);
+    current_world.create(entry);
     rebind_view_model();
     if (System::gEditor != nullptr) {
         System::gEditor->set_last_open_world(entry->uuid);
@@ -135,21 +131,18 @@ bool WorldEditor::is_viewport_hovered() const {
 }
 
 bool WorldEditor::get_camera_focus(Vec3 &target) const {
-    if (current_world == nullptr) return false;
+    if (current_world.is_null()) return false;
 
-    const std::vector<ChunkSetting> &chunks = current_world->get_chunks();
-    if (selected_static_chunk >= 0 && selected_static_object >= 0 &&
-        selected_static_chunk < (i32)chunks.size()) {
+    if (selected_object_exists()) {
+        const std::vector<ChunkSetting> &chunks = current_world->get_chunks();
         const ChunkSetting &chunk = chunks[(u32)selected_static_chunk];
-        if (selected_static_object < (i32)chunk.static_objects.size()) {
-            const StaticObjectSetting &object =
-                chunk.static_objects[(u32)selected_static_object];
-            target = Vec3{(f32)object.x, (f32)object.y, (f32)object.z};
-            return true;
-        }
+        const StaticObjectSetting &object =
+            chunk.static_objects[(u32)selected_static_object];
+        target = Vec3{(f32)object.x, (f32)object.y, (f32)object.z};
+        return true;
     }
 
-    if (!last_pick_valid || current_world->get_terrain() == nullptr) {
+    if (!last_pick_valid || current_world->get_terrain().is_null()) {
         return false;
     }
     u8 height = 0;
@@ -169,7 +162,7 @@ f32 WorldEditor::consume_viewport_scroll() {
 }
 
 bool WorldEditor::chunk_exists_at(i32 chunk_x, i32 chunk_y) const {
-    return current_world != nullptr &&
+    return current_world.is_valid() &&
            current_world->terrain_chunk_exists_at(chunk_x, chunk_y);
 }
 
@@ -180,13 +173,13 @@ KString WorldEditor::static_model_label(UUID uuid) const {
 }
 
 void WorldEditor::select_static_object(u32 chunk_index, u32 object_index) {
-    if (current_world == nullptr) return;
+    if (current_world.is_null()) return;
     selected_static_chunk = (i32)chunk_index;
     selected_static_object = (i32)object_index;
 }
 
 bool WorldEditor::save_current_world() {
-    if (current_world == nullptr) return false;
+    if (current_world.is_null()) return false;
     current_world->save_dirty_terrain_maps();
     current_world->save();
 
@@ -198,7 +191,7 @@ bool WorldEditor::save_current_world() {
 }
 
 bool WorldEditor::add_chunk_at(i32 chunk_x, i32 chunk_y) {
-    if (current_world == nullptr) return false;
+    if (current_world.is_null()) return false;
     if (chunk_exists_at(chunk_x, chunk_y)) {
         set_status("Terrain tile already exists.");
         return false;
@@ -218,7 +211,7 @@ bool WorldEditor::add_chunk_at(i32 chunk_x, i32 chunk_y) {
 }
 
 void WorldEditor::add_chunk() {
-    if (current_world == nullptr) return;
+    if (current_world.is_null()) return;
     const std::vector<ChunkSetting> &chunks = current_world->get_chunks();
     if (chunks.empty()) {
         add_chunk_at(0, 0);
@@ -239,7 +232,7 @@ void WorldEditor::add_chunk() {
 }
 
 void WorldEditor::clear_tiles() {
-    if (current_world == nullptr || System::gEditor == nullptr) return;
+    if (current_world.is_null() || System::gEditor == nullptr) return;
 
     std::vector<UUID> tile_assets;
     tile_assets.reserve(current_world->get_chunks().size() * 2);
@@ -267,17 +260,9 @@ void WorldEditor::clear_tiles() {
 
 void WorldEditor::set_status(std::string status) {
     status_text = std::move(status);
-    has_status = !status_text.empty();
     if (!view_model) return;
     view_model.DirtyVariable("status");
     view_model.DirtyVariable("has_status");
-}
-
-void WorldEditor::sync_dirty_maps() {
-    dirty_maps_text =
-        current_world != nullptr && current_world->has_dirty_terrain_maps()
-            ? "Yes"
-            : "No";
 }
 
 void WorldEditor::reset_selection() {
@@ -289,10 +274,7 @@ void WorldEditor::reset_selection() {
 
 void WorldEditor::sync_scene_view_model() {
     scene_objects.clear();
-    if (current_world == nullptr) {
-        show_scene_empty = true;
-        return;
-    }
+    if (current_world.is_null()) return;
 
     const std::vector<ChunkSetting> &chunks = current_world->get_chunks();
     for (u32 chunk_index = 0; chunk_index < chunks.size(); chunk_index++) {
@@ -311,37 +293,26 @@ void WorldEditor::sync_scene_view_model() {
             scene_objects.push_back(view);
         }
     }
-
-    show_scene_empty = scene_objects.empty();
 }
 
 void WorldEditor::sync_selected_object_view_model() {
-    has_selected_object = false;
     selected_name.clear();
     selected_x = 0;
     selected_y = 0;
     selected_z = 0;
     selected_asset.clear();
 
-    if (current_world == nullptr || selected_static_chunk < 0 ||
-        selected_static_object < 0) {
-        return;
-    }
+    if (!selected_object_exists()) return;
 
-    std::vector<ChunkSetting> &chunks = current_world->get_chunks();
-    if (selected_static_chunk >= (i32)chunks.size()) return;
-
-    ChunkSetting &chunk = chunks[(u32)selected_static_chunk];
-    if (selected_static_object >= (i32)chunk.static_objects.size()) return;
-
-    StaticObjectSetting &object =
+    const std::vector<ChunkSetting> &chunks = current_world->get_chunks();
+    const ChunkSetting &chunk = chunks[(u32)selected_static_chunk];
+    const StaticObjectSetting &object =
         chunk.static_objects[(u32)selected_static_object];
     selected_name = object.name;
     selected_x = object.x;
     selected_y = object.y;
     selected_z = object.z;
     selected_asset = static_model_label(object.model);
-    has_selected_object = true;
 }
 
 void WorldEditor::sync_terrain_palette_view_model() {
@@ -358,42 +329,47 @@ void WorldEditor::sync_terrain_palette_view_model() {
         selected_terrain_normal = {};
         return;
     }
-    if (current_world == nullptr) {
+    if (current_world.is_null()) {
         selected_terrain_diffuse = {};
         selected_terrain_normal = {};
         return;
     }
-    const WorldSetting &setting = current_world->get_setting();
+    Ref<WorldSetting> setting = current_world->get_setting();
 
-    selected_terrain_diffuse = (u32)slot < setting.terrain_textures.size()
-                                   ? setting.terrain_textures[(u32)slot]
+    selected_terrain_diffuse = (u32)slot < setting->terrain_textures.size()
+                                   ? setting->terrain_textures[(u32)slot]
                                    : UUID{};
-    selected_terrain_normal = (u32)slot < setting.terrain_normals.size()
-                                  ? setting.terrain_normals[(u32)slot]
+    selected_terrain_normal = (u32)slot < setting->terrain_normals.size()
+                                  ? setting->terrain_normals[(u32)slot]
                                   : UUID{};
 }
 
 void WorldEditor::sync_view_model() {
-    has_world = current_world != nullptr;
-    has_status = !status_text.empty();
-    sync_dirty_maps();
-    if (current_world == nullptr) {
-        viewport_message = "Open a world from Assets.";
+    if (current_world.is_null()) {
         world_text = "-";
-        show_viewport_empty = true;
         sync_scene_view_model();
         sync_selected_object_view_model();
         sync_terrain_palette_view_model();
         return;
     }
 
-    show_viewport_empty = current_world->get_chunks().empty();
-    viewport_message = show_viewport_empty ? "Add a terrain tile." : "";
     if (!last_pick_valid) world_text = "-";
 
     sync_scene_view_model();
     sync_selected_object_view_model();
     sync_terrain_palette_view_model();
+}
+
+bool WorldEditor::selected_object_exists() const {
+    if (current_world.is_null() || selected_static_chunk < 0 ||
+        selected_static_object < 0) {
+        return false;
+    }
+
+    const std::vector<ChunkSetting> &chunks = current_world->get_chunks();
+    if (selected_static_chunk >= (i32)chunks.size()) return false;
+    return selected_static_object <
+           (i32)chunks[(u32)selected_static_chunk].static_objects.size();
 }
 
 void WorldEditor::dirty_view_model() {
@@ -545,14 +521,14 @@ void WorldEditor::rml_confirm_clear_tiles(RML_EVENT_ARGS) {
 }
 
 void WorldEditor::rml_commit_world_settings(RML_EVENT_ARGS) {
-    if (current_world == nullptr) return;
+    if (current_world.is_null()) return;
 
     current_world->apply_directional_light();
     set_status("World settings updated.");
 }
 
 void WorldEditor::rml_set_skybox_face(RML_EVENT_ARGS) {
-    if (current_world == nullptr || args.empty()) return;
+    if (current_world.is_null() || args.empty()) return;
 
     const Rml::String face_name = args[0].Get<Rml::String>("");
     const SkyboxFaceBinding *face = find_skybox_face(face_name);
@@ -575,7 +551,6 @@ void WorldEditor::rml_set_skybox_face(RML_EVENT_ARGS) {
         set_status(
             fmt::format("Skybox {} face updated but not saved.", face_name));
     }
-    sync_dirty_maps();
     if (view_model) {
         view_model.DirtyVariable("world");
         view_model.DirtyVariable("dirty_maps");
@@ -598,7 +573,7 @@ void WorldEditor::rml_select_terrain_layer(RML_EVENT_ARGS) {
 }
 
 void WorldEditor::rml_set_terrain_texture(RML_EVENT_ARGS) {
-    if (current_world == nullptr || args.empty()) return;
+    if (current_world.is_null() || args.empty()) return;
 
     const i32 slot = brush_setting.terrain_palette_slot;
     if (slot < 0 || slot >= TERRAIN_TEXTURE_LAYERS) return;
@@ -658,17 +633,10 @@ void WorldEditor::rml_select_scene_object(RML_EVENT_ARGS) {
 }
 
 void WorldEditor::rml_commit_selected_object(RML_EVENT_ARGS) {
-    if (current_world == nullptr || selected_static_chunk < 0 ||
-        selected_static_object < 0) {
-        return;
-    }
+    if (!selected_object_exists()) return;
 
     std::vector<ChunkSetting> &chunks = current_world->get_chunks();
-    if (selected_static_chunk >= (i32)chunks.size()) return;
-
     ChunkSetting &chunk = chunks[(u32)selected_static_chunk];
-    if (selected_static_object >= (i32)chunk.static_objects.size()) return;
-
     StaticObjectSetting &object =
         chunk.static_objects[(u32)selected_static_object];
     object.name = selected_name;
@@ -688,13 +656,12 @@ void WorldEditor::rml_viewport_pick(RML_EVENT_ARGS) {
         brush_type != TerrainBrush::Pick &&
         System::gInput->is_mouse_pressed(MouseEvent::LEFT)) {
         bool changed = false;
-        if (current_world != nullptr &&
-            current_world->get_terrain() != nullptr) {
+        if (current_world.is_valid() &&
+            current_world->get_terrain().is_valid()) {
             changed = current_world->get_terrain()->apply_brush(
                 last_pick_x, last_pick_y, brush_type, brush_setting);
         }
         if (changed) {
-            sync_dirty_maps();
             if (view_model) view_model.DirtyVariable("dirty_maps");
         }
     }
@@ -762,8 +729,6 @@ void WorldEditor::bind_view_model_values(
         "world", System::gEngine->get_world()->get_setting().ptr());
     constructor.Bind("editor_mode", &active_mode);
     constructor.Bind("status", &status_text);
-    constructor.Bind("dirty_maps", &dirty_maps_text);
-    constructor.Bind("viewport_message", &viewport_message);
     constructor.Bind("world_text", &world_text);
     constructor.Bind("brush_setting", &brush_setting);
     constructor.Bind("scene_objects", &scene_objects);
@@ -776,12 +741,40 @@ void WorldEditor::bind_view_model_values(
     constructor.Bind("selected_z", &selected_z);
     constructor.Bind("selected_asset", &selected_asset);
     constructor.Bind("terrain_tool", &brush_type);
-    constructor.Bind("has_world", &has_world);
-    constructor.Bind("has_status", &has_status);
-    constructor.Bind("has_selected_object", &has_selected_object);
-    constructor.Bind("show_scene_empty", &show_scene_empty);
-    constructor.Bind("show_viewport_empty", &show_viewport_empty);
     constructor.Bind("show_clear_tiles", &show_clear_tiles);
+    constructor.BindFunc("dirty_maps", [this](Rml::Variant &value) {
+        bool has_dirty_maps = false;
+        if (current_world.is_valid()) {
+            Ref<EditorTerrain> terrain = current_world->get_terrain();
+            has_dirty_maps =
+                terrain.is_valid() && terrain->has_dirty_maps();
+        }
+        value = has_dirty_maps ? "Yes" : "No";
+    });
+    constructor.BindFunc("viewport_message", [this](Rml::Variant &value) {
+        if (current_world.is_null()) {
+            value = "Open a world from Assets.";
+        } else {
+            value = current_world->get_chunks().empty()
+                        ? "Add a terrain tile."
+                        : "";
+        }
+    });
+    constructor.BindFunc("has_world", [this](Rml::Variant &value) {
+        value = current_world.is_valid();
+    });
+    constructor.BindFunc("has_status", [this](Rml::Variant &value) {
+        value = !status_text.empty();
+    });
+    constructor.BindFunc("has_selected_object", [this](Rml::Variant &value) {
+        value = selected_object_exists();
+    });
+    constructor.BindFunc("show_scene_empty", [this](Rml::Variant &value) {
+        value = scene_objects.empty();
+    });
+    constructor.BindFunc("show_viewport_empty", [this](Rml::Variant &value) {
+        value = current_world.is_null() || current_world->get_chunks().empty();
+    });
 }
 
 void WorldEditor::bind_view_model_events(

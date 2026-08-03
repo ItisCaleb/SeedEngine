@@ -30,6 +30,7 @@ class WorldRenderer : public DefaultRenderer {
         WorldRenderer(u32 screen_w, u32 screen_h);
         void reset_size(u32 screen_w, u32 screen_h);
         void init(Window *window) override;
+        void preprocess() override;
         void _process(RenderCommandDispatcher &dp) override;
         Ref<Texture> get_screen_texture() const { return screen_tex; }
         Ref<MappableTexture> get_picking_texture() const { return picking_tex; }
