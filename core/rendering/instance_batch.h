@@ -6,6 +6,7 @@
 #include "core/transform.h"
 #include "core/rendering/rhi/render_resource.h"
 #include "core/misc/type_name.h"
+#include "core/container/sparse_set.h"
 #include <vector>
 #include <list>
 
@@ -180,12 +181,14 @@ class InstanceBase : public InstanceBatch {
  */
 class StaticInstanceBatch : public InstanceBase<StaticInstanceBatch> {
     private:
-        std::vector<Mat4> world_matrices;
+        SparseSet<Mat4> world_matrices;
 
     public:
         u32 size() override { return world_matrices.size(); }
         /* Append one transform and defer the GPU copy until upload(). */
-        void insert_transform(Transform &transform);
+        Handle insert(const Transform &transform);
+        void update(Handle handle, const Transform &transform);
+        void remove(Handle handle);
         void prepare_uploads(
             std::vector<RHI::UpdateBufferInfo> &uploads) override;
         AABB translate_bounding_box(const AABB &bounding_box, u32 i) override;

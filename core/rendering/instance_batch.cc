@@ -145,10 +145,25 @@ InstanceBatch::~InstanceBatch() {
     }
 }
 
-void StaticInstanceBatch::insert_transform(Transform &transform) {
-    this->world_matrices.push_back(transform.get_model_matrix());
+Handle StaticInstanceBatch::insert(const Transform &transform) {
+    Handle handle = this->world_matrices.insert(transform.get_model_matrix());
+    mark_dirty();
+    return handle;
+}
+
+void StaticInstanceBatch::update(Handle handle, const Transform &transform) {
+    if (handle == NULL_HANDLE || handle >= this->world_matrices.size()) {
+        return;
+    }
+    this->world_matrices[handle] = transform.get_model_matrix();
     mark_dirty();
 }
+
+void StaticInstanceBatch::remove(Handle handle) {
+    this->world_matrices.erase(handle);
+    mark_dirty();
+}
+
 void StaticInstanceBatch::prepare_uploads(
     std::vector<RHI::UpdateBufferInfo> &uploads) {
     RHI::UpdateBufferInfo mat_info =

@@ -50,6 +50,8 @@ WorldChunk::~WorldChunk() {
 
 Ref<Sky> World::get_sky() { return sky; }
 
+namespace ECS {};
+
 void World::tick(f32 dt) {
     PROFILE_SCOPE("World");
 
@@ -77,25 +79,23 @@ void World::tick(f32 dt) {
     entity_manager.run_system<BehaviourComponent>(
         [=](Entity e, BehaviourComponent *b) { b->behaviour->update(dt); });
 
-    /* we collect entity tranform every frame */
-    for (auto &[_, inst] : this->model_instances) {
-        inst->clear();
-    }
     /* upload model transform to instance*/
     entity_manager.run_system<Transform, MeshInstance>(
         [=](Entity e, Transform *tf, MeshInstance *inst) {
-            Ref<InstanceBatch> data = model_instances[*inst->model];
-            inst->model->_add_instance(data, *tf);
+            Ref<StaticInstanceBatch> batch =
+                ref_cast<StaticInstanceBatch>(model_instances[*inst->model]);
+            batch->update(inst->instance_id, *tf);
         });
     entity_manager.run_system<Transform, SkeletonMeshInstance>(
         [&](Entity e, Transform *tf, SkeletonMeshInstance *inst) {
-            Ref<InstanceBatch> data = model_instances[*inst->model];
+            Ref<SkeletonInstanceBatch> batch =
+                ref_cast<SkeletonInstanceBatch>(model_instances[*inst->model]);
             AnimationState *state =
                 entity_manager.query_component<AnimationState>(e);
             if (state) {
                 state->update(1 / 30.0f);
             }
-            inst->model->_add_instance(data, *tf, state);
+            batch->update(inst->instance_id, *tf, state);
         });
 }
 
@@ -125,23 +125,65 @@ void World::register_engine_components() {
         });
     ecs.on_add<MeshInstance>([&](EntityManager &m, Entity e, MeshInstance *ph) {
         if (ph->model.is_null()) return;
+        Transform *tf = m.query_component<Transform>(e);
+        if (!tf) {
+            fmt::println("This entity doesn't have transform, create failed!");
+            return;
+        }
         Ref<Model> _model = ref_cast<Model>(ph->model);
         auto iter = model_instances.find(*_model);
+        Ref<StaticInstanceBatch> batch;
         if (iter == model_instances.end()) {
-            Ref<InstanceBatch> instance = ph->model->create_instance();
-            register_model_instance(_model, instance);
+            batch.create();
+            register_model_instance(_model, ref_cast<InstanceBatch>(batch));
+        } else {
+            batch = ref_cast<StaticInstanceBatch>(iter->second);
         }
+        ph->instance_id = batch->insert(*tf);
     });
-    ecs.on_add<SkeletonMeshInstance>(
+    ecs.on_remove<MeshInstance>(
+        [&](EntityManager &m, Entity e, MeshInstance *ph) {
+            if (ph->model.is_null()) return;
+            Ref<Model> _model = ref_cast<Model>(ph->model);
+            auto iter = model_instances.find(*_model);
+            if (iter == model_instances.end()) return;
+            Ref<StaticInstanceBatch> batch =
+                ref_cast<StaticInstanceBatch>(iter->second);
+            batch->remove(ph->instance_id);
+        });
+    ecs.on_add<SkeletonMeshInstance>([&](EntityManager &m, Entity e,
+                                         SkeletonMeshInstance *ph) {
+        if (ph->model.is_null()) return;
+        Transform *tf = m.query_component<Transform>(e);
+        if (!tf) {
+            fmt::println("This entity doesn't have transform, create failed!");
+            return;
+        }
+        AnimationState *state =
+            entity_manager.query_component<AnimationState>(e);
+
+        Ref<Model> _model = ref_cast<Model>(ph->model);
+        auto iter = model_instances.find(*_model);
+        Ref<SkeletonInstanceBatch> batch;
+        if (iter == model_instances.end()) {
+            batch.create(ph->model->get_skeleton());
+            register_model_instance(_model, ref_cast<InstanceBatch>(batch));
+        } else {
+            batch = ref_cast<SkeletonInstanceBatch>(iter->second);
+        }
+        ph->instance_id = batch->insert(*tf, state);
+    });
+    ecs.on_remove<SkeletonMeshInstance>(
         [&](EntityManager &m, Entity e, SkeletonMeshInstance *ph) {
             if (ph->model.is_null()) return;
             Ref<Model> _model = ref_cast<Model>(ph->model);
             auto iter = model_instances.find(*_model);
-            if (iter == model_instances.end()) {
-                Ref<InstanceBatch> instance = ph->model->create_instance();
-                register_model_instance(_model, instance);
-            }
+            if (iter == model_instances.end()) return;
+            Ref<SkeletonInstanceBatch> batch =
+                ref_cast<SkeletonInstanceBatch>(iter->second);
+            batch->remove(ph->instance_id);
         });
+
     ecs.on_add<BehaviourComponent>(
         [&](EntityManager &m, Entity e, BehaviourComponent *b) {
             if (b->behaviour.is_null()) return;

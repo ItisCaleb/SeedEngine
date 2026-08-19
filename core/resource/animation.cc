@@ -44,7 +44,9 @@ Vec3 AnimationState::interpolate_scaling(AnimationClip &clip, f32 time) {
 }
 void AnimationState::calculate_pose(Mat4 *bone_poses, u64 size) {
     if (this->animation.is_null()) {
-        SEED_WARN("Animation is null, skipping pose calculation.");
+        for (u32 i = 0; i < size; i++) {
+            bone_poses[i] = Mat4{};
+        }
         return;
     }
 

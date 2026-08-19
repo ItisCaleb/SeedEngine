@@ -30,36 +30,55 @@ void Skeleton::apply_skinning(Mat4 *bone_tranforms, u64 size) {
     }
 }
 
-void SkeletonInstanceBatch::insert_instance(Transform &transform,
-                                            AnimationState *state) {
-    RHI::UpdateBufferInfo skeleton_info =
-        RHI::alloc_heap(sizeof(Mat4) * (1 + skeleton->bone_count()));
-    Mat4 *buffer = (Mat4 *)skeleton_info.data;
-    buffer[0] = transform.get_model_matrix();
+Handle SkeletonInstanceBatch::insert(const Transform &transform,
+                                     AnimationState *state) {
+    Instance inst = Instance{.world_matrix = transform.get_model_matrix(),
+                             .state = AnimationState{}};
     if (state) {
-        state->calculate_pose(&buffer[1], skeleton->bone_count());
-    } else {
-        for (u32 i = 0; i < skeleton->bone_count(); i++) {
-            buffer[1 + i] = Mat4{};
-        }
+        inst.state = *state;
     }
-    this->upload_buffers.push_back(skeleton_info);
+    Handle handle = this->instances.insert(inst);
+    mark_dirty();
+    return handle;
+}
+
+void SkeletonInstanceBatch::update(Handle handle, const Transform &transform,
+                                   AnimationState *state) {
+    if (handle == NULL_HANDLE || handle >= this->instances.size()) {
+        return;
+    }
+    this->instances[handle].world_matrix = transform.get_model_matrix();
+    if (state) {
+        this->instances[handle].state = *state;
+    } else {
+        this->instances[handle].state = {};
+    }
+    mark_dirty();
+}
+
+void SkeletonInstanceBatch::remove(Handle handle) {
+    this->instances.erase(handle);
     mark_dirty();
 }
 
 void SkeletonInstanceBatch::prepare_uploads(
     std::vector<RHI::UpdateBufferInfo> &uploads) {
     /* upload */
-    for (RHI::UpdateBufferInfo &info : this->upload_buffers) {
-        Mat4 *buffer = (Mat4 *)info.data;
+    for (Instance &inst : this->instances) {
+        RHI::UpdateBufferInfo skeleton_info =
+            RHI::alloc_heap(sizeof(Mat4) * (1 + skeleton->bone_count()));
+        Mat4 *buffer = (Mat4 *)skeleton_info.data;
+        buffer[0] = inst.world_matrix;
+        inst.state.calculate_pose(&buffer[1], skeleton->bone_count());
         skeleton->apply_fk(&buffer[1], skeleton->bone_count());
         skeleton->apply_skinning(&buffer[1], skeleton->bone_count());
+        uploads.push_back(skeleton_info);
     }
-    uploads = this->upload_buffers;
 }
+
 AABB SkeletonInstanceBatch::translate_bounding_box(const AABB &bounding_box,
                                                    u32 i) {
-    Mat4 world_matrix = ((Mat4 *)upload_buffers[i].data)[0];
+    Mat4 world_matrix = instances[i].world_matrix;
     AABB aabb = bounding_box.translate(world_matrix);
     return aabb;
 }

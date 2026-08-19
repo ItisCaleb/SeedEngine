@@ -33,6 +33,7 @@ void *EntityManager::_create_or_get_components(u64 component_id,
     auto iter = components.find(component_id);
     if (iter == components.end()) {
         void *component_array = malloc(ENTITY_MAX * element_size);
+        /* give new component bit */
         components[component_id] = component_array;
         component_bit[component_id] = (1 << next_component_bit);
         next_component_bit++;

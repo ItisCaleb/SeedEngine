@@ -24,6 +24,9 @@ class EntityManager {
         std::unordered_map<
             u64, std::function<void(EntityManager &, Entity, void *, void *)>>
             on_add_hooks;
+        std::unordered_map<
+            u64, std::function<void(EntityManager &, Entity, void *)>>
+            on_remove_hooks;
 
         void *_create_or_get_components(u64 component_id, u64 element_size);
 
@@ -132,12 +135,28 @@ class EntityManager {
             };
         }
 
+        template <typename T, typename Fn>
+        void on_remove(Fn &&hook) {
+            static_assert(std::is_invocable_v<Fn, EntityManager &, Entity, T *>,
+                          "on_add hook signature mismatch, expected: "
+                          "Fn(EntityManager &, Entity, T *)");
+
+            on_remove_hooks[type_id<T>()] = [hook](EntityManager &w, Entity e,
+                                                   void *component) {
+                T *comp = static_cast<T *>(component);
+                hook(w, e, comp);
+            };
+        }
+
         template <typename T>
         void remove_component(Entity entity) {
             assert(entity > -1);
             u64 component_id = type_id<T>();
             T *component_array = create_or_get_components<T>(component_id);
-            new (&component_array[entity]) T;
+            auto hook = on_remove_hooks[component_id];
+            if (hook) {
+                hook(*this, entity, &component_array[entity]);
+            }
             component_array[entity].~T();
             entity_component_masks[entity] &= ~component_bit[component_id];
         }

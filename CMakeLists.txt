@@ -109,6 +109,8 @@ set_target_properties(app PROPERTIES
     DEBUGGER_WORKING_DIRECTORY  "${PROJECT_SOURCE_DIR}"
 )
 if(TEST)
+    include(CTest)
+    enable_testing()
     FetchContent_Declare(
     googletest
         URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
@@ -116,8 +118,6 @@ if(TEST)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
     FetchContent_MakeAvailable(googletest)
-    target_compile_options(gtest PRIVATE -Wno-character-conversion)
-    target_compile_options(gtest_main PRIVATE -Wno-character-conversion)
 
     add_executable(tests)
     add_subdirectory(test)

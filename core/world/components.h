@@ -33,10 +33,12 @@ struct ComponentOptional {};
 
 struct MeshInstance {
         Ref<BasicModel> model;
+        Handle instance_id;
 };
 
 struct SkeletonMeshInstance {
         Ref<SkeletonModel> model;
+        Handle instance_id;
 };
 
 }  // namespace Seed

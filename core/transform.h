@@ -14,9 +14,9 @@ class Transform {
         Vec3 position = Vec3{0, 0, 0};
         Quaternion rotation = Quaternion::identity();
         Vec3 scale = Vec3{1, 1, 1};
-        Mat4 model_matrix;
-        bool dirty = true;
-        void update() {
+        mutable Mat4 model_matrix;
+        mutable bool dirty = true;
+        void update() const {
             this->model_matrix = Mat4::translate_mat(position) *
                                  Mat4::rotate_mat(rotation) *
                                  Mat4::scale_mat(scale);
@@ -50,7 +50,7 @@ class Transform {
             this->dirty = true;
         }
 
-        Mat4 get_model_matrix() {
+        Mat4 get_model_matrix() const {
             if (dirty) {
                 update();
                 this->dirty = false;
