@@ -7,6 +7,7 @@
 #include "core/rendering/vertex_layout.h"
 #include "core/rendering/render_common.h"
 #include "core/rendering/viewport.h"
+#include "core/misc/source_location.h"
 
 namespace Seed {
 enum class RenderCommandType : u8 {
@@ -48,6 +49,7 @@ struct RenderCommand {
         u32 sort_key;
         RenderCommandType type;
         void *data;
+        SourceLocation location;
         static bool cmp(RenderCommand const &a, RenderCommand const &b) {
             return a.sort_key < b.sort_key;
         }
@@ -257,7 +259,7 @@ class RenderCommandDispatcher {
         u8 layer = 0;
         u8 seq = 0;
         void *push_update_cmd(RenderStreamData &update_data, u64 size,
-                              void *data);
+                              void *data, SourceLocation location);
 
     public:
         void set_layer(u8 layer) { this->layer = layer; }
@@ -265,18 +267,18 @@ class RenderCommandDispatcher {
         void begin_scope(const std::string &scope);
         void end_scope();
 
-        void set_states(RenderStateDataBuilder &builder);
+        void set_states(RenderStateDataBuilder &builder, SourceLocation location = SourceLocation::current());
         /* Will copy data to a temporary buffer.*/
-        void push_buffer(VertexHandle handle, u32 size, void *data);
-        void push_buffer(IndexHandle handle, u32 size, void *data);
-        void push_buffer(ConstantHandle handle, u32 size, void *data);
-        void push_buffer(SSBOHandle handled, u32 size, void *data);
+        void push_buffer(VertexHandle handle, u32 size, void *data, SourceLocation location = SourceLocation::current());
+        void push_buffer(IndexHandle handle, u32 size, void *data, SourceLocation location = SourceLocation::current());
+        void push_buffer(ConstantHandle handle, u32 size, void *data, SourceLocation location = SourceLocation::current());
+        void push_buffer(SSBOHandle handled, u32 size, void *data, SourceLocation location = SourceLocation::current());
 
         /* will automatically fill material state and textures */
         RenderDrawDataBuilder generate_render_data(Ref<Material> mat);
 
         void render(RenderDrawDataBuilder &builder, RenderPrimitiveType type,
-                    PipelineHandle pipeline, f32 depth);
+                    PipelineHandle pipeline, f32 depth, SourceLocation location = SourceLocation::current());
         void compute(PipelineHandle pipeline, u32 work_group_x,
                      u32 work_group_y, u32 work_group_z);
 

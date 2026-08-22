@@ -91,23 +91,20 @@ void Path::normalize() {
         return;
     }
 
-    /* Since  */
-    if (is_absolute) {
-        path.resize(root.length());
-    } else {
-        path.clear();
-    }
+    KString new_path;
+    new_path.append(root);
     for (i32 i = 0; i < (i32)stack.size(); i++) {
         /* skip windows drive */
         if (i == 0 && has_drive) continue;
-        if (i > 0 && !(i == 1 && has_drive)) path.append(get_splitter());
-        path.append(stack[i]);
+        if (i > 0 && !(i == 1 && has_drive)) new_path.append(get_splitter());
+        new_path.append(stack[i]);
     }
 
-    if (path.is_empty()) {
-        path.append(".");
-        root = KStr(path, 1);
+    if (new_path.is_empty()) {
+        new_path.append(".");
+        root = KStr(new_path, 1);
     }
+    path = std::move(new_path);
 }
 void Path::push(KStr segment) {
     if (!path.to_str().is_empty() && !path.to_str().end_with(get_splitter())) {

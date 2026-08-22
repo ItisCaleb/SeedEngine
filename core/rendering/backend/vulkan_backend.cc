@@ -2640,7 +2640,7 @@ void RenderBackendVK::handle_state(RenderCommand &cmd) {
                     same_target = true;
                     break;
                 }
-                if (op->render_pass_handle == -1) {
+                if (op->render_pass_handle == NULL_HANDLE) {
                     target_rp = this->render_pass.get_or_null(
                         this->swap_chain.render_targets[swap_chain.next_index]);
                 } else {

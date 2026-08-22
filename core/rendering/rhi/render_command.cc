@@ -193,10 +193,11 @@ void RenderCommandDispatcher::end_scope() {
 }
 
 void *RenderCommandDispatcher::push_update_cmd(RenderStreamData &update_data,
-                                               u64 size, void *data = nullptr) {
+                                               u64 size, void *data, SourceLocation location) {
     RenderCommand cmd;
     cmd.sort_key = gen_sort_key(layer, seq, 0);
     cmd.type = RenderCommandType::UPDATE;
+    cmd.location = location;
     u64 stream_size = sizeof(RenderStreamData) + size;
 
     RenderStreamData *upd =
@@ -208,7 +209,7 @@ void *RenderCommandDispatcher::push_update_cmd(RenderStreamData &update_data,
 }
 
 void RenderCommandDispatcher::push_buffer(VertexHandle handle, u32 size,
-                                          void *data) {
+                                          void *data, SourceLocation location) {
     if (size == 0) {
         SEED_WARN("Can't push vertex buffer, size is 0");
         return;
@@ -221,10 +222,10 @@ void RenderCommandDispatcher::push_buffer(VertexHandle handle, u32 size,
     update_data.type = RenderResourceType::VERTEX;
     update_data.handle = handle;
     update_data.size = size;
-    push_update_cmd(update_data, size, data);
+    push_update_cmd(update_data, size, data, location);
 }
 void RenderCommandDispatcher::push_buffer(IndexHandle handle, u32 size,
-                                          void *data) {
+                                          void *data, SourceLocation location) {
     if (size == 0) {
         SEED_WARN("Can't push index buffer, size is 0");
         return;
@@ -237,10 +238,10 @@ void RenderCommandDispatcher::push_buffer(IndexHandle handle, u32 size,
     update_data.type = RenderResourceType::INDEX;
     update_data.handle = handle;
     update_data.size = size;
-    push_update_cmd(update_data, size, data);
+    push_update_cmd(update_data, size, data, location);
 }
 void RenderCommandDispatcher::push_buffer(ConstantHandle handle, u32 size,
-                                          void *data) {
+                                          void *data, SourceLocation location) {
     if (size == 0) {
         SEED_WARN("Can't push constant buffer, size is 0");
         return;
@@ -253,10 +254,10 @@ void RenderCommandDispatcher::push_buffer(ConstantHandle handle, u32 size,
     update_data.type = RenderResourceType::CONSTANT;
     update_data.handle = handle;
     update_data.size = size;
-    push_update_cmd(update_data, size, data);
+    push_update_cmd(update_data, size, data, location);
 }
 void RenderCommandDispatcher::push_buffer(SSBOHandle handle, u32 size,
-                                          void *data) {
+                                          void *data, SourceLocation location) {
     if (size == 0) {
         SEED_WARN("Can't push ssbo buffer, size is 0");
         return;
@@ -269,7 +270,7 @@ void RenderCommandDispatcher::push_buffer(SSBOHandle handle, u32 size,
     update_data.type = RenderResourceType::STORAGE_BUFFER;
     update_data.handle = handle;
     update_data.size = size;
-    push_update_cmd(update_data, size, data);
+    push_update_cmd(update_data, size, data, location);
 }
 
 RenderDrawDataBuilder RenderCommandDispatcher::generate_render_data(
@@ -281,19 +282,21 @@ RenderDrawDataBuilder RenderCommandDispatcher::generate_render_data(
     return builder;
 }
 
-void RenderCommandDispatcher::set_states(RenderStateDataBuilder &builder) {
+void RenderCommandDispatcher::set_states(RenderStateDataBuilder &builder, SourceLocation location) {
     RenderCommand cmd;
     cmd.sort_key = gen_sort_key(layer, seq, 0);
     cmd.type = RenderCommandType::STATE;
+    cmd.location = location;
     RD->push_cmd(cmd, builder.buffer.size(), builder.buffer.data());
 }
 
 void RenderCommandDispatcher::render(RenderDrawDataBuilder &builder,
                                      RenderPrimitiveType type,
-                                     PipelineHandle pipeline, f32 depth) {
+                                     PipelineHandle pipeline, f32 depth, SourceLocation location) {
     RenderCommand cmd;
     cmd.sort_key = gen_sort_key(layer, seq, depth);
     cmd.type = RenderCommandType::RENDER;
+    cmd.location = location;
     RenderDrawData *draw_data = static_cast<RenderDrawData *>(
         RD->push_cmd(cmd, builder.buffer.size(), builder.buffer.data()));
     draw_data->type = type;

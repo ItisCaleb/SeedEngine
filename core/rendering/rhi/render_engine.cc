@@ -112,6 +112,9 @@ void RenderEngine::register_renderer(u8 layer, Renderer *renderer) {
 
 void RenderEngine::process() {
     PROFILE_SCOPE("Rendering");
+    if (current_window->get_height() == 0 || current_window->get_width() == 0) {
+        return;
+    }
     RenderCommandDispatcher dp;
     RenderStateDataBuilder builder;
     System::gRenderEngine->get_frame_global().bind(builder);

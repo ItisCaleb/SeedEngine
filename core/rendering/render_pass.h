@@ -19,7 +19,7 @@ struct Attachment {
 template <typename T>
 class RenderPass {
     protected:
-        RenderPassHandle handle;
+        RenderPassHandle handle = NULL_HANDLE;
         Viewport viewport;
         StateClearFlag clear_flag = CLEAR_COLOR | CLEAR_DEPTH | CLEAR_STENCIL;
         std::string name;
