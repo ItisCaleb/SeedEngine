@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include "core/container/kstring.h"
 #include "core/engine.h"
-#include "core/project.h"
 #include "core/system.h"
 #include "core/io/file.h"
 #include "core/io/path.h"
@@ -44,7 +43,8 @@ class AsyncResource : public RefCounted {
                        Ref<File> data);
 class SeedEngine;
 class ResourceLoader {
-    friend SeedEngine;
+        friend SeedEngine;
+
     private:
         std::unordered_map<UUID, Resource *> res_cache;
         std::unordered_map<ResourceTypeID, ResourceTypeInfo> infos;
@@ -63,6 +63,7 @@ class ResourceLoader {
                                 Ref<Skeleton> skeleton,
                                 std::vector<Ref<Animation>> &animations);
         void handle_async_notifies();
+
     public:
         void register_resource(Resource *res);
         void unregister_resource(Resource *res);
@@ -88,8 +89,7 @@ class ResourceLoader {
             }
             Ref<Resource> res;
 
-            const Path path =
-                System::gEngine->get_project()->resolve_asset(entry->path);
+            const Path path = entry->real_path();
             Ref<File> file = File::open(path);
             if (file.is_null()) {
                 return Ref<T>();

@@ -2,7 +2,6 @@
 #include "core/system.h"
 #include <GLFW/glfw3.h>
 #include "core/io/file.h"
-#include "core/project.h"
 #include "core/window.h"
 #include "core/world/world.h"
 #include "debug/profiler.h"
@@ -44,7 +43,9 @@ static void error_callback(int error, const char *description) {
 
 void SeedEngine::setup_logger() {
     auto callback_sink = std::make_shared<spdlog::sinks::callback_sink_mt>(
-        [](const spdlog::details::log_msg &msg) { return; });
+        [](const spdlog::details::log_msg &msg) {
+             return;
+             });
     callback_sink->set_level(spdlog::level::err);
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     spdlog::logger logger("Main", {console_sink, callback_sink});
@@ -82,16 +83,6 @@ void SeedEngine::deinit_systems() {
     delete System::gRenderEngine;
     delete System::gResourceEntries;
     delete System::gResourceLoader;
-}
-
-bool SeedEngine::load_project(const Path &path) {
-    current_project = Project::load(path);
-    if (!File::exists(current_project->get_entry_path())) {
-        System::gResourceEntries->save(current_project->get_entry_path());
-    } else {
-        System::gResourceEntries->load(current_project->get_entry_path());
-    }
-    return current_project != nullptr;
 }
 
 void SeedEngine::start() {

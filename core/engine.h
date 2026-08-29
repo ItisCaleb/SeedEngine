@@ -7,7 +7,6 @@
 
 namespace Seed {
 
-class Project;
 class Window;
 class World;
 
@@ -24,7 +23,6 @@ struct EngineConfig {
 
 class SeedEngine {
     private:
-        Project *current_project = nullptr;
         InputHandler input_handler;
         f32 frame_limit = 60.0;
         Window *window;
@@ -38,7 +36,6 @@ class SeedEngine {
     public:
         int width, height;
         void start();
-        Project *get_project() { return current_project; }
         World *get_world() { return world; }
         Window *get_window() { return window; }
         f32 get_fps() { return last_fps; }
@@ -49,7 +46,6 @@ class SeedEngine {
             return this->config.debug_flag;
         }
 
-        bool load_project(const Path &path);
         SeedEngine(f32 target_fps = 60.0);
         ~SeedEngine();
 

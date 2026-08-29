@@ -33,9 +33,13 @@ class SparseSet {
                 this->dense[_index] = this->dense[this->last_element];
                 this->sparse[this->last_element] = _index;
             } else {
-                this->sparse.pop_back();
+                this->dense.pop_back();
             }
-            this->sparse[index] = -1;
+            if(index == this->sparse.size() - 1){
+                this->sparse.pop_back();
+            }else{
+                this->sparse[index] = -1;
+            }
             this->last_element--;
         }
 

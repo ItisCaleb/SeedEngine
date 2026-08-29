@@ -3,7 +3,6 @@ target_sources(seed PRIVATE
     input.cc
     window.cc
     input_handler.cc
-    project.cc
     os.cc
 )
 

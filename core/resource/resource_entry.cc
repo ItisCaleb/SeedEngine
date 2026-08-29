@@ -6,7 +6,6 @@
 #include "core/io/file.h"
 #include "core/io/path.h"
 #include "core/misc/uuid.h"
-#include "core/project.h"
 #include "core/serialize/json_impl.h"
 #include "core/resource/resource.h"
 #include "core/resource/resource_loader.h"
@@ -24,7 +23,7 @@ Path ResourceEntry::real_path() {
     if (is_internal)
         return path;
     else
-        return System::gEngine->get_project()->resolve_asset(path);
+        return System::gResourceEntries->root.append(path.to_str());
 }
 
 UUID ResourceEntries::get_uuid(const Path &path) {
@@ -71,7 +70,6 @@ void ResourceEntries::save(const Path &path) {
     Ref<File> file = File::open(path, "wb");
     nlohmann::ordered_json j;
     j["entries"] = nlohmann::json::array();
-    Project *project = System::gEngine->get_project();
     for (auto &[uuid, entry] : uuid_to_entry) {
         if (entry.is_internal) continue;
         ResourceTypeInfo *info =
@@ -82,7 +80,7 @@ void ResourceEntries::save(const Path &path) {
         j_entry["path"] = entry.path;
         if (!info->has_data) {
             Ref<File> config =
-                File::open(project->resolve_asset(entry.path), "wb");
+                File::open(root.append(entry.path.to_str()), "wb");
             config->write_str(entry.config.get_json().dump(2));
         } else {
             j_entry["config"] = entry.config.get_json();
@@ -95,7 +93,6 @@ void ResourceEntries::load(const Path &path) {
     Ref<File> file = File::open(path);
     nlohmann::json j = file->read_json();
     auto &j_entries = j["entries"];
-    Project *project = System::gEngine->get_project();
 
     for (auto &j_entry : j_entries) {
         UUID uuid = j_entry["UUID"];
@@ -105,7 +102,7 @@ void ResourceEntries::load(const Path &path) {
         ResourceTypeInfo *info =
             System::gResourceLoader->get_type_info(type_id);
         if (info && !info->has_data) {
-            Ref<File> config = File::open(project->resolve_asset(p));
+            Ref<File> config = File::open(root.append(p.to_str()));
             if (config.is_null()) {
                 SPDLOG_ERROR(
                     "Resource entry loading error: Missing property of '{}'",
