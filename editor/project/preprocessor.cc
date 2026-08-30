@@ -2,18 +2,18 @@
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 #include "core/container/kstring.h"
-#include "core/engine.h"
 #include "core/io/dir.h"
 #include "core/io/file.h"
 #include "core/io/path.h"
 #include "core/misc/type_name.h"
 #include "core/misc/uuid.h"
-#include "core/project.h"
 #include "core/resource/model.h"
 #include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
 #include "core/serialize/json_impl.h"
 #include "editor/asset/model_loader.h"
+#include "editor/project/project.h"
+#include "editor/editor_system.h"
 #include "editor/editor.h"
 
 namespace Seed {
@@ -104,11 +104,11 @@ void PreprocessEntries::load(const Path &path) {
     }
 }
 
-bool Preprocessor::preprocess(ResourceEntries &entries, Ref<File> file,
-                              const Path &moved_path,
+bool Preprocessor::preprocess(Ref<File> file, const Path &moved_path,
                               PreprocessTypeInfo &info) {
-    Project *project = System::gEngine->get_project();
-    Path &internal_dir = project->get_internal_dir();
+    ResourceEntries *entries = System::gResourceEntries;
+    Ref<Project> project = System::gEditor->get_project();
+    const Path &internal_dir = project->get_internal_dir();
     Dir::create_if_not_exists(internal_dir);
 
     UUID from_uuid = preprocess_entries.insert_entry(moved_path, info.id);
@@ -125,20 +125,19 @@ bool Preprocessor::preprocess(ResourceEntries &entries, Ref<File> file,
         return false;
     }
     Path out_path = internal_dir.append(result.out_file.to_str());
-    UUID to_uuid = entries.insert_entry(out_path.relative(project->get_path()),
-                                        result.target_tid);
+    UUID to_uuid = entries->insert_entry(out_path.relative(project->get_path()),
+                                         result.target_tid);
     preprocess_entries.link_entry(from_uuid, to_uuid);
-    entries.get_entry(to_uuid)->config = out_config;
+    entries->get_entry(to_uuid)->config = out_config;
 
     return true;
 }
 
-bool Preprocessor::try_preprocess(ResourceEntries &entries, Ref<File> file,
-                                  const Path &moved_path) {
+bool Preprocessor::try_preprocess(Ref<File> file, const Path &moved_path) {
     KStr extension = file->get_path().extension();
     auto iter = ext_to_infos.find(extension);
     if (iter == ext_to_infos.end()) return false;
-    return preprocess(entries, file, moved_path, iter->second);
+    return preprocess(file, moved_path, iter->second);
 }
 
 Preprocessor::Preprocessor() {
@@ -161,7 +160,5 @@ bool Preprocessor::process_model(ResourceConfiguration &in_conf,
     }
     return true;
 }
-
-void Preprocessor::init(const Path &path) {}
 
 }  // namespace Seed

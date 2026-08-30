@@ -60,7 +60,8 @@ class DebugGUI : public ImGUI {
 
 int main(void) {
     SeedEngine *engine = new SeedEngine(60.0f);
-    engine->load_project("example/Ave Mujica.json");
+    System::gResourceEntries->set_root("example");
+    System::gResourceEntries->load("example/assets/.seed_entry");
     ResourceLoader *loader = System::gResourceLoader;
     // auto backpack = loader->load_async<BasicModel>(
     //     "test_project/assets/backpack.json", [=](Ref<BasicModel> rc) {

@@ -12,6 +12,8 @@
 #include "core/resource/resource.h"
 #include "core/resource/resource_entry.h"
 namespace Seed {
+class Project;
+
 struct PreprocessedResult {
         ResourceTypeID target_tid;
         Path out_file;
@@ -56,8 +58,8 @@ class Preprocessor {
         std::unordered_map<ResourceTypeID, PreprocessTypeInfo> infos;
         std::unordered_map<KString, PreprocessTypeInfo> ext_to_infos;
 
-        bool preprocess(ResourceEntries &entries, Ref<File> file,
-                        const Path &moved_path, PreprocessTypeInfo &info);
+        bool preprocess(Ref<File> file, const Path &moved_path,
+                        PreprocessTypeInfo &info);
         static bool process_model(ResourceConfiguration &in_conf,
                                   Ref<File> &in_data,
                                   ResourceConfiguration &out_conf,
@@ -65,8 +67,7 @@ class Preprocessor {
                                   PreprocessedResult &out_result);
 
     public:
-        bool try_preprocess(ResourceEntries &entries, Ref<File> file,
-                            const Path &moved_path);
+        bool try_preprocess(Ref<File> file, const Path &moved_path);
 
         template <typename T>
         void register_type(
@@ -92,7 +93,6 @@ class Preprocessor {
             this->infos[tid].generate_config = config_func;
         }
 
-        void init(const Path &path);
         PreprocessEntry *get_entry_from_path(const Path &path) {
             UUID uuid = this->preprocess_entries.get_uuid(path);
             if (uuid.is_null()) return nullptr;

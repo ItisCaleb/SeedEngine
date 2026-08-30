@@ -7,7 +7,11 @@
     <body>
         <div id="viewport-panel" class="panel" data-model="world_editor">
             <div class="viewport-toolbar">
-                <div class="viewport-label">{{ editor_mode }}</div>
+                <div class="segmented viewport-sessions">
+                    <button data-for="session, session_index : editor_sessions" class="segment"
+                        data-class-active="session.active"
+                        data-event-click="set_session(session_index)">{{ session.name }}</button>
+                </div>
                 <div class="toolbar-spacer"></div>
                 <button class="small-button" id="camera-mode">Flycam</button>
                 <button class="small-button" id="view-mode">Lit</button>
@@ -19,22 +23,12 @@
                 <div id="viewport-empty" data-if="show_viewport_empty">
                     <div class="viewport-message">{{ viewport_message }}</div>
                 </div>
-                <div id="pick-readout" data-if="editor_mode == 'Terrain'">
+                <div id="pick-readout" data-if="show_viewport_text">
                     <span>World</span>
-                    <span>{{ world_text }}</span>
+                    <span>{{ viewport_text }}</span>
                 </div>
             </div>
 
-            <div data-if="show_clear_tiles">
-                <template src="popup">
-                    <div class="seed-popup-title">Clear Terrain Tiles?</div>
-                    <div class="seed-popup-row">This removes every terrain tile from the current world.</div>
-                    <div class="seed-popup-actions">
-                        <button class="seed-popup-button" data-event-click="cancel_clear_tiles">Cancel</button>
-                        <button class="seed-popup-button" data-event-click="confirm_clear_tiles">Clear</button>
-                    </div>
-                </template>
-            </div>
         </div>
     </body>
 </template>

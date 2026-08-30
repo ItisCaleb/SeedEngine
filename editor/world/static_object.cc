@@ -1,9 +1,24 @@
 #include "static_object.h"
 
 namespace Seed {
-void ObjectInstanceBatch::insert_object(u16 id, Transform &transform) {
-    instances.push_back(ObjectInstance{id, transform.get_model_matrix()});
+
+Handle ObjectInstanceBatch::insert(u16 id, const Transform &transform) {
+    Handle handle =
+        instances.insert(ObjectInstance{id, transform.get_model_matrix()});
+    mark_dirty();
+    return handle;
 }
+void ObjectInstanceBatch::update(Handle handle, const Transform &transform) {
+    if (handle == NULL_HANDLE || handle >= this->instances.size()) {
+        return;
+    }
+    this->instances[handle].world_mat = transform.get_model_matrix();
+    mark_dirty();
+}
+void ObjectInstanceBatch::remove(Handle handle) {
+    this->instances.erase(handle);
+}
+
 void ObjectInstanceBatch::prepare_uploads(
     std::vector<RHI::UpdateBufferInfo> &uploads) {
     RHI::UpdateBufferInfo info =

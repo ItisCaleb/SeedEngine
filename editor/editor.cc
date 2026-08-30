@@ -1,12 +1,11 @@
 
 #include "editor.h"
-#include "core/container/kstring.h"
-#include "core/io/dir.h"
+
+#include <utility>
+
 #include "core/io/path.h"
 #include "core/misc/type_name.h"
-#include "core/project.h"
 #include "core/rendering/rhi/render_engine.h"
-#include "core/resource/model.h"
 #include "core/resource/resource_entry.h"
 #include "core/resource/world_setting.h"
 #include "core/engine.h"
@@ -19,6 +18,7 @@
 #include "editor/camera_entity.h"
 #include "editor/editor_storage.h"
 #include "editor/gui/editor_widget.h"
+#include "editor/project/project.h"
 #include <GLFW/glfw3.h>
 #ifdef _WIN32
 #include "editor/asset/win_drag_dropper.h"
@@ -26,8 +26,6 @@
 #include <GLFW/glfw3native.h>
 #endif
 #include <nfd.h>
-#include <fmt/format.h>
-#include <queue>
 #include <RmlUi/Core/Factory.h>
 
 namespace Seed {
@@ -44,6 +42,7 @@ static WindowDropTarget *drag_dropper = nullptr;
 void Editor::set_last_open(const Path &path) {
     Ref<File> cache = File::open(".seed_cache", "wb");
     project_cache["last_open"] = path;
+    project_cache.erase("last_open_world");
     cache->write_str(project_cache.dump());
 }
 
@@ -53,117 +52,114 @@ void Editor::set_last_open_world(const UUID uuid) {
     cache->write_str(project_cache.dump());
 }
 
-ResourceTypeID Editor::extension_to_tid(KStr ext) {
-    if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" ||
-        ext == ".exr" || ext == ".hdr")
-        return type_id<Texture>();
-    if (ext == ".world") return type_id<WorldSetting>();
-    // if (ext == ".terrain")  // adjust to your format
-    //     return type_id<Terrain>();
-    return 0;
+void Editor::close_world() {
+    world_entry = nullptr;
+    world_setting = {};
+    world = nullptr;
+    world_viewport.reset();
 }
 
-void Editor::scan_assets() {
-    Project *project = System::gEngine->get_project();
-    Ref<Dir> dir = Dir::open(project->get_asset_dir());
-    std::queue<Ref<Dir>> dirs_to_process;
-    dirs_to_process.push(dir);
-    while (!dirs_to_process.empty()) {
-        Ref<Dir> d = dirs_to_process.front();
-        dirs_to_process.pop();
-        std::vector<Path> childs = d->list();
-        for (Path &path : childs) {
-            path = d->concat(path);
+bool Editor::load_world(ResourceEntry *entry) {
+    close_world();
+    if (entry == nullptr || System::gEngine == nullptr ||
+        System::gResourceLoader == nullptr) {
+        return false;
+    }
 
-            if (path.is_directory()) {
-                dirs_to_process.push(Dir::open(path));
-            } else {
-                path = path.relative(project->get_path());
-                if (!System::gResourceEntries->get_uuid(path).is_null())
-                    continue;
-                KStr extension = path.extension();
-                u64 tid = extension_to_tid(extension);
-                if (tid == 0) continue;
-                System::gResourceEntries->insert_entry(path, tid);
-            }
+    World *loaded_world = System::gEngine->get_world();
+    if (loaded_world == nullptr) return false;
+
+    Ref<WorldSetting> loaded_setting =
+        System::gResourceLoader->load<WorldSetting>(entry->uuid);
+    if (loaded_setting.is_null()) loaded_setting.create();
+
+    loaded_world->load_setting(loaded_setting);
+    world_entry = entry;
+    world_setting = loaded_setting;
+    world = loaded_world;
+    return true;
+}
+
+bool Editor::save_world() {
+    if (!has_world() || project.is_null()) return false;
+
+    nlohmann::ordered_json &json = world_entry->config.get_json();
+    if (!json.is_object()) json = nlohmann::ordered_json::object();
+
+    json["name"] = world_setting->name;
+    json["sky"] = {{"up", world_setting->sky.up},
+                   {"down", world_setting->sky.down},
+                   {"left", world_setting->sky.left},
+                   {"right", world_setting->sky.right},
+                   {"front", world_setting->sky.front},
+                   {"back", world_setting->sky.back}};
+    json["directional_light"] = {
+        {"direction", world_setting->dir_light.direction},
+        {"diffuse", world_setting->dir_light.diffuse},
+        {"specular", world_setting->dir_light.specular}};
+    json["terrain_textures"] = world_setting->terrain_textures;
+    json["terrain_normals"] = world_setting->terrain_normals;
+    json["chunks"] = nlohmann::ordered_json::array();
+
+    for (const ChunkSetting &chunk : world_setting->chunks) {
+        nlohmann::ordered_json chunk_json = {
+            {"x", chunk.x},
+            {"y", chunk.y},
+            {"height_map", chunk.height_map},
+            {"control_map", chunk.control_map},
+            {"position_lights", nlohmann::ordered_json::array()},
+            {"static_objects", nlohmann::ordered_json::array()}};
+
+        for (const PointLightSetting &light : chunk.lights) {
+            chunk_json["position_lights"].push_back(
+                {{"position", light.position},
+                 {"diffuse", light.diffuse},
+                 {"specular", light.specular}});
         }
+        for (const StaticObjectSetting &object : chunk.static_objects) {
+            chunk_json["static_objects"].push_back({{"name", object.name},
+                                                    {"x", object.x},
+                                                    {"y", object.y},
+                                                    {"z", object.z},
+                                                    {"model", object.model}});
+        }
+
+        json["chunks"].push_back(std::move(chunk_json));
     }
-    System::gResourceEntries->save(project->get_entry_path());
-}
-ResourceEntry *Editor::create_asset(KStr name, ResourceTypeID tid) {
-    Project *project = System::gEngine->get_project();
 
-    Path path = "assets";
-    path.push(name);
-    UUID uuid = System::gResourceEntries->insert_entry(path, tid);
-    System::gResourceEntries->save(project->get_entry_path());
-    return System::gResourceEntries->get_entry(uuid);
+    project->save();
+    return true;
 }
 
-ResourceEntry *Editor::create_internal_asset(KStr name, ResourceTypeID tid) {
-    Project *project = System::gEngine->get_project();
-
-    Path path = "assets/.internal";
-    path.push(name);
-    UUID uuid = System::gResourceEntries->insert_entry(path, tid);
-    System::gResourceEntries->save(project->get_entry_path());
-    return System::gResourceEntries->get_entry(uuid);
+bool Editor::has_world() const {
+    return world_entry != nullptr && world_setting.is_valid() &&
+           world != nullptr;
 }
 
-void Editor::remove_asset(UUID uuid) {
-    ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
-    if (!entry) return;
-    File::remove(entry->real_path());
-    System::gResourceEntries->remove_entry(uuid);
-}
+bool Editor::open_project(const Path &path) {
+    Ref<Project> loaded_project = Project::load(path);
+    if (loaded_project.is_null()) return false;
 
-void Editor::import_asset(const Path &origin_path, const Path &target_dir) {
-    Project *project = System::gEngine->get_project();
-
-    Path moved_path = target_dir.append(origin_path.filename());
-    Ref<File> origin = File::open(origin_path);
-    origin->copy_to(project->get_path().append(moved_path.to_str()));
-
-    bool r = preprocessor.try_preprocess(*System::gResourceEntries, origin,
-                                         moved_path);
-    if (r) {
-        preprocessor.get_entries().save(project->get_preprocess_entry_path());
-    } else {
-        KStr extension = origin_path.extension();
-        u64 tid = extension_to_tid(extension);
-        if (tid == 0) return;
-        System::gResourceEntries->insert_entry(moved_path, tid);
-    }
-    System::gResourceEntries->save(project->get_entry_path());
+    project = loaded_project;
+    project->scan_assets();
+    close_world();
+    world_editor_panel.on_project_changed();
+    asset_browser.init(project);
+    return true;
 }
 
 void Editor::try_open_project() {
     Ref<File> cache = File::open(".seed_cache", "rb");
-    SeedEngine *engine = System::gEngine;
-    if (cache.is_valid()) {
-        project_cache = cache->read_json();
-        if (project_cache.contains("last_open")) {
-            engine->load_project(project_cache["last_open"]);
-        }
-    }
-    Project *project = engine->get_project();
-    if (engine->get_project()) {
-        preprocessor.init(project->get_asset_dir());
-        if (project->get_preprocess_entry_path().is_file()) {
-            preprocessor.get_entries().load(
-                project->get_preprocess_entry_path());
-        }
-        asset_browser.init(project->get_asset_dir());
-        if (project_cache.contains("last_open_world")) {
-            world_editor.load_world(project_cache["last_open_world"]);
-        }
-        scan_assets();
-    }
-}
+    if (cache.is_null()) return;
 
-void Editor::save_project() {
-    Project *project = System::gEngine->get_project();
-    project->save();
+    project_cache = cache->read_json();
+    if (!project_cache.contains("last_open") ||
+        !open_project(project_cache["last_open"])) {
+        return;
+    }
+    if (project_cache.contains("last_open_world")) {
+        open_asset(project_cache["last_open_world"]);
+    }
 }
 
 void Editor::new_project(RML_EVENT_ARGS) {
@@ -180,10 +176,25 @@ void Editor::load_project(RML_EVENT_ARGS) {
     nfdopendialogu8args_t _args = {0};
     nfdresult_t r = NFD_OpenDialogU8_With(&path, &_args);
     if (r == NFD_OKAY) {
-        if (System::gEngine->load_project(path)) {
+        if (open_project(path)) {
             set_last_open(path);
         }
+        NFD_FreePathU8(path);
     }
+}
+
+bool Editor::open_asset(UUID uuid) {
+    if (project.is_null()) return false;
+
+    ResourceEntry *entry = System::gResourceEntries->get_entry(uuid);
+    if (entry == nullptr) return false;
+    if (entry->type_id != type_id<WorldSetting>()) return false;
+
+    const bool loaded = load_world(entry);
+    world_editor_panel.on_world_changed(loaded);
+    if (!loaded) return false;
+    set_last_open_world(uuid);
+    return true;
 }
 
 void Editor::bind_model(Rml::Context *context) {
@@ -211,15 +222,22 @@ void Editor::bind_model(Rml::Context *context) {
 }
 
 void Editor::start() {
-    open_gui(&world_editor);
+    open_gui(&world_editor_panel);
+    open_gui(&inspector_panel);
     open_gui(&asset_browser);
     System::gGuiEngine->load_rmlui(System::gEditor);
+
+    EditorCameraEntity::create_entity(System::gEngine->get_world()->ecs(),
+                                      world_viewport);
 }
 
-Editor::Editor() : RmlGUI(System::gEditorStorage->editor_ui_doc) {
+Editor::Editor()
+    : RmlGUI(System::gEditorStorage->editor_ui_doc),
+      world_editor_panel(inspector_panel) {
+    System::gEditor = this;
+    world_viewport.init();
+    world_editor_panel.init();
     try_open_project();
-
-    world_editor.init();
 
 #ifdef _WIN32
     Window *window = System::gEngine->get_window();
@@ -258,15 +276,14 @@ i32 main(i32, char **) {
 
     System::gEditor = new Editor;
 
-    auto &ecs = engine->get_world()->ecs();
-    EditorCameraEntity::create_entity(ecs);
-    ResourceLoader *loader = System::gResourceLoader;
     render_engine->set_renderer_enable(render_engine->get_default_renderer(),
                                        false);
     System::gEditor->start();
     engine->start();
-    delete System::gEditorStorage;
     delete System::gEditor;
+    System::gEditor = nullptr;
+    delete System::gEditorStorage;
+    System::gEditorStorage = nullptr;
     delete engine;
     return 0;
 }

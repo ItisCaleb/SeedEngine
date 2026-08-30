@@ -1,9 +1,13 @@
 #include "editor_widget.h"
 
+#include <RmlUi/Core/Core.h>
 #include <RmlUi/Core/Factory.h>
+#include <fmt/format.h>
+
 #include "core/gui/gui_engine.h"
 #include "core/resource/image.h"
 #include "core/resource/resource_loader.h"
+#include "editor/gui/inspector_field.h"
 
 namespace Seed {
 
@@ -11,6 +15,7 @@ void EditorRmlElementInstancer::RegisterElements() {
     Rml::Factory::RegisterElementInstancer(RML_UUID_DRAG, this);
     Rml::Factory::RegisterElementInstancer(RML_UUID_DROP, this);
     Rml::Factory::RegisterElementInstancer(RML_PREVIEW, this);
+    Rml::Factory::RegisterElementInstancer(RML_INSPECTOR_FIELD, this);
 }
 
 Rml::ElementPtr EditorRmlElementInstancer::InstanceElement(
@@ -22,6 +27,8 @@ Rml::ElementPtr EditorRmlElementInstancer::InstanceElement(
         return Rml::ElementPtr(new RmlUUIDDrop(tag));
     } else if (tag == RML_PREVIEW) {
         return Rml::ElementPtr(new RmlPreview(tag));
+    } else if (tag == RML_INSPECTOR_FIELD) {
+        return Rml::ElementPtr(new RmlInspectorField(tag));
     }
     return nullptr;
 }

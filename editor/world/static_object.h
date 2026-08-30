@@ -1,6 +1,7 @@
 #ifndef _SEED_STATIC_OBJECT_H_
 #define _SEED_STATIC_OBJECT_H_
 #include "core/resource/model.h"
+#include "core/transform.h"
 namespace Seed {
 struct ObjectInstance {
         alignas(4) u16 object_id;
@@ -9,12 +10,14 @@ struct ObjectInstance {
 
 class ObjectInstanceBatch : public InstanceBase<ObjectInstanceBatch> {
     private:
-        std::vector<ObjectInstance> instances;
+        SparseSet<ObjectInstance> instances;
 
     public:
         u32 size() override { return instances.size(); }
         /* Append one transform and defer the GPU copy until upload(). */
-        void insert_object(u16 id, Transform &transform);
+        Handle insert(u16 id, const Transform &transform);
+        void update(Handle handle, const Transform &transform);
+        void remove(Handle handle);
         void prepare_uploads(
             std::vector<RHI::UpdateBufferInfo> &uploads) override;
         AABB translate_bounding_box(const AABB &bounding_box, u32 i) override;

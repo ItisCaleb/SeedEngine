@@ -10,19 +10,17 @@
 #include "asset.h"
 #include "core/concurrency/thread_pool.h"
 #include "core/container/kstring.h"
-#include "core/engine.h"
 #include "core/io/dir.h"
 #include "core/io/path.h"
 #include "core/misc/type_name.h"
 #include "core/misc/uuid.h"
-#include "core/project.h"
 #include "core/resource/resource.h"
 #include "core/resource/resource_entry.h"
 #include "core/resource/resource_loader.h"
 #include "core/resource/world_setting.h"
 #include "core/serialize/json_impl.h"
 #include "editor/editor.h"
-#include "editor/project/preprocessor.h"
+#include "editor/project/project.h"
 #include "core/gui/rml_widgets.h"
 #include "core/input.h"
 #include "core/gui/gui_engine.h"
@@ -125,10 +123,26 @@ AssetBrowser::AssetBrowser() {
                                     default_preview->create_texture());
 }
 
-void AssetBrowser::init(const Path &project_root) {
+void AssetBrowser::init(Ref<Project> project) {
+    this->project = project;
+    folder_entry_cache.clear();
+    entries.clear();
+    selected_idx = -1;
+    renaming_idx = -1;
+
+    if (project.is_null()) {
+        root_dir = {};
+        current_dir = {};
+        sync_view_model();
+        dirty_view_model();
+        return;
+    }
+
+    const Path &project_root = project->get_asset_dir();
     root_dir = Dir::open(project_root);
-    current_dir = Dir::open(project_root);
     navigate_to(project_root);
+    sync_view_model();
+    dirty_view_model();
 }
 
 void AssetBrowser::navigate_to(const Path &dir) {
@@ -286,16 +300,14 @@ bool AssetBrowser::matches_search(const Path &path, KStr filter) {
 }
 
 Path AssetBrowser::get_project_asset_path(const AssetEntry &entry) const {
-    Project *project = System::gEngine->get_project();
-    if (project == nullptr) return entry.path;
+    if (project.is_null()) return entry.path;
     if (entry.path.is_absolute())
         return entry.path.relative(project->get_path());
     return entry.path;
 }
 
 Path AssetBrowser::current_asset_directory() const {
-    Project *project = System::gEngine->get_project();
-    if (project == nullptr || !current_dir.is_valid()) return Path("assets");
+    if (project.is_null() || !current_dir.is_valid()) return Path("assets");
 
     Path dir = current_dir->get_path();
     if (dir.is_absolute()) return dir.relative(project->get_path());
@@ -309,8 +321,7 @@ bool AssetBrowser::create_world_asset() {
         return false;
     }
 
-    Project *project = System::gEngine->get_project();
-    if (project == nullptr) {
+    if (project.is_null()) {
         world_create_error = "No project is loaded.";
         has_world_create_error = true;
         return false;
@@ -332,8 +343,8 @@ bool AssetBrowser::create_world_asset() {
         return false;
     }
 
-    UUID uuid = entries->insert_entry(asset_path, type_id<WorldSetting>());
-    ResourceEntry *entry = entries->get_entry(uuid);
+    ResourceEntry *entry =
+        project->create_asset(asset_path, type_id<WorldSetting>());
     if (entry == nullptr) {
         world_create_error = "Failed to create world.";
         has_world_create_error = true;
@@ -354,9 +365,8 @@ bool AssetBrowser::create_world_asset() {
     };
     j["chunks"] = nlohmann::ordered_json::array();
 
-    entries->save(project->get_entry_path());
-    System::gEditor->save_project();
-    System::gEditor->world_editor.load_world(entry->uuid);
+    project->save();
+    System::gEditor->open_asset(entry->uuid);
 
     invalidate_current_folder_cache();
     needs_refresh = true;
@@ -369,8 +379,8 @@ UUID AssetBrowser::get_asset_uuid(AssetEntry &entry) {
     Path _p = get_project_asset_path(entry);
 
     if (entry.type == AssetType::Mesh) {
-        PreprocessEntry *pentry =
-            System::gEditor->preprocessor.get_entry_from_path(_p);
+        if (project.is_null()) return UUID();
+        PreprocessEntry *pentry = project->get_preprocessed_entry(_p);
         if (pentry == nullptr) return UUID();
         return pentry->target_uuid;
     } else {
@@ -400,7 +410,7 @@ void AssetBrowser::open_asset(AssetEntry &entry) {
     }
 
     if (entry.type == AssetType::World) {
-        System::gEditor->world_editor.load_world(get_asset_uuid(entry));
+        System::gEditor->open_asset(get_asset_uuid(entry));
         return;
     }
 }

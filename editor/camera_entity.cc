@@ -9,7 +9,6 @@
 #include "core/rendering/camera.h"
 #include "core/world/entity.h"
 #include "core/world/world.h"
-#include "editor/editor.h"
 
 namespace Seed {
 
@@ -38,10 +37,7 @@ void EditorCameraBehaviour::start() {
 }
 
 bool EditorCameraBehaviour::begin_navigation(NavigationMode mode) {
-    if (System::gEditor == nullptr ||
-        !System::gEditor->world_editor.is_viewport_hovered()) {
-        return false;
-    }
+    if (!viewport.is_hovered()) return false;
 
     Vec2i mouse_position = System::gInput->get_mouse_actual_pos();
     last_mouse_x = mouse_position.x;
@@ -68,12 +64,9 @@ void EditorCameraBehaviour::focus(Vec3 target) {
 
 void EditorCameraBehaviour::update(f32 dt) {
     Input *input = System::gInput;
-    if (cam == nullptr || input == nullptr || System::gEditor == nullptr) {
-        return;
-    }
+    if (cam == nullptr || input == nullptr) return;
 
-    if (navigation_mode == NavigationMode::None &&
-        System::gEditor->world_editor.is_viewport_hovered()) {
+    if (navigation_mode == NavigationMode::None && viewport.is_hovered()) {
         if (input->is_mouse_clicked(MouseEvent::LEFT)) {
             begin_navigation(NavigationMode::Orbit);
         } else if (input->is_mouse_clicked(MouseEvent::MIDDLE)) {
@@ -101,14 +94,12 @@ void EditorCameraBehaviour::update(f32 dt) {
         end_navigation();
     }
 
-    if (input->is_key_clicked(KeyCode::F) &&
-        System::gEditor->world_editor.is_viewport_hovered()) {
+    if (input->is_key_clicked(KeyCode::F) && viewport.is_hovered()) {
         Vec3 target;
-        if (System::gEditor->world_editor.get_camera_focus(target))
-            focus(target);
+        if (viewport.get_camera_focus(target)) focus(target);
     }
 
-    const f32 scroll = System::gEditor->world_editor.consume_viewport_scroll();
+    const f32 scroll = viewport.consume_scroll();
     if (scroll != 0.0f) {
         if (navigation_mode == NavigationMode::Fly) {
             speed *= std::pow(kSpeedStep, -scroll);
@@ -166,10 +157,11 @@ void EditorCameraBehaviour::update(f32 dt) {
     orbit_center = pos + cam->get_front() * orbit_distance;
 }
 
-Entity EditorCameraEntity::create_entity(EntityManager &m) {
+Entity EditorCameraEntity::create_entity(EntityManager &m,
+                                         WorldViewport &viewport) {
     Entity e = m.create_entity();
     Ref<EditorCameraBehaviour> b;
-    b.create();
+    b.create(viewport);
     m.add_component<BehaviourComponent>(
         e, BehaviourComponent{.behaviour = ref_cast<Behaviour>(b)});
     return e;

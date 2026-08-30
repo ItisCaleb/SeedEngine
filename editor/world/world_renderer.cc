@@ -1,7 +1,7 @@
 #include "world_renderer.h"
-#include "editor/world/editor_world.h"
+
 #include <cstring>
-#include "editor/editor.h"
+
 #include "core/engine.h"
 #include "core/rendering/light.h"
 #include "core/rendering/rhi/render_engine.h"
@@ -45,9 +45,9 @@ void WorldRenderer::init(Window *window) {
 void WorldRenderer::preprocess() { DefaultRenderer::preprocess(); }
 
 void WorldRenderer::_process(RenderCommandDispatcher &dp) {
-    // dp.set_seq(0);
-    // shadow_pass.draw(dp, fd);
-    // dp.set_seq(1);
+    dp.set_seq(0);
+    shadow_pass.draw(dp, fd);
+    dp.set_seq(1);
     color_pass.draw(dp, fd);
     readback_tex->blit_to(ref_cast<Texture>(picking_tex));
 }

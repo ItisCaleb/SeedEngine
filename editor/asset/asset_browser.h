@@ -11,14 +11,14 @@
 #include "core/types.h"
 #include "editor/asset/asset.h"
 #include "core/gui/gui.h"
+#include "editor/project/project.h"
 
 namespace Seed {
 
 class AssetBrowser : public RmlGUI {
     public:
         AssetBrowser();
-        void init(const Path &project_root);
-        Ref<Dir> get_current_dir() { return current_dir; }
+        void init(Ref<Project> project);
 
     private:
         struct AssetItemView {
@@ -36,6 +36,7 @@ class AssetBrowser : public RmlGUI {
 
         Ref<Dir> root_dir;
         Ref<Dir> current_dir;
+        Ref<Project> project;
         std::vector<AssetEntry> entries;
         std::vector<AssetItemView> asset_items;
         std::vector<AssetFolderView> folder_items;

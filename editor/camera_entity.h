@@ -4,6 +4,7 @@
 #include "core/math/vec3.h"
 #include "core/world/behaviour.h"
 #include "core/world/entity.h"
+#include "editor/gui/world_viewport.h"
 
 namespace Seed {
 
@@ -12,6 +13,7 @@ class Camera;
 class EditorCameraBehaviour : public Behaviour {
         enum class NavigationMode { None, Fly, Pan, Orbit };
 
+        WorldViewport &viewport;
         Camera *cam = nullptr;
         NavigationMode navigation_mode = NavigationMode::None;
         Vec3 orbit_center;
@@ -28,13 +30,14 @@ class EditorCameraBehaviour : public Behaviour {
         void focus(Vec3 target);
 
     public:
+        EditorCameraBehaviour(WorldViewport &viewport) : viewport(viewport) {}
         virtual void start() override;
         virtual void update(f32 dt) override;
 };
 
 class EditorCameraEntity {
     public:
-        static Entity create_entity(EntityManager &m);
+        static Entity create_entity(EntityManager &m, WorldViewport &viewport);
         static void destroy_entity(EntityManager &m, Entity e);
 };
 

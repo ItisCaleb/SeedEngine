@@ -14,32 +14,12 @@
         <div id="main">
             <template src="main-menu"></template>
             <div id="workspace">
-                <div id="left-panel" class="panel" data-model="world_editor">
-                    <div class="panel-header">Scene</div>
-                    <div id="scene-list">
-                        <div class="scene-row muted" data-if="show_scene_empty">No static objects</div>
-                        <div data-for="object, i : scene_objects"
-                            class="scene-row"
-                            data-class-active="object.selected"
-                            data-event-click="select_scene_object(i)">
-                            <div>{{ object.name }}</div>
-                            <div class="subtle-text">{{ object.asset }}</div>
-                        </div>
-                    </div>
-                    <handle class="resize-x resize-right" size_target="left-panel"></handle>
-                </div>
-
                 <div id="center-panel">
                     <template src="main-view"></template>
                     <template src="asset-browser" id="asset-browser"></template>
                 </div>
 
                 <template src="inspector"></template>
-
-                <div id="status-bar">
-                    <span id="status-left">Ready</span>
-                    <span id="status-right">60 FPS</span>
-                </div>
             </div>
         </div>
     </body>
